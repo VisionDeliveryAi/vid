@@ -1,0 +1,64 @@
+#!/bin/sh
+# Purpose: ViD court — reject any commit whose message lacks an explicit
+# "Decisions:" line. "Decisions: none — nothing surprising" must be written
+# out; bare omission is invalid. Installed via: git config core.hooksPath checks/hooks
+# v0.9.2 (3.1c, R1/R5): a commit whose staged diff ADDS a file under
+# tests/invariants/ must also carry `Tests-by: test-author <date> <batch>` —
+# the test-author pass that wrote it (the surface instrument's batch is
+# `surface`); `init` and `builder` are never valid values, because init's
+# tests are pass-authored too and the builder never writes a ledger test.
+# The trailer is a declaration; the proof of separation is the pass file's
+# spawn (the independence header). This hook receives the message file,
+# which pre-commit never sees.
+# v0.9.6.2 (3.4, R4): each of its two refusals writes `refused
+# phase=commit-msg by=decisions|tests-by attempt=<UTC time plus 4 hex>` to
+# the run's events (checks/event.sh, so at the run's home). Nothing new is
+# enforced.
+set -eu
+
+MSG_FILE="$1"
+# refused <by>: the refusal's event; never changes the exit
+refused() {
+  _att="$(date -u '+%Y%m%dT%H%M%SZ')-$(od -An -N2 -tx1 /dev/urandom 2>/dev/null | tr -d ' \n')"
+  _evh="$(dirname "$0")/../event.sh"
+  if [ -f "$_evh" ]; then sh "$_evh" "refused phase=commit-msg by=$1 attempt=$_att" 2>/dev/null || true
+  else { mkdir -p .vid && printf 'refused phase=commit-msg by=%s attempt=%s at=%s\n' "$1" "$_att" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >> .vid/metrics-events; } 2>/dev/null || true; fi
+}
+
+if ! grep -v '^#' "$MSG_FILE" | grep -qE '^Decisions:[[:space:]]*[^[:space:]]'; then
+  echo 'ViD commit-msg: rejected — no "Decisions:" line in the commit message.' >&2
+  echo '' >&2
+  echo 'Every commit states its decisions explicitly. Either:' >&2
+  echo '    Decisions: D-012 (chose cursor pagination; enforced: tests/invariants/test_req_004.py)' >&2
+  echo '    Decisions: none — nothing surprising' >&2
+  echo '' >&2
+  echo 'Full commit template (law: CLAUDE.md):' >&2
+  echo '    <summary>' >&2
+  echo '' >&2
+  echo '    REQs: <ids touched, or "none">' >&2
+  echo '    Decisions: <entries added, or "none — nothing surprising">' >&2
+  echo '    Seams: <ARCHITECTURE.md rows changed, or "none">' >&2
+  refused decisions
+  exit 1
+fi
+
+# Tests-by: required when the commit adds a ledger file (v0.9.2 3.1c).
+ADDED=$(git diff --cached --name-only --diff-filter=A 2>/dev/null | grep '^tests/invariants/' || true)
+if [ -n "$ADDED" ]; then
+  TB=$(grep -v '^#' "$MSG_FILE" | sed -n 's/^Tests-by:[[:space:]]*//p' | head -n 1 | sed 's/[[:space:]]*$//')
+  if ! printf '%s\n' "$TB" | grep -qE '^test-author [0-9]{4}-[0-9]{2}-[0-9]{2} [^[:space:]]+'; then
+    echo 'ViD commit-msg: rejected — this commit adds a ledger file and carries no valid "Tests-by:" trailer:' >&2
+    printf '%s\n' "$ADDED" | sed 's/^/    /' >&2
+    echo '' >&2
+    echo 'A ledger test is written by a test-author pass, never by the builder, the fixer or the init session:' >&2
+    echo '    Tests-by: test-author <date> <batch>        (the surface instrument: batch "surface")' >&2
+    case "$TB" in
+      init*|builder*) echo "\"Tests-by: $TB\" is not a value: init's tests are pass-authored too, and the builder never writes a ledger test (R1)." >&2 ;;
+      '') ;;
+      *) echo "\"Tests-by: $TB\" is not the shape above." >&2 ;;
+    esac
+    refused tests-by
+    exit 1
+  fi
+fi
+exit 0

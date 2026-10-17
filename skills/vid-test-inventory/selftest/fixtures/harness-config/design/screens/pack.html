@@ -1,0 +1,13 @@
+<!-- JobDigest — fixture pack (v0.9.2 3.13): the digest page, two states, and the shell -->
+<!-- @screen C00 state=shell-anonymous reqs=REQ-002 -->
+<footer data-element="shell-footer" style="padding: 16px">Help: {{ support_address }} · <a href="{{ unsubscribe_url }}">Unsubscribe</a></footer>
+<!-- @screen P01 state=default reqs=REQ-001,REQ-021 -->
+<main>
+  <header data-element="digest-header" style="background-color: {{ brand_colour }}; color: #fff; padding: 16px">{{ sender_name }} — new matches for "{{ search_terms }}"</header>
+  <ul data-element="match-list" style="display: grid; gap: 12px">{{ matches }}</ul>
+</main>
+<!-- @screen P01 state=empty reqs=REQ-001 -->
+<main>
+  <header data-element="digest-header" style="background-color: {{ brand_colour }}; color: #fff; padding: 16px">{{ sender_name }}</header>
+  <p data-element="empty-notice" style="padding: 24px">No new matches since your last digest.</p>
+</main>

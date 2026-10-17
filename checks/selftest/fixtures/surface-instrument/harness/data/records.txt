@@ -1,0 +1,5 @@
+# Provenance: hand-authored — the toy harness's fixture data; page size 3, record 3 carries no salary
+1|Junior Analyst|£32,000
+2|Data Engineer|£58,000
+3|Office Manager|-
+4|Product Designer|£61,000

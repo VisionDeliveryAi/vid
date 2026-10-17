@@ -1,0 +1,22 @@
+# Linkling — DECISIONS
+
+- **D-001** the store is one file per link, named by its code | why: atomic writes without a database for a toy | enforced: tests/invariants/links.sh
+- **D-002** codes come from a checksum of the target and the creation time | why: deterministic in tests | enforced: convention
+- **D-003** the thirty-day lifetime is 2592000 seconds, counted from creation | why: no calendar arithmetic | enforced: tests/invariants/links.sh
+- **D-004** targets are validated before anything is written | why: REQ-024 | enforced: convention
+- **D-005** a refused scheme answers "refused: scheme not allowed" | why: one wording for every refusal | enforced: tests/invariants/links.sh
+- **D-006** the deletion token is eight characters | why: enough for a toy | enforced: convention
+- **D-007** resolve answers "302 <target>", "410 gone" or "404" | why: three shapes the page and the API share | enforced: tests/invariants/links.sh
+- **D-008** health checks read nothing | why: REQ-019 | enforced: convention
+- **D-009** the rate limit counts per address per clock hour | why: simplest honest reading of REQ-008 | enforced: convention
+- **D-010** error pages carry a sentence and the status | why: REQ-020 | enforced: convention
+- **D-011** operator actions are logged with the operator name | why: an audit trail without accounts for the public | enforced: convention
+- **D-012** the preview page is a separate route | why: a redirect never carries a page | enforced: convention
+- **D-013** no cookies are set | why: REQ-018 | enforced: convention
+- **D-014** codes are case-sensitive | why: REQ-014 | enforced: convention
+- **D-015** abuse reports are stored beside the link file | why: one place per link | enforced: convention
+- **D-016** a disabled link answers 410 | why: the same shape as expiry | enforced: convention
+- **D-017** the API is plain text | why: a toy needs no serialisation | enforced: convention
+- **D-018** targets are stored verbatim | why: the person sees exactly what they pasted | enforced: convention
+- **D-019** the clock is the host clock in UTC | why: REQ-021 | enforced: convention
+- **D-020** the ledger calls the store functions directly, as the API does | why: behavior-keyed through the public surface | enforced: convention

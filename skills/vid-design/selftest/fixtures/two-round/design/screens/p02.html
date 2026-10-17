@@ -1,0 +1,12 @@
+<!-- Shortlink — receipt page (fixture canvas, v0.9.1 3.3; round 1, unchanged in round 2) -->
+<!-- @screen P02 state=default reqs=REQ-005,REQ-013 -->
+<section class="receipt">
+  <p class="shown-once">This page is shown once and cannot be opened again. Keep the deletion link — it is the only copy.</p>
+  <h1>Your short link</h1>
+  <p><code>{{ short_link }}</code> <button class="copy">Copy</button></p>
+  <p>Expires {{ expiry_time_utc }} (UTC)</p>
+  <h2>Deletion link</h2>
+  <p><code>{{ deletion_link }}</code> <button class="copy">Copy</button></p>
+  <p>This is the only copy of the deletion link; it is not shown again.</p>
+</section>
+<footer><a href="mailto:support@shortlink.example">Help: support@shortlink.example</a></footer>

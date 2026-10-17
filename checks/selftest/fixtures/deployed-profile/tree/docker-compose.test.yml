@@ -1,0 +1,39 @@
+# Purpose: the toy harness for the deployed shape (v0.9.3 3.3) — a fixture, never installed.
+x-vid-harness:
+  product: product
+  forbidden: none-such
+  completed: [0, 1]
+  inline-switch: TOY_INLINE
+  schedule-fast: TOY_SCHEDULE_FAST
+  deployed-selector: process
+  processes: [worker]
+services:
+  product:
+    build:
+      context: ${VID_TEST_CONTEXT:-.}
+    image: vid-toy-product:real
+    environment: &product-env
+      TOY_INLINE: ${VID_INLINE:-1}
+      TOY_SCHEDULE_FAST: ${VID_SCHEDULE_FAST:-0}
+    command: sh /app/product.sh
+    volumes: [inbox:/inbox, transport:/transport, db:/db]
+  worker:
+    image: vid-toy-product:real
+    profiles: [deployed]
+    environment: *product-env
+    command: sh /app/worker.sh
+    volumes: [transport:/transport, db:/db]
+  tests:
+    image: alpine:3
+    depends_on: [product]
+    volumes:
+      - ${VID_TEST_CONTEXT:-.}:/src:ro
+      - ./.vid/ledger-results:/vid-results
+      - inbox:/inbox
+      - transport:/transport
+      - db:/db
+    command: sh /src/tests/invariants/run.sh ${VID_SELECTOR:-}
+volumes:
+  inbox: {}
+  transport: {}
+  db: {}

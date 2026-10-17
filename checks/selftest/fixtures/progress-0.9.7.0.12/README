@@ -1,0 +1,4 @@
+# Purpose: selftest fixture — checks/progress.sh as at ViD 0.9.7.0.12 (main b43559d) with the helpers it calls
+# (evidence.sh, metrics.sh, plan.sh), pinned unchanged in logic: the reference the progress-parity case compares
+# the fast reader with (v0.9.7.1 spec 3.10, R10). Never edited but in comments (for release, they name no real
+# project or row); never run outside that case.

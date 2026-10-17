@@ -1,0 +1,2 @@
+*.sh   text eol=lf
+checks/** text eol=lf

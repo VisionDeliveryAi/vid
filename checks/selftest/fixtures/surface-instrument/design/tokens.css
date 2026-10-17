@@ -1,0 +1,8 @@
+/* fixture tokens — hand-authored for the toy pack (v0.9.2 3.4); the toy resolves var() through this file */
+:root {
+  --ink: #1b1b1f;
+  --muted: #5a5a66;
+  --surface: #ffffff;
+  --accent: #0a5c36;
+  --accent-ink: #ffffff;
+}

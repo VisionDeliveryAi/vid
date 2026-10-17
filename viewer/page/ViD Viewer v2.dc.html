@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><title>ViD Viewer</title><script src="./viewer-data.js"></script><script src="./canvases.js"></script><style>
+:root{color-scheme:light;--bg:#f3f4f7;--panel:#ffffff;--sunk:#eef0f4;--ink:#161a22;--ink2:#555c6b;--line:#e1e4ea;--line2:#c3c8d2;--accent:oklch(0.5 0.17 262);--accent-soft:oklch(0.95 0.03 262);--hdr:#141a2b;--warn:oklch(0.62 0.15 65);--warn-soft:oklch(0.96 0.04 80);--shadow:0 1px 2px rgba(20,26,43,0.05),0 2px 8px rgba(20,26,43,0.04);--c-pass:oklch(0.6 0.13 150);--c-fail:oklch(0.57 0.19 27);--c-stale:oklch(0.76 0.14 80);--c-never:#b4b5b0;--c-owed:oklch(0.76 0.07 255);--c-deploy:oklch(0.62 0.08 205);--c-held:oklch(0.56 0.15 310);--banner:oklch(0.93 0.06 85);--focus:oklch(0.47 0.13 255)}
+:root[data-theme=dark]{color-scheme:dark;--bg:#11141b;--panel:#191d26;--sunk:#212632;--ink:#eceef2;--ink2:#a4abb9;--line:#2a303c;--line2:#434b5a;--accent:oklch(0.74 0.14 262);--accent-soft:oklch(0.3 0.06 262);--hdr:#0a0d14;--warn:oklch(0.78 0.14 75);--warn-soft:oklch(0.3 0.05 75);--shadow:none;--c-pass:oklch(0.7 0.14 150);--c-fail:oklch(0.67 0.18 27);--c-stale:oklch(0.8 0.13 80);--c-never:#6e7075;--c-owed:oklch(0.74 0.07 255);--c-deploy:oklch(0.7 0.08 205);--c-held:oklch(0.7 0.13 310);--banner:oklch(0.36 0.06 80);--focus:oklch(0.76 0.11 255)}
+html,body{margin:0;background:var(--bg)}*,*::before,*::after{box-sizing:border-box}
+a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:3px}
+details>summary{cursor:pointer}
+</style></helmet>
+<div style="min-height:100vh;background:var(--bg);color:var(--ink);font-family:'Helvetica Neue',Helvetica,Arial,system-ui,sans-serif;font-size:14px;line-height:1.45">
+
+<sc-if value="{{ replayed }}" hint-placeholder-val="{{ false }}">
+<div role="status" style="background:var(--banner);color:var(--ink);padding:10px 24px;display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:center;font-size:14px">
+<strong>Replayed snapshot.</strong><span>This page shows the project as it stood at {{ momentTime }} ({{ commit }}). It is not live.</span><a href="#snapshots" style="font-weight:700">Find the latest →</a>
+</div>
+</sc-if>
+
+<header style="position:sticky;top:0;z-index:20;background:var(--hdr);--ink:#f3f5fa;--ink2:#a9b2c7;--line:rgba(255,255,255,0.1);--line2:rgba(255,255,255,0.22);--panel:rgba(255,255,255,0.07);--sunk:rgba(255,255,255,0.12);--bg:var(--hdr);color:#f3f5fa">
+<div style="max-width:1240px;margin:0 auto;padding:12px 24px 0;display:flex;flex-wrap:wrap;align-items:center;gap:12px 20px">
+<a href="#product" style="color:var(--ink);display:flex;flex-direction:column;gap:1px;margin-right:auto">
+<span style="font-weight:700;font-size:16px;letter-spacing:-0.01em">{{ project }}</span>
+<span style="font-size:12px;color:var(--ink2)">ViD Viewer · what is being built, how far, and the evidence</span>
+</a>
+<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+<a href="{{ prevHref }}" aria-label="{{ prevAria }}" title="{{ prevAria }}" style="display:flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid var(--line2);border-radius:6px;color:var(--ink);font-size:13px">← {{ prevLabel }}</a>
+<div style="display:flex;align-items:center;gap:8px;padding:6px 12px;border-radius:6px;background:var(--panel);border:1px solid var(--line)">
+<span style="display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase"><span style="width:8px;height:8px;border-radius:50%;background:{{ tagColor }}"></span>{{ momentTag }}</span>
+<span style="font-size:13px">{{ momentTime }}</span>
+<span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:var(--ink2)">{{ commit }}</span>
+</div>
+<sc-if value="{{ hasNext }}" hint-placeholder-val="{{ false }}"><a href="{{ nextHref }}" style="padding:6px 10px;border:1px solid var(--line2);border-radius:6px;color:var(--ink);font-size:13px">{{ nextLabel }} →</a></sc-if>
+<sc-if value="{{ noNext }}" hint-placeholder-val="{{ true }}"><span style="padding:6px 10px;border:1px dashed var(--line2);border-radius:6px;color:var(--ink2);font-size:13px">Latest moment</span></sc-if>
+</div>
+<button type="button" onClick="{{ openSearch }}" aria-label="Search ids or words (press /)" style="display:flex;align-items:center;gap:10px;min-width:220px;padding:7px 10px;border:1px solid var(--line2);border-radius:6px;background:var(--panel);cursor:pointer;color:var(--ink2);font-size:13px;text-align:left">
+<span style="flex:1">Search ids or words</span><kbd style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;border:1px solid var(--line2);border-radius:4px;padding:0 5px">/</kbd>
+</button>
+<button type="button" onClick="{{ toggleTheme }}" aria-label="Switch light or dark" style="padding:7px 10px;border:1px solid var(--line2);border-radius:6px;background:transparent;cursor:pointer;font-size:13px">{{ themeLabel }}</button>
+</div>
+<nav aria-label="Main" style="max-width:1240px;margin:0 auto;padding:0 24px;display:flex;gap:4px;overflow-x:auto">
+<sc-for list="{{ nav }}" as="t" hint-placeholder-count="4">
+<a href="{{ t.href }}" aria-current="{{ t.current }}" style="padding:12px 14px 10px;color:{{ t.fg }};font-weight:{{ t.weight }};border-bottom:3px solid {{ t.bd }};white-space:nowrap" style-hover="color:#fff;text-decoration:none">{{ t.label }}</a>
+</sc-for>
+</nav>
+</header>
+
+<main style="max-width:1240px;margin:0 auto;padding:24px 24px 80px;display:flex;flex-direction:column;gap:24px">
+
+<sc-if value="{{ loading }}" hint-placeholder-val="{{ true }}"><p style="color:var(--ink2)">Reading the snapshot's data…</p></sc-if>
+
+<sc-if value="{{ isNode }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;flex-direction:column;gap:10px">
+<nav aria-label="Where you are" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:13px;color:var(--ink2)">
+<sc-for list="{{ node.crumbs }}" as="c" hint-placeholder-count="2">
+<span style="display:inline-flex;gap:6px;align-items:center"><sc-if value="{{ c.sep }}"><span aria-hidden="true">›</span></sc-if><sc-if value="{{ c.link }}"><a href="{{ c.href }}">{{ c.label }}</a></sc-if><sc-if value="{{ c.last }}"><span aria-current="page" style="color:var(--ink)">{{ c.label }}</span></sc-if></span>
+</sc-for>
+</nav>
+<div style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;font-weight:600;color:var(--accent);letter-spacing:0.02em">{{ node.kicker }}</div>
+<h1 style="margin:0;font-size:{{ node.size }};line-height:1.2;letter-spacing:-0.02em;max-width:900px;text-wrap:pretty">{{ node.title }}</h1>
+<sc-if value="{{ node.hasSub }}"><p style="margin:0;color:var(--ink2);max-width:760px;font-size:15px;text-wrap:pretty">{{ node.sub }}</p></sc-if>
+</div>
+<sc-if value="{{ node.hasSum }}">
+<section aria-label="Progress" style="background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:20px;display:flex;flex-direction:column;gap:18px">
+<p style="margin:0;font-size:15px;text-wrap:pretty">{{ sm.unitLine }}</p>
+<sc-if value="{{ sm.none }}"><p style="margin:0;color:var(--ink2)">Nothing to count yet. Progress appears once requirements are broken down into criteria.</p></sc-if>
+<sc-if value="{{ sm.has }}">
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px 32px">
+<div style="display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;flex-direction:column;gap:2px"><div style="font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--ink2)">1 · Automatic test</div><div style="font-size:13px;color:var(--ink2)">A script runs against the code and checks the criterion holds.</div></div>
+<div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap"><span style="font-size:32px;font-weight:700;letter-spacing:-0.02em;color:var(--c-pass)">{{ sm.passBig }}</span><span>{{ sm.passOf }}</span></div>
+<div role="img" aria-label="{{ sm.barLabel }}" style="display:flex;height:10px;border-radius:5px;overflow:hidden;gap:2px;background:var(--sunk)"><sc-for list="{{ sm.segs }}" as="s" hint-placeholder-count="3"><span title="{{ s.label }}: {{ s.nText }}" style="flex-grow:{{ s.n }};flex-basis:0;min-width:3px;background:{{ s.color }}"></span></sc-for></div>
+<div style="display:flex;flex-direction:column;gap:3px;font-size:13px">
+<sc-for list="{{ sm.testLegend }}" as="o" hint-placeholder-count="3"><div style="display:grid;grid-template-columns:12px 120px 48px minmax(0,1fr);gap:8px;align-items:baseline"><span style="width:8px;height:8px;border-radius:50%;background:{{ o.color }}"></span><span style="font-weight:{{ o.w }}">{{ o.label }}</span><span style="text-align:right;font-weight:700">{{ o.nText }}</span><span style="color:var(--ink2)">{{ o.hint }}</span></div></sc-for>
+</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;flex-direction:column;gap:2px"><div style="font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--ink2)">2 · Review</div><div style="font-size:13px;color:var(--ink2)">A separate reviewer reads its code and test results and judges whether the criterion is met.</div></div>
+<div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap"><span style="font-size:32px;font-weight:700;letter-spacing:-0.02em;color:var(--c-pass)">{{ sm.keptBig }}</span><span>{{ sm.keptOf }}</span></div>
+<div role="img" aria-label="{{ sm.revLabel }}" style="display:flex;height:10px;border-radius:5px;overflow:hidden;gap:2px;background:var(--sunk)"><sc-for list="{{ sm.revSegs }}" as="s" hint-placeholder-count="3"><span title="{{ s.label }}: {{ s.nText }}" style="flex-grow:{{ s.n }};flex-basis:0;min-width:3px;background:{{ s.color }}"></span></sc-for></div>
+<div style="display:flex;flex-direction:column;gap:3px;font-size:13px">
+<sc-for list="{{ sm.revLegend }}" as="o" hint-placeholder-count="3"><div style="display:grid;grid-template-columns:12px 120px 48px minmax(0,1fr);gap:8px;align-items:baseline"><span style="width:8px;height:8px;border-radius:2px;background:{{ o.color }}"></span><span>{{ o.label }}</span><span style="text-align:right;font-weight:700">{{ o.nText }}</span><span style="color:var(--ink2)">{{ o.hint }}</span></div></sc-for>
+</div>
+</div>
+</div>
+<div style="display:flex;flex-wrap:wrap;gap:6px 16px;align-items:baseline;padding-top:14px;border-top:1px solid var(--line);font-size:14px">
+<strong>{{ sm.attnText }}</strong><span style="color:var(--ink2);font-size:13px">{{ sm.attnSub }}</span>
+</div>
+<sc-if value="{{ sm.hasShared }}"><p style="margin:0;font-size:13px;color:var(--ink2)">{{ sm.sharedText }}</p></sc-if>
+</sc-if>
+</section>
+</sc-if>
+</sc-if>
+
+<sc-if value="{{ isProduct }}" hint-placeholder-val="{{ false }}">
+<div role="tablist" aria-label="Product sections" style="display:flex;gap:2px;border-bottom:1px solid var(--line);overflow-x:auto">
+<sc-for list="{{ ptabs }}" as="t" hint-placeholder-count="4"><a href="{{ t.href }}" role="tab" aria-selected="{{ t.sel }}" style="display:inline-flex;align-items:center;gap:8px;padding:10px 16px;margin-bottom:-1px;border-bottom:3px solid {{ t.bd }};color:{{ t.fg }};font-weight:{{ t.w }};white-space:nowrap;font-size:14px" style-hover="text-decoration:none;color:var(--ink)">{{ t.label }}<sc-if value="{{ t.hasN }}"><span style="font-size:12px;padding:0 7px;border-radius:999px;background:{{ t.nbg }};color:{{ t.nfg }};font-weight:600">{{ t.n }}</span></sc-if></a></sc-for>
+</div>
+<sc-if value="{{ ptab.ov }}">
+<section aria-labelledby="h-org" style="display:flex;flex-direction:column;gap:12px">
+<h2 id="h-org" style="margin:0;font-size:17px">How the product is defined</h2>
+<ol style="margin:0;padding:0;list-style:none;display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:2px;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--line)">
+<sc-for list="{{ pv.levels }}" as="l" hint-placeholder-count="4">
+<li style="background:var(--panel);padding:16px;display:flex;flex-direction:column;gap:4px;border-top:3px solid {{ l.fg }}">
+<div style="display:flex;align-items:baseline;gap:8px"><span style="font-size:28px;font-weight:700;letter-spacing:-0.02em;color:{{ l.fg }}">{{ l.nText }}</span><span style="font-weight:700">{{ l.name }}</span></div>
+<div style="font-size:13px;color:var(--ink2);text-wrap:pretty">{{ l.def }}</div>
+<div style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;color:var(--ink2)">{{ l.ex }}</div>
+</li>
+</sc-for>
+</ol>
+<p style="margin:0;font-size:13px;color:var(--ink2);max-width:860px;text-wrap:pretty">Each level is made of the one to its right. All progress is counted in <strong style="color:var(--ink)">criteria</strong>, because a criterion is the smallest thing that can be checked: by an automatic test, and by a reviewer once one has judged it.</p>
+</section>
+<a href="#delivery" style="display:flex;flex-wrap:wrap;gap:6px 20px;align-items:baseline;padding:12px 16px;border:1px solid var(--line);border-radius:10px;font-size:14px;color:var(--ink)" style-hover="background:var(--sunk);text-decoration:none">
+<strong>Progress</strong><span>{{ pv.progText }}</span><span style="color:var(--ink2)">{{ pv.sinceText }}</span><span style="color:var(--accent);margin-left:auto">Delivery →</span>
+</a>
+
+<section aria-labelledby="h-goals" style="display:flex;flex-direction:column;gap:12px">
+<h2 id="h-goals" style="margin:0;font-size:17px">Goals <span style="font-weight:400;color:var(--ink2);font-size:13px">{{ pv.capsCount }}</span></h2>
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">
+<sc-for list="{{ pv.goals }}" as="g" hint-placeholder-count="6">
+<a href="{{ g.href }}" style="display:flex;flex-direction:column;gap:8px;padding:16px;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);color:var(--ink)" style-hover="text-decoration:none;border-color:var(--line2)">
+<div style="display:flex;gap:10px;align-items:center"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;font-weight:700;padding:2px 8px;border-radius:4px;background:{{ g.tint }};color:{{ g.fg }}">{{ g.id }}</span><strong style="font-size:15px">{{ g.name }}</strong></div>
+<span style="font-size:13px;color:var(--ink2);text-wrap:pretty">{{ g.text }}</span>
+<span style="display:flex;align-items:center;gap:10px;margin-top:auto;font-size:12px;color:var(--ink2)"><span style="flex:1;height:6px;border-radius:3px;background:var(--sunk);overflow:hidden;display:flex"><span style="width:{{ g.pct }};background:var(--c-pass)"></span></span>{{ g.meta }}</span>
+</a>
+</sc-for>
+</div>
+</section>
+</sc-if>
+<sc-if value="{{ ptab.caps }}">
+<section aria-labelledby="h-caps" style="display:flex;flex-direction:column;gap:24px">
+<div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap"><h2 id="h-caps" style="margin:0;font-size:17px">Capabilities, by goal</h2><span style="color:var(--ink2);font-size:13px">{{ pv.capsCount }}</span></div>
+<sc-if value="{{ pv.noCaps }}"><p style="margin:0;padding:24px;border:1px dashed var(--line2);border-radius:10px;color:var(--ink2)">No goals or capabilities are recorded yet. They appear once the product owner's requirements are agreed.</p></sc-if>
+<sc-for list="{{ pv.goals }}" as="g" hint-placeholder-count="3">
+<div id="{{ g.id }}" style="display:flex;flex-direction:column;gap:6px">
+<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;font-weight:700;padding:2px 8px;border-radius:4px;background:{{ g.tint }};color:{{ g.fg }}">{{ g.id }}</span><h3 style="margin:0;font-size:16px">{{ g.name }}</h3></div>
+<p style="margin:0 0 4px;color:var(--ink2);font-size:13px;max-width:720px;text-wrap:pretty">{{ g.text }}</p>
+<div style="border:1px solid var(--line);border-radius:8px;background:var(--panel);box-shadow:var(--shadow);overflow:hidden">
+<div style="display:grid;grid-template-columns:72px minmax(0,1fr) 92px 80px 130px;gap:12px;padding:6px 14px;font-size:11px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;color:var(--ink2);background:var(--sunk)"><span>Id</span><span>Capability</span><span style="text-align:right">Requirements</span><span style="text-align:right">Acceptance criteria</span><span style="text-align:right">Tests passing</span></div>
+<sc-for list="{{ g.caps }}" as="c" hint-placeholder-count="2">
+<a href="{{ c.href }}" style="display:grid;grid-template-columns:72px minmax(0,1fr) 92px 80px 130px;gap:12px;align-items:center;padding:10px 14px;border-top:1px solid var(--line);color:var(--ink)" style-hover="background:var(--sunk);text-decoration:none">
+<span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:var(--ink2)">{{ c.id }}</span>
+<span style="font-weight:600">{{ c.name }}<sc-if value="{{ c.hasBroken }}"><span style="margin-left:8px;padding:0 6px;border:1.5px solid var(--c-fail);border-radius:3px;font-size:11px;font-weight:400">{{ c.brokenText }}</span></sc-if></span>
+<span style="text-align:right;font-size:13px">{{ c.reqs }}</span>
+<span style="text-align:right;font-size:13px">{{ c.total }}</span>
+<span style="display:flex;align-items:center;gap:8px;justify-content:flex-end;font-size:13px"><span role="img" aria-label="{{ c.barLabel }}" style="width:56px;height:6px;border-radius:3px;overflow:hidden;background:var(--sunk);display:flex"><span style="width:{{ c.pct }};background:var(--c-pass)"></span></span><strong style="min-width:52px;text-align:right">{{ c.pass }}</strong></span>
+</a>
+</sc-for>
+</div>
+</div>
+</sc-for>
+</section>
+
+</sc-if>
+<sc-if value="{{ ptab.users }}">
+<p style="margin:0;font-size:14px;color:var(--ink2);max-width:820px">{{ pv.usersSub }}</p>
+<sc-for list="{{ pv.people }}" as="u" hint-placeholder-count="5">
+<section style="display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;align-items:center;gap:10px"><span aria-hidden="true" style="flex:none;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;background:{{ u.tint }};color:{{ u.fg }}">{{ u.ini }}</span><h2 style="margin:0;font-size:17px">{{ u.name }}</h2><span style="font-size:13px;color:var(--ink2)">{{ u.nText }}</span></div>
+<sc-if value="{{ u.none }}"><p style="margin:0;padding:14px 16px;border:1px dashed var(--line2);border-radius:10px;font-size:13px;color:var(--ink2)">No journey written for this user yet.</p></sc-if>
+<sc-for list="{{ u.journeys }}" as="j">
+<div style="background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:16px 18px;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center">
+<h3 style="margin:0;font-size:16px;flex:1 1 320px;text-wrap:pretty">{{ j.title }}</h3>
+<sc-if value="{{ j.proposed }}"><span style="font-size:11px;padding:1px 8px;border:1px dashed var(--line2);border-radius:999px;color:var(--ink2)">Proposed</span></sc-if>
+<span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:2px 10px;border-radius:999px;background:var(--sunk)"><span style="width:8px;height:8px;border-radius:50%;background:{{ j.color }}"></span>Test: {{ j.st }}</span>
+<a href="{{ j.href }}" style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px">{{ j.promise }} →</a>
+</div>
+<p style="margin:0;font-size:14px;max-width:820px;text-wrap:pretty">{{ j.summary }}</p>
+<sc-if value="{{ j.hasOff }}"><div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12px"><span style="color:var(--ink2)">Happens outside the product:</span><sc-for list="{{ j.off }}" as="o"><span style="padding:1px 8px;border:1px dashed var(--line2);border-radius:999px;color:var(--ink2)">{{ o.t }}</span></sc-for></div></sc-if>
+<sc-if value="{{ j.noSteps }}"><p style="margin:0;font-size:13px;color:var(--ink2)">No step-by-step transitions are recorded for this journey.</p></sc-if>
+<sc-if value="{{ j.hasSteps }}"><button type="button" onClick="{{ j.toggle }}" aria-expanded="{{ j.open }}" style="align-self:flex-start;display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border:1px solid var(--line2);border-radius:6px;background:var(--panel);cursor:pointer;font-size:13px"><span style="color:var(--accent);font-weight:700">{{ j.sign }}</span>{{ j.toggleText }}</button></sc-if>
+<sc-if value="{{ j.open }}"><div style="padding:6px 0 0 4px"><ol style="margin:0;padding:0;list-style:none;display:flex;flex-direction:column">
+<sc-for list="{{ j.steps }}" as="s">
+<li style="display:grid;grid-template-columns:28px minmax(0,1fr);gap:12px">
+<span style="display:flex;flex-direction:column;align-items:center"><span style="width:24px;height:24px;flex:none;border-radius:50%;background:var(--accent-soft);color:var(--accent);font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center">{{ s.n }}</span><span style="flex:1;width:2px;background:var(--line);opacity:{{ s.lineOp }}"></span></span>
+<div style="display:flex;flex-direction:column;gap:5px;padding:2px 0 18px;min-width:0">
+<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12px;color:var(--ink2)"><sc-if value="{{ s.showActor }}"><span style="padding:0 8px;border-radius:999px;background:var(--sunk);color:var(--ink);font-weight:600">{{ s.actor }}</span></sc-if><span>on</span><sc-if value="{{ s.from.isScr }}"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;padding:1px 7px;border:1px solid var(--line2);border-radius:4px;background:var(--panel);color:var(--ink)">{{ s.from.label }}</span></sc-if><sc-if value="{{ s.from.plain }}"><span style="font-style:italic;color:var(--ink)">{{ s.from.label }}</span></sc-if></div>
+<div style="font-size:14px;text-wrap:pretty"><strong>{{ s.element }}</strong> <span style="color:var(--ink2)">→</span> {{ s.action }}</div>
+<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:baseline;font-size:13px"><span style="font-size:11px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:var(--c-pass)">Result</span><sc-if value="{{ s.to.isScr }}"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;padding:1px 7px;border:1px solid var(--line2);border-radius:4px;background:var(--panel);color:var(--ink)">{{ s.to.label }}</span></sc-if><sc-if value="{{ s.to.plain }}"><span style="font-style:italic;color:var(--ink)">{{ s.to.label }}</span></sc-if><span style="color:var(--ink2);text-wrap:pretty"><sc-for list="{{ s.out }}" as="pt"><sc-if value="{{ pt.link }}"><a href="{{ pt.href }}">{{ pt.t }}</a></sc-if><sc-if value="{{ pt.plain }}">{{ pt.t }}</sc-if></sc-for></span></div>
+</div>
+</li>
+</sc-for>
+</ol></div></sc-if>
+</div>
+</sc-for>
+</section>
+</sc-for>
+</sc-if>
+<sc-if value="{{ ptab.scope }}">
+<p style="margin:0;color:var(--ink2)">{{ ngv.count }}. These are deliberately not being built.</p>
+<ol style="margin:0;padding:0;list-style:none;border:1px solid var(--line);border-radius:10px;background:var(--panel);box-shadow:var(--shadow)">
+<sc-for list="{{ ngv.items }}" as="g" hint-placeholder-count="5">
+<li id="{{ g.id }}" style="display:grid;grid-template-columns:72px minmax(0,1fr);gap:12px;padding:12px 16px;border-top:1px solid var(--line);margin-top:-1px;background:{{ g.bg }}"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:var(--ink2);padding-top:2px">{{ g.id }}</span><span style="text-wrap:pretty">{{ g.plain }}</span></li>
+</sc-for>
+</ol>
+<sc-if value="{{ ngv.empty }}"><p style="color:var(--ink2)">No non-goals recorded yet.</p></sc-if>
+</sc-if>
+</sc-if>
+
+<sc-if value="{{ isCap }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;flex-wrap:wrap;gap:32px;align-items:flex-start">
+<section aria-labelledby="h-reqs" style="flex:3 1 520px;min-width:0;display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><h2 id="h-reqs" style="margin:0;font-size:17px">Requirements and their acceptance criteria <span style="font-weight:400;color:var(--ink2);font-size:13px">{{ cv.reqCount }}</span></h2>
+<sc-if value="{{ cv.reqFilterable }}"><input type="search" value="{{ reqQ }}" onInput="{{ setReqQ }}" placeholder="Filter these requirements" aria-label="Filter requirements" style="margin-left:auto;padding:6px 10px;border:1px solid var(--line2);border-radius:6px;background:var(--panel);min-width:200px"></sc-if></div>
+<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center"><div role="group" aria-label="Filter criteria" style="display:flex;flex-wrap:wrap;gap:6px"><sc-for list="{{ pl.chips }}" as="c" hint-placeholder-count="4"><button type="button" onClick="{{ c.pick }}" aria-pressed="{{ c.on }}" style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border:1px solid var(--line2);border-radius:999px;background:{{ c.bg }};color:{{ c.fg }};cursor:pointer;font-size:13px"><sc-if value="{{ c.hasDot }}"><span style="width:8px;height:8px;border-radius:50%;background:{{ c.dot }}"></span></sc-if>{{ c.label }} <strong>{{ c.nText }}</strong></button></sc-for></div>
+<button type="button" onClick="{{ cv.toggleAll }}" style="margin-left:auto;padding:5px 12px;border:1px solid var(--line2);border-radius:6px;background:var(--panel);cursor:pointer;font-size:13px">{{ cv.allText }}</button></div>
+<p style="margin:0;font-size:12px;color:var(--ink2);max-width:760px;text-wrap:pretty"><strong style="color:var(--accent)">Control</strong> rows sit under the criterion they back up. A control checks that the allowed case still works, so a criterion can't pass just because everything is blocked.</p>
+<sc-for list="{{ cv.reqGroups }}" as="g" hint-placeholder-count="2">
+<div style="display:flex;flex-direction:column;gap:6px">
+<div style="font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--ink2)">{{ g.label }} · {{ g.nText }}</div>
+<div style="border:1px solid var(--line);border-radius:8px;background:var(--panel);box-shadow:var(--shadow)">
+<sc-for list="{{ g.items }}" as="r" hint-placeholder-count="3">
+<div style="border-top:1px solid var(--line);margin-top:-1px">
+<div style="display:grid;grid-template-columns:30px 72px minmax(0,1fr) auto;gap:10px;align-items:start;padding:10px 14px 10px 10px;background:{{ r.bg }}">
+<button type="button" onClick="{{ r.toggle }}" aria-expanded="{{ r.open }}" aria-label="{{ r.btnLabel }}" style="width:26px;height:26px;border:1px solid var(--line2);border-radius:6px;background:var(--panel);cursor:pointer;font-size:16px;line-height:1;color:var(--accent);font-weight:700">{{ r.sign }}</button>
+<a href="{{ r.href }}" style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;padding-top:5px">{{ r.id }}</a>
+<span style="display:flex;flex-direction:column;gap:2px;padding-top:3px"><span style="text-wrap:pretty">{{ r.plain }}</span><span style="font-size:12px;color:var(--ink2)">{{ r.critText }} · {{ r.tier }}</span></span>
+<span style="display:flex;align-items:center;gap:8px;font-size:12px;white-space:nowrap;padding-top:4px"><span style="width:56px;height:6px;border-radius:3px;overflow:hidden;background:var(--sunk);display:flex"><span style="width:{{ r.pct }};background:var(--c-pass)"></span></span><span><strong>{{ r.pass }}</strong><span style="color:var(--ink2)"> / {{ r.total }} passing</span></span></span>
+</div>
+<sc-if value="{{ r.open }}"><div style="margin:0 14px 12px 50px;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--panel)">
+<sc-for list="{{ r.rows }}" as="p" hint-placeholder-count="4">
+<div style="border-top:1px solid var(--line);margin-top:-1px">
+<a href="{{ p.href }}" style="display:grid;grid-template-columns:84px minmax(0,1fr) auto;gap:12px;align-items:start;padding:10px 14px;color:var(--ink)" style-hover="background:var(--sunk);text-decoration:none">
+<span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:var(--accent);padding-top:2px">{{ p.id }}</span>
+<span style="display:flex;flex-direction:column;gap:4px;min-width:0"><span style="display:flex;flex-wrap:wrap;gap:6px;font-size:11px;color:var(--ink2)"><span style="padding:0 6px;border-radius:3px;background:var(--sunk)">{{ p.kind }}</span><sc-if value="{{ p.isCtl }}"><span style="padding:0 6px;border-radius:3px;background:var(--accent-soft);color:var(--accent)">Control of {{ p.parentId }}</span></sc-if><sc-if value="{{ p.hasAlso }}"><span>{{ p.alsoText }}</span></sc-if></span><span style="font-size:13px;text-wrap:pretty">{{ p.text }}</span></span>
+<span style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;font-size:12px;white-space:nowrap"><span style="display:inline-flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:{{ p.color }}"></span>{{ p.st }}</span><sc-if value="{{ p.hasRev }}"><span style="padding:0 6px;border:1.5px solid {{ p.revC }};border-radius:3px">{{ p.rev }}</span></sc-if></span>
+</a>
+<sc-for list="{{ p.controls }}" as="q">
+<a href="{{ q.href }}" style="display:grid;grid-template-columns:84px minmax(0,1fr) auto;gap:12px;align-items:start;padding:8px 14px 10px 14px;color:var(--ink);border-top:1px dashed var(--line)" style-hover="background:var(--sunk);text-decoration:none">
+<span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:var(--accent);padding:2px 0 0 14px">↳ {{ q.id }}</span>
+<span style="display:flex;flex-direction:column;gap:4px;min-width:0"><span style="display:flex;gap:6px;font-size:11px"><span style="padding:0 6px;border-radius:3px;background:var(--accent-soft);color:var(--accent);font-weight:600">Control</span></span><span style="font-size:13px;color:var(--ink2);text-wrap:pretty">{{ q.text }}</span></span>
+<span style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;font-size:12px;white-space:nowrap"><span style="display:inline-flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:{{ q.color }}"></span>{{ q.st }}</span><sc-if value="{{ q.hasRev }}"><span style="padding:0 6px;border:1.5px solid {{ q.revC }};border-radius:3px">{{ q.rev }}</span></sc-if></span>
+</a>
+</sc-for>
+</div>
+</sc-for>
+<sc-if value="{{ r.noRows }}"><p style="margin:0;padding:10px 14px;font-size:13px;color:var(--ink2)">No criteria under this requirement match the filter.</p></sc-if>
+</div></sc-if>
+</div>
+</sc-for>
+</div>
+</div>
+</sc-for>
+<sc-if value="{{ cv.noReqs }}"><p style="margin:0;color:var(--ink2)">No requirements match.</p></sc-if>
+</section>
+<aside style="flex:2 1 320px;min-width:0;display:flex;flex-direction:column;gap:24px">
+<section aria-labelledby="h-screens" style="display:flex;flex-direction:column;gap:8px">
+<h2 id="h-screens" style="margin:0;font-size:17px">Approved screens <span style="font-weight:400;color:var(--ink2);font-size:13px">{{ cv.scrCount }}</span></h2>
+<sc-if value="{{ cv.noScr }}"><p style="margin:0;color:var(--ink2);font-size:13px">No screen states are tied to this capability's requirements.</p></sc-if>
+<div style="display:flex;flex-direction:column;gap:6px">
+<sc-for list="{{ cv.screens }}" as="s" hint-placeholder-count="3">
+<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;width:40px;color:var(--ink2)">{{ s.screen }}</span>
+<sc-for list="{{ s.states }}" as="t"><button type="button" onClick="{{ t.open }}" disabled="{{ t.disabled }}" title="{{ t.title }}" style="padding:3px 9px;border:1px solid {{ t.bd }};border-radius:4px;background:var(--panel);cursor:{{ t.cursor }};font-size:12px;color:{{ t.fg }}">{{ t.label }}</button></sc-for>
+</div>
+</sc-for>
+</div>
+<sc-if value="{{ cv.scrNote }}"><p style="margin:0;font-size:12px;color:var(--ink2)">Outlined states open their approved design. Dashed ones have no design embedded in this snapshot.</p></sc-if>
+</section>
+<section aria-labelledby="h-steps" style="display:flex;flex-direction:column;gap:8px">
+<h2 id="h-steps" style="margin:0;font-size:17px">Steps that built it <span style="font-weight:400;color:var(--ink2);font-size:13px">{{ cv.stepCount }}</span></h2>
+<div style="border:1px solid var(--line);border-radius:8px;background:var(--panel);box-shadow:var(--shadow)">
+<sc-for list="{{ cv.steps }}" as="s" hint-placeholder-count="3">
+<div style="display:flex;flex-direction:column;gap:3px;padding:9px 14px;border-top:1px solid var(--line);margin-top:-1px;font-size:13px">
+<div style="display:flex;gap:8px;align-items:baseline"><a href="{{ s.href }}" style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px">{{ s.id }}</a><span style="flex:1;min-width:0">{{ s.name }}</span></div>
+<div style="display:flex;gap:10px;flex-wrap:wrap;color:var(--ink2);font-size:12px;padding-left:36px"><span>{{ s.stateText }}</span><span>{{ s.here }}</span><sc-if value="{{ s.hasOn }}"><span>builds on <sc-for list="{{ s.on }}" as="b"><a href="{{ b.href }}" style="margin-right:4px">{{ b.id }}</a></sc-for></span></sc-if></div>
+</div>
+</sc-for>
+</div>
+<sc-if value="{{ cv.noSteps }}"><p style="margin:0;color:var(--ink2);font-size:13px">No step has taken on these criteria yet.</p></sc-if>
+</section>
+</aside>
+</div>
+</sc-if>
+
+<sc-if value="{{ isReq }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;flex-wrap:wrap;gap:32px;align-items:flex-start">
+<div style="flex:3 1 520px;min-width:0;display:flex;flex-direction:column;gap:16px">
+<div style="display:flex;flex-direction:column;gap:4px"><div style="font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--ink2)">As written</div><p style="margin:0;max-width:760px;text-wrap:pretty">{{ rv.statement }}</p></div>
+<div style="display:flex;flex-direction:column;gap:4px"><div style="font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--ink2)">It fails if</div><p style="margin:0;max-width:760px;text-wrap:pretty">{{ rv.failsIf }}</p></div>
+</div>
+<aside style="flex:2 1 300px;min-width:0;display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px 16px;font-size:13px;padding:16px;border:1px solid var(--line);border-radius:10px">
+<span style="color:var(--ink2)">Kind</span><span>{{ rv.type }}</span>
+<span style="color:var(--ink2)">Tier</span><span>{{ rv.tier }}</span>
+<span style="color:var(--ink2)">Phase</span><span>{{ rv.phase }}</span>
+<span style="color:var(--ink2)">Capability</span><a href="{{ rv.capHref }}">{{ rv.capName }}</a>
+<span style="color:var(--ink2)">Screens</span><span style="display:flex;flex-wrap:wrap;gap:4px"><sc-for list="{{ rv.screens }}" as="t"><button type="button" onClick="{{ t.open }}" disabled="{{ t.disabled }}" title="{{ t.title }}" style="padding:1px 7px;border:1px solid {{ t.bd }};border-radius:4px;background:var(--panel);cursor:{{ t.cursor }};font-size:12px;color:{{ t.fg }}">{{ t.label }}</button></sc-for><sc-if value="{{ rv.noScreens }}"><span style="color:var(--ink2)">none</span></sc-if></span>
+<span style="color:var(--ink2)">Rulings</span><span style="display:flex;flex-direction:column;gap:6px"><sc-for list="{{ rv.rulings }}" as="a"><span><a href="{{ a.href }}" style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px">{{ a.id }}</a> {{ a.text }}</span></sc-for><sc-if value="{{ rv.noRulings }}"><span style="color:var(--ink2)">none settle this directly</span></sc-if></span>
+</aside>
+</div>
+</sc-if>
+
+<sc-if value="{{ isProm }}" hint-placeholder-val="{{ false }}">
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px 24px;padding:16px;border:1px solid var(--line);border-radius:10px;font-size:13px">
+<div style="display:flex;flex-direction:column;gap:3px"><span style="color:var(--ink2)">Requirements</span><span style="display:flex;flex-wrap:wrap;gap:4px 10px"><sc-for list="{{ ov.reqs }}" as="r"><a href="{{ r.href }}" title="{{ r.plain }}" style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px">{{ r.id }}</a></sc-for></span></div>
+<div style="display:flex;flex-direction:column;gap:3px"><span style="color:var(--ink2)">{{ ov.capLabel }}</span><span style="display:flex;flex-direction:column;gap:2px"><sc-for list="{{ ov.caps }}" as="c"><a href="{{ c.href }}">{{ c.name }}</a></sc-for></span><sc-if value="{{ ov.shared }}"><span style="color:var(--ink2);font-size:12px">{{ ov.sharedText }}</span></sc-if></div>
+<div style="display:flex;flex-direction:column;gap:3px"><span style="color:var(--ink2)">Built in step</span><sc-if value="{{ ov.hasStep }}"><a href="{{ ov.stepHref }}">{{ ov.stepText }}</a></sc-if><sc-if value="{{ ov.noStep }}"><span>No step yet</span></sc-if><span style="color:var(--ink2);font-size:12px">{{ ov.builtText }}</span></div>
+<div style="display:flex;flex-direction:column;gap:3px"><span style="color:var(--ink2)">Screen state</span><sc-if value="{{ ov.hasScreen }}"><button type="button" onClick="{{ ov.openScreen }}" disabled="{{ ov.screenDisabled }}" title="{{ ov.screenTitle }}" style="align-self:flex-start;padding:2px 8px;border:1px solid {{ ov.screenBd }};border-radius:4px;background:var(--panel);font-size:12px;cursor:{{ ov.screenCursor }};color:{{ ov.screenFg }}">{{ ov.screen }}</button></sc-if><sc-if value="{{ ov.noScreen }}"><span>Not a screen criterion</span></sc-if></div>
+<div style="display:flex;flex-direction:column;gap:3px"><span style="color:var(--ink2)">Kind of criterion</span><span>{{ ov.kind }}</span></div>
+</div>
+<sc-if value="{{ ov.isJourney }}"><section aria-labelledby="h-journey" style="background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:20px;display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;flex-wrap:wrap;gap:8px 12px;align-items:baseline"><h2 id="h-journey" style="margin:0;font-size:17px">The journey, step by step</h2><span style="font-size:13px;color:var(--ink2)">{{ ov.J.who }} · {{ ov.J.nSteps }}</span></div>
+<p style="margin:0;font-size:14px;max-width:820px;text-wrap:pretty">{{ ov.J.summary }}</p>
+<sc-if value="{{ ov.J.hasOff }}"><div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12px"><span style="color:var(--ink2)">Happens outside the product:</span><sc-for list="{{ ov.J.off }}" as="o"><span style="padding:1px 8px;border:1px dashed var(--line2);border-radius:999px;color:var(--ink2)">{{ o.t }}</span></sc-for></div></sc-if>
+<sc-if value="{{ ov.J.noSteps }}"><p style="margin:0;font-size:13px;color:var(--ink2)">No step-by-step transitions are recorded for this journey.</p></sc-if>
+<ol style="margin:0;padding:0;list-style:none;display:flex;flex-direction:column">
+<sc-for list="{{ ov.J.steps }}" as="s">
+<li style="display:grid;grid-template-columns:28px minmax(0,1fr);gap:12px">
+<span style="display:flex;flex-direction:column;align-items:center"><span style="width:24px;height:24px;flex:none;border-radius:50%;background:var(--accent-soft);color:var(--accent);font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center">{{ s.n }}</span><span style="flex:1;width:2px;background:var(--line);opacity:{{ s.lineOp }}"></span></span>
+<div style="display:flex;flex-direction:column;gap:5px;padding:2px 0 18px;min-width:0">
+<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12px;color:var(--ink2)"><sc-if value="{{ s.showActor }}"><span style="padding:0 8px;border-radius:999px;background:var(--sunk);color:var(--ink);font-weight:600">{{ s.actor }}</span></sc-if><span>on</span><sc-if value="{{ s.from.isScr }}"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;padding:1px 7px;border:1px solid var(--line2);border-radius:4px;background:var(--panel);color:var(--ink)">{{ s.from.label }}</span></sc-if><sc-if value="{{ s.from.plain }}"><span style="font-style:italic;color:var(--ink)">{{ s.from.label }}</span></sc-if></div>
+<div style="font-size:14px;text-wrap:pretty"><strong>{{ s.element }}</strong> <span style="color:var(--ink2)">→</span> {{ s.action }}</div>
+<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:baseline;font-size:13px"><span style="font-size:11px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:var(--c-pass)">Result</span><sc-if value="{{ s.to.isScr }}"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;padding:1px 7px;border:1px solid var(--line2);border-radius:4px;background:var(--panel);color:var(--ink)">{{ s.to.label }}</span></sc-if><sc-if value="{{ s.to.plain }}"><span style="font-style:italic;color:var(--ink)">{{ s.to.label }}</span></sc-if><span style="color:var(--ink2);text-wrap:pretty"><sc-for list="{{ s.out }}" as="pt"><sc-if value="{{ pt.link }}"><a href="{{ pt.href }}">{{ pt.t }}</a></sc-if><sc-if value="{{ pt.plain }}">{{ pt.t }}</sc-if></sc-for></span></div>
+</div>
+</li>
+</sc-for>
+</ol>
+<details style="font-size:12px;color:var(--ink2)"><summary>Original text</summary><p style="margin:8px 0 0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;overflow-wrap:anywhere">{{ ov.J.raw }}</p></details>
+</section></sc-if>
+<div style="display:flex;flex-wrap:wrap;gap:20px;align-items:stretch">
+<section aria-labelledby="h-test" style="flex:1 1 380px;min-width:0;display:flex;flex-direction:column;gap:14px;padding:20px;background:var(--panel);border:1px solid var(--line);border-top:4px solid {{ ov.stColor }};border-radius:10px">
+<div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap"><h2 id="h-test" style="margin:0;font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--ink2)">Test result</h2><span style="font-size:12px;color:var(--ink2)">a machine check, run on the code</span></div>
+<div style="display:flex;align-items:center;gap:10px"><span style="width:14px;height:14px;border-radius:50%;background:{{ ov.stColor }}"></span><span style="font-size:22px;font-weight:700;letter-spacing:-0.01em">{{ ov.stLabel }}</span></div>
+<p style="margin:0;color:var(--ink2)">{{ ov.stHint }}</p>
+<dl style="margin:0;display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px 16px;font-size:13px">
+<sc-for list="{{ ov.testRows }}" as="t"><dt style="color:var(--ink2)">{{ t.k }}</dt><dd style="margin:0;font-family:{{ t.font }};font-size:12px;overflow-wrap:anywhere">{{ t.v }}</dd></sc-for>
+</dl>
+<sc-if value="{{ ov.hasFails }}"><div style="display:flex;flex-direction:column;gap:4px"><div style="font-size:13px;color:var(--ink2)">Failed checks</div><sc-for list="{{ ov.fails }}" as="f"><code style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;padding:6px 8px;background:var(--sunk);border-radius:4px;overflow-wrap:anywhere">{{ f.t }}</code></sc-for></div></sc-if>
+</section>
+<section aria-labelledby="h-rev" style="flex:1 1 380px;min-width:0;display:flex;flex-direction:column;gap:14px;padding:20px;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow)">
+<div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap"><h2 id="h-rev" style="margin:0;font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--ink2)">Review history</h2><span style="font-size:12px;color:var(--ink2)">a separate reader judging the code and its test, oldest first</span></div>
+<sc-if value="{{ ov.noRev }}"><p style="margin:0;color:var(--ink2)">Not reviewed yet. A review is recorded here when a reviewer reads this criterion's code and test results and confirms or rejects it.</p></sc-if>
+<ol style="margin:0;padding:0;list-style:none;display:flex;flex-direction:column">
+<sc-for list="{{ ov.judgments }}" as="j" hint-placeholder-count="2">
+<li style="display:grid;grid-template-columns:20px minmax(0,1fr);gap:10px">
+<span style="display:flex;flex-direction:column;align-items:center"><span style="width:14px;height:14px;border:2px solid {{ j.color }};background:{{ j.fill }};border-radius:2px;margin-top:3px"></span><span style="flex:1;width:1px;background:var(--line2);opacity:{{ j.lineOp }}"></span></span>
+<div style="display:flex;flex-direction:column;gap:3px;padding-bottom:16px">
+<div style="display:flex;gap:10px;align-items:baseline;flex-wrap:wrap"><strong style="font-size:15px">{{ j.result }}</strong><span style="font-size:13px">{{ j.fault }}</span><span style="font-size:12px;color:var(--ink2);margin-left:auto">{{ j.at }}</span></div>
+<p style="margin:0;font-size:13px;color:{{ j.proseColor }};text-wrap:pretty">{{ j.prose }}</p>
+</div>
+</li>
+</sc-for>
+</ol>
+</section>
+</div>
+</sc-if>
+
+<sc-if value="{{ isStep }}" hint-placeholder-val="{{ false }}">
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px 24px;padding:16px;border:1px solid var(--line);border-radius:10px;font-size:13px">
+<div style="display:flex;flex-direction:column;gap:3px"><span style="color:var(--ink2)">State</span><span>{{ sv.stateText }}</span></div>
+<div style="display:flex;flex-direction:column;gap:3px"><span style="color:var(--ink2)">Started</span><span>{{ sv.started }}</span></div>
+<div style="display:flex;flex-direction:column;gap:3px"><span style="color:var(--ink2)">Closed</span><span>{{ sv.closed }}</span></div>
+<div style="display:flex;flex-direction:column;gap:3px"><span style="color:var(--ink2)">Builds on</span><span style="display:flex;gap:8px;flex-wrap:wrap"><sc-for list="{{ sv.on }}" as="b"><a href="{{ b.href }}" title="{{ b.name }}">{{ b.id }}</a></sc-for><sc-if value="{{ sv.noOn }}"><span>Nothing earlier</span></sc-if></span></div>
+<div style="display:flex;flex-direction:column;gap:3px"><span style="color:var(--ink2)">Later steps build on it</span><span style="display:flex;gap:8px;flex-wrap:wrap"><sc-for list="{{ sv.by }}" as="b"><a href="{{ b.href }}" title="{{ b.name }}">{{ b.id }}</a></sc-for><sc-if value="{{ sv.noBy }}"><span>None</span></sc-if></span></div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isDec }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;flex-direction:column;gap:16px;max-width:820px">
+<sc-if value="{{ dv.hasQ }}"><div style="display:flex;flex-direction:column;gap:4px"><div style="font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--ink2)">The question</div><p style="margin:0;text-wrap:pretty">{{ dv.q }}</p></div></sc-if>
+<div style="display:flex;flex-direction:column;gap:4px"><div style="font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--ink2)">{{ dv.bodyLabel }}</div><p style="margin:0;font-size:16px;text-wrap:pretty"><sc-for list="{{ dv.body }}" as="pt"><sc-if value="{{ pt.link }}"><a href="{{ pt.href }}">{{ pt.t }}</a></sc-if><sc-if value="{{ pt.plain }}">{{ pt.t }}</sc-if></sc-for></p></div>
+<sc-if value="{{ dv.hasWhy }}"><div style="display:flex;flex-direction:column;gap:4px"><div style="font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--ink2)">Why</div><p style="margin:0;text-wrap:pretty"><sc-for list="{{ dv.why }}" as="pt"><sc-if value="{{ pt.link }}"><a href="{{ pt.href }}">{{ pt.t }}</a></sc-if><sc-if value="{{ pt.plain }}">{{ pt.t }}</sc-if></sc-for></p></div></sc-if>
+<sc-if value="{{ dv.hasSettles }}"><div style="display:flex;flex-direction:column;gap:4px"><div style="font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--ink2)">Settles</div><div style="display:flex;gap:10px;flex-wrap:wrap"><sc-for list="{{ dv.settles }}" as="s"><sc-if value="{{ s.link }}"><a href="{{ s.href }}">{{ s.t }}</a></sc-if><sc-if value="{{ s.plain }}"><span>{{ s.t }}</span></sc-if></sc-for></div></div></sc-if>
+</div>
+</sc-if>
+
+<sc-if value="{{ hasPlist }}" hint-placeholder-val="{{ false }}">
+<section aria-labelledby="h-plist" style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap"><h2 id="h-plist" style="margin:0;font-size:17px">Acceptance criteria</h2><span style="color:var(--ink2);font-size:13px">{{ pl.count }} shown by this filter</span></div>
+<div role="group" aria-label="Filter criteria" style="display:flex;flex-wrap:wrap;gap:6px">
+<sc-for list="{{ pl.chips }}" as="c" hint-placeholder-count="4">
+<button type="button" onClick="{{ c.pick }}" aria-pressed="{{ c.on }}" style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border:1px solid var(--line2);border-radius:999px;background:{{ c.bg }};color:{{ c.fg }};cursor:pointer;font-size:13px"><sc-if value="{{ c.hasDot }}"><span style="width:8px;height:8px;border-radius:50%;background:{{ c.dot }}"></span></sc-if>{{ c.label }} <strong>{{ c.nText }}</strong></button>
+</sc-for>
+</div>
+<p style="margin:0;font-size:12px;color:var(--ink2);max-width:760px;text-wrap:pretty"><strong style="color:var(--accent)">Control</strong> rows sit under the criterion they back up. A control checks that the allowed case still works, so a criterion can't pass just because everything is blocked.</p>
+<div style="border:1px solid var(--line);border-radius:8px;background:var(--panel);box-shadow:var(--shadow)">
+<sc-for list="{{ pl.rows }}" as="p" hint-placeholder-count="4">
+<div style="border-top:1px solid var(--line);margin-top:-1px">
+<a href="{{ p.href }}" style="display:grid;grid-template-columns:84px minmax(0,1fr) auto;gap:12px;align-items:start;padding:10px 14px;color:var(--ink)" style-hover="background:var(--sunk);text-decoration:none">
+<span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:var(--accent);padding-top:2px">{{ p.id }}</span>
+<span style="display:flex;flex-direction:column;gap:4px;min-width:0"><span style="display:flex;flex-wrap:wrap;gap:6px;font-size:11px;color:var(--ink2)"><span style="padding:0 6px;border-radius:3px;background:var(--sunk)">{{ p.kind }}</span><sc-if value="{{ p.isCtl }}"><span style="padding:0 6px;border-radius:3px;background:var(--accent-soft);color:var(--accent)">Control of {{ p.parentId }}</span></sc-if><sc-if value="{{ p.hasAlso }}"><span>{{ p.alsoText }}</span></sc-if></span><span style="font-size:13px;text-wrap:pretty">{{ p.text }}</span></span>
+<span style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;font-size:12px;white-space:nowrap"><span style="display:inline-flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:{{ p.color }}"></span>{{ p.st }}</span><sc-if value="{{ p.hasRev }}"><span style="padding:0 6px;border:1.5px solid {{ p.revC }};border-radius:3px">{{ p.rev }}</span></sc-if></span>
+</a>
+<sc-for list="{{ p.controls }}" as="q">
+<a href="{{ q.href }}" style="display:grid;grid-template-columns:84px minmax(0,1fr) auto;gap:12px;align-items:start;padding:8px 14px 10px 14px;color:var(--ink);border-top:1px dashed var(--line)" style-hover="background:var(--sunk);text-decoration:none">
+<span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:var(--accent);padding:2px 0 0 14px">↳ {{ q.id }}</span>
+<span style="display:flex;flex-direction:column;gap:4px;min-width:0"><span style="display:flex;gap:6px;font-size:11px"><span style="padding:0 6px;border-radius:3px;background:var(--accent-soft);color:var(--accent);font-weight:600">Control</span></span><span style="font-size:13px;color:var(--ink2);text-wrap:pretty">{{ q.text }}</span></span>
+<span style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;font-size:12px;white-space:nowrap"><span style="display:inline-flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:{{ q.color }}"></span>{{ q.st }}</span><sc-if value="{{ q.hasRev }}"><span style="padding:0 6px;border:1.5px solid {{ q.revC }};border-radius:3px">{{ q.rev }}</span></sc-if></span>
+</a>
+</sc-for>
+</div>
+</sc-for>
+<sc-if value="{{ pl.empty }}"><p style="margin:0;padding:16px;color:var(--ink2)">No criteria match this filter.</p></sc-if>
+</div>
+<sc-if value="{{ pl.more }}"><button type="button" onClick="{{ pl.showMore }}" style="align-self:flex-start;padding:7px 14px;border:1px solid var(--line2);border-radius:6px;background:transparent;cursor:pointer">{{ pl.moreText }}</button></sc-if>
+</section>
+</sc-if>
+
+<sc-if value="{{ isDelivery }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;flex-direction:column;gap:6px"><h1 style="margin:0;font-size:28px;letter-spacing:-0.02em">Delivery</h1><p style="margin:0;color:var(--ink2);max-width:760px">How the work is going, at {{ momentTime }}. Every item opens its place in the product tree.</p></div>
+<div role="tablist" aria-label="Delivery sections" style="display:flex;gap:2px;border-bottom:1px solid var(--line);overflow-x:auto">
+<sc-for list="{{ dtabs }}" as="t" hint-placeholder-count="4"><a href="{{ t.href }}" role="tab" aria-selected="{{ t.sel }}" style="display:inline-flex;align-items:center;gap:8px;padding:10px 16px;margin-bottom:-1px;border-bottom:3px solid {{ t.bd }};color:{{ t.fg }};font-weight:{{ t.w }};white-space:nowrap;font-size:14px" style-hover="text-decoration:none;color:var(--ink)">{{ t.label }}<sc-if value="{{ t.hasN }}"><span style="font-size:12px;padding:0 7px;border-radius:999px;background:{{ t.nbg }};color:{{ t.nfg }};font-weight:600">{{ t.n }}</span></sc-if></a></sc-for>
+</div>
+<sc-if value="{{ dtab.ov }}">
+<section aria-labelledby="h-pipe" style="display:flex;flex-direction:column;gap:12px;padding:20px;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow)">
+<div style="display:flex;flex-direction:column;gap:2px"><h2 id="h-pipe" style="margin:0;font-size:17px">Built, passing and confirmed</h2><span style="font-size:13px;color:var(--ink2)">Of all {{ dl.total }} acceptance criteria, each stage counted on its own: a criterion can pass its test before a builder hands it back.</span></div>
+<ol style="margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:12px">
+<sc-for list="{{ dl.funnel }}" as="t" hint-placeholder-count="3">
+<li style="display:grid;grid-template-columns:200px minmax(0,1fr) 120px;gap:16px;align-items:center">
+<div style="display:flex;flex-direction:column;gap:1px"><strong style="font-size:14px">{{ t.label }}</strong><span style="font-size:12px;color:var(--ink2);text-wrap:pretty">{{ t.def }}</span></div>
+<div style="height:28px;background:var(--sunk);border-radius:4px;overflow:hidden"><span style="display:block;height:100%;width:{{ t.pct }};background:{{ t.color }};border-radius:4px"></span></div>
+<div style="text-align:right;display:flex;flex-direction:column"><span style="font-size:24px;font-weight:700;letter-spacing:-0.02em;color:{{ t.num }}">{{ t.big }}</span><span style="font-size:12px;color:var(--ink2)">{{ t.of }}</span></div>
+</li>
+</sc-for>
+</ol>
+<sc-if value="{{ dl.hasOff }}"><p style="margin:0;padding-top:12px;border-top:1px solid var(--line);font-size:13px;color:var(--ink2);text-wrap:pretty">{{ dl.offText }}</p></sc-if>
+</section>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px"><sc-for list="{{ dl.cards }}" as="c" hint-placeholder-count="3"><a href="{{ c.href }}" style="padding:18px;background:var(--panel);border:1px solid var(--line);border-top:3px solid {{ c.color }};border-radius:10px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:6px;color:var(--ink)" style-hover="text-decoration:none;border-color:var(--line2)"><span style="font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--ink2)">{{ c.label }}</span><span style="font-size:28px;font-weight:700;letter-spacing:-0.02em;color:{{ c.color }}">{{ c.big }}</span><span style="font-size:13px;color:var(--ink2);text-wrap:pretty">{{ c.sub }}</span><span style="font-size:13px;color:var(--accent);margin-top:auto;padding-top:6px">{{ c.cta }} →</span></a></sc-for></div>
+</sc-if>
+<sc-if value="{{ dtab.needs }}">
+<div style="display:flex;flex-wrap:wrap;gap:24px;align-items:flex-start">
+<section aria-labelledby="h-needs" style="flex:1 1 380px;min-width:0;display:flex;flex-direction:column;gap:10px">
+<h2 id="h-needs" style="margin:0;font-size:17px;display:flex;align-items:center;gap:8px">Needs you <span style="font-size:12px;font-weight:700;padding:1px 8px;border-radius:999px;background:var(--warn);color:#1a1205">{{ dl.needsCount }}</span></h2>
+<sc-if value="{{ dl.noNeeds }}"><p style="margin:0;color:var(--ink2)">Nothing is waiting on you.</p></sc-if>
+<sc-if value="{{ dl.hasQs }}"><div style="display:flex;flex-direction:column;gap:8px"><div style="font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--ink2)">Open questions · {{ dl.qCount }} <span style="text-transform:none;letter-spacing:0;font-weight:400">· answer these to unblock work</span></div>
+<sc-for list="{{ dl.questions }}" as="q">
+<div style="padding:16px 18px;border:1px solid var(--warn);border-radius:10px;display:flex;flex-direction:column;gap:10px;background:var(--warn-soft)">
+<div style="display:flex;gap:8px 14px;flex-wrap:wrap;align-items:baseline;font-size:12px;color:var(--ink2)"><strong style="color:var(--ink);font-size:13px">Question {{ q.id }}</strong><span>Asked {{ q.asked }}</span><sc-if value="{{ q.hasGates }}"><span>Blocks: <span style="color:var(--ink)">{{ q.gates }}</span></span></sc-if></div>
+<p style="margin:0;font-size:15px;line-height:1.5;text-wrap:pretty">{{ q.text }}</p>
+<sc-if value="{{ q.hasRec }}"><div style="display:flex;gap:8px;align-items:baseline;font-size:13px"><span style="font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--ink2)">Recommended</span><strong>{{ q.rec }}</strong></div></sc-if>
+</div>
+</sc-for></div></sc-if>
+<sc-if value="{{ dl.hasHeld }}"><div style="display:flex;flex-direction:column;gap:8px"><div style="font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--ink2)">Held criteria · {{ dl.heldCount }} <span style="text-transform:none;letter-spacing:0;font-weight:400">· work stopped until you decide</span></div>
+<sc-for list="{{ dl.held }}" as="p">
+<a href="{{ p.href }}" style="padding:12px 16px;border:1px solid var(--line2);border-radius:10px;display:grid;grid-template-columns:84px minmax(0,1fr);gap:12px;color:var(--ink);background:var(--panel)" style-hover="text-decoration:none;background:var(--sunk)"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:var(--accent);padding-top:2px">{{ p.id }}</span><span style="font-size:13px;text-wrap:pretty">{{ p.text }}</span></a>
+</sc-for></div></sc-if>
+<sc-if value="{{ dl.hasDelegated }}">
+<div style="display:flex;flex-direction:column;gap:8px">
+<div style="display:flex;flex-wrap:wrap;gap:8px 12px;align-items:baseline"><div style="font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--ink2)">{{ dl.delegatedTitle }} <span style="text-transform:none;letter-spacing:0;font-weight:400">· decided for you as recommended; confirm or overturn</span></div>
+<input type="search" value="{{ dgQ }}" onInput="{{ setDgQ }}" placeholder="Filter rulings" aria-label="Filter delegated rulings" style="margin-left:auto;padding:6px 10px;border:1px solid var(--line2);border-radius:6px;background:var(--panel);min-width:200px;font-size:13px"></div>
+<div style="border:1px solid var(--line);border-radius:10px;background:var(--panel);box-shadow:var(--shadow)">
+<sc-for list="{{ dl.dgGroups }}" as="g" hint-placeholder-count="4">
+<div style="border-top:1px solid var(--line);margin-top:-1px">
+<button type="button" onClick="{{ g.toggle }}" aria-expanded="{{ g.open }}" style="width:100%;display:flex;align-items:center;gap:10px;padding:11px 16px;border:none;background:{{ g.bg }};cursor:pointer;text-align:left;font-size:14px;color:var(--ink)"><span style="width:20px;color:var(--accent);font-weight:700">{{ g.sign }}</span><span style="flex:1;font-weight:600">{{ g.name }}</span><span style="font-size:12px;padding:0 8px;border-radius:999px;background:var(--sunk);color:var(--ink2)">{{ g.nText }}</span></button>
+<sc-if value="{{ g.open }}">
+<sc-for list="{{ g.items }}" as="d">
+<a href="{{ d.href }}" style="display:grid;grid-template-columns:56px minmax(0,1fr) auto;gap:12px;padding:12px 16px 12px 46px;border-top:1px solid var(--line);color:var(--ink)" style-hover="background:var(--sunk);text-decoration:none">
+<span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:var(--accent);padding-top:2px">{{ d.id }}</span>
+<span style="display:flex;flex-direction:column;gap:4px;min-width:0"><span style="font-size:13px;font-weight:600;text-wrap:pretty">{{ d.q }}</span><span style="font-size:13px;color:var(--ink2);text-wrap:pretty"><span style="color:var(--c-pass);font-weight:600">Decided:</span> {{ d.a }}</span></span>
+<span style="font-size:12px;color:var(--ink2);white-space:nowrap">{{ d.date }}</span>
+</a>
+</sc-for>
+</sc-if>
+</div>
+</sc-for>
+<sc-if value="{{ dl.dgNone }}"><p style="margin:0;padding:14px 16px;font-size:13px;color:var(--ink2)">{{ dl.dgNoneText }}</p></sc-if>
+</div>
+</div>
+</sc-if>
+<sc-if value="{{ dl.hasAnswered }}">
+<div style="display:flex;flex-direction:column;gap:8px">
+<div style="font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--ink2)">{{ dl.answeredTitle }} <span style="text-transform:none;letter-spacing:0;font-weight:400">· every answer the records hold, newest first</span></div>
+<div style="border:1px solid var(--line);border-radius:10px;background:var(--panel);box-shadow:var(--shadow)">
+<sc-for list="{{ dl.answered }}" as="d">
+<a href="{{ d.href }}" style="display:grid;grid-template-columns:56px minmax(0,1fr) auto;gap:12px;padding:12px 16px;border-top:1px solid var(--line);margin-top:-1px;color:var(--ink)" style-hover="background:var(--sunk);text-decoration:none">
+<span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:var(--accent);padding-top:2px">{{ d.id }}</span>
+<span style="display:flex;flex-direction:column;gap:4px;min-width:0"><span style="font-size:13px;text-wrap:pretty"><span style="font-weight:600">A:</span> {{ d.a }}</span><span style="font-size:13px;color:var(--ink2);text-wrap:pretty"><span style="font-weight:600">Q:</span> {{ d.q }}</span></span>
+<span style="display:flex;flex-direction:column;gap:2px;align-items:flex-end;font-size:12px;color:var(--ink2);white-space:nowrap"><span>{{ d.date }}</span><span>{{ d.mark }}</span></span>
+</a>
+</sc-for>
+</div>
+</div>
+</sc-if>
+</section>
+<section aria-labelledby="h-agents" style="flex:1 1 300px;min-width:0;display:flex;flex-direction:column;gap:10px">
+<h2 id="h-agents" style="margin:0;font-size:17px">Agents now <span style="font-weight:400;color:var(--ink2);font-size:13px">{{ dl.agentsCount }}</span></h2>
+<sc-if value="{{ dl.noAgents }}"><p style="margin:0;padding:16px;border:1px dashed var(--line2);border-radius:10px;color:var(--ink2)">{{ dl.agentsNone }}</p></sc-if>
+<sc-for list="{{ dl.agents }}" as="a"><div style="padding:12px 16px;border:1px solid var(--line);border-radius:10px;font-size:13px"><strong>{{ a.name }}</strong><div style="color:var(--ink2)">{{ a.task }}</div></div></sc-for>
+</section>
+</div>
+</sc-if>
+<sc-if value="{{ dtab.steps }}">
+<section aria-labelledby="h-dsteps" style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;flex-wrap:wrap;gap:8px 24px;align-items:flex-end;justify-content:space-between">
+<div style="display:flex;flex-direction:column;gap:2px"><h2 id="h-dsteps" style="margin:0;font-size:17px">Build steps</h2><span style="font-size:13px;color:var(--ink2);max-width:640px">A step is one batch of build work that takes on a set of acceptance criteria. The last three columns use the same stages as above.</span></div>
+<div style="display:flex;flex-direction:column;gap:6px;min-width:260px">
+<div style="display:flex;gap:14px;font-size:13px;flex-wrap:wrap"><sc-for list="{{ dl.stepSum }}" as="x"><span style="display:inline-flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:2px;background:{{ x.color }}"></span>{{ x.label }} <strong>{{ x.nText }}</strong></span></sc-for></div>
+<div role="img" aria-label="{{ dl.stepBarLabel }}" style="display:flex;gap:2px;height:8px"><sc-for list="{{ dl.stepBar }}" as="b"><span title="{{ b.t }}" style="flex:1;background:{{ b.color }};border-radius:1px"></span></sc-for></div>
+</div>
+</div>
+
+<div role="group" aria-label="Filter steps" style="display:flex;gap:6px;flex-wrap:wrap"><sc-for list="{{ dl.stepChips }}" as="c" hint-placeholder-count="3"><button type="button" onClick="{{ c.pick }}" aria-pressed="{{ c.on }}" style="padding:4px 10px;border:1px solid var(--line2);border-radius:999px;background:{{ c.bg }};color:{{ c.fg }};cursor:pointer;font-size:13px">{{ c.label }} <strong>{{ c.nText }}</strong></button></sc-for></div>
+<div style="border:1px solid var(--line);border-radius:10px;background:var(--panel);box-shadow:var(--shadow);overflow-x:auto"><div style="min-width:860px">
+<div style="display:grid;grid-template-columns:52px minmax(0,1fr) 104px 168px 84px 84px 84px;gap:12px;padding:8px 14px;font-size:11px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;color:var(--ink2);background:var(--sunk)"><span>Step</span><span>What it built</span><span>Status</span><span>When</span><span style="text-align:right">Built</span><span style="text-align:right">Passing test</span><span style="text-align:right">Confirmed</span></div>
+<sc-for list="{{ dl.steps }}" as="s" hint-placeholder-count="6">
+<a href="{{ s.href }}" style="display:grid;grid-template-columns:52px minmax(0,1fr) 104px 168px 84px 84px 84px;gap:12px;align-items:center;padding:9px 14px;border-top:1px solid var(--line);color:var(--ink);font-size:13px" style-hover="background:var(--sunk);text-decoration:none">
+<span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:var(--accent)">{{ s.id }}</span>
+<span style="text-wrap:pretty">{{ s.name }}<sc-if value="{{ s.hard }}"><span style="color:var(--ink2)"> · tightens earlier work</span></sc-if></span>
+<span style="display:inline-flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:2px;background:{{ s.dot }}"></span>{{ s.status }}</span>
+<span style="color:var(--ink2);font-size:12px">{{ s.when }}</span>
+<span style="text-align:right">{{ s.b }}</span><span style="text-align:right">{{ s.t }}</span><span style="text-align:right">{{ s.c }}</span>
+</a>
+</sc-for>
+<sc-if value="{{ dl.noSteps }}"><p style="margin:0;padding:12px 14px;color:var(--ink2)">No steps in this group.</p></sc-if>
+</div></div>
+</section>
+</sc-if>
+<sc-if value="{{ dtab.act }}">
+<section aria-labelledby="h-recent" style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap"><h2 id="h-recent" style="margin:0;font-size:17px">Recent activity</h2><span style="font-size:13px;color:var(--ink2)">Plan changes and commits, newest first.</span><a href="#changes" style="font-size:13px;margin-left:auto">Full change log →</a></div>
+<div role="group" aria-label="Filter activity" style="display:flex;gap:6px;flex-wrap:wrap"><sc-for list="{{ dl.actChips }}" as="c" hint-placeholder-count="3"><button type="button" onClick="{{ c.pick }}" aria-pressed="{{ c.on }}" style="padding:4px 10px;border:1px solid var(--line2);border-radius:999px;background:{{ c.bg }};color:{{ c.fg }};cursor:pointer;font-size:13px">{{ c.label }} <strong>{{ c.nText }}</strong></button></sc-for></div>
+<div style="border:1px solid var(--line);border-radius:10px;background:var(--panel);box-shadow:var(--shadow);overflow-x:auto"><div style="min-width:640px">
+<div style="display:grid;grid-template-columns:110px 150px minmax(0,1fr);gap:12px;padding:8px 14px;font-size:11px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;color:var(--ink2);background:var(--sunk)"><span>When</span><span>Type</span><span>What happened</span></div>
+<sc-for list="{{ dl.acts }}" as="a" hint-placeholder-count="6">
+<div style="display:grid;grid-template-columns:110px 150px minmax(0,1fr);gap:12px;align-items:baseline;padding:9px 14px;border-top:1px solid var(--line);font-size:13px">
+<span style="color:var(--ink2);font-size:12px">{{ a.at }}</span>
+<span style="display:flex;flex-direction:column;gap:2px"><span style="align-self:flex-start;padding:0 7px;border:1px solid var(--line2);border-radius:3px;font-size:12px">{{ a.type }}</span><sc-if value="{{ a.hasRef }}"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;color:var(--ink2)">{{ a.ref }}</span></sc-if></span>
+<span style="display:flex;flex-direction:column;gap:3px;min-width:0"><span style="text-wrap:pretty"><sc-for list="{{ a.parts }}" as="pt"><sc-if value="{{ pt.link }}"><a href="{{ pt.href }}">{{ pt.t }}</a></sc-if><sc-if value="{{ pt.plain }}">{{ pt.t }}</sc-if></sc-for></span><sc-if value="{{ a.long }}"><button type="button" onClick="{{ a.toggle }}" style="align-self:flex-start;padding:0;border:none;background:transparent;color:var(--accent);cursor:pointer;font-size:12px">{{ a.toggleText }}</button></sc-if></span>
+</div>
+</sc-for>
+<sc-if value="{{ dl.noActs }}"><p style="margin:0;padding:12px 14px;color:var(--ink2)">{{ dl.actNone }}</p></sc-if>
+<sc-if value="{{ dl.actMore }}"><button type="button" onClick="{{ dl.actShowMore }}" style="display:block;width:100%;padding:10px 14px;border:none;border-top:1px solid var(--line);background:transparent;color:var(--accent);cursor:pointer;text-align:left;font-size:13px">{{ dl.actMoreText }}</button></sc-if>
+</div></div>
+</section>
+</sc-if>
+</sc-if>
+
+<sc-if value="{{ isChanges }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;flex-direction:column;gap:6px"><h1 style="margin:0;font-size:28px;letter-spacing:-0.02em">Change log</h1><p style="margin:0;color:var(--ink2);max-width:760px">Every change between two moments, worked out from consecutive snapshots so nothing is counted twice. Narrow it, then open any change in the tree.</p></div>
+<div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;padding:16px;border:1px solid var(--line);border-radius:10px;background:var(--panel);box-shadow:var(--shadow)">
+<label style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--ink2)">From<select onChange="{{ setFrom }}" style="padding:6px 8px;border:1px solid var(--line2);border-radius:6px;background:var(--panel);color:var(--ink);font-size:13px"><sc-for list="{{ momentsFrom }}" as="m"><option value="{{ m.i }}" selected="{{ m.sel }}">{{ m.label }}</option></sc-for></select></label>
+<label style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--ink2)">To<select onChange="{{ setTo }}" style="padding:6px 8px;border:1px solid var(--line2);border-radius:6px;background:var(--panel);color:var(--ink);font-size:13px"><sc-for list="{{ momentsTo }}" as="m"><option value="{{ m.i }}" selected="{{ m.sel }}">{{ m.label }}</option></sc-for></select></label>
+<label style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--ink2)">Capability<select value="{{ chCap }}" onChange="{{ setCap }}" style="padding:6px 8px;border:1px solid var(--line2);border-radius:6px;background:var(--panel);color:var(--ink);font-size:13px;max-width:280px"><option value="">Any capability</option><sc-for list="{{ capOptions }}" as="c"><option value="{{ c.id }}">{{ c.label }}</option></sc-for></select></label>
+<label style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--ink2);flex:1 1 220px">Words or ids<input type="search" value="{{ chText }}" onInput="{{ setChText }}" placeholder="e.g. ROW-248, digest, S08" style="padding:6px 10px;border:1px solid var(--line2);border-radius:6px;background:var(--panel);color:var(--ink);font-size:13px"></label>
+<div role="group" aria-label="Kinds of change" style="flex-basis:100%;display:flex;flex-wrap:wrap;gap:6px">
+<sc-for list="{{ ch.kindChips }}" as="c" hint-placeholder-count="6"><button type="button" onClick="{{ c.pick }}" aria-pressed="{{ c.on }}" style="padding:4px 10px;border:1px solid var(--line2);border-radius:999px;background:{{ c.bg }};color:{{ c.fg }};cursor:pointer;font-size:13px">{{ c.label }} <strong>{{ c.nText }}</strong></button></sc-for>
+<sc-if value="{{ ch.filtered }}"><button type="button" onClick="{{ clearCh }}" style="padding:4px 10px;border:none;background:transparent;color:var(--accent);cursor:pointer;font-size:13px">Clear filters</button></sc-if>
+</div>
+</div>
+<p style="margin:0;font-size:15px"><strong>{{ ch.totalText }}</strong> <span style="color:var(--ink2)">{{ ch.windowText }}</span></p>
+<sc-if value="{{ ch.empty }}"><div style="padding:32px;border:1px dashed var(--line2);border-radius:10px;color:var(--ink2);text-align:center">{{ ch.emptyText }}</div></sc-if>
+<sc-for list="{{ ch.groups }}" as="g" hint-placeholder-count="3">
+<section style="display:flex;flex-direction:column;gap:8px">
+<h2 style="margin:0;font-size:17px;display:flex;gap:10px;align-items:baseline">{{ g.label }} <span style="font-weight:400;color:var(--ink2);font-size:14px">{{ g.nText }}</span></h2>
+<sc-if value="{{ g.note }}"><p style="margin:0;font-size:13px;color:var(--ink2)">{{ g.noteText }}</p></sc-if>
+<sc-if value="{{ g.collapsed }}"><button type="button" onClick="{{ g.toggle }}" style="align-self:flex-start;padding:7px 14px;border:1px solid var(--line2);border-radius:6px;background:transparent;cursor:pointer">{{ g.toggleText }}</button></sc-if>
+<sc-for list="{{ g.subs }}" as="s">
+<div style="border:1px solid var(--line);border-radius:8px;background:var(--panel);box-shadow:var(--shadow)">
+<sc-if value="{{ s.hasLabel }}"><div style="display:flex;gap:10px;align-items:center;padding:10px 14px;background:var(--sunk);border-radius:8px 8px 0 0;font-size:13px"><span style="display:inline-flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:50%;background:{{ s.fromC }}"></span><span style="width:8px;height:8px;border-radius:{{ s.toR }};background:{{ s.toC }}"></span></span><strong>{{ s.label }}</strong><span style="color:var(--ink2)">{{ s.nText }}</span></div></sc-if>
+<sc-for list="{{ s.items }}" as="c">
+<div style="display:grid;grid-template-columns:minmax(80px,auto) minmax(0,1fr);gap:4px 14px;padding:9px 14px;border-top:1px solid var(--line);font-size:13px">
+<span style="display:flex;flex-wrap:wrap;gap:2px 8px;align-content:flex-start"><sc-for list="{{ c.ids }}" as="i"><sc-if value="{{ i.link }}"><a href="{{ i.href }}" style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px">{{ i.id }}</a></sc-if><sc-if value="{{ i.plain }}"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:var(--ink2)">{{ i.id }}</span></sc-if></sc-for></span>
+<span style="display:flex;flex-direction:column;gap:3px;min-width:0">
+<sc-if value="{{ c.hasTitle }}"><strong style="font-weight:600">{{ c.title }}</strong></sc-if>
+<span style="text-wrap:pretty"><sc-for list="{{ c.parts }}" as="pt"><sc-if value="{{ pt.link }}"><a href="{{ pt.href }}">{{ pt.t }}</a></sc-if><sc-if value="{{ pt.plain }}">{{ pt.t }}</sc-if></sc-for></span>
+<span style="display:flex;flex-wrap:wrap;gap:4px 10px;font-size:12px;color:var(--ink2)"><span>{{ c.at }}</span><sc-for list="{{ c.caps }}" as="k"><a href="{{ k.href }}" style="color:var(--ink2);text-decoration:underline;text-decoration-color:var(--line2)">{{ k.name }}</a></sc-for><sc-if value="{{ c.hasCapMore }}"><span>{{ c.capMore }}</span></sc-if></span>
+</span>
+</div>
+</sc-for>
+<sc-if value="{{ s.more }}"><button type="button" onClick="{{ s.showMore }}" style="display:block;width:100%;padding:9px 14px;border:none;border-top:1px solid var(--line);background:transparent;color:var(--accent);cursor:pointer;text-align:left;font-size:13px">{{ s.moreText }}</button></sc-if>
+</div>
+</sc-for>
+</section>
+</sc-for>
+</sc-if>
+
+<sc-if value="{{ isSnapshots }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;flex-direction:column;gap:6px"><h1 style="margin:0;font-size:28px;letter-spacing:-0.02em">Snapshots</h1><p style="margin:0;color:var(--ink2);max-width:760px">{{ sn.intro }}</p></div>
+<ol style="margin:0;padding:0;list-style:none;border:1px solid var(--line);border-radius:10px;background:var(--panel);box-shadow:var(--shadow)">
+<sc-for list="{{ sn.rows }}" as="m" hint-placeholder-count="2">
+<li style="display:grid;grid-template-columns:20px minmax(0,1fr) auto;gap:14px;align-items:center;padding:14px 16px;border-top:1px solid var(--line);margin-top:-1px;background:{{ m.bg }}">
+<span style="width:12px;height:12px;border-radius:50%;border:2px solid var(--ink);background:{{ m.dot }}"></span>
+<span style="display:flex;flex-direction:column;gap:2px"><span style="font-weight:700">{{ m.label }}</span><span style="font-size:13px;color:var(--ink2)">{{ m.time }} · <span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px">{{ m.commit }}</span> · {{ m.changes }}</span></span>
+<sc-if value="{{ m.here }}"><a href="#product" style="font-size:13px;font-weight:700">{{ m.openText }}</a></sc-if>
+<sc-if value="{{ m.away }}"><a href="{{ m.href }}" style="font-size:13px">Open this snapshot</a></sc-if>
+</li>
+</sc-for>
+</ol>
+<div style="display:flex;gap:12px;flex-wrap:wrap"><a href="#changes" style="padding:8px 14px;border:1px solid var(--line2);border-radius:6px;color:var(--ink)">The whole change log →</a></div>
+</sc-if>
+
+<sc-if value="{{ isMissing }}" hint-placeholder-val="{{ false }}">
+<div style="padding:40px;border:1px dashed var(--line2);border-radius:10px;display:flex;flex-direction:column;gap:8px;align-items:flex-start">
+<h1 style="margin:0;font-size:22px">Nothing called {{ missingId }} in this snapshot</h1>
+<p style="margin:0;color:var(--ink2)">It may belong to a later moment, or the link has a typo.</p>
+<button type="button" onClick="{{ openSearch }}" style="padding:7px 14px;border:1px solid var(--line2);border-radius:6px;background:transparent;cursor:pointer">Search instead</button>
+</div>
+</sc-if>
+
+<footer style="margin-top:24px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--ink2);display:flex;flex-wrap:wrap;gap:6px 18px">
+<span>{{ footVid }}</span><span>{{ footRule }}</span><span>{{ footMade }}</span><span>Counts only; nothing here is an estimate unless it says so.</span>
+</footer>
+</main>
+
+<sc-if value="{{ searchOpen }}" hint-placeholder-val="{{ false }}">
+<div onClick="{{ closeSearchBg }}" style="position:fixed;inset:0;z-index:50;background:rgba(10,10,12,0.45);display:flex;justify-content:center;align-items:flex-start;padding:10vh 16px 16px">
+<div role="dialog" aria-modal="true" aria-label="Search" style="width:min(720px,100%);max-height:78vh;display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line2);border-radius:12px;box-shadow:0 24px 64px rgba(0,0,0,0.25);overflow:hidden">
+<div style="display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line)">
+<input ref="{{ searchRef }}" type="search" value="{{ sq }}" onInput="{{ setSq }}" onKeyDown="{{ searchKey }}" placeholder="An id (ROW-037, REQ-049, A-131, D-101, S08) or words" aria-label="Search" style="flex:1;border:none;outline:none;background:transparent;font-size:17px;padding:4px 0">
+<kbd style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;border:1px solid var(--line2);border-radius:4px;padding:1px 6px;color:var(--ink2)">Esc</kbd>
+</div>
+<div style="overflow:auto;padding:8px 0">
+<sc-if value="{{ sr.idle }}"><p style="margin:0;padding:12px 16px;color:var(--ink2);font-size:13px">Finds any criterion, requirement, capability, step, ruling or decision. Press Enter to go to the first match.</p></sc-if>
+<sc-if value="{{ sr.none }}"><div style="padding:20px 16px;display:flex;flex-direction:column;gap:4px"><strong>Nothing matches “{{ sq }}”.</strong><span style="color:var(--ink2);font-size:13px">Try an id such as ROW-037 or S08, or fewer words.</span></div></sc-if>
+<sc-for list="{{ sr.groups }}" as="g">
+<div style="padding:6px 0">
+<div style="padding:4px 16px;font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--ink2)">{{ g.kind }} · {{ g.nText }}</div>
+<sc-for list="{{ g.items }}" as="i"><a href="{{ i.href }}" onClick="{{ closeSearch }}" style="display:grid;grid-template-columns:84px minmax(0,1fr);gap:10px;padding:7px 16px;color:var(--ink);font-size:13px" style-hover="background:var(--sunk);text-decoration:none" style-focus="background:var(--sunk)"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:var(--accent)">{{ i.id }}</span><span>{{ i.text }}</span></a></sc-for>
+<sc-if value="{{ g.more }}"><div style="padding:2px 16px 4px 110px;font-size:12px;color:var(--ink2)">{{ g.moreText }}</div></sc-if>
+</div>
+</sc-for>
+</div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ canvasOpen }}" hint-placeholder-val="{{ false }}">
+<div role="dialog" aria-modal="true" aria-label="Approved design" style="position:fixed;inset:0;z-index:60;background:var(--bg);display:flex;flex-direction:column">
+<div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:12px 20px;border-bottom:1px solid var(--line)">
+<div style="display:flex;flex-direction:column;gap:2px;margin-right:auto"><span style="font-size:12px;color:var(--ink2)">Approved design · {{ cvs.canvas }} · the product's own design, shown as approved</span><strong style="font-size:16px">{{ cvs.label }}</strong></div>
+<span style="display:flex;gap:8px;flex-wrap:wrap;font-size:13px">Requirements <sc-for list="{{ cvs.reqs }}" as="r"><a href="{{ r.href }}" onClick="{{ closeCanvas }}" style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px">{{ r.id }}</a></sc-for></span>
+<button type="button" ref="{{ canvasCloseRef }}" onClick="{{ closeCanvas }}" style="padding:7px 14px;border:1px solid var(--line2);border-radius:6px;background:transparent;cursor:pointer">Close (Esc)</button>
+</div>
+<iframe title="Approved design canvas" srcdoc="{{ cvs.doc }}" ref="{{ canvasFrameRef }}" style="flex:1;border:none;width:100%;background:#e4e0d9"></iframe>
+</div>
+</sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;mode&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;snapshot&quot;,&quot;index&quot;],&quot;default&quot;:&quot;snapshot&quot;,&quot;tsType&quot;:&quot;'snapshot'|'index'&quot;},&quot;replayed&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;},&quot;dataset&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;full&quot;,&quot;empty&quot;],&quot;default&quot;:&quot;full&quot;,&quot;tsType&quot;:&quot;'full'|'empty'&quot;},&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;auto&quot;,&quot;light&quot;,&quot;dark&quot;],&quot;default&quot;:&quot;auto&quot;,&quot;tsType&quot;:&quot;'auto'|'light'|'dark'&quot;}}">
+const ORDER=['pass','red','stale','never','owed','deploy-owed','held','later'];
+const ST={pass:{l:'Passing',c:'var(--c-pass)',h:'Its test passed on the latest result counted for it, which may be on an earlier commit.'},red:{l:'Failing',c:'var(--c-fail)',h:'Its test failed on the latest run.'},stale:{l:'Stale',c:'var(--c-stale)',h:'Not re-run since a change, so the last result may no longer hold.'},never:{l:'Never run',c:'var(--c-never)',h:'It has a test, but no result of it is recorded yet.'},owed:{l:'Test owed',c:'var(--c-owed)',h:'No test can prove it yet; what will prove it is below.'},'deploy-owed':{l:'Checked at deploy',c:'var(--c-deploy)',h:'Only the deployed platform can prove it; it is checked when the product is deployed.'},held:{l:'Held for you',c:'var(--c-held)',h:'Waiting on the product owner.'},later:{l:'Later phase',c:'var(--line2)',h:'Every requirement it proves is for a later phase, so it is not tested yet.'},new:{l:'Not yet a criterion',c:'var(--line2)',h:''},removed:{l:'No longer a criterion',c:'var(--line2)',h:''}};
+const SHORT={pass:'test ran and passed',red:'test ran and failed',stale:'code changed since it last ran',never:'no result of its test recorded yet',owed:'no test can check it yet','deploy-owed':'checkable only once deployed',held:'waiting on your decision',later:'for a later phase'};
+const HUES=[262,170,300,45,200,340,120];const hueTint=h=>'color-mix(in oklch, oklch(0.62 0.15 '+h+') 15%, var(--panel))';const hueFg=h=>'color-mix(in oklch, oklch(0.52 0.16 '+h+') 82%, var(--ink))';
+const KINDS=[['promise state','Status changes'],['review','Reviews'],['decision','Decisions'],['plan','Plan changes'],['step','Steps'],['question','Questions'],['commit','Commits']];
+const TYPES={functional:'Functional',invariant:'Always true',nfr:'Quality',data_entity:'Data',ux_flow:'User flow'};
+const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const pad=x=>String(x).padStart(2,'0');
+const N=x=>Number(x||0).toLocaleString('en-GB');
+const PL=(k,w,ws)=>N(k)+' '+(k===1?w:(ws||w+'s'));
+const MONO='ui-monospace,SFMono-Regular,Menlo,Consolas,monospace';
+function fmtT(s,short){if(!s)return '';if(/^\d{4}-\d\d-\d\d$/.test(s)){const[y,m,d]=s.split('-');return (+d)+' '+MON[m-1]+(short?'':' '+y);}const t=new Date(s);if(isNaN(t))return s;return t.getUTCDate()+' '+MON[t.getUTCMonth()]+(short?'':' '+t.getUTCFullYear())+', '+pad(t.getUTCHours())+':'+pad(t.getUTCMinutes())+(short?'':' UTC');}
+const ID_SRC='\\b(ROW-\\d+|REQ-\\d+|INV-\\d+|FEAT-\\d+|NG-\\d+|A-\\d+|D-\\d+|S\\d{2})\\b';
+function idType(id){if(/^FEAT-\d+$/.test(id))return'cap';if(/^(REQ|INV)-\d+$/.test(id))return'req';if(/^ROW-\d+$/.test(id))return'prom';if(/^S\d+$/.test(id))return'step';if(/^[AD]-\d+$/.test(id))return'dec';if(/^NG-\d+$/.test(id))return'ng';if(/^G\d+$/.test(id))return'goal';return null;}
+const normId=s=>s.toLowerCase().replace(/^([a-z]+)-?0*(\d+)$/,'$1$2');
+const trunc=(s,n)=>!s?'':s.length>n?s.slice(0,n-1)+'…':s;
+function emptyOf(D){return {...D,meta:{...D.meta,previous:null},goals:[],capabilities:[],users:[],journeys:[],requirements:[],nonGoals:[],screens:[],promises:[],steps:[],decisions:{answers:[],technical:[]},needsYou:{questions:[],held:[],delegated:[]},activity:{agentsOpen:[],recentCommits:[],planChanges:[]},changes:[]};}
+
+class Component extends DCLogic {
+  state={ready:false,route:{type:'product'},trail:{},pf:'all',plimit:30,reqQ:'',searchOpen:false,sq:'',canvas:null,theme:null,chFrom:0,chTo:1,chCap:'',chKinds:{},chText:'',chLimits:{},commitsOpen:false,stepFilter:'underway'};
+  searchRef=React.createRef();canvasFrameRef=React.createRef();canvasCloseRef=React.createRef();
+
+  componentDidMount(){
+    this._poll=setInterval(()=>{if(window.VID_DATA){clearInterval(this._poll);this.onHash();const ms=this.moments();this.setState({ready:true,chFrom:0,chTo:Math.max(1,ms.length-1)});}},40);
+    this._hash=()=>this.onHash(true);window.addEventListener('hashchange',this._hash);
+    this._key=e=>{const tag=(e.target.tagName||'').toLowerCase();const typing=tag==='input'||tag==='textarea'||tag==='select';
+      if(e.key==='Escape'){if(this.state.canvas)this.setState({canvas:null});else if(this.state.searchOpen)this.setState({searchOpen:false});return;}
+      if(!typing&&(e.key==='/'||((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'))){e.preventDefault();this.openSearch();}};
+    window.addEventListener('keydown',this._key);this.applyTheme();
+  }
+  componentWillUnmount(){clearInterval(this._poll);window.removeEventListener('hashchange',this._hash);window.removeEventListener('keydown',this._key);}
+  componentDidUpdate(pp,ps){this.applyTheme();
+    if(this.state.searchOpen&&!ps.searchOpen&&this.searchRef.current)this.searchRef.current.focus();
+    if(this.state.canvas&&!ps.canvas){if(this.canvasCloseRef.current)this.canvasCloseRef.current.focus();const fr=this.canvasFrameRef.current;if(fr)fr.addEventListener('load',()=>this.scrollCanvas(fr),{once:true});}
+    if(pp.mode!==this.props.mode)this.onHash(true);}
+  applyTheme(){const t=this.state.theme||this.props.theme||'auto';const dark=t==='dark'||(t==='auto'&&window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.dataset.theme=dark?'dark':'light';}
+
+  mode(){const m=window.VID_DATA&&window.VID_DATA.meta;return (m&&m.mode)||this.props.mode;}
+  ownFile(){const m=this.ix.D.meta,sn=m.snapshots||[];const x=sn.find(y=>y.moment.commit===m.moment.commit&&y.moment.time===m.moment.time);return x?x.file:'';}
+  ensure(){const ds=this.props.dataset??'full';if(this._ds!==ds||!this.ix){this.ix=this.build(ds==='empty'?emptyOf(window.VID_DATA):window.VID_DATA);this._ds=ds;}}
+  build(D){
+    const P=new Map(),R=new Map(),C=new Map(),S=new Map(),A=new Map(),G=new Map(),NG=new Map();
+    D.promises.forEach(p=>P.set(p.id,p));D.requirements.forEach(r=>R.set(r.id,r));D.capabilities.forEach(c=>C.set(c.id,c));D.steps.forEach(s=>S.set(s.id,s));
+    D.decisions.answers.forEach(a=>A.set(a.id,{...a,dk:'A'}));D.decisions.technical.forEach(a=>A.set(a.id,{...a,dk:'D'}));D.goals.forEach(g=>G.set(g.id,g));D.nonGoals.forEach(g=>NG.set(g.id,g));
+    const push=(o,k,v)=>(o[k]=o[k]||[]).push(v);
+    const reqP={},capP={},capR={},reqScr={},settles={},builtOnBy={};
+    D.promises.forEach(p=>{p.requirements.forEach(r=>push(reqP,r,p));p.capabilities.forEach(c=>push(capP,c,p));});
+    D.requirements.forEach(r=>push(capR,r.capability,r));
+    D.screens.forEach(s=>s.requirements.forEach(r=>push(reqScr,r,s)));
+    D.decisions.answers.forEach(a=>(a.settles||[]).forEach(x=>push(settles,x,a)));
+    D.steps.forEach(s=>(s.buildsOn||[]).forEach(b=>push(builtOnBy,b,s.id)));
+    const all=new Set([...P.keys(),...R.keys(),...C.keys(),...S.keys(),...A.keys(),...G.keys(),...NG.keys()]);
+    const si=[];const add=(id,kind,text)=>si.push({id,kind,text:text||'',lc:(id+' '+(text||'')).toLowerCase(),n:normId(id)});
+    D.capabilities.forEach(c=>add(c.id,'Capabilities',c.name));D.goals.forEach(g=>add(g.id,'Goals',g.name+': '+g.text));
+    D.requirements.forEach(r=>add(r.id,'Requirements',r.plain));D.promises.forEach(p=>add(p.id,'Acceptance criteria',p.text));
+    D.steps.forEach(s=>add(s.id,'Steps',s.name));D.decisions.answers.forEach(a=>add(a.id,this.tierName(a)+'s',a.a));
+    D.decisions.technical.forEach(t=>add(t.id,'Technical decisions',t.what));D.nonGoals.forEach(g=>add(g.id,'Out of scope',g.plain));
+    return {D,P,R,C,S,A,G,NG,reqP,capP,capR,reqScr,settles,builtOnBy,all,si};
+  }
+
+  onHash(scroll){if(!window.VID_DATA)return;this.ensure();let h=decodeURIComponent((location.hash||'').replace(/^#/,''));
+    if(!h)h=(this.mode()==='index')?'snapshots':'product';
+    let r;const sl=h.split('/');if(['product','delivery'].includes(sl[0]))r={type:sl[0],tab:sl[1]||'overview'};else if(h==='non-goals')r={type:'product',tab:'scope'};else if(['changes','snapshots'].includes(h))r={type:h};else{const t=idType(h);r=t&&this.ix.all.has(h)?{type:t,id:h}:{type:'missing',id:h};}
+    if(r.type==='goal')r={type:'product',tab:'capabilities',id:h};if(r.type==='ng')r={type:'product',tab:'scope',id:h};
+    const ix=this.ix;let trail=this.state.trail||{};
+    if(r.type==='cap')trail={cap:r.id};
+    if(r.type==='req'){const q=ix.R.get(r.id);trail={cap:q&&q.capability,req:r.id};}
+    if(r.type==='prom'){const p=ix.P.get(r.id);let cap=trail.cap&&p.capabilities.includes(trail.cap)?trail.cap:null;let req=trail.req&&p.requirements.includes(trail.req)?trail.req:null;
+      if(!req)req=p.requirements.find(x=>!cap||(ix.R.get(x)||{}).capability===cap)||p.requirements[0];if(!cap)cap=(ix.R.get(req)||{}).capability||p.capabilities[0];trail={cap,req};}
+    this.setState({route:r,trail,pf:'all',plimit:30,reqQ:'',openReqs:{},expandAll:false,searchOpen:false,canvas:null});
+    if(scroll){if(r.id&&(r.type==='product'||r.type==='non-goals'))setTimeout(()=>{const el=document.getElementById(r.id);if(el)window.scrollTo(0,el.getBoundingClientRect().top+window.scrollY-130);},60);else window.scrollTo(0,0);}
+  }
+  openSearch=()=>this.setState({searchOpen:true});
+  go(id){if(location.hash==='#'+id)this.onHash(true);else location.hash='#'+id;this.setState({searchOpen:false});}
+
+  sum(ps){const by={};ORDER.forEach(k=>by[k]=0);let rev=0,kept=0,broken=0,shared=0,fixed=0;
+    for(const p of ps){by[p.state]=(by[p.state]||0)+1;const j=p.judgments||[];if(j.length){rev++;const l=j[j.length-1];if(l.result==='kept'){kept++;if(j.some(x=>x.result==='broken'))fixed++;}else broken++;}if(p.capabilities.length>1)shared++;}
+    const attn=ps.filter(p=>{const j=p.judgments||[],l=j[j.length-1];return p.state==='red'||p.state==='stale'||(l&&l.result==='broken');}).length;
+    return {total:ps.length,by,pass:by.pass,rev,kept,broken,fixed,shared,attn,open:ps.length-by.pass};}
+  segs(s){return ORDER.filter(k=>s.by[k]).map(k=>({key:k,label:ST[k].l,n:s.by[k],nText:N(s.by[k]),color:ST[k].c,hint:ST[k].h}));}
+  barLabel(s){return this.segs(s).map(x=>x.nText+' '+x.label.toLowerCase()).join(', ');}
+  summaryV(s,scope,unitLine){const segs=this.segs(s);let sharedText='';
+    if(s.shared&&scope==='cap')sharedText=N(s.shared)+' of these criteria also belong to another capability, so they are counted there too.';
+    const testLegend=ORDER.filter(k=>s.by[k]).map(k=>({label:ST[k].l,nText:N(s.by[k]),color:ST[k].c,hint:SHORT[k],w:k==='red'||k==='stale'?700:400}));
+    const un=s.total-s.rev;const revSegs=[['Confirmed',s.kept,'var(--c-pass)','a reviewer kept it'],['Rejected',s.broken,'var(--c-fail)','a reviewer found a fault: in the product, the test or the harness'],['Not reviewed',un,'var(--c-never)','no reviewer has looked yet']].filter(x=>x[1]>0);
+    const parts=[s.by.red&&PL(s.by.red,'failing test'),s.by.stale&&N(s.by.stale)+' stale',s.broken&&N(s.broken)+' rejected on review'].filter(Boolean);
+    return {has:s.total>0,none:s.total===0,unitLine,passBig:N(s.pass),passOf:'of '+PL(s.total,'criterion','criteria')+' pass their test',segs,testLegend,
+      keptBig:N(s.kept),keptOf:'of '+PL(s.total,'criterion','criteria')+' confirmed by a reviewer',
+      revSegs:revSegs.map(x=>({label:x[0],n:x[1],nText:N(x[1]),color:x[2]})),revLegend:revSegs.map(x=>({label:x[0],nText:N(x[1]),color:x[2],hint:x[3]})),
+      revLabel:'Reviews: '+revSegs.map(x=>N(x[1])+' '+x[0].toLowerCase()).join(', '),
+      attnText:s.attn?PL(s.attn,'criterion','criteria')+' need attention':'Nothing needs attention',attnSub:s.attn?'('+parts.join(', ')+'; some criteria have more than one problem). The rest are passing or simply not checkable yet.':'No failing or stale tests and no broken reviews.',
+      barLabel:'Test results: '+this.barLabel(s),hasShared:!!sharedText,sharedText};}
+  ctlOf(p){const m=/^control of (ROW-\d+)\s*:/i.exec(p.text||'');return m?m[1]:null;}
+  critRows(ps,reqId){const ids=new Set(ps.map(p=>p.id));const kids={};ps.forEach(p=>{const par=this.ctlOf(p);if(par&&ids.has(par))(kids[par]=kids[par]||[]).push(p);});
+    return ps.filter(p=>{const par=this.ctlOf(p);return !(par&&ids.has(par));}).map(p=>({...this.pItem(p,reqId),controls:(kids[p.id]||[]).map(k=>this.pItem(k,reqId))}));}
+  pFilter(ps){const pf=this.state.pf;return ps.filter(p=>{const j=p.judgments||[],l=j[j.length-1];if(pf==='all')return true;if(pf==='broken')return l&&l.result==='broken';if(pf==='fixed')return l&&l.result==='kept'&&j.some(x=>x.result==='broken');if(pf==='unrev')return !l;return p.state===pf;});}
+  pItem(p,reqId){const st=ST[p.state]||{l:p.state,c:'var(--ink2)'};const j=p.judgments||[],l=j[j.length-1];const par=this.ctlOf(p);
+    const also=reqId?p.requirements.filter(x=>x!==reqId):[];
+    const KL={shell:'On every page',reachability:'Reachable',journey:'Whole journey',surface:'Matches design',behavior:'Behaviour'};
+    return {id:p.id,href:'#'+p.id,text:String(p.text||'').replace(/^control of ROW-\d+\s*:\s*/i,'').replace(/`/g,'').replace(/^./,x=>x.toUpperCase()),isCtl:!!par,parentId:par||'',kind:KL[p.kind]||p.kind,hasAlso:also.length>0,alsoText:also.length?'also under '+also.join(', '):'',st:st.l,color:st.c,hasRev:!!l,rev:l?(l.result==='kept'?'Review: confirmed':'Review: rejected'):'',revC:l?(l.result==='kept'?'var(--c-pass)':'var(--c-fail)'):'',shared:p.capabilities.length>1,sharedText:'serves '+p.capabilities.length+' capabilities'};}
+  plistV(ps){const pf=this.state.pf;const s=this.sum(ps);
+    const raw=[{key:'all',label:'All',n:ps.length},...this.segs(s).map(x=>({key:x.key,label:x.label,n:x.n,color:x.color})),{key:'broken',label:'Rejected on review',n:s.broken},{key:'fixed',label:'Rejected, then fixed',n:s.fixed},{key:'unrev',label:'Not reviewed',n:s.total-s.rev}];
+    const chips=raw.filter(c=>c.n>0||c.key==='all').map(c=>({...c,nText:N(c.n),on:pf===c.key,bg:pf===c.key?'var(--accent)':'var(--panel)',fg:pf===c.key?'#fff':'var(--ink)',dot:c.color||'transparent',hasDot:!!c.color,pick:()=>this.setState({pf:c.key,plimit:30})}));
+    const f=ps.filter(p=>{const j=p.judgments||[],l=j[j.length-1];if(pf==='all')return true;if(pf==='broken')return l&&l.result==='broken';if(pf==='fixed')return l&&l.result==='kept'&&j.some(x=>x.result==='broken');if(pf==='unrev')return !l;return p.state===pf;});
+    const shown=f.slice(0,this.state.plimit);const rest=f.length-shown.length;
+    return {chips,rows:this.critRows(shown),count:N(f.length),more:rest>0,moreText:'Show '+Math.min(50,rest)+' more ('+N(rest)+' not shown)',showMore:()=>this.setState(st=>({plimit:st.plimit+50})),empty:f.length===0};}
+  parts(t){t=String(t||'');const out=[];let last=0,m;const re=new RegExp(ID_SRC,'g');
+    while((m=re.exec(t))){if(m.index>last)out.push({t:t.slice(last,m.index),plain:true,link:false});const ok=this.ix.all.has(m[0]);out.push({t:m[0],href:'#'+m[0],link:ok,plain:!ok});last=m.index+m[0].length;}
+    if(last<t.length)out.push({t:t.slice(last),plain:true,link:false});return out;}
+  canvasBtn(s,label){const has=!!(s.canvas&&window.VID_CANVASES&&window.VID_CANVASES[s.canvas]);
+    return {label:label||s.state,disabled:!has,title:has?'Open the approved design at '+s.screen+' · '+s.state:'No design for '+s.screen+' · '+s.state+' is embedded in this snapshot',bd:has?'var(--ink)':'var(--line2);border-style:dashed',fg:has?'var(--ink)':'var(--ink2)',cursor:has?'pointer':'default',open:()=>has&&this.setState({canvas:s})};}
+  tierName(a){return a.tier==='human'?'Owner ruling':a.tier==='model_proposed'?'ViD decision':'Ruling ('+a.tier+')';}
+  stepState(s){return s.closed?'closed':s.started?'underway':'not started';}
+  stepPass(s){const ps=(s.promises||[]).map(id=>this.ix.P.get(id)).filter(Boolean);const b=ps.filter(p=>p.built),t=ps.filter(p=>p.state==='pass'),c=ps.filter(p=>{const j=p.judgments||[],l=j[j.length-1];return l&&l.result==='kept';});return {n:ps.length,b:b.length,t:t.length,c:c.length};}
+  dgV(D){const ix=this.ix,st=this.state;const q=(st.dgQ||'').trim().toLowerCase();const open=st.dgOpen||{};const by={};
+    for(const id of D.needsYou.delegated){const a=ix.A.get(id);if(!a)continue;if(q&&!(id+' '+(a.q||'')+' '+a.a).toLowerCase().includes(q))continue;
+      const caps=[...new Set((a.settles||[]).map(x=>{const r=ix.R.get(x);if(r)return r.capability;const p=ix.P.get(x);return p?p.capabilities[0]:null;}).filter(Boolean))];const k=caps[0]||'_';
+      const ans=String(a.a||'').replace(/^Delegated by the owner,?\s*(accepted as recommended)?\s*[—:-]?\s*/i,'');
+      (by[k]=by[k]||[]).push({id,href:'#'+id,q:trunc(a.q||'Ruling '+id,180),a:trunc(ans.charAt(0).toUpperCase()+ans.slice(1),200),date:fmtT(a.date)});}
+    const keys=Object.keys(by).sort((x,y)=>by[y].length-by[x].length);
+    const dgGroups=keys.map(k=>{const o=q?true:!!open[k];return {name:k==='_'?'General':k+' · '+((ix.C.get(k)||{}).name||''),nText:N(by[k].length),items:by[k],open:o,sign:o?'−':'+',bg:o?'var(--sunk)':'transparent',toggle:()=>this.setState(s=>({dgOpen:{...(s.dgOpen||{}),[k]:!o}}))};});
+    return {dgGroups,dgNone:!dgGroups.length,dgNoneText:(D.meta.notRecorded||[]).includes('delegated')?'Not recorded: this project\'s records predate the delegated mark.':'No rulings match.'};}
+  ansV(D){const ix=this.ix,dg=new Set(D.needsYou.delegated||[]),NR='not recorded';const ids=D.needsYou.answered||[];
+    const answered=ids.map(id=>{const a=ix.A.get(id)||{};return {id,href:'#'+id,date:a.date?fmtT(a.date):NR,mark:dg.has(id)?'Delegated':a.tier?this.tierName(a):NR,a:a.a?trunc(a.a,300):NR,q:a.q?trunc(a.q,300):NR};});
+    return {answered,hasAnswered:answered.length>0,answeredTitle:PL(answered.length,'answered question')};}
+  actV(D){const st=this.state,af=st.actF||'all';const plan=D.activity.planChanges.map((c,i)=>({k:'plan',key:'p'+i,at:c.at,type:'Plan · '+String(c.what||'').toLowerCase(),ref:'',body:c.why||''}));
+    const com=D.activity.recentCommits.map((c,i)=>({k:'commit',key:'c'+i,at:c.time,type:'Commit',ref:c.commit,body:c.subject||''}));
+    const all=plan.concat(com).sort((a,b)=>a.at<b.at?1:-1);const fl=all.filter(a=>af==='all'||a.k===af);const lim=st.actLimit||8;const open=st.actOpen||{};
+    const actChips=[['all','All',all.length],['plan','Plan changes',plan.length],['commit','Commits',com.length]].filter(x=>x[2]||x[0]==='all').map(([k,l,n])=>({label:l,nText:N(n),on:af===k,bg:af===k?'var(--accent)':'var(--panel)',fg:af===k?'#fff':'var(--ink)',pick:()=>this.setState({actF:k,actLimit:8})}));
+    const acts=fl.slice(0,lim).map(a=>{const long=a.body.length>200;const o=!!open[a.key];return {at:fmtT(a.at,true),type:a.type,ref:a.ref,hasRef:!!a.ref,parts:this.parts(long&&!o?trunc(a.body,200):a.body),long,toggleText:o?'Show less':'Show all',toggle:()=>this.setState(s=>({actOpen:{...(s.actOpen||{}),[a.key]:!o}}))};});
+    const rest=fl.length-acts.length;
+    return {actChips,acts,noActs:!fl.length,actNone:D.meta.nowOnly?'Recent activity is shown in the latest snapshot only.':'Nothing recorded.',actMore:rest>0,actMoreText:'Show '+Math.min(20,rest)+' more · '+N(rest)+' not shown',actShowMore:()=>this.setState({actLimit:lim+20})};}
+  moments(){const m=this.ix.D.meta,sn=m.snapshots||[];if(sn.length){const own=this.ownFile();const lab=x=>({label:x.label+' · '+fmtT(x.moment.time,true),time:x.moment.time,commit:x.moment.commit,name:x.label,file:x.file,requested:!!x.requested});let b;if(this.mode()==='index')b=sn.map(lab);else{const i=sn.findIndex(x=>x.file===own);b=(i>0?[sn[i-1],sn[i]]:i===0?[sn[0]]:[]).map(lab);}return b.map((x,i)=>({...x,i:String(i)}));}const a=[];if(m.previous)a.push({label:m.previous.label+' · '+fmtT(m.previous.time,true),time:m.previous.time,commit:m.previous.commit,name:m.previous.label});a.push({label:'Now · '+fmtT(m.moment.time,true),time:m.moment.time,commit:m.moment.commit,name:'Now'});return a.map((x,i)=>({...x,i:String(i)}));}
+
+  chLc(c){if(c._lc)return c._lc;const p=c.kind==='promise state'||c.kind==='review'?(this.ix.P.get(c.ids[0])||{}).text||'':'';return c._lc=(c.ids.join(' ')+' '+(c.text||'')+' '+(c.why||'')+' '+(c.what||'')+' '+p).toLowerCase();}
+  chItem(c){const ix=this.ix;let title='',detail='';const P0=ix.P.get(c.ids[0]);
+    switch(c.kind){case 'promise state':title=(ST[c.from]||{l:c.from}).l+' → '+(ST[c.to]||{l:c.to}).l;detail=P0?P0.text:'';break;
+      case 'review':title='Review '+(c.result==='kept'?'confirmed':'rejected')+(c.class==='product'?' · fault in the product':c.class==='test'?' · fault in the test':'');detail=P0?P0.text:'';break;
+      case 'decision':title=c.ids[0].startsWith('A-')?(ix.A.get(c.ids[0])?this.tierName(ix.A.get(c.ids[0])):'Ruling'):'Technical decision';detail=c.text;break;
+      case 'plan':title='Plan change: '+c.what;detail=c.why;break;
+      case 'step':title='Step '+c.what;detail=(ix.S.get(c.ids[0])||{}).name||'';break;
+      default:detail=c.text||'';}
+    const ids=[...new Set(c.ids)].slice(0,6).map(id=>({id,href:'#'+id,link:ix.all.has(id),plain:!ix.all.has(id)}));
+    const caps=(c.capabilities||[]).slice(0,3).map(id=>({id,href:'#'+id,name:(ix.C.get(id)||{}).name||id}));const more=(c.capabilities||[]).length-3;
+    return {ids,title,hasTitle:!!title,parts:this.parts(trunc(detail,260)),at:c.at?fmtT(c.at):'between the two moments (no exact time)',caps,hasCapMore:more>0,capMore:'+'+more+' more'};}
+  changesV(){const ix=this.ix,st=this.state,ms=this.moments();const from=+st.chFrom,to=+st.chTo;const win=to<ms.length&&from<to;const wins=new Set(ms.slice(from+1,to+1).map(x=>x.file));const inWin=ix.D.changes.filter(c=>!c.window||wins.has(c.window));
+    const tx=st.chText.trim().toLowerCase(),cap=st.chCap;
+    const base=win?inWin.filter(c=>(!cap||(c.capabilities||[]).includes(cap))&&(!tx||this.chLc(c).includes(tx))):[];
+    const kc={};base.forEach(c=>kc[c.kind]=(kc[c.kind]||0)+1);const anyK=Object.values(st.chKinds).some(Boolean);
+    const kindChips=KINDS.filter(([k])=>kc[k]||st.chKinds[k]).map(([k,l])=>{const on=!!st.chKinds[k];return {label:l,nText:N(kc[k]||0),on,bg:on?'var(--accent)':'var(--panel)',fg:on?'#fff':'var(--ink)',pick:()=>this.setState(s=>({chKinds:{...s.chKinds,[k]:!s.chKinds[k]}}))};});
+    const f=anyK?base.filter(c=>st.chKinds[c.kind]):base;
+    const groups=[];
+    for(const [k,label] of KINDS){const items=f.filter(c=>c.kind===k);if(!items.length)continue;
+      let subs;
+      if(k==='promise state'){const by={};items.forEach(c=>{const key=c.from+'>'+c.to;(by[key]=by[key]||[]).push(c);});
+        subs=Object.entries(by).sort((a,b)=>b[1].length-a[1].length).map(([key,arr])=>{const[a,b]=key.split('>');return {key:k+'|'+key,label:(ST[a]||{l:a}).l+' → '+(ST[b]||{l:b}).l,arr,fromC:(ST[a]||{}).c,toC:(ST[b]||{}).c,toR:'50%'};});}
+      else if(k==='review'){const by={kept:[],broken:[]};items.forEach(c=>(by[c.result]||(by[c.result]=[])).push(c));
+        subs=['broken','kept'].filter(x=>by[x].length).map(x=>({key:k+'|'+x,label:x==='kept'?'Confirmed':'Rejected',arr:by[x],fromC:'transparent',toC:x==='kept'?'var(--c-pass)':'var(--c-fail)',toR:'1px'}));}
+      else subs=[{key:k+'|',label:'',arr:items}];
+      const collapsed=k==='commit'&&!st.commitsOpen;
+      const subsV=collapsed?[]:subs.map(s=>{const lim=st.chLimits[s.key]||8;const rest=s.arr.length-lim;
+        return {hasLabel:!!s.label,label:s.label,nText:N(s.arr.length),fromC:s.fromC,toC:s.toC,toR:s.toR,items:s.arr.slice(0,lim).map(c=>this.chItem(c)),more:rest>0,moreText:'Show '+Math.min(25,rest)+' more · '+N(rest)+' not shown',showMore:()=>this.setState(x=>({chLimits:{...x.chLimits,[s.key]:lim+25}}))};});
+      groups.push({label,nText:N(items.length),collapsed,toggleText:'List all '+N(items.length)+' commits',toggle:()=>this.setState({commitsOpen:true}),subs:subsV,
+        note:k==='promise state',noteText:'Grouped by what changed. A criterion\'s state is compared between the two moments, so these carry the window rather than a time.'});}
+    const filtered=!!(cap||tx||anyK);
+    const fm=ms[from],tm=ms[to];
+    return {kindChips,groups,filtered,empty:f.length===0,
+      totalText:win?PL(f.length,'change'):'No window',
+      windowText:win?('between '+fm.name+' ('+fmtT(fm.time)+') and '+tm.name+' ('+fmtT(tm.time)+')'+(filtered?', narrowed from '+N(inWin.length):'')+'.'):'',
+      emptyText:!win?(ms.length<2?'This is the first snapshot, so there is nothing earlier to compare with.':'Choose a “from” moment earlier than “to”.'):'No changes match these filters. Clear a filter or widen the window.'};}
+
+  renderVals(){
+    const st=this.state;
+    const handlers={openSearch:this.openSearch,closeSearch:()=>this.setState({searchOpen:false}),closeSearchBg:e=>{if(e.target===e.currentTarget)this.setState({searchOpen:false});},
+      toggleTheme:()=>this.setState({theme:document.documentElement.dataset.theme==='dark'?'light':'dark'}),searchRef:this.searchRef,canvasCloseRef:this.canvasCloseRef,
+      setSq:e=>this.setState({sq:e.target.value}),searchKey:e=>{if(e.key==='Enter'){const r=this.search(st.sq);if(r&&r.first)this.go(r.first);}},
+      setReqQ:e=>this.setState({reqQ:e.target.value}),setDgQ:e=>this.setState({dgQ:e.target.value}),closeCanvas:()=>this.setState({canvas:null}),
+      setFrom:e=>this.setState({chFrom:e.target.value}),setTo:e=>this.setState({chTo:e.target.value}),setCap:e=>this.setState({chCap:e.target.value}),setChText:e=>this.setState({chText:e.target.value}),
+      clearCh:()=>this.setState({chCap:'',chText:'',chKinds:{}}),
+      canvasFrameRef:this.canvasFrameRef};
+    if(!st.ready||!window.VID_DATA)return {...handlers,loading:true};
+    this.ensure();
+    const ix=this.ix,D=ix.D,m=D.meta,r=st.route;
+    const replayed=!!(m.replayed||this.props.replayed);
+    const treeT=['product','cap','req','prom','non-goals'];
+    const navDef=[['Product','#product',treeT],['Delivery','#delivery',['delivery','step','dec']],['Change log','#changes',['changes']],['Snapshots','#snapshots',['snapshots']]];
+    const nav=navDef.map(([label,href,ts])=>{const on=ts.includes(r.type);return {label,href,current:on?'page':undefined,weight:on?700:500,fg:on?'#fff':'#a9b2c7',bd:on?'oklch(0.72 0.15 262)':'transparent'};});
+    const v={...handlers,loading:false,replayed,project:m.project,momentTime:fmtT(m.moment.time),commit:m.moment.commit,
+      momentTag:(this.mode()==='index')?'Index':replayed?'Replayed':'Latest',prevHref:m.previous&&m.previous.file?m.previous.file:'#snapshots',nextHref:m.next&&m.next.file?m.next.file:'#snapshots',tagColor:replayed?'var(--c-stale)':'var(--c-pass)',
+      prevLabel:m.previous?m.previous.label:'No earlier snapshot',prevAria:m.previous?'Previous snapshot: '+m.previous.label+', '+fmtT(m.previous.time):'This is the first snapshot',
+      hasNext:!!m.next||replayed,noNext:!(m.next||replayed),nextLabel:m.next?m.next.label:'Now',
+      themeLabel:document.documentElement.dataset.theme==='dark'?'Light':'Dark',nav,
+      footVid:'ViD '+m.vid+' · records '+(m.records==null?'not recorded':m.records),footRule:'Evidence rule: '+m.evidenceRule,footMade:'Made '+fmtT(m.madeAt),
+      searchOpen:st.searchOpen,sq:st.sq,reqQ:st.reqQ,dgQ:st.dgQ||'',chFrom:String(st.chFrom),chTo:String(st.chTo),chCap:st.chCap,chText:st.chText,
+      isProduct:r.type==='product',isNonGoals:r.type==='non-goals',isCap:r.type==='cap',isReq:r.type==='req',isProm:r.type==='prom',isStep:r.type==='step',isDec:r.type==='dec',
+      isDelivery:r.type==='delivery',isChanges:r.type==='changes',isSnapshots:r.type==='snapshots',isMissing:r.type==='missing',missingId:r.id,hasPlist:false};
+    // search
+    const sres=this.search(st.sq);v.sr={idle:!sres,none:!!sres&&sres.total===0,groups:sres?sres.groups:[]};
+    // canvas
+    if(st.canvas){const s=st.canvas;v.canvasOpen=true;v.cvs={canvas:s.canvas,label:s.screen+' · '+s.state,reqs:s.requirements.map(id=>({id,href:'#'+id})),doc:window.VID_CANVASES[s.canvas]};}
+    const crumbs=[{label:'Product',href:'#product'}];
+    const tail=(arr)=>arr.map((c,i)=>({...c,sep:i>0,link:i<arr.length-1,last:i===arr.length-1}));
+    const capCrumb=id=>{const c=ix.C.get(id);return c?{label:c.name,href:'#'+id}:null;};
+    const reqCrumb=id=>ix.R.get(id)?{label:id,href:'#'+id}:null;
+    if(r.type==='product'){const s=this.sum(D.promises);v.isNode=true;const tb=r.tab||'overview';
+      v.ptabs=this.tabs('product',[['overview','Overview'],['capabilities','Capabilities',D.capabilities.length],['journeys','Users & journeys',D.journeys.length],['scope','Out of scope',D.nonGoals.length]],tb);
+      v.ptab={ov:tb==='overview',caps:tb==='capabilities',users:tb==='journeys',scope:tb==='scope'};
+      v.node={crumbs:[],kicker:'Product definition · as of '+fmtT(m.moment.time),title:m.project,size:'32px',hasSub:true,sub:'What the product is for, what it does, who uses it, and what it deliberately leaves out. Open any capability to see its requirements and criteria.',hasSum:false};
+      const lv=[['Goals',D.goals.length,'What the product is for.','e.g. G1'],['Capabilities',D.capabilities.length,'What it can do, grouped by goal. Also called features.','e.g. FEAT-10'],['Requirements',D.requirements.length,'What each capability must do, as agreed with the product owner.','e.g. REQ-049'],['Acceptance criteria',D.promises.length,'One checkable statement each. A requirement is split into the criteria that prove it.','e.g. ROW-037']];
+      const lvl=lv.map((x,i)=>({name:x[0],nText:N(x[1]),def:x[2],ex:x[3],fg:hueFg([300,200,160,262][i])}));
+      const own=this.ownFile(),ch=D.changes.filter(c=>!c.window||c.window===own).length,ny=D.needsYou;const nyN=ny.questions.length+ny.held.length+ny.delegated.length;
+      v.pv={levels:lvl,progText:N(s.pass)+' of '+PL(s.total,'criterion','criteria')+' pass their test · '+N(s.kept)+' confirmed by review',sinceText:m.previous?PL(ch,'change')+' since '+m.previous.label+' ('+fmtT(m.previous.time,true)+')':'First snapshot: nothing earlier to compare',
+        needsText:nyN?'Needs you: '+[ny.questions.length&&PL(ny.questions.length,'question'),ny.held.length&&PL(ny.held.length,'held criterion','held criteria'),ny.delegated.length&&PL(ny.delegated.length,'delegated ruling')+' to confirm'].filter(Boolean).join(' · '):'Nothing needs you',
+        capsCount:PL(D.capabilities.length,'capability','capabilities')+' under '+PL(D.goals.length,'goal'),noCaps:!D.capabilities.length,
+        goals:D.goals.map((g,gi)=>{const gps=new Set();D.capabilities.filter(c=>c.goal===g.id).forEach(c=>(ix.capP[c.id]||[]).forEach(p=>gps.add(p)));const gs=this.sum([...gps]);const nc=D.capabilities.filter(c=>c.goal===g.id).length;return {href:'#'+g.id,pct:(gs.total?gs.pass/gs.total*100:0)+'%',meta:PL(nc,'capability','capabilities')+' · '+(gs.total?N(gs.pass)+' of '+N(gs.total)+' passing':'no criteria yet'),id:g.id,tint:hueTint(HUES[gi%HUES.length]),fg:hueFg(HUES[gi%HUES.length]),name:g.name,text:g.text.charAt(0).toUpperCase()+g.text.slice(1),caps:D.capabilities.filter(c=>c.goal===g.id).map(c=>{const cs=this.sum(ix.capP[c.id]||[]);return {id:c.id,href:'#'+c.id,name:c.name,reqs:N((ix.capR[c.id]||[]).length),pct:(cs.total?cs.pass/cs.total*100:0)+'%',pass:cs.total?N(cs.pass)+' of '+N(cs.total):'—',total:N(cs.total),segs:this.segs(cs),barLabel:this.barLabel(cs),hasBroken:cs.broken>0,brokenText:cs.broken+' rejected'};})};}),
+        usersSub:'Each user group and the journeys they take through the product. A journey is one acceptance criterion, tested end to end; open it to see each screen and what should happen there.',people:this.people(D),
+        journeys:D.journeys.map(j=>{const [lead,trans]=j.text.split(' transitions: ');const ci=lead.indexOf(':');const p=ix.P.get(j.promise);const stt=ST[p&&p.state]||{l:'unknown',c:'var(--ink2)'};
+          return {title:ci>0&&ci<120?lead.slice(0,ci):trunc(lead,110),lead:ci>0&&ci<120?lead.slice(ci+1).trim():lead,steps:(trans||'').split(/;\s*(?=\d+\.\s)/).filter(Boolean).map(t=>({t:t.replace(/^\d+\.\s*/,'')})),promise:j.promise,href:'#'+j.promise,st:stt.l,color:stt.c};}),
+        ngText:D.nonGoals.length?PL(D.nonGoals.length,'thing')+' deliberately not being built':'No non-goals recorded yet'};}
+    if(r.type==='product'){v.ngv={count:PL(D.nonGoals.length,'non-goal'),empty:!D.nonGoals.length,items:D.nonGoals.map(g=>({id:g.id,plain:g.plain,bg:g.id===r.id?'var(--sunk)':'transparent'}))};}
+    if(r.type==='cap'){const c=ix.C.get(r.id),ps=ix.capP[r.id]||[],g=ix.G.get(c.goal);v.isNode=true;
+      v.node={crumbs:tail([...crumbs,{label:c.name}]),kicker:'Capability '+c.id+(g?' · goal '+g.id+': '+g.name:''),title:c.name,size:'30px',hasSub:false,hasSum:true};
+      const nr=(ix.capR[r.id]||[]).length;v.sm=this.summaryV(this.sum(ps),'cap','This capability has '+PL(nr,'requirement')+', split into '+PL(ps.length,'criterion','criteria')+'. Each criterion is checked by an automatic test, and by a reviewer once one has judged it.');
+      const reqs=ix.capR[r.id]||[];const q=st.reqQ.trim().toLowerCase();const fr=q?reqs.filter(x=>(x.id+' '+x.plain+' '+x.statement).toLowerCase().includes(q)):reqs;
+      const fr2=st.pf==='all'?fr:fr.filter(x=>this.pFilter(ix.reqP[x.id]||[]).length);const byT={};fr2.forEach(x=>(byT[x.type]=byT[x.type]||[]).push(x));
+      const reqIds=new Set(reqs.map(x=>x.id));const scr=D.screens.filter(s=>s.requirements.some(x=>reqIds.has(x)));
+      const byS={};scr.forEach(s=>(byS[s.screen]=byS[s.screen]||[]).push(s));
+      const pset=new Set(ps.map(p=>p.id));const steps=D.steps.filter(s=>(s.promises||[]).some(id=>pset.has(id)));
+      v.cv={reqCount:String(reqs.length),reqFilterable:reqs.length>10,noReqs:!fr.length,
+        toggleAll:()=>this.setState(s0=>({expandAll:!s0.expandAll,openReqs:{}})),allText:st.expandAll?'Collapse all':'Expand all',
+        reqGroups:Object.entries(byT).map(([t,arr])=>({label:TYPES[t]||t,nText:N(arr.length),items:arr.map(x=>{const all=ix.reqP[x.id]||[];const s=this.sum(all);const fp=this.pFilter(all);const oR=st.openReqs||{};const open=x.id in oR?oR[x.id]:(!!st.expandAll||st.pf!=='all');
+          return {id:x.id,href:'#'+x.id,plain:x.plain,pass:N(s.pass),total:N(s.total),pct:(s.total?s.pass/s.total*100:0)+'%',open,sign:open?'−':'+',btnLabel:(open?'Hide':'Show')+' acceptance criteria for '+x.id,bg:open?'var(--sunk)':'transparent',
+            critText:st.pf==='all'?PL(all.length,'acceptance criterion','acceptance criteria'):N(fp.length)+' of '+N(all.length)+' match the filter',rows:open?this.critRows(fp,x.id):[],noRows:open&&!fp.length,
+            toggle:()=>this.setState(s0=>({openReqs:{...(s0.openReqs||{}),[x.id]:!open}})),tier:'Tier '+x.tier.replace('T','')+(x.phase==='later'?' · later phase':'')};})})),
+        scrCount:PL(scr.length,'state')+(scr.length?' on '+PL(Object.keys(byS).length,'screen'):''),noScr:!scr.length,scrNote:scr.length>0,
+        screens:Object.entries(byS).map(([k,arr])=>({screen:k,states:arr.map(s=>this.canvasBtn(s))})),
+        stepCount:String(steps.length),noSteps:!steps.length,
+        steps:steps.map(s=>{const here=(s.promises||[]).filter(id=>pset.has(id)).length;return {id:s.id,href:'#'+s.id,name:s.name,stateText:{closed:'Done',underway:'In progress','not started':'Not started'}[this.stepState(s)]+(s.kind==='hardening'?' · tightens earlier work':''),here:PL(here,'criterion','criteria')+' here',hasOn:(s.buildsOn||[]).length>0,on:(s.buildsOn||[]).map(b=>({id:b,href:'#'+b}))};})};
+      v.hasPlist=false;v.pl=this.plistV(ps);}
+    if(r.type==='req'){const q=ix.R.get(r.id),ps=ix.reqP[r.id]||[];v.isNode=true;
+      v.node={crumbs:tail([...crumbs,capCrumb(q.capability),{label:q.id}].filter(Boolean)),kicker:'Requirement '+q.id,title:q.plain,size:'24px',hasSub:false,hasSum:true};
+      v.sm=this.summaryV(this.sum(ps),'req','This requirement is proven by '+PL(ps.length,'criterion','criteria')+'. Each criterion is checked by an automatic test, and by a reviewer once one has judged it.');const c=ix.C.get(q.capability)||{};
+      v.rv={statement:q.statement,failsIf:q.failsIf||'No separate failure condition is written; the statement itself is the test.',type:TYPES[q.type]||q.type,tier:'Tier '+q.tier.replace('T',''),phase:q.phase==='pilot'?'Pilot':'Later phase',capHref:'#'+q.capability,capName:c.name||q.capability,
+        screens:(ix.reqScr[r.id]||[]).map(s=>this.canvasBtn(s,s.screen+' · '+s.state)),noScreens:!(ix.reqScr[r.id]||[]).length,
+        rulings:(ix.settles[r.id]||[]).map(a=>({id:a.id,href:'#'+a.id,text:trunc(a.a,140)})),noRulings:!(ix.settles[r.id]||[]).length};
+      v.hasPlist=true;v.pl=this.plistV(ps);}
+    if(r.type==='prom'){const p=ix.P.get(r.id),stt=ST[p.state]||{l:p.state,c:'var(--ink2)',h:''};v.isNode=true;
+      v.node={crumbs:tail([...crumbs,capCrumb(st.trail.cap),reqCrumb(st.trail.req),{label:p.id}].filter(Boolean)),kicker:'Criterion '+p.id+(this.ctlOf(p)?' · control of '+this.ctlOf(p):''),title:this.pItem(p).text,size:'22px',hasSub:false,hasSum:false};
+      const det=p.stateDetail||'';const rows=[];const isOwed=/^owed/.test(p.test||'');
+      if(!isOwed&&p.test)rows.push({k:'Test',v:p.test,font:MONO});
+      if(p.resultFile){if(p.state==='pass'){if(p.resultCommit)rows.push({k:'Ran on commit',v:p.resultCommit,font:MONO});rows.push({k:'Result file',v:p.resultFile,font:MONO});}
+      else{rows.push({k:'Last result file',v:p.resultFile,font:MONO});if(p.resultCommit)rows.push({k:'Ran on commit',v:p.resultCommit,font:MONO});}}
+      if(isOwed||p.state==='held'||p.state==='stale')rows.push({k:p.state==='held'?'Why':p.state==='stale'?'Detail':'What will prove it',v:det.replace(/^owed:\s*/,''),font:'inherit'});
+      const fails=p.state==='red'?det.split(/;\s*/).filter(x=>/failed/.test(x)).map(x=>({t:x.replace(/\s*\(last current run:.*$/,'')})):[];
+      const js=(p.judgments||[]).slice().sort((a,b)=>a.at<b.at?-1:1);
+      const step=p.step&&ix.S.get(p.step);const scr=p.screenState&&p.screenState!=='n/a'?p.screenState:null;
+      const sObj=scr?(D.screens.find(s=>s.screen+'/'+s.state===scr)||{screen:scr.split('/')[0],state:scr.split('/')[1],requirements:[],canvas:null}):null;const cb=sObj?this.canvasBtn(sObj):{};
+      v.ov={reqs:p.requirements.map(id=>({id,href:'#'+id,plain:(ix.R.get(id)||{}).plain||''})),caps:p.capabilities.map(id=>({href:'#'+id,name:(ix.C.get(id)||{}).name||id})),
+        capLabel:p.capabilities.length>1?'Serves '+p.capabilities.length+' capabilities':'Capability',shared:p.capabilities.length>1,sharedText:'Counted under each of them.',
+        hasStep:!!step,noStep:!step,stepHref:step?'#'+step.id:'',stepText:step?step.id+' · '+trunc(step.name,60):'',builtText:(D.meta.notRecorded||[]).includes('built')?'Built: not recorded (this project\'s records predate hand-back records)':p.built?'Built: a builder handed back work that passed it':'No builder\'s hand-back passing it is recorded',
+        hasScreen:!!scr,noScreen:!scr,screen:scr?scr.replace('/',' · '):'',openScreen:cb.open,screenDisabled:cb.disabled,screenTitle:cb.title,screenBd:cb.bd,screenFg:cb.fg,screenCursor:cb.cursor,
+        kind:{shell:'Every page carries it',reachability:'Can be reached',journey:'A whole journey',surface:'Looks as designed',behavior:'Behaves as required'}[p.kind]||p.kind,
+        stColor:stt.c,stLabel:stt.l,stHint:stt.h,testRows:rows,hasFails:fails.length>0,fails,noRev:!js.length,
+        judgments:js.map((j,i)=>({result:j.result==='kept'?'Confirmed':'Rejected',color:j.result==='kept'?'var(--c-pass)':'var(--c-fail)',fill:j.result==='kept'?'transparent':'var(--c-fail)',
+          fault:j.result==='broken'?(j.class==='product'?'The product was at fault':j.class==='test'?'The test was at fault':j.class==='harness'?'The test harness was at fault':''):'',at:fmtT(j.at),
+          prose:j.prose||(D.meta.nowOnly?'The reviewer\'s notes are shown in the latest snapshot only.':'No notes were recorded for this judgment.'),proseColor:j.prose?'var(--ink)':'var(--ink2)',lineOp:i<js.length-1?1:0}))};
+      const jj=D.journeys.find(x=>x.promise===p.id);if(jj){const J=this.journeyParse(jj);const grp=this.people(D).find(g=>g.journeys.some(x=>x.promise===p.id));v.ov.isJourney=true;v.ov.J={...J,who:grp?grp.name:'',nSteps:PL(J.steps.length,'step')};v.node.title=J.title;v.node.kicker='Criterion '+p.id+' · a whole journey';}}
+    if(r.type==='step'){const s=ix.S.get(r.id),ps=(s.promises||[]).map(id=>ix.P.get(id)).filter(Boolean);v.isNode=true;
+      v.node={crumbs:tail([...crumbs.slice(0,0),{label:'Delivery',href:'#delivery'},{label:s.id}]),kicker:'Step '+s.id+(s.kind==='hardening'?' · hardening':''),title:s.name,size:'24px',hasSub:false,hasSum:true};
+      v.sm=this.summaryV(this.sum(ps),'step','This step took on '+PL(ps.length,'criterion','criteria')+'. Each criterion is checked by an automatic test, and by a reviewer once one has judged it.');
+      v.sv={stateText:this.stepState(s).replace(/^./,x=>x.toUpperCase()),started:s.started?fmtT(s.started):'Not started',closed:s.closed?fmtT(s.closed):'Not closed',
+        on:(s.buildsOn||[]).map(b=>({id:b,href:'#'+b,name:(ix.S.get(b)||{}).name||''})),noOn:!(s.buildsOn||[]).length,by:(ix.builtOnBy[s.id]||[]).map(b=>({id:b,href:'#'+b,name:(ix.S.get(b)||{}).name||''})),noBy:!(ix.builtOnBy[s.id]||[]).length};
+      v.hasPlist=true;v.pl=this.plistV(ps);}
+    if(r.type==='dec'){const a=ix.A.get(r.id);v.isNode=true;const isA=a.dk==='A';
+      v.node={crumbs:tail([{label:'Delivery',href:'#delivery'},{label:a.id}]),kicker:isA?(this.tierName(a)+' '+a.id+' · '+fmtT(a.date)+(a.delegated?' · decided for you as recommended; confirm or overturn':'')+(a.amended?' · amended':'')):('Technical decision '+a.id+(a.origin?' · from a '+a.origin:'')),
+        title:isA?(a.q&&a.q.length>200?trunc(a.q.split(/[:?]\s/)[0],160)+(a.q.split(/[:?]\s/)[0].length<a.q.length?'…':''):(a.q||'Ruling '+a.id)):trunc(a.what,160),size:'22px',hasSub:false,hasSum:false};
+      v.dv={hasQ:isA&&!!a.q&&a.q.length>200,q:a.q||'',bodyLabel:isA?'The answer':'The decision',body:this.parts(isA?String(a.a||'').replace(/^Delegated by the owner,?\s*(accepted as recommended)?\s*[—:-]?\s*/i,'').replace(/^./,x=>x.toUpperCase()):a.what),hasWhy:!isA&&!!a.why,why:this.parts(a.why||''),
+        hasSettles:isA&&(a.settles||[]).length>0,settles:(a.settles||[]).map(x=>({t:x,href:'#'+x,link:ix.all.has(x),plain:!ix.all.has(x)}))};}
+    if(r.type==='delivery'){const ps=D.promises,s=this.sum(ps),built=ps.filter(p=>p.built).length,ny=D.needsYou;
+      const t0s=D.steps.map(x=>x.started).filter(Boolean).map(x=>+new Date(x));const now=+new Date(m.moment.time);const t0=t0s.length?Math.min(...t0s):now,t1=now;const span=Math.max(1,t1-t0);
+      const counts={underway:0,closed:0,'not started':0};D.steps.forEach(x=>counts[this.stepState(x)]++);const sf=st.stepFilter;
+      const stepChips=[['underway','In progress'],['closed','Done'],['not started','Not started'],['all','All']].filter(([k])=>k==='all'||counts[k]).map(([k,l])=>({label:l,nText:N(k==='all'?D.steps.length:counts[k]),on:sf===k,bg:sf===k?'var(--accent)':'var(--panel)',fg:sf===k?'#fff':'var(--ink)',pick:()=>this.setState({stepFilter:k})}));
+      const fsteps=D.steps.filter(x=>sf==='all'||this.stepState(x)===sf);
+      const qs=ny.questions.map(q=>{const p=q.split(' · ');let text=p.slice(3).join(' · ');let rec='';const rm=/\s*Recommended:\s*(.+)$/i.exec(text);if(rm){rec=rm[1].replace(/\.$/,'');rec=rec.charAt(0).toUpperCase()+rec.slice(1);text=text.slice(0,rm.index);}
+        const asked=(p[1]||'').replace(/^asked\s*/i,''),gates=(p[2]||'').replace(/^gates\s*/i,'');return {id:p[0],asked:fmtT(asked)||asked,gates:gates.charAt(0).toUpperCase()+gates.slice(1),hasGates:!!gates,text,rec,hasRec:!!rec};});
+      const isK=p=>{const j=p.judgments||[],l=j[j.length-1];return !!l&&l.result==='kept';};
+      const fB=ps.filter(p=>p.built),fT=ps.filter(p=>p.state==='pass'),fC=ps.filter(isK);const off=ps.filter(p=>!p.built&&p.state==='pass').length;
+      const pc=x=>(ps.length?x/ps.length*100:0)+'%',ofT=x=>'of '+N(ps.length);
+      v.dl={total:N(ps.length),hasOff:off>0,offText:N(off)+' of the criteria passing their test have no builder\'s hand-back recorded, usually because they were carried over from earlier work.',
+        funnel:[{label:'Built',def:'The code was written and handed back by a builder.',big:N(fB.length),of:ofT(fB.length),pct:pc(fB.length),color:'oklch(0.7 0.06 262)',num:'var(--ink)'},
+          {label:'Passing its test',def:'Its test passes on the results recorded, which may be from an earlier commit.',big:N(fT.length),of:ofT(fT.length),pct:pc(fT.length),color:'var(--accent)',num:'var(--accent)'},
+          {label:'Confirmed by review',def:'A reviewer read its code and test results and kept it.',big:N(fC.length),of:ofT(fC.length),pct:pc(fC.length),color:'var(--c-pass)',num:'var(--c-pass)'}],
+        needsCount:String(ny.questions.length+ny.held.length+ny.delegated.length),noNeeds:!(ny.questions.length+ny.held.length+ny.delegated.length),questions:qs,
+        held:ny.held.map(id=>{const p=ix.P.get(id);return {id,href:'#'+id,text:p?p.text:''};}),hasDelegated:ny.delegated.length>0||(D.meta.notRecorded||[]).includes('delegated'),delegatedTitle:PL(ny.delegated.length,'delegated ruling')+' to confirm',
+        hasQs:qs.length>0,qCount:String(qs.length),hasHeld:ny.held.length>0,heldCount:String(ny.held.length),...this.dgV(D),...this.ansV(D),
+        agentsCount:String(D.activity.agentsOpen.length),agentsNone:D.meta.nowOnly?'Agents are shown in the latest snapshot only.':'No agent is working at this moment.',noAgents:!D.activity.agentsOpen.length,agents:D.activity.agentsOpen.map(a=>({name:a.name||a.agent||a.id||'Agent',task:a.handBack||a.brief||a.task||''})),
+        stepChips,noSteps:!fsteps.length,axisFrom:fmtT(new Date(t0).toISOString(),true).split(',')[0],axisTo:'now · '+fmtT(m.moment.time,true).split(',')[0],
+        stepSum:[['Done',counts.closed,'var(--ink)'],['In progress',counts.underway,'var(--accent)'],['Not started',counts['not started'],'var(--line2)']].filter(x=>x[1]).map(x=>({label:x[0],nText:N(x[1]),color:x[2]})),
+        stepBar:D.steps.map(x=>{const s2=this.stepState(x);return {t:x.id+' · '+x.name,color:s2==='closed'?'var(--ink)':s2==='underway'?'var(--accent)':'var(--line2)'};}),stepBarLabel:'Steps: '+N(counts.closed)+' done, '+N(counts.underway)+' in progress, '+N(counts['not started'])+' not started',
+        hasNow:counts.underway>0,now:D.steps.filter(x=>this.stepState(x)==='underway').map(x=>({id:x.id,href:'#'+x.id,name:x.name,since:'since '+fmtT(x.started,true).split(',')[0]})),
+        ...this.actV(D),
+        steps:fsteps.map(x=>{const dd=(a,b)=>Math.max(1,Math.round((b-a)/864e5));const a=x.started?+new Date(x.started):null,b=x.closed?+new Date(x.closed):t1;const sp=this.stepPass(x);const stt=this.stepState(x);
+          return {id:x.id,href:'#'+x.id,name:x.name,hard:x.kind==='hardening',status:stt==='closed'?'Done':stt==='underway'?'In progress':'Not started',dot:stt==='closed'?'var(--ink)':stt==='underway'?'var(--accent)':'var(--line2)',
+            when:x.started?(fmtT(x.started,true).split(',')[0]+' → '+(x.closed?fmtT(x.closed,true).split(',')[0]+' · '+PL(dd(a,b),'day'):'now · '+PL(dd(a,b),'day')+' so far')):'—',b:N(sp.b)+' / '+N(sp.n),t:N(sp.t)+' / '+N(sp.n),c:N(sp.c)+' / '+N(sp.n)};}),
+        planCount:String(D.activity.planChanges.length),noPlans:!D.activity.planChanges.length,plans:D.activity.planChanges.slice().reverse().map(c=>({what:c.what.replace(/^./,x=>x.toUpperCase()),at:fmtT(c.at),parts:this.parts(c.why)})),
+        commitCount:String(D.activity.recentCommits.length),noCommits:!D.activity.recentCommits.length,commits:D.activity.recentCommits.map(c=>({commit:c.commit,at:fmtT(c.time),parts:this.parts(c.subject)}))};
+      const nyN=ny.questions.length+ny.held.length+ny.delegated.length;const nAct=D.activity.planChanges.length+D.activity.recentCommits.length;const tb=r.tab||'overview';
+      const lastAct=[...D.activity.planChanges.map(c=>c.at),...D.activity.recentCommits.map(c=>c.time)].sort().pop();
+      v.dtabs=this.tabs('delivery',[['overview','Overview'],['needs','Needs you',nyN,true],['steps','Build steps',D.steps.length],['activity','Recent activity',nAct]],tb);
+      v.dtab={ov:tb==='overview',needs:tb==='needs',steps:tb==='steps',act:tb==='activity'};
+      v.dl.cards=[{label:'Needs you',big:N(nyN),sub:[ny.questions.length&&PL(ny.questions.length,'open question'),ny.held.length&&PL(ny.held.length,'held criterion','held criteria'),ny.delegated.length&&PL(ny.delegated.length,'delegated ruling')+' to confirm'].filter(Boolean).join(' · ')||'Nothing is waiting on you.',href:'#delivery/needs',cta:'Review',color:'var(--warn)'},
+        {label:'Build steps',big:N(counts.closed)+' of '+N(D.steps.length)+' done',sub:N(counts.underway)+' in progress'+(counts['not started']?' · '+N(counts['not started'])+' not started':''),href:'#delivery/steps',cta:'See all steps',color:'var(--accent)'},
+        {label:'Recent activity',big:N(nAct),sub:N(D.activity.planChanges.length)+' plan changes · '+N(D.activity.recentCommits.length)+' commits'+(lastAct?' · latest '+fmtT(lastAct,true):''),href:'#delivery/activity',cta:'Open the activity log',color:'var(--ink2)'}];}
+    if(r.type==='changes'){v.ch=this.changesV();v.moments=this.moments();v.momentsFrom=v.moments.map(m=>({...m,sel:m.i===String(st.chFrom)}));v.momentsTo=v.moments.map(m=>({...m,sel:m.i===String(st.chTo)}));v.capOptions=D.capabilities.map(c=>({id:c.id,label:c.id+' · '+c.name}));}
+    if(r.type==='snapshots'){const ms=this.moments();
+      const own=this.ownFile(),idx=this.mode()==='index';
+      v.sn={intro:idx?'Every snapshot in this folder, oldest first. Each is a single file that opens offline.':'This snapshot and the one before it. The folder\'s index lists every snapshot, each a single file that opens offline.',
+        rows:ms.map((x,i)=>{const here=!idx&&(x.file?x.file===own:i===ms.length-1&&!replayed);const n=D.changes.filter(c=>c.window===x.file).length;return {label:x.name+(x.requested?' · requested':''),time:fmtT(x.time),commit:x.commit,changes:i===0?(ms.length>1&&!idx?'its changes are in its own file':'first snapshot'):PL(n,'change')+' since the one before',
+          here,away:!here,href:x.file||'#snapshots',openText:'Open this snapshot',dot:here?'var(--ink)':'transparent',bg:here?'var(--sunk)':'transparent'};})};}
+    return v;
+  }
+  tabs(base,defs,cur){return defs.map(([k,l,n,warn])=>{const on=k===cur;return {label:l,href:'#'+base+(k==='overview'?'':'/'+k),sel:on?'true':'false',bd:on?'var(--accent)':'transparent',fg:on?'var(--ink)':'var(--ink2)',w:on?700:500,
+    hasN:n!=null,n:N(n||0),nbg:warn&&n?'var(--warn)':on?'var(--accent-soft)':'var(--sunk)',nfg:warn&&n?'#1a1205':on?'var(--accent)':'var(--ink2)'};});}
+  scr(x){x=String(x||'').trim();const m=/^([A-Z]\d{2})\/([\w-]+)$/.exec(x);return m?{isScr:true,plain:false,label:m[1]+' · '+m[2]}:{isScr:false,plain:true,label:x};}
+  journeyParse(j){const text=j.text;const ti=text.indexOf(' transitions: ');const lead=ti>=0?text.slice(0,ti):text,trans=ti>=0?text.slice(ti+14):'';
+    const off=[];let lead2=lead.replace(/\(off_screen:\s*([^)]*)\)\s*/g,(m,x)=>{off.push({t:x.trim().replace(/^./,c=>c.toUpperCase())});return '';});
+    let head='',body=lead2;const ci=lead2.indexOf(':');if(ci>0&&ci<140){head=lead2.slice(0,ci).trim();body=lead2.slice(ci+1).trim();}
+    head=head.replace(/\(([^)]*)\)/g,(m,x)=>{if(/off_screen/i.test(x))off.push({t:'Every phase happens outside the product'});return '';}).replace(/\s+/g,' ').trim();
+    body=body.replace(/\s+([;,.])/g,'$1').replace(/;\s*;/g,';').replace(/^[;,.\s]+/,'').replace(/[;,\s]+$/,'').replace(/;\s*\./g,'.').trim();
+    const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);const first=s=>{let t=s.replace(/\s*\([^)]*\)/g,'').split(/;|\s—\s|\.\s/)[0].replace(/\.$/,'').trim();if(t.length>80){t=t.slice(0,80);t=t.slice(0,t.lastIndexOf(' '))+'…';}return cap(t);};
+    const isM=/^machine journey/i.test(head),isP=/^proposed/i.test(head);let title;
+    if(isM)title=cap(head.replace(/^machine journey at the /i,'').replace(/'s webhook boundary/,' webhook boundary'));
+    else if(isP||!head||head.split(/\s+/).length<=3)title=first(body);else title=cap(head.replace(/^the /i,''));title=title.replace(/\s*\([^)]*\)/g,'').replace(/\s+/g,' ').trim();
+    let prev=null;const raw=trans.split(/;\s*(?=\d+\.\s)/).filter(Boolean);
+    const steps=raw.map((s,i)=>{const t=s.replace(/^\d+\.\s*/,'');const ps=t.split(' · ');const fm=/^(.*?) at (.*)$/.exec(ps[0]||'');let actor=fm?fm[1]:'',from=fm?fm[2]:ps[0];
+      actor=actor==='(process)'?'System':cap(actor);const show=actor!==prev;prev=actor;
+      return {n:String(i+1),actor,showActor:show&&!!actor,from:this.scr(from),element:cap(ps[1]||''),action:ps[2]||'',to:this.scr(ps[3]||''),out:this.parts(ps.slice(4).join(' · ')),lineOp:i<raw.length-1?1:0};});
+    return {title,summary:cap(body.replace(/\.?$/,'.')),off,hasOff:off.length>0,steps,hasSteps:steps.length>0,noSteps:!steps.length,raw:text,proposed:isP,machine:isM};}
+  people(D){const ix=this.ix;const groups=D.users.map(u=>({name:u.name,keys:[u.name.toLowerCase(),u.name.toLowerCase().split(' ').pop()],journeys:[]}));const sys={name:'Automated systems (no person involved)',keys:[],journeys:[]};const open=this.state.openJ||{};
+    for(const j of D.journeys){const lc=j.text.toLowerCase();let g=null;
+      if(/^machine journey/.test(lc))g=sys;else{let best=1e9;for(const u of groups)for(const k of u.keys){const at=lc.indexOf(k);if(at>=0&&at<best){best=at;g=u;}}}
+      g=g||sys;const J=this.journeyParse(j);const p=ix.P.get(j.promise);const stt=ST[p&&p.state]||{l:'unknown',c:'var(--ink2)'};const o=!!open[j.promise];
+      g.journeys.push({...J,promise:j.promise,href:'#'+j.promise,st:stt.l.toLowerCase(),color:stt.c,open:o,sign:o?'−':'+',toggleText:(o?'Hide the ':'Show the ')+PL(J.steps.length,'step'),toggle:()=>this.setState(s=>({openJ:{...(s.openJ||{}),[j.promise]:!o}}))});}
+    const out=groups.concat(sys.journeys.length?[sys]:[]);
+    return out.map((g,gi)=>({ini:g===sys?'AS':g.name.split(/\s+/).filter(w=>/^[A-Za-z]/.test(w)).slice(0,2).map(w=>w[0].toUpperCase()).join(''),tint:hueTint(HUES[(gi+2)%HUES.length]),fg:hueFg(HUES[(gi+2)%HUES.length]),name:g.name,journeys:g.journeys,none:!g.journeys.length,nText:PL(g.journeys.length,'journey')}));}
+  search(q){q=(q||'').trim().toLowerCase();if(!q||!this.ix)return null;const nq=normId(q);const words=q.split(/\s+/);const hits=[];
+    for(const it of this.ix.si){let s=-1;if(it.n===nq)s=0;else if(it.id.toLowerCase().startsWith(q))s=1;else if(words.every(w=>it.lc.includes(w)))s=2;if(s>=0)hits.push([s,it]);}
+    hits.sort((a,b)=>a[0]-b[0]);const groups=[],byK={};
+    for(const [,it] of hits){let g=byK[it.kind];if(!g){g=byK[it.kind]={kind:it.kind,items:[],n:0};groups.push(g);}g.n++;if(g.items.length<6)g.items.push({id:it.id,href:'#'+it.id,text:trunc(it.text,150)});}
+    groups.forEach(g=>{g.nText=N(g.n);g.more=g.n>g.items.length;g.moreText='and '+N(g.n-g.items.length)+' more; add words to narrow';});
+    return {groups,total:hits.length,first:hits[0]&&hits[0][1].id};}
+  scrollCanvas(frame){try{const doc=frame.contentDocument,s=this.state.canvas;if(!doc||!s)return;
+    const w=doc.createTreeWalker(doc.body,NodeFilter.SHOW_COMMENT);let n,target=null;const re=new RegExp('@screen\\s+'+s.screen+'\\s+state='+s.state+'(\\s|$)');
+    while((n=w.nextNode())){if(re.test(n.nodeValue)){let e=n.nextSibling;while(e&&e.nodeType!==1)e=e.nextSibling;target=e;break;}}
+    const z=Math.min(1,(frame.clientWidth-40)/1408);doc.body.style.zoom=z;
+    if(target){const box=target.closest('.cc-state')||target;box.style.outline='4px solid #2f5fb0';box.style.outlineOffset='12px';
+      const rc=box.getBoundingClientRect();doc.defaultView.scrollTo(Math.max(0,rc.left+doc.defaultView.scrollX-40),Math.max(0,rc.top+doc.defaultView.scrollY-40));}}catch(e){}}
+}
+</script>
+</body>
+</html>

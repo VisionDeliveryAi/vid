@@ -1,0 +1,28 @@
+<!-- rendered: GET /jobs as member — Design: design/screens/pack.html (P02/default) -->
+<header data-screen-label="C00/shell-anonymous" data-element="shell-header" style="background-color: var(--surface); padding: 16px 24px">
+  <a data-element="brand" href="/" style="color: var(--ink); font-weight: 700">Boardlet</a>
+  <nav data-element="primary-nav" style="display: flex; gap: 16px">
+    <a href="/jobs">Jobs</a>
+    <a href="/signin">Sign in</a>
+  </nav>
+</header>
+<main>
+  <h1 data-element="page-title" style="font-size: 1.5rem; color: var(--ink)">Jobs</h1>
+  <div data-element="sort-control" style="display: flex; gap: 8px">
+    <label>Sort by</label>
+    <select name="sort"><option>Newest</option><option>Salary</option></select>
+  </div>
+  <ul data-element="job-list" style="display: grid; gap: 12px">
+    <li data-element="job-card" data-record="1" style="border-radius: 8px; padding: 16px; background-color: var(--surface)">
+      <span data-element="job-title" style="font-weight: 600">Junior Analyst</span>
+      <span data-element="job-salary" style="color: var(--muted)">£32,000</span>
+    </li>
+    <li data-element="job-card" data-record="2" style="border-radius: 8px; padding: 16px; background-color: var(--surface)">
+      <span data-element="job-title" style="font-weight: 600">Data Engineer</span>
+      <span data-element="job-salary" style="color: var(--muted)">£58,000</span>
+    </li>
+    <li data-element="job-card" data-record="3" style="border-radius: 8px; padding: 16px; background-color: var(--surface)">
+      <span data-element="job-title" style="font-weight: 600">Office Manager</span>
+    </li>
+  </ul>
+</main>

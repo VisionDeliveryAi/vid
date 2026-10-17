@@ -1,0 +1,15 @@
+{
+  "name": "vid",
+  "owner": {
+    "name": "AI Value Link"
+  },
+  "description": "Marketplace for ViD — VisionDelivery.ai. One plugin: vid.",
+  "plugins": [
+    {
+      "name": "vid",
+      "source": "./",
+      "description": "ViD — VisionDelivery.ai: the verbs init, create-prd, test-inventory, design, develop, grade, fix, add, deploy, view and help, with courts that check the law at every commit.",
+      "license": "Apache-2.0"
+    }
+  ]
+}

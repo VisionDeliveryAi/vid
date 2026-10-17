@@ -1,0 +1,19 @@
+<!-- Shortlink — deletion page (fixture canvas, v0.9.1 3.3) -->
+<!-- @screen P03 state=default reqs=REQ-006,REQ-013 -->
+<section class="deletion-page">
+  <h1>Your link</h1>
+  <dl>
+    <dt>Short link</dt><dd><code>{{ short_link }}</code></dd>
+    <dt>Target</dt><dd class="target-text">{{ target_address }}</dd>
+    <dt>Expires</dt><dd>{{ expiry_time_utc }} (UTC)</dd>
+    <dt>Answered redirects (delivery-time fetches included)</dt><dd>{{ click_count }}</dd>
+  </dl>
+  <button class="remove">Remove</button>
+</section>
+<!-- @screen P03 state=confirm reqs=REQ-006 -->
+<section class="deletion-page confirm">
+  <p>Remove this link? Its short address will stop redirecting.</p>
+  <button class="cancel">Cancel</button>
+  <button class="remove">Remove</button>
+</section>
+<footer><a href="mailto:{{ support_address }}">Help: {{ support_address }}</a></footer>

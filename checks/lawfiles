@@ -1,0 +1,18 @@
+# Purpose: the rule-source list — the machine-read regions the courts read
+# their law from, enumerated ONCE (§4.1: "read by both the hook and the
+# courts, so it cannot drift"). Read by checks/hooks/pre-commit (the
+# law-change standalone rule) and checks/selftest/run.sh. Format:
+#   <file> <region>
+# where <region> is a ```block name, or "seam-table" (ARCHITECTURE.md's
+# table rows plus the "Import court:" mode line), or "whole" (the full file —
+# v0.9.3 3.3: the harness contract is a rule source harness.sh and test.sh
+# read, so a change to it is a standalone law commit). design/ and DESIGN-BRIEF.md
+# are governed by the stricter verbatim-import regime (protected path +
+# fail-closed design-join) and stay outside this rule so a visual correction
+# can keep changing design/ and code in the same commit (CLAUDE.md design law).
+CLAUDE.md vid-placement
+BASELINE.md vid-allowed-extensions
+BASELINE.md vid-forbidden
+ARCHITECTURE.md seam-table
+INVENTORY.md vid-inventory
+docker-compose.test.yml whole

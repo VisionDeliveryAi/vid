@@ -1,0 +1,9 @@
+# Purpose: the self-test cases that are flaky but not yet fixed at their cause (v0.9.8.1 R1). One a line:
+# <path from checks/selftest/> <date found> <reason>. checks/selftest/run.sh retries a listed case once, alone,
+# after the suite, by that exact path; no other failure is retried. A run a retry rescued publishes no
+# certificate and is never cited as evidence. A case fixed at its cause leaves this list.
+cases/testenv-pick.sh 2026-10-15 failed in law commits' self-tests under load (F-4), convicts alone; v0.9.8.1 R2 found no cause within its hour (3 of 3 solo passes under load, 2026-10-16)
+cases/testenv-never-writes-compose.sh 2026-10-15 failed in law commits' self-tests under load (F-4), convicts alone; v0.9.8.1 R2 found no cause within its hour (3 of 3 solo passes under load, 2026-10-16)
+cases/cancel-repeat.sh 2026-10-14 failed in a law commit's self-test on the scratch copy, convicts alone; v0.9.8.1 R2 found no cause within its hour (3 of 3 solo passes under load, 2026-10-16)
+cases/batch-builder-slot.sh 2026-10-15 under load the batch's waiting chunk takes the freed slot before the builder's queued request (2 of 3 solo runs at nice 19 failed, 2026-10-16) — a give-way race in checks/test.sh is suspected, not found within R2's hour
+cases/census-oracle.sh 2026-10-16 failed once in the v0.9.8.1 full run under load, then 11 of 11 passes (2 alone, 3 and 6 at once); suspected cause, now filtered: the 0.9.7.2 oracle's broken-pipe line, which R13 removed from the new census — unconfirmed

@@ -1,0 +1,125 @@
+# Purpose: the ONLY way the ledger runs. `sh checks/test.sh` brings this up,
+# runs tests/invariants/, and tears it down. Tests physically cannot reach
+# anything real: never put real credentials in `environment`.
+#
+# One product image (v0.9.2 3.6, R21): the product is ONE service, built from
+# ONE context and ONE target, with its static assets collected in the image;
+# the tests service reaches it only over the network at that service's name
+# (the harness client's base URL below) — never a server bound in-process,
+# never a second product image or a fixture server; the README's preview
+# command brings up this same product service alone, from this file.
+# checks/harness.sh reads this file at every commit.
+#
+# Four harness rules (v0.9.7.0.10 3.4, R9; rule 4 v0.9.7.0.11 3.2, R2),
+# declared by `rules: 2` below:
+#  1. Nothing is installed or fetched when a service starts: its
+#     dependencies are built into its own image, once (the tests service
+#     and any fake may carry their own build:; the product is still built
+#     once, and its processes run its image); a service's own update check
+#     is switched off when the test does not need it.
+#  2. Each service is ready before whatever uses it, and nothing waits for
+#     a service it doesn't use: the product waits only for what it needs in
+#     order to start, each with a healthcheck, in its depends_on with
+#     condition: service_healthy. A service the product calls only while
+#     serving a request, or that only some tests use, starts with the
+#     stack but nobody waits for it at start: it goes under the tests'
+#     depends_on with condition: service_started (in no depends_on it
+#     would not start at all); the product handles it being unavailable;
+#     the tests that exercise it wait for it in one shared setup step that
+#     every such test goes through. The product declares a healthcheck and
+#     the tests wait for it. Which services are which is the project's.
+#  3. A test service slow to start because of the data it loads may load a
+#     test-sized set, a slow-starting dependency too, declared as a
+#     `difference` row (the setting, the test value, the production value,
+#     why the tests' purpose survives it).
+#  4. No one case runs longer than `case-limit:` seconds: the tests'
+#     runner stops a case at the limit, reports it failed by its name, and
+#     goes on to the next case. checks/test.sh hands the limit to the
+#     tests service as VID_CASE_LIMIT; the runner takes it in its own
+#     terms. The 600 below is a choice, not a measure: set it from the
+#     project's own case times.
+# checks/harness.sh holds rule 2's declarations and rule 4's (the limit
+# declared, the tests service naming VID_CASE_LIMIT); it cannot check 1
+# and 3, and the runner's stopping is proved by running it.
+#
+# The receipt (v0.9.2 3.6, R9): the runner writes its per-case results report
+# to /vid-results/pending.xml through {{RESULTS_FLAG}} — the flag THIS stack's
+# runner takes; checks/extractors/results.sh reads the shape — and
+# checks/test.sh names it by the tree it ran. VID_TEST_CONTEXT is what the
+# wrapper mounts: an export of HEAD for the certifiable full run, the live
+# tree (.) for a scoped run. VID_SELECTOR is the runner's own selection
+# syntax, opaque to the wrapper, empty for everything.
+#
+# The harness contract's machine half (read by checks/harness.sh and
+# checks/test.sh; an extension key the compose engine ignores): the product
+# service's name; the stack's in-process server shapes — the tokens a test
+# may never carry, because a product bound inside the tests process is not
+# the image the owner previews; and (v0.9.3 3.3, R4) the runner's statuses
+# that mean it ran to its end — a run with any other status publishes
+# nothing, whatever it wrote — and, when the product ships any process
+# beside the web process, the deployed shape: the setting that runs
+# asynchronous work inline, the setting that makes declared schedules fire
+# promptly, the runner's syntax selecting the deployed-shape tests, and
+# every non-web process the product ships. A full run then pays the ledger
+# twice on one export, each on a fresh stack: inline, then in the deployed
+# profile — the processes running on the SAME image, nothing inline — and
+# the deployed report is the receipt for every journey and `(process)` row.
+# This whole file is law (checks/lawfiles `whole`): a change is a standalone
+# law commit.
+x-vid-harness:
+  product: product
+  rules: 2                                # the four rules above; checks/harness.sh holds the readiness and limit declarations
+  case-limit: 600                         # rule 4: the most seconds one case may run (a choice, not a measure)
+  forbidden: {{IN_PROCESS_SERVER_TOKENS}}   # e.g. the runner's live-server fixture, the framework's test client that serves in-process
+  completed: [{{RUNNER_COMPLETED_STATUSES}}] # the runner's statuses that mean it ran to its end (all passed, some failed) — never an interrupt, an internal error, a usage error or "nothing collected"
+  # the deployed shape — written only when the product ships a process beside the web process:
+  inline-switch: {{INLINE_ASYNC_ENV}}     # the product setting that runs asynchronous work inline
+  schedule-fast: {{SCHEDULE_FAST_ENV}}    # the setting that makes declared schedules fire promptly
+  deployed-selector: {{DEPLOYED_SELECTOR}} # the runner's syntax selecting the deployed-shape tests
+  processes: [{{PROCESS_NAMES}}]          # every non-web process the product ships
+services:
+  product:
+    build:
+      context: ${VID_TEST_CONTEXT:-.}
+      target: {{PRODUCT_TARGET}}     # the one target; collect static assets in this stage
+    image: {{PRODUCT_IMAGE}}         # the one product image — only the declared processes name it, byte for byte
+    environment: &product-env
+      VID_TEST: "1"                  # test-only markers; never real secrets
+      {{INLINE_ASYNC_ENV}}: ${VID_INLINE:-1}          # the wrapper sets VID_INLINE=0 for the deployed pass
+      {{SCHEDULE_FAST_ENV}}: ${VID_SCHEDULE_FAST:-0}  # and VID_SCHEDULE_FAST=1
+    command: {{PRODUCT_COMMAND}}     # serves on {{PRODUCT_PORT}}; the preview runs this same service
+    healthcheck:                     # rule 2: the product's readiness, which the tests wait for
+      test: {{PRODUCT_READY_CHECK}}  # answers once the product serves its readiness route
+      interval: 2s
+      retries: 60
+  {{PROCESS_NAME}}:                  # one per processes: entry — the deployed shape only
+    image: {{PRODUCT_IMAGE}}         # the same image reference, byte for byte, and no build of its own
+    profiles: [deployed]
+    environment: *product-env
+    command: {{PROCESS_COMMAND}}
+  {{TRANSPORT_SERVICE}}:             # what the processes consume from, if any (throwaway, nothing real)
+    image: {{TRANSPORT_IMAGE}}
+    profiles: [deployed]
+  tests:
+    image: {{TEST_IMAGE}}            # rule 1: the runner's image, its dependencies installed in it (or a build: of its own) — never at start
+    working_dir: /app
+    depends_on:                      # rule 2: the product ready, not only started
+      product:
+        condition: service_healthy
+      # a service the product calls only while serving, or only some tests use: started, waited for in the shared setup step
+      # {{SERVING_SERVICE}}:
+      #   condition: service_started
+    volumes:
+      - ${VID_TEST_CONTEXT:-.}:/app:ro
+      - ./.vid/ledger-results:/vid-results
+    environment:
+      VID_TEST: "1"
+      VID_PRODUCT_URL: http://product:{{PRODUCT_PORT}}   # the harness client's base; the product by name
+      VID_CASE_LIMIT: ${VID_CASE_LIMIT:-600}             # rule 4: checks/test.sh hands case-limit: here
+    command: sh -c '{{TEST_COMMAND}} {{RESULTS_FLAG}} {{CASE_LIMIT_FLAG}} ${VID_SELECTOR:-}'   # {{CASE_LIMIT_FLAG}}: the runner's own per-case time limit, read from VID_CASE_LIMIT
+    # If the stack needs service containers (db, cache), add them below with
+    # throwaway credentials only. Each one the product needs in order to
+    # start carries a healthcheck and goes in the product's depends_on with
+    # condition: service_healthy; any other goes in the tests' depends_on
+    # with condition: service_started (rule 2).
+    # Still nothing real, still no shared networks with the host.

@@ -1,0 +1,73 @@
+{
+  "description": "ViD's death record (v0.9.5 spec 3.4, R4): a run session's API-error stop, and a usage-limit pause left waiting, appended to that run's events so the observer can tell the owner. ViD's session and agent record (v0.9.6.2 spec 3.2, R2): each session's start and each agent's start and stop, appended to the run's events. Both only record; they never change how a session runs or ends and never restart it. ViD's re-entry page (v0.9.7.0.6 spec 3.4, R8): after a compaction or a resume in a live run, one page into the session — where the run is, what is in flight, and which ViD skill files to re-read in full. ViD's compulsory re-read (3.8, R11): until the main session has read each listed file in full, every tool but Read is refused with the reason, and the owner can lift it by deleting the debt file the refusal names. ViD's context net (v0.9.7.0.7 spec 3.7, R11): once a builder's or fixer's context passes .vid/budget builder-context-tokens it is told, once, to finish at its next legal commit point. (3.6's per-agent re-read ships disabled: an agent's compaction hooks carry no agent_id.) ViD's bounded waits (v0.9.7.1 spec 3.5b, R5): in a builder or fixer agent (agent_type vid:builder or vid:fixer), a Bash call that loops on sleep or a status probe, or sleeps over 200 s, is refused with the bounded form; background calls, the run manager and the owner are untouched.",
+  "hooks": {
+    "StopFailure": [
+      {
+        "hooks": [
+          { "type": "command", "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/stop-failure.sh\"", "timeout": 10 }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": "quota_auto_resume_stale|quota_auto_resume_disabled",
+        "hooks": [
+          { "type": "command", "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/stop-failure.sh\"", "timeout": 10 }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          { "type": "command", "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/record.sh\"", "timeout": 10 }
+        ]
+      },
+      {
+        "matcher": "compact|resume",
+        "hooks": [
+          { "type": "command", "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/reentry.sh\"", "timeout": 30 }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          { "type": "command", "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/reread.sh\"", "timeout": 5 }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          { "type": "command", "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/waits.sh\"", "timeout": 5 }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Read",
+        "hooks": [
+          { "type": "command", "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/reread.sh\"", "timeout": 5 }
+        ]
+      },
+      {
+        "hooks": [
+          { "type": "command", "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/net.sh\"", "timeout": 5 }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          { "type": "command", "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/record.sh\"", "timeout": 10 }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/record.sh\"", "timeout": 10 }
+        ]
+      }
+    ]
+  }
+}

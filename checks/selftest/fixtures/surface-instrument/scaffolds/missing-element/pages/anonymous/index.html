@@ -1,0 +1,15 @@
+<!-- rendered: GET / as anonymous (fixture data listed) — Design: design/screens/pack.html (P01/default) -->
+<header data-screen-label="C00/shell-anonymous" data-element="shell-header" style="background-color: var(--surface); padding: 16px 24px">
+  <a data-element="brand" href="/" style="color: var(--ink); font-weight: 700">Boardlet</a>
+  <nav data-element="primary-nav" style="display: flex; gap: 16px">
+    <a href="/jobs">Jobs</a>
+    <a href="/signin">Sign in</a>
+  </nav>
+</header>
+<main data-screen-label="P01/default">
+  <h1 data-element="page-title" style="font-size: 2rem; color: var(--ink)">Find your next role</h1>
+  <form data-element="search-form" action="/jobs" method="get" style="display: flex; gap: 8px">
+    <input data-element="search-field" name="q" placeholder="Keyword" style="padding: 8px">
+    <button data-element="search-action" type="submit" style="background-color: var(--accent); color: var(--accent-ink); padding: 8px 16px">Search</button>
+  </form>
+</main>

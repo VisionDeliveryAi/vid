@@ -1,0 +1,40 @@
+<!-- Boardlet — fixture pack for the surface instrument (v0.9.2 3.4; a toy job board, four sections). Every styled element carries data-element. -->
+<!-- @screen C00 state=shell-anonymous reqs=REQ-001 -->
+<header data-element="shell-header" style="background-color: var(--surface); padding: 16px 24px">
+  <a data-element="brand" href="/" style="color: var(--ink); font-weight: 700">Boardlet</a>
+  <nav data-element="primary-nav" style="display: flex; gap: 16px">
+    <a href="/jobs">Jobs</a>
+    <a href="/signin">Sign in</a>
+  </nav>
+</header>
+<!-- @screen P01 state=default reqs=REQ-002,REQ-003 -->
+<main>
+  <h1 data-element="page-title" style="font-size: 2rem; color: var(--ink)">Find your next role</h1>
+  <form data-element="search-form" style="display: flex; gap: 8px">
+    <input data-element="search-field" name="q" placeholder="Keyword" style="padding: 8px">
+    <button data-element="search-action" type="submit" style="background-color: var(--accent); color: var(--accent-ink); padding: 8px 16px">Search</button>
+  </form>
+  <section data-element="featured-grid" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px">
+    {{ featured_cards }}
+  </section>
+</main>
+<!-- @screen P01 state=empty reqs=REQ-002 -->
+<main>
+  <h1 data-element="page-title" style="font-size: 2rem; color: var(--ink)">Find your next role</h1>
+  <p data-element="empty-notice" style="color: var(--muted); padding: 24px">No roles are listed yet. Check back soon.</p>
+</main>
+<!-- @screen P02 state=default reqs=REQ-004,REQ-005 -->
+<main>
+  <h1 data-element="page-title" style="font-size: 1.5rem; color: var(--ink)">Jobs</h1>
+  <div data-element="sort-control" style="display: flex; gap: 8px">
+    <label>Sort by</label>
+    <select name="sort"><option>Newest</option><option>Salary</option></select>
+  </div>
+  <ul data-element="job-list" style="display: grid; gap: 12px">
+    <li data-element="job-card" style="border-radius: 8px; padding: 16px; background-color: var(--surface)">
+      <span data-element="job-title" style="font-weight: 600">{{ title }}</span>
+      <!-- the salary line is drawn only when the record carries a salary; a record without one draws no salary element -->
+      <span data-element="job-salary" style="color: var(--muted)">{{ salary }}</span>
+    </li>
+  </ul>
+</main>

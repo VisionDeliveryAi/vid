@@ -1,0 +1,12 @@
+{
+  "name": "vid",
+  "version": "0.26.10.1",
+  "description": "ViD — VisionDelivery.ai: a delivery method for one product-expert owner and strong coding models. The spec binds the builders; the test ledger binds the checkers.",
+  "author": {
+    "name": "AI Value Link",
+    "url": "https://aivaluelink.com"
+  },
+  "homepage": "https://visiondelivery.ai",
+  "repository": "https://github.com/VisionDeliveryAi/vid",
+  "license": "Apache-2.0"
+}
