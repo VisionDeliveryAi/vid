@@ -14,7 +14,7 @@ narrated.
 ## Before any work
 
 **The stage event (v0.9.5 3.11, R11).** First of all, record
-`sh checks/event.sh "stage name=develop state=start session=$CLAUDE_CODE_SESSION_ID records=21"`
+`sh checks/event.sh "stage name=develop state=start session=$CLAUDE_CODE_SESSION_ID records=22"`
 — and again whenever a session takes over the run (Resume, below); the
 completion report records the `end` (`state=end`, the same form without
 `records=`). Every event this skill names is written with
@@ -37,7 +37,7 @@ on this release's run mechanics, below), `questions:` carried over (or
 `- · next Q1`) and `slice: -` until the first slice opens, and record
 `sh checks/event.sh 'run state=active'` — before any planning, so the
 observer and the death record cover it. **Version skew:** Read
-`checks/records-version` first. If it is absent or below 21, the
+`checks/records-version` first. If it is absent or below 22, the
 project's checks/ predates this plugin: tell the owner it needs the
 refresh and stop before building. The refresh (v0.9.8.1 R5): first run
 `sh "${CLAUDE_PLUGIN_ROOT}/checks/local-changes.sh"` from the project's top
@@ -876,7 +876,9 @@ accordingly.
   phase=review n=T'`; add a ledger test if testable, continue.
 - Hit a TECHNICAL unknown? Decide, log to DECISIONS.md with its label
   (`| applies-to: <ids and codes>`, or `| scope: project` only when it bears
-  on many areas — the hook refuses a line with neither), keep moving. Never
+  on many areas — the hook refuses a line with neither), keep moving. A
+  decision that bears on one module, or a few, names their module ids
+  beside its row, requirement or screen items, never instead of them. Never
   ask — unless the choice forces a product tradeoff, which makes it a product
   question ("instant search or cheap infra — pick one").
 - **The owner's queue is questions too (v0.9.5 3.1).** Rows held for the

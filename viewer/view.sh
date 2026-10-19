@@ -7,7 +7,7 @@
 #     <project>: given, or the current directory; it must hold PRD.md. --out: else `~/ViD Viewer/<folder name>/`.
 #     --at: one extra snapshot at a commit or a time, marked "requested" in the index (kept for later runs).
 #   sh viewer/view.sh --check <snapshot file>
-#     the data contract's check (viewer/DATA.md, `viewer-data 1`): every required field present and typed, every
+#     the data contract's check (viewer/DATA.md, `viewer-data 2`): every required field present and typed, every
 #     id a part cites present in its part. Exit 0 when it holds; else one line per fault, exit 1.
 # Milestones (3.3), found, never written: the PRD's Ratifications lines (each pause's commit); `stage name=init
 # state=end`; the first `stage name=develop state=start`; `step-closed`; `slice-close`; `checkpoint`; the first
@@ -35,8 +35,8 @@ VIEWER=$(cd "$(dirname "$0")" && pwd -P); PLUG=$(cd "$VIEWER/.." && pwd -P)
 GIT_OPTIONAL_LOCKS=0; export GIT_OPTIONAL_LOCKS
 unset VID_EVIDENCE_HELD 2>/dev/null || true
 unset $(git rev-parse --local-env-vars 2>/dev/null) 2>/dev/null || true
-DATAV=1
-PAGE="$VIEWER/page/ViD Viewer v2.dc.html"; RUNTIME="$VIEWER/page/support.js"
+DATAV=2
+PAGE="$VIEWER/page/ViD Viewer v3.dc.html"; RUNTIME="$VIEWER/page/support.js"
 LIB="$VIEWER/vendor/react.production.min.js"; LIBDOM="$VIEWER/vendor/react-dom.production.min.js"
 usage() { echo 'ViD view: usage — sh viewer/view.sh [<project>] [--out <dir>] [--at <commit|UTC time>] | --check <snapshot>' >&2; exit 2; }
 die() { echo "ViD view: $*" >&2; exit 1; }
@@ -52,6 +52,98 @@ AWKJS='function js(s,   o, i) { o = ""; while ((i = index(s, "\\")) > 0) { o = o
 function jn(s) { return (s == "" || s == "-") ? "null" : js(s) }
 function ja(list, sep,   n, a, i, o, seen) { n = split(list, a, sep); o = ""; split("", seen); for (i = 1; i <= n; i++) if (a[i] != "" && !(a[i] in seen)) { seen[a[i]] = 1; o = o (o == "" ? "" : ",") js(a[i]) } return "[" o "]" }
 function jb(x) { return x ? "true" : "false" }'
+# v0.26.10.2 (R1–R7, R13–R16): the architecture part, from the snapshot's parsed documents, plan, paths and the main
+# history (the body awk reads them into the arrays named in arch_read); \034 is a value not recorded (null)
+AWKARCH='function anm(s) { gsub(/^[ \t`]+|[ \t`]+$/, "", s); gsub(/\./, "/", s); sub(/\/+$/, "", s); return s }
+function anv(s) { return s == "\034" ? "null" : js(s) }
+function asrc(p,   o, i) { sub(/^\.\//, "", p); o = ""; while ((i = index(p, "/src/")) > 0) { o = o substr(p, 1, i); p = substr(p, i + 5) } o = o p; sub(/\/src$/, "", o); return o }
+# the import court s module_of: /src/ segments collapsed, the longest module path that is a prefix wins
+function amod(p,   q, k, m, b) { q = asrc(p); b = ""; for (k = 1; k <= NMOD; k++) { m = MO[k]; if ((q == m || index(q, m "/") == 1) && length(m) > length(b)) b = m } return b }
+function aadd(list, x) { return list (list == "" ? "" : "\036") x }
+function aja(list,   n, a, i, o) { n = split(list, a, "\036"); o = ""; for (i = 1; i <= n; i++) o = o (i > 1 ? "," : "") js(a[i]); return "[" o "]" }
+function arch_read(l,   f) { split(l, f, "\t")
+  if (f[1] == "HAS") HAS[f[2]] = 1
+  else if (f[1] == "MT") HASMT = 1
+  else if (f[1] == "MC") MCOL[++NMC] = f[2]
+  else if (f[1] == "MR") { if (!(f[2] in MI)) { MO[++NMOD] = f[2]; MI[f[2]] = NMOD } MRS[f[2]] = f[3]; MOW[f[2]] = f[4]; MSU[f[2]] = f[5]; MDE[f[2]] = f[6] }
+  else if (f[1] == "SKT") HASSK = 1
+  else if (f[1] == "SK") ASK[++NSK] = f[2] "\t" f[3] "\t" f[4]
+  else if (f[1] == "T0T") HAST0 = 1
+  else if (f[1] == "T0") AT0[++NT0] = f[2] "\t" f[3]
+  else if (f[1] == "SV") ASV[++NSV] = l }
+function amiss(part, why) { AMS = AMS (AMS == "" ? "" : ",") "{\"part\":" js(part) ",\"why\":" js(why) "}" }
+# the facts the change log compares: AR <part> <key> <text>, then AF <part> <key> <field> <value> for each field
+function afact(part, key, text, names, vals,   n, a, b, i) { print "AR\t" part "\t" key "\t" text > (S "/facts"); n = split(names, a, " "); split(vals, b, "\037")
+  for (i = 1; i <= n; i++) print "AF\t" part "\t" key "\t" a[i] "\t" b[i] > (S "/facts") }
+# a technical decision s enforced, added and stage (R13): dated only when C is on the main history and building has started by T
+function atech(d,   q, ad, sg, l, f) { ad = "null"; sg = "null"
+  if (!DADL) { DADL = 1; while ((getline l < hdec) > 0) { split(l, f, "\t"); DAD[f[1]] = f[2] "\t" f[3] } }
+  if (ci != "" && ds != "" && (d in DAD)) { split(DAD[d], q, "\t"); ad = "{\"commit\":" js(substr(q[1], 1, 7)) ",\"time\":" js(q[2]) "}"; sg = (q[2] <= ds) ? "\"spec\"" : "\"build\"" }
+  return ",\"enforced\":" jn(DEN[d]) ",\"added\":" ad ",\"stage\":" sg }
+function arch_part(   l, f, i, j, k, m, n, w, a, x, y, q, d, it, ni, s, tok, pre, by, mt, o, lv, ch, MBU, OPEN, OTH, LV, MST, NK, PON, POS, POO, npo, LBL, MEN, MDC, MFL, SHN, SH, FPI, nfp, mo, d2) {
+  while ((getline l < fpl) > 0) FPI[l] = ++nfp
+  while ((getline l < harch) > 0) { split(l, f, "\t"); SHN[f[1]]++; SH[f[1], SHN[f[1]]] = l }
+  # R1, R2: Dependents as the court reads them — split on commas and spaces, `all` anywhere opens it to every module
+  for (i = 1; i <= NMOD; i++) { m = MO[i]; NK[anm(m)] = m; if (MDE[m] == "\034") continue; d2 = MDE[m]; gsub(/`/, "", d2); n = split(d2, a, /[ ,]+/)
+    for (j = 1; j <= n; j++) { w = a[j]; if (w == "" || w == "none") continue; if (w == "all") { OPEN[m] = 1; continue }
+      if (w in MI) { if (!((m, w) in MBU)) { MBU[m, w] = 1; MBL[m] = aadd(MBL[m], w) } } else if (!((m, "o:" w) in MBU)) { MBU[m, "o:" w] = 1; OTH[m] = aadd(OTH[m], w) } } }
+  # R3: the shortest way down from the modules no other module may use; the open ones in their band
+  for (i = 1; i <= NMOD; i++) { m = MO[i]; if (m in OPEN) continue; x = 0; for (k = 1; k <= NMOD; k++) if (MO[k] != m && ((m, MO[k]) in MBU)) x = 1; if (!x) LV[m] = 0 }
+  for (lv = 0; ; lv++) { ch = 0; for (i = 1; i <= NMOD; i++) { m = MO[i]; if ((m in OPEN) || (m in LV)) continue
+      for (k = 1; k <= NMOD; k++) { y = MO[k]; if (y != m && ((m, y) in MBU) && (y in LV) && LV[y] == lv) { LV[m] = lv + 1; ch = 1; break } } } if (!ch) break }
+  # R4: the plan steps naming each module, joined as brief.sh archrows joins them; a name with no row is plan-only
+  for (i = 1; i <= ns; i++) { s = SID[i]; n = split(SMOD[s], a, /[ ,\t]+/)
+    for (j = 1; j <= n; j++) { w = a[j]; if (w == "" || w == "-") continue; k = anm(w); if (k == "") continue
+      if (k in NK) { m = NK[k]; if (!((m, s) in MSTS)) { MSTS[m, s] = 1; MST[m] = aadd(MST[m], s) } }
+      else { if (!(k in PON)) { PON[k] = w; POO[++npo] = k } if (!((k, s) in POSS)) { POSS[k, s] = 1; POS[k] = aadd(POS[k], s) } } } }
+  # R13: what a label may name for a module — the rows, requirements and screen codes
+  for (i = 1; i <= NMOD; i++) { m = MO[i]; n = split(MST[m], a, "\036")
+    for (j = 1; j <= n; j++) { ni = split(SROWS[a[j]], it, " ")
+      for (k = 1; k <= ni; k++) { x = it[k]; if (x == "") continue; LBL[m, x] = 1; q = split(PRQ[x], f, ","); for (y = 1; y <= q; y++) LBL[m, f[y]] = 1
+        if (PSC[x] != "" && PSC[x] != "-") { w = PSC[x]; sub(/\/.*/, "", w); LBL[m, w] = 1 } } } }
+  # R13: each technical decision at C, linked once, by the first way it links; scope: project is kept out
+  for (i = 1; i <= nd; i++) { d = DID[i]; if (DSC[d] == "project") continue; split("", MEN)
+    s = DW[d] " " DY[d]
+    while (match(s, /[A-Za-z0-9_][A-Za-z0-9_.\/-]*/)) { tok = substr(s, RSTART, RLENGTH); pre = (RSTART > 1) ? substr(s, RSTART - 1, 1) : ""; s = substr(s, RSTART + RLENGTH)
+      if (pre ~ /[.\/-]/) continue; sub(/[.\/-]+$/, "", tok); q = tok; gsub(/\./, "/", q); m = amod(q)
+      if (m != "" && (q == m || index(q, m "/") == 1) && !(m in MEN)) MEN[m] = tok }
+    ni = (DAP[d] == "") ? 0 : split(DAP[d], it, /[ ,]+/)
+    for (j = 1; j <= NMOD; j++) { m = MO[j]; by = ""; mt = "null"
+      for (k = 1; k <= ni && by == ""; k++) if (it[k] != "" && anm(it[k]) == anm(m)) by = "module-label"
+      for (k = 1; k <= ni && by == ""; k++) if (it[k] != "" && ((m, it[k]) in LBL)) by = "label"
+      if (by == "" && (m in MEN)) { by = "mentions"; mt = js(MEN[m]) }
+      if (by != "") MDC[m] = MDC[m] (MDC[m] == "" ? "" : ",") "{\"id\":" js(d) ",\"by\":" js(by) ",\"match\":" mt "}" } }
+  # R14: the paths at C the court gives to each module
+  while ((getline l < (S "/files")) > 0) { m = amod(l); if (m != "") MFL[m] = aadd(MFL[m], l) }
+  printf "%s", "\"architecture\":{\"modules\":["
+  for (i = 1; i <= NMOD; i++) { m = MO[i]; o = ""
+    for (k = 1; k <= NMOD; k++) { y = MO[k]; if (((y, m) in MBU) || ((y in OPEN) && y != m)) o = aadd(o, y) }
+    # R16: the surface s history up to C, when C is on the main history
+    if (ci == "") x = "null"; else { x = ""; for (k = 1; k <= SHN[m]; k++) { split(SH[m, k], f, "\t"); if (!(f[2] in FPI) || FPI[f[2]] < ci + 0) continue
+        x = x (x == "" ? "" : ",") "{\"commit\":" js(substr(f[2], 1, 7)) ",\"time\":" js(f[3]) ",\"from\":" anv(f[4]) ",\"to\":" anv(f[5]) "}" } x = "[" x "]" }
+    w = (m in OPEN) ? "open-to-all" : ((m in LV) ? "level" : "unplaced")
+    printf "%s{\"id\":%s,\"responsibility\":%s,\"ownedData\":%s,\"surface\":%s,\"dependents\":%s,\"openToAll\":%s,\"mayBeUsedBy\":%s,\"otherNames\":%s,\"mayUse\":%s,\"steps\":%s,\"placement\":%s,\"level\":%s,\"decisions\":[%s],\"files\":%s,\"surfaceHistory\":%s}\n", (i > 1 ? "," : ""), js(m), anv(MRS[m]), anv(MOW[m]), anv(MSU[m]), anv(MDE[m]), jb(m in OPEN), aja(MBL[m]), aja(OTH[m]), aja(o), aja(MST[m]), js(w), ((m in LV) ? LV[m] : "null"), MDC[m], aja(MFL[m]), x
+    afact("module", m, m, "responsibility ownedData surface dependents", MRS[m] "\037" MOW[m] "\037" MSU[m] "\037" MDE[m]) }
+  printf "%s", "],\"planOnly\":["
+  for (i = 1; i <= npo; i++) { k = POO[i]; printf "%s{\"name\":%s,\"steps\":%s}", (i > 1 ? "," : ""), js(PON[k]), aja(POS[k]) }
+  printf "%s", "],\"services\":["
+  for (i = 1; i <= NSV; i++) { split(ASV[i], f, "\t")
+    printf "%s{\"id\":%s,\"service\":%s,\"purpose\":%s,\"chosen\":%s,\"credentials\":%s,\"probe\":%s,\"evidence\":%s,\"quirks\":%s,\"module\":%s}\n", (i > 1 ? "," : ""), js(f[2]), js(f[3]), js(f[4]), anv(f[5]), anv(f[6]), anv(f[7]), anv(f[8]), anv(f[9]), anv(f[10])
+    afact("service", f[2], f[3], "service purpose chosen credentials probe evidence quirks module", f[3] "\037" f[4] "\037" f[5] "\037" f[6] "\037" f[7] "\037" f[8] "\037" f[9] "\037" f[10]) }
+  printf "%s", "],\"stack\":["
+  for (i = 1; i <= NSK; i++) { split(ASK[i], f, "\t"); printf "%s{\"layer\":%s,\"choice\":%s,\"ruledOut\":%s}\n", (i > 1 ? "," : ""), anv(f[1]), anv(f[2]), anv(f[3])
+    afact("stack", f[1], f[1], "choice ruledOut", f[2] "\037" f[3]) }
+  printf "%s", "],\"mustNeverBreak\":["
+  for (i = 1; i <= NT0; i++) { split(AT0[i], f, "\t"); printf "%s{\"rule\":%s,\"meaning\":%s}\n", (i > 1 ? "," : ""), anv(f[1]), anv(f[2]) }
+  # R7: missing is shown as missing
+  if (!("arch" in HAS)) amiss("modules", "There is no ARCHITECTURE.md at this commit.")
+  else if (!HASMT) amiss("modules", "ARCHITECTURE.md has no module table (a table with a Module column) at this commit.")
+  for (i = 1; i <= NMC; i++) amiss("modules", "The module table has no " MCOL[i] " column.")
+  if (!("seam" in HAS)) amiss("services", "There is no INVENTORY.md at this commit.")
+  else if (!NSV) amiss("services", "INVENTORY.md has no seam rows at this commit.")
+  if (!("base" in HAS)) { amiss("stack", "There is no BASELINE.md at this commit."); amiss("mustNeverBreak", "There is no BASELINE.md at this commit.") }
+  else { if (!HASSK) amiss("stack", "BASELINE.md has no table under its Stack heading at this commit."); if (!HAST0) amiss("mustNeverBreak", "BASELINE.md has no table under its Tier-0 rows heading at this commit.") }
+  printf "],\"missing\":[%s]},\n", AMS }'
 utc_of() { TZ=UTC0 git -C "$P" log -1 --date=format-local:%Y-%m-%dT%H:%M:%SZ --format=%cd "$1" 2>/dev/null; }
 hashof() { git hash-object --stdin; }
 
@@ -95,18 +187,21 @@ check_page() {
   awk -F'\t' '
     BEGIN {
       # required fields: <path pattern> <type[|type]>; [] stands for every element
-      n = split(".viewer-data number|.meta object|.meta.project string|.meta.moment object|.meta.moment.commit string|.meta.moment.time string|.meta.milestones array|.meta.madeAt string|.meta.vid string|.meta.records number,null|.meta.evidenceRule string|.meta.replayed boolean|.meta.requested boolean|.meta.mode string|.meta.fingerprint string|.meta.previous object,null|.meta.next object,null|.meta.snapshots array|.meta.snapshots[].label string|.meta.snapshots[].moment object|.meta.snapshots[].milestones array|.meta.snapshots[].file string|.meta.snapshots[].replayed boolean|.meta.snapshots[].requested boolean|.meta.nowOnly boolean|.meta.notRecorded array|.goals array|.goals[].id string|.goals[].name string|.goals[].text string|.capabilities array|.capabilities[].id string|.capabilities[].goal string,null|.capabilities[].name string|.users array|.users[].name string|.journeys array|.journeys[].promise string|.journeys[].text string|.requirements array|.requirements[].id string|.requirements[].type string|.requirements[].tier string|.requirements[].plain string|.requirements[].statement string|.requirements[].failsIf string,null|.requirements[].capability string,null|.requirements[].phase string|.nonGoals array|.nonGoals[].id string|.nonGoals[].plain string|.screens array|.screens[].screen string|.screens[].state string|.screens[].requirements array|.screens[].canvas string,null|.promises array|.promises[].id string|.promises[].kind string|.promises[].text string|.promises[].requirements array|.promises[].capabilities array|.promises[].screenState string,null|.promises[].test string|.promises[].step string,null|.promises[].state string|.promises[].stateDetail string|.promises[].resultFile string,null|.promises[].resultCommit string,null|.promises[].built boolean|.promises[].judgments array|.promises[].judgments[].at string|.promises[].judgments[].result string|.promises[].judgments[].class string|.promises[].judgments[].prose string,null|.steps array|.steps[].id string|.steps[].name string|.steps[].kind string|.steps[].buildsOn array|.steps[].promises array|.steps[].started string,null|.steps[].closed string,null|.decisions object|.decisions.answers array|.decisions.answers[].id string|.decisions.answers[].tier string|.decisions.answers[].date string|.decisions.answers[].q string|.decisions.answers[].a string|.decisions.answers[].settles array|.decisions.answers[].delegated boolean|.decisions.answers[].amended boolean|.decisions.technical array|.decisions.technical[].id string|.decisions.technical[].what string|.decisions.technical[].why string|.needsYou object|.needsYou.questions array|.needsYou.held array|.needsYou.delegated array|.needsYou.answered array|.activity object|.activity.agentsOpen array|.activity.recentCommits array|.activity.planChanges array|.counts object|.counts.promises number|.counts.built number|.counts.tested number|.counts.reviewed number|.counts.reviewedKept number|.counts.reviewedBroken number|.counts.byState object|.counts.steps object|.changes array|.changes[].kind string|.changes[].ids array|.changes[].capabilities array|.changes[].window string", R, "|")
+      n = split(".viewer-data number|.meta object|.meta.project string|.meta.moment object|.meta.moment.commit string|.meta.moment.time string|.meta.milestones array|.meta.madeAt string|.meta.vid string|.meta.records number,null|.meta.evidenceRule string|.meta.replayed boolean|.meta.requested boolean|.meta.mode string|.meta.fingerprint string|.meta.previous object,null|.meta.next object,null|.meta.snapshots array|.meta.snapshots[].label string|.meta.snapshots[].moment object|.meta.snapshots[].milestones array|.meta.snapshots[].file string|.meta.snapshots[].replayed boolean|.meta.snapshots[].requested boolean|.meta.nowOnly boolean|.meta.notRecorded array|.goals array|.goals[].id string|.goals[].name string|.goals[].text string|.capabilities array|.capabilities[].id string|.capabilities[].goal string,null|.capabilities[].name string|.users array|.users[].name string|.journeys array|.journeys[].promise string|.journeys[].text string|.requirements array|.requirements[].id string|.requirements[].type string|.requirements[].tier string|.requirements[].plain string|.requirements[].statement string|.requirements[].failsIf string,null|.requirements[].capability string,null|.requirements[].phase string|.nonGoals array|.nonGoals[].id string|.nonGoals[].plain string|.screens array|.screens[].screen string|.screens[].state string|.screens[].requirements array|.screens[].canvas string,null|.promises array|.promises[].id string|.promises[].kind string|.promises[].text string|.promises[].requirements array|.promises[].capabilities array|.promises[].screenState string,null|.promises[].test string|.promises[].step string,null|.promises[].state string|.promises[].stateDetail string|.promises[].resultFile string,null|.promises[].resultCommit string,null|.promises[].built boolean|.promises[].judgments array|.promises[].judgments[].at string|.promises[].judgments[].result string|.promises[].judgments[].class string|.promises[].judgments[].prose string,null|.steps array|.steps[].id string|.steps[].name string|.steps[].kind string|.steps[].buildsOn array|.steps[].promises array|.steps[].started string,null|.steps[].closed string,null|.decisions object|.decisions.answers array|.decisions.answers[].id string|.decisions.answers[].tier string|.decisions.answers[].date string|.decisions.answers[].q string|.decisions.answers[].a string|.decisions.answers[].settles array|.decisions.answers[].delegated boolean|.decisions.answers[].amended boolean|.decisions.technical array|.decisions.technical[].id string|.decisions.technical[].what string|.decisions.technical[].why string|.decisions.technical[].enforced string,null|.decisions.technical[].added object,null|.decisions.technical[].added.commit string|.decisions.technical[].added.time string|.decisions.technical[].stage string,null|.architecture object|.architecture.modules array|.architecture.modules[].id string|.architecture.modules[].responsibility string,null|.architecture.modules[].ownedData string,null|.architecture.modules[].surface string,null|.architecture.modules[].dependents string,null|.architecture.modules[].openToAll boolean|.architecture.modules[].mayBeUsedBy array|.architecture.modules[].otherNames array|.architecture.modules[].mayUse array|.architecture.modules[].steps array|.architecture.modules[].files array|.architecture.modules[].placement string|.architecture.modules[].level number,null|.architecture.modules[].decisions array|.architecture.modules[].decisions[].id string|.architecture.modules[].decisions[].by string|.architecture.modules[].decisions[].match string,null|.architecture.modules[].surfaceHistory array,null|.architecture.modules[].surfaceHistory[].commit string|.architecture.modules[].surfaceHistory[].time string|.architecture.modules[].surfaceHistory[].from string,null|.architecture.modules[].surfaceHistory[].to string,null|.architecture.planOnly array|.architecture.planOnly[].name string|.architecture.planOnly[].steps array|.architecture.services array|.architecture.services[].id string|.architecture.services[].service string|.architecture.services[].purpose string|.architecture.services[].chosen string,null|.architecture.services[].credentials string,null|.architecture.services[].probe string,null|.architecture.services[].evidence string,null|.architecture.services[].quirks string,null|.architecture.services[].module string,null|.architecture.stack array|.architecture.stack[].layer string,null|.architecture.stack[].choice string,null|.architecture.stack[].ruledOut string,null|.architecture.mustNeverBreak array|.architecture.mustNeverBreak[].rule string,null|.architecture.mustNeverBreak[].meaning string,null|.architecture.missing array|.architecture.missing[].part string|.architecture.missing[].why string|.needsYou object|.needsYou.questions array|.needsYou.held array|.needsYou.delegated array|.needsYou.answered array|.activity object|.activity.agentsOpen array|.activity.recentCommits array|.activity.planChanges array|.counts object|.counts.promises number|.counts.built number|.counts.tested number|.counts.reviewed number|.counts.reviewedKept number|.counts.reviewedBroken number|.counts.byState object|.counts.steps object|.changes array|.changes[].kind string|.changes[].ids array|.changes[].capabilities array|.changes[].window string", R, "|")
       for (i = 1; i <= n; i++) { split(R[i], a, " "); RP[i] = a[1]; RT[i] = a[2] } nr = n }
-    $1 == "T" { k = $2; gsub(/\[[0-9]+\]/, "[]", k); TY[k] = TY[k] "," $3; HAS[k] = 1; if (k ~ /\[\]$/) { el[k]++; ELEM[$2] = k } FLD[$2] = 1; next }
+    $1 == "T" { k = $2; gsub(/\[[0-9]+\]/, "[]", k); TY[k] = TY[k] "," $3; HAS[k] = 1; if (k ~ /\[\]$/) { el[k]++; ELEM[$2] = k } FLD[$2] = 1; PT[$2] = $3; if ($3 == "object") OBJ[k] = 1; next }
     $1 == "V" { VAL[$2] = $3; next }
     END {
       for (i = 1; i <= nr; i++) { pth = RP[i]; m = split(RT[i], ok, ","); p0 = pth
         # an element field is required only when its array has elements
         par = pth; if (index(par, "[]")) { sub(/\[\][^[]*$/, "[]", par); if (!(par in el)) continue }
+        # v0.26.10.2: a field of an object that may be null is required only where the object is there
+        up = pth; sub(/\.[^.[]*$/, "", up); if (up != pth && up != "" && (up in HAS) && !(up in OBJ)) continue
         if (!(pth in HAS)) { print "ViD view check: " pth " is missing"; bad++; continue }
         nt = split(substr(TY[pth], 2), got, ","); for (j = 1; j <= nt; j++) { f = 0; for (q = 1; q <= m; q++) if (got[j] == ok[q]) f = 1; if (!f) { print "ViD view check: " pth " is " got[j] ", not " RT[i]; bad++; break } } }
       # every element of an array carries the fields required of its elements
       for (e in ELEM) { k = ELEM[e]; for (i = 1; i <= nr; i++) { if (index(RP[i], k ".") != 1) continue; rest = substr(RP[i], length(k) + 1); if (index(rest, "[]")) continue
+          up = rest; sub(/\.[^.]*$/, "", up); if (up != "" && PT[e up] != "object") continue
           if (!((e rest) in FLD)) { print "ViD view check: " e rest " is missing"; bad++ } } }
       # the joins: ids a part cites exist in their part
       for (pth in VAL) {
@@ -115,7 +210,9 @@ check_page() {
         else if (pth ~ /^\.goals\[[0-9]+\]\.id$/) GO[VAL[pth]] = 1
         else if (pth ~ /^\.promises\[[0-9]+\]\.id$/) PRO[VAL[pth]] = 1
         else if (pth ~ /^\.steps\[[0-9]+\]\.id$/) STP[VAL[pth]] = 1
-        else if (pth ~ /^\.decisions\.answers\[[0-9]+\]\.id$/) ANS[VAL[pth]] = 1 }
+        else if (pth ~ /^\.decisions\.answers\[[0-9]+\]\.id$/) ANS[VAL[pth]] = 1
+        else if (pth ~ /^\.decisions\.technical\[[0-9]+\]\.id$/) TEC[VAL[pth]] = 1
+        else if (pth ~ /^\.architecture\.modules\[[0-9]+\]\.id$/) MOD[VAL[pth]] = 1 }
       for (pth in VAL) { v = VAL[pth]; w = ""
         if (pth ~ /^\.promises\[[0-9]+\]\.requirements\[[0-9]+\]$/ && !(v in REQ)) w = "requirement"
         else if (pth ~ /^\.promises\[[0-9]+\]\.capabilities\[[0-9]+\]$/ && !(v in CAP)) w = "capability"
@@ -129,6 +226,9 @@ check_page() {
         else if (pth ~ /^\.needsYou\.held\[[0-9]+\]$/ && !(v in PRO)) w = "promise"
         else if (pth ~ /^\.needsYou\.delegated\[[0-9]+\]$/ && !(v in ANS)) w = "answer"
         else if (pth ~ /^\.needsYou\.answered\[[0-9]+\]$/ && !(v in ANS)) w = "answer"
+        else if (pth ~ /^\.architecture\.modules\[[0-9]+\]\.(mayUse|mayBeUsedBy)\[[0-9]+\]$/ && !(v in MOD)) w = "module"
+        else if (pth ~ /^\.architecture\.(modules|planOnly)\[[0-9]+\]\.steps\[[0-9]+\]$/ && !(v in STP)) w = "step"
+        else if (pth ~ /^\.architecture\.modules\[[0-9]+\]\.decisions\[[0-9]+\]\.id$/ && !(v in TEC)) w = "technical decision"
         if (w != "") { print "ViD view check: " pth " cites " v ", which is no " w " of this snapshot"; bad++ } }
       exit bad ? 1 : 0 }' "$CW/t"
   _rc=$?; rm -rf "$CW"; return $_rc
@@ -292,6 +392,41 @@ parse() {
         for (i = 2; i <= n; i++) { if (f[i] ~ /^why:/) { why = f[i]; sub(/^why:[ \t]*/, "", why) } else if (f[i] ~ /^applies-to:/) { ap = f[i]; sub(/^applies-to:[ \t]*/, "", ap) } else if (f[i] ~ /^scope:/) { sc = f[i]; sub(/^scope:[ \t]*/, "", sc) } }
         if (!(id in S)) O[++no] = id; S[id] = "D\t" id "\t" what "\t" why "\t" ap "\t" sc }
         END { for (i = 1; i <= no; i++) print S[O[i]] }' "$W/doc" > "$_o.tmp" ;;
+    # v0.26.10.2 (R13): the decisions again, with enforced: — a kind of its own, so an older cache can't supply them
+    dec2) awk '/^- \*\*D-[0-9]+\*\*/ { l = $0; gsub(/\t/, " ", l); id = l; sub(/^- \*\*/, "", id); sub(/\*\*.*/, "", id); r = l; sub(/^- \*\*[^*]*\*\*[ \t]*/, "", r)
+        n = split(r, f, / \| /); what = f[1]; why = ""; ap = ""; sc = ""; en = ""
+        for (i = 2; i <= n; i++) { if (f[i] ~ /^why:/) { why = f[i]; sub(/^why:[ \t]*/, "", why) } else if (f[i] ~ /^applies-to:/) { ap = f[i]; sub(/^applies-to:[ \t]*/, "", ap) } else if (f[i] ~ /^scope:/) { sc = f[i]; sub(/^scope:[ \t]*/, "", sc) } else if (f[i] ~ /^enforced:/) { en = f[i]; sub(/^enforced:[ \t]*/, "", en) } }
+        if (!(id in S)) O[++no] = id; S[id] = "D\t" id "\t" what "\t" why "\t" ap "\t" sc "\t" en }
+        END { for (i = 1; i <= no; i++) print S[O[i]] }' "$W/doc" > "$_o.tmp" ;;
+    # v0.26.10.2 (R1): the first table whose header row has a cell `Module`, to the table's end, columns by header name;
+    #   a row whose Module cell is empty or starts {{ is skipped, as in imports.sh. MT: the table is there; MC <column>:
+    #   a column it lacks; MR <id> <responsibility> <owned> <surface> <dependents>, each as written, \034 for a missing
+    #   column. The id: the Module cell, backticks removed, a dotted label read as a path (imports.sh:43-46)
+    arch) awk -F'|' 'function tr(s) { gsub(/\t/, " ", s); gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
+      function cell(k) { return k ? tr(c[k]) : "\034" }
+      /^[ \t]*\|/ { if (done) next; if (!intab) { intab = 1; if (!on) { n = split($0, c, "|"); for (k = 2; k < n; k++) H[tr(c[k])] = k
+            if ("Module" in H) { on = 1; print "MT"; split("Module|Responsibility|Owned tables/data|Public surface|Dependents", N, "|")
+              for (k = 1; k <= 5; k++) { COL[k] = (N[k] in H) ? H[N[k]] : 0; if (!COL[k]) print "MC\t" N[k] } } else split("", H) } next }
+          if (!on) next; if ($0 ~ /^[ \t]*\|[ \t:|-]*$/) next
+          split($0, c, "|"); m = cell(COL[1]); gsub(/`/, "", m); m = tr(m); if (m == "" || m == "\034" || index(m, "{{") == 1 || m == "Module") next
+          if (m !~ /\// && m ~ /\./) gsub(/\./, "/", m)
+          print "MR\t" m "\t" cell(COL[2]) "\t" cell(COL[3]) "\t" cell(COL[4]) "\t" cell(COL[5]); next }
+      { if (intab && on) done = 1; intab = 0 }' "$W/doc" > "$_o.tmp" ;;
+    # v0.26.10.2 (R6, R15): the first table under `## Stack` (SK <layer> <choice> <ruled out>, the third column when its
+    #   header starts FORBIDDEN, else \034) and under `## Tier-0 rows` (T0 <rule> <meaning>); SKT and T0T: the table is there
+    base) awk -F'|' 'function tr(s) { gsub(/\t/, " ", s); gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
+      /^## / { sec = ""; if ($0 ~ /^## Stack[ \t]*$/) sec = "SK"; else if ($0 ~ /^## Tier-0 rows[ \t]*$/) sec = "T0"; intab = 0; next }
+      /^[ \t]*\|/ { if (sec == "" || (sec in DONE)) next
+          if (!intab) { intab = 1; print sec "T"; n = split($0, c, "|"); rc = (n > 4 && toupper(tr(c[4])) ~ /^FORBIDDEN/) ? 4 : 0; next }
+          if ($0 ~ /^[ \t]*\|[ \t:|-]*$/) next; n = split($0, c, "|")
+          if (sec == "SK") print "SK\t" tr(c[2]) "\t" (n > 3 ? tr(c[3]) : "\034") "\t" (rc ? tr(c[rc]) : "\034"); else print "T0\t" tr(c[2]) "\t" (n > 3 ? tr(c[3]) : "\034"); next }
+      { if (intab) DONE[sec] = 1; intab = 0 }' "$W/doc" > "$_o.tmp" ;;
+    # v0.26.10.2 (R5, R15, R17d): the seam rows of the vid-inventory block — SV <id> <service> <purpose> <chosen>
+    #   <credentials> <probe> <evidence> <quirks> <module>, the labelled fields by label, \034 where absent
+    seam) sed -n '/^```vid-inventory/,/^```$/p' "$W/doc" | awk -F'|' 'function tr(s) { gsub(/\t/, " ", s); gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
+      tr($1) == "seam" { split("chosen credentials probe evidence quirks module", L, " "); split("", V)
+        for (i = 5; i <= NF; i++) { x = tr($i); for (k = 1; k <= 6; k++) if (index(x, L[k] ":") == 1) V[k] = tr(substr(x, length(L[k]) + 2)) }
+        o = "SV\t" tr($2) "\t" tr($3) "\t" tr($4); for (k = 1; k <= 6; k++) o = o "\t" ((k in V) ? V[k] : "\034"); print o }' > "$_o.tmp" ;;
     man) sed -n '/^```vid-design-manifest$/,/^```$/p' "$W/doc" | grep -v '^```' | grep -v '^[[:space:]]*#' | awk -F'|' 'NF >= 3 { for (i = 1; i <= 3; i++) gsub(/^[ \t]+|[ \t]+$/, "", $i); gsub(/[ \t]/, "", $3); print "S\t" $1 "\t" $2 "\t" $3 }' > "$_o.tmp" ;;
     cvm) grep -o '@screen [A-Za-z0-9_-]* state=[A-Za-z0-9_-]*' "$W/doc" | awk '{ s = $3; sub(/^state=/, "", s); print "M\t" $2 "\t" s }' | awk '!x[$0]++' > "$_o.tmp" ;;
   esac
@@ -328,6 +463,25 @@ canvas() {
     END { printf "%s", "\"" }' "$W/cv" > "$OUT/.cache/blob/$_key.canvas.tmp" && mv "$OUT/.cache/blob/$_key.canvas.tmp" "$OUT/.cache/blob/$_key.canvas"
 }
 
+# --- v0.26.10.2 (R13, R16): the main history, read once per run, cached by HEAD ------------------------------
+# fpl: HEAD's first-parent history, newest first. .dec: each decision id, with the first commit on it whose
+# DECISIONS.md holds the id, and that commit's time. .arch: each change to a module's Public surface cell on it,
+# oldest first — <module> <commit> <time> <from (\034: the row first appears)> <to>.
+git -C "$P" rev-list --first-parent HEAD > "$W/fpl" 2>/dev/null || : > "$W/fpl"
+HK=$(printf '%s\n%s\n' "$HEAD" "$CODEH" | hashof); HDEC="$OUT/.cache/hist/$HK.dec"; HARCH="$OUT/.cache/hist/$HK.arch"
+if [ "$NTODO" -gt 0 ] && { [ ! -f "$HDEC" ] || [ ! -f "$HARCH" ]; }; then
+  mkdir -p "$OUT/.cache/hist"
+  TZ=UTC0 git -C "$P" log --first-parent --diff-merges=first-parent --reverse -p --unified=0 --no-color --no-ext-diff --no-renames --date=format-local:%Y-%m-%dT%H:%M:%SZ --format='%x01%H %cd' HEAD -- DECISIONS.md 2>/dev/null |
+    awk '/^\001/ { c = substr($1, 2); t = $2; next } /^\+- \*\*D-[0-9]+\*\*/ { id = $0; sub(/^\+- \*\*/, "", id); sub(/\*\*.*/, "", id); if (!(id in S)) { S[id] = 1; print id "\t" c "\t" t } }' > "$HDEC.tmp" && mv "$HDEC.tmp" "$HDEC"
+  TZ=UTC0 git -C "$P" log --first-parent --diff-merges=first-parent --reverse --no-renames --date=format-local:%Y-%m-%dT%H:%M:%SZ --format='%H %cd' HEAD -- ARCHITECTURE.md 2>/dev/null > "$W/archlog" || : > "$W/archlog"
+  while IFS=' ' read -r _h _d; do
+    if _b=$(blob "$_h" ARCHITECTURE.md) && parse arch "$_b"; then awk -F'\t' -v h="$_h" -v d="$_d" '$1 == "MR" { print h "\t" d "\t" $2 "\t" $5; n++ } END { if (!n) print h "\t" d "\t\035" }' "$OUT/.cache/blob/$_b.arch"
+    else printf '%s\t%s\t\035\n' "$_h" "$_d"; fi
+  done < "$W/archlog" | awk -F'\t' 'function flush(   m) { if (c == "") return; for (m in CUR) if (!(m in OLD) || OLD[m] != CUR[m]) print m "\t" c "\t" t "\t" ((m in OLD) ? OLD[m] : "\034") "\t" CUR[m]
+      split("", OLD); for (m in CUR) OLD[m] = CUR[m]; split("", CUR) }
+    $1 != c { flush(); c = $1; t = $2 } $3 != "\035" && !(($3) in CUR) { CUR[$3] = $4 } END { flush() }' > "$HARCH.tmp" && mv "$HARCH.tmp" "$HARCH"
+fi
+
 # --- one snapshot's data (R3, R4, R7) ------------------------------------------------------------------------
 # snapdata <T> <C> <kind> <fp>: computed in a sealed view root, cached as .cache/data/<fp>.{json,facts,meta,canvases,sum}
 snapdata() {
@@ -355,7 +509,13 @@ snapdata() {
   # the project's own results reader, at C (a receipt without its .cases sidecar is read through it)
   git -C "$P" rev-parse -q --verify "$_C:checks/extractors" >/dev/null 2>&1 && git -C "$P" archive "$_C" checks/extractors 2>/dev/null | tar -x -C "$V" 2>/dev/null
   # the documents, parsed once per blob
-  for d in prd:PRD.md inv:INVENTORY.md dec:DECISIONS.md man:DESIGN-BRIEF.md; do _kd=${d%%:*}; _b=$(blob "$_C" "${d#*:}") && parse "$_kd" "$_b" && cat "$OUT/.cache/blob/$_b.$_kd"; done > "$S/docs"
+  # v0.26.10.2 (R1, R5, R6, R8, R13): the decisions by dec2; ARCHITECTURE.md, BASELINE.md and the seam rows by their own
+  #   kinds; HAS <kind>: the document is there at C
+  for d in prd:PRD.md inv:INVENTORY.md dec2:DECISIONS.md man:DESIGN-BRIEF.md arch:ARCHITECTURE.md base:BASELINE.md seam:INVENTORY.md; do _kd=${d%%:*}; _b=$(blob "$_C" "${d#*:}") && parse "$_kd" "$_b" && printf 'HAS\t%s\n' "$_kd" && cat "$OUT/.cache/blob/$_b.$_kd"; done > "$S/docs"
+  # v0.26.10.2 (R14): the paths at C, no file read; (R13, R16) C's place on the main history, building's start by T
+  git -C "$P" -c core.quotePath=false ls-tree -r --name-only "$_C" > "$S/files" 2>/dev/null || : > "$S/files"
+  _ci=$(grep -nx "$_C" "$W/fpl" | head -n 1 | cut -d: -f1)
+  _ds=$(awk "$AWKAT"' $1 == "stage" && kv("name") == "develop" && kv("state") == "start" { t = lastat(); if (t != "") { print t; exit } }' "$V/.vid/metrics-events")
   # the plan at T, parsed by the plugin's plan.sh
   if [ -s "$S/plan" ]; then (cd "$V" && sh checks/plan.sh parse "$S/plan") > "$S/parsed" 2>/dev/null || : > "$S/parsed"; else : > "$S/parsed"; fi
   # the map: every INVENTORY row at C, its step from the plan at T, no paths
@@ -420,8 +580,8 @@ snapdata() {
     TZ=UTC0 git -C "$P" log --first-parent -n 12 --date=format-local:%Y-%m-%dT%H:%M:%SZ --format='RC%x09%h%x09%cd%x09%s' "$_C" >> "$S/now" 2>/dev/null
     awk "$AWKAT"' $1 == "plan-change" { L[++n] = "PC\t" kv("what") "\t" lastat() "\t" qv("why") } END { for (i = (n > 10 ? n - 9 : 1); i <= n; i++) print L[i] }' "$EVF" >> "$S/now"
   fi
-  # the data body (viewer-data 1, less meta and changes) and the facts the change log compares
-  LC_ALL=C awk -F'\t' -v S="$S" -v K="$_K" "$AWKJS"'
+  # the data body (viewer-data 2, less meta and changes) and the facts the change log compares
+  LC_ALL=C awk -F'\t' -v S="$S" -v K="$_K" -v ci="$_ci" -v ds="$_ds" -v fpl="$W/fpl" -v hdec="$HDEC" -v harch="$HARCH" "$AWKJS""$AWKARCH"'
     function caps_of(list,   n, a, i, o, s, c) { n = split(list, a, /[ ,]+/); o = ""; split("", s)
       for (i = 1; i <= n; i++) { c = ""; if (a[i] in RCAP) c = RCAP[a[i]]; else if (a[i] in PCAPS) c = PCAPS[a[i]]
         if (c != "") { m = split(c, cc, ","); for (q = 1; q <= m; q++) if (cc[q] != "" && !(cc[q] in s)) { s[cc[q]] = 1; o = o (o == "" ? "" : ",") cc[q] } } } return o }
@@ -435,11 +595,12 @@ snapdata() {
           R[++nr] = "{\"id\":" js(f[2]) ",\"type\":" js(f[3]) ",\"tier\":" js(f[4]) ",\"plain\":" js(f[5]) ",\"statement\":" js(f[6]) ",\"failsIf\":" jn(f[7]) ",\"capability\":" jn(f[8]) ",\"phase\":" js(f[9] == "" ? "pilot" : f[9]) "}" }
         else if (f[1] == "N") NG[++nn] = "{\"id\":" js(f[2]) ",\"plain\":" js(f[3]) "}"
         else if (f[1] == "A") { AID[++na] = f[2]; ATI[f[2]] = f[3]; ADA[f[2]] = f[4]; AQ[f[2]] = f[5]; AA[f[2]] = f[6]; ASE[f[2]] = f[7]; AAM[f[2]] = f[8] }
-        else if (f[1] == "D") { DID[++nd] = f[2]; DW[f[2]] = f[3]; DY[f[2]] = f[4]; DAP[f[2]] = f[5]; DSC[f[2]] = f[6] }
+        else if (f[1] == "D") { DID[++nd] = f[2]; DW[f[2]] = f[3]; DY[f[2]] = f[4]; DAP[f[2]] = f[5]; DSC[f[2]] = f[6]; DEN[f[2]] = f[7] }
         else if (f[1] == "S") { SM[++nsm] = f[2] "\t" f[3] "\t" f[4] }
         else if (f[1] == "CV") CVN[f[3], f[4]] = f[2]
-        else if (f[1] == "P") { PID[++np] = f[2]; PK[f[2]] = f[3]; PA[f[2]] = f[4]; PSC[f[2]] = f[5]; PT[f[2]] = f[6]; PD[f[2]] = f[7]; PTS[f[2]] = f[8] } }
-      while ((getline l < (S "/parsed")) > 0) { split(l, f, "\t"); if (f[1] == "step") { SID[++ns] = f[2]; SNM[f[2]] = f[3]; SBO[f[2]] = f[5]; SKD[f[2]] = (f[7] == "hardening" ? "hardening" : "feature") } else if (f[1] == "row") { RSTEP[f[2]] = f[3]; SROWS[f[3]] = SROWS[f[3]] " " f[2] } }
+        else if (f[1] == "P") { PID[++np] = f[2]; PK[f[2]] = f[3]; PA[f[2]] = f[4]; PSC[f[2]] = f[5]; PT[f[2]] = f[6]; PD[f[2]] = f[7]; PTS[f[2]] = f[8] }
+        else arch_read(l) }
+      while ((getline l < (S "/parsed")) > 0) { split(l, f, "\t"); if (f[1] == "step") { SID[++ns] = f[2]; SNM[f[2]] = f[3]; SMOD[f[2]] = f[4]; SBO[f[2]] = f[5]; SKD[f[2]] = (f[7] == "hardening" ? "hardening" : "feature") } else if (f[1] == "row") { RSTEP[f[2]] = f[3]; SROWS[f[3]] = SROWS[f[3]] " " f[2] } }
       while ((getline l < (S "/states")) > 0) { split(l, f, "\t"); ST[f[1]] = f[2]; SD[f[1]] = f[3] }
       while ((getline l < (S "/built")) > 0) { split(l, f, "\t"); BU[f[2]] = 1 }
       while ((getline l < (S "/judg")) > 0) { split(l, f, "\t"); JN[f[2]]++; JJ[f[2], JN[f[2]]] = f[3] "\t" f[4] "\t" f[5] "\t" f[6] }
@@ -492,7 +653,7 @@ snapdata() {
       for (i = 1; i <= na; i++) { a = AID[i]; printf "%s{\"id\":%s,\"amended\":%s,\"tier\":%s,\"date\":%s,\"q\":%s,\"a\":%s,\"settles\":%s,\"delegated\":false}\n", (i > 1 ? "," : ""), js(a), jb(AAM[a] == 1), js(ATI[a]), js(ADA[a]), js(AQ[a]), js(AA[a]), ja(ASE[a], ",")
         print "A\t" a "\t" ATI[a] "|" ADA[a] "|" AQ[a] "|" AA[a] "|" ASE[a] "\t" ADA[a] "\t" caps_of(ASE[a]) "\t" AA[a] > (S "/facts") }
       printf "%s", "],\"technical\":["
-      for (i = 1; i <= nd; i++) { d = DID[i]; printf "%s{\"id\":%s,\"what\":%s,\"why\":%s,\"appliesTo\":%s,\"scope\":%s}\n", (i > 1 ? "," : ""), js(d), js(DW[d]), js(DY[d]), jn(DAP[d]), jn(DSC[d])
+      for (i = 1; i <= nd; i++) { d = DID[i]; printf "%s{\"id\":%s,\"what\":%s,\"why\":%s,\"appliesTo\":%s,\"scope\":%s%s}\n", (i > 1 ? "," : ""), js(d), js(DW[d]), js(DY[d]), jn(DAP[d]), jn(DSC[d]), atech(d)
         print "D\t" d "\t" DW[d] "|" DY[d] "|" DAP[d] "|" DSC[d] "\t-\t" caps_of(DAP[d]) "\t" DW[d] > (S "/facts") }
       printf "%s", "]},\n"
       # v0.9.8.1 (R22): every answer the effective ledger holds, newest first — the page shows each from decisions.answers
@@ -502,6 +663,7 @@ snapdata() {
       printf "%s", "\"activity\":{\"agentsOpen\":["; for (i = 1; i <= nag; i++) printf "%s%s", (i > 1 ? "," : ""), AG[i]
       printf "%s", "],\"recentCommits\":["; for (i = 1; i <= nrc; i++) printf "%s%s", (i > 1 ? "," : ""), RC[i]
       printf "%s", "],\"planChanges\":["; for (i = 1; i <= npc; i++) printf "%s%s", (i > 1 ? "," : ""), PCH[i]; printf "%s", "]},\n"
+      arch_part()
       o = ""; for (k in by) o = o (o == "" ? "" : ",") js(k) ":" by[k]
       printf "\"counts\":{\"promises\":%d,\"built\":%d,\"tested\":%d,\"reviewed\":%d,\"reviewedKept\":%d,\"reviewedBroken\":%d,\"byState\":{%s},\"steps\":{\"closed\":%d,\"underway\":%d,\"notStarted\":%d}},\n", np, nb, nt, nrv, nk, nbk, o, cl, un, ns0
     }' /dev/null > "$S/body" || return 1
@@ -540,12 +702,22 @@ while IFS='	' read -r _t _c _k _l _f _r _fp; do
       function out(kind, ids, at, extra, caps) { print "{\"kind\":" js(kind) ",\"ids\":" ja(ids, ",") ",\"at\":" jn(at) extra ",\"capabilities\":" ja(caps, ",") ",\"window\":" js(win) "}" }
       function capsof(list,   n, a, i, o, c, m, cc, q, s) { n = split(list, a, /[ ,]+/); o = ""; split("", s)
         for (i = 1; i <= n; i++) { c = (a[i] in PC) ? PC[a[i]] : ((a[i] in XC) ? XC[a[i]] : ""); m = split(c, cc, ","); for (q = 1; q <= m; q++) if (cc[q] != "" && !(cc[q] in s)) { s[cc[q]] = 1; o = o (o == "" ? "" : ",") cc[q] } } return o }
-      BEGIN { while ((getline l < prev) > 0) { split(l, f, "\t"); if (f[1] == "P") OS[f[2]] = f[3]; else OH[f[1], f[2]] = f[3] }
-        while ((getline l < cur) > 0) { split(l, f, "\t"); if (f[1] == "P") { NS[f[2]] = f[3]; PC[f[2]] = f[4]; PO[++np] = f[2] } else { NH[f[1], f[2]] = f[3]; XO[++nx] = f[1] "\t" f[2]; XA[f[1], f[2]] = f[4]; XC[f[2]] = f[5]; XT[f[1], f[2]] = f[6] } }
+      # v0.26.10.2 (R9): an architecture row (AR) added, removed, or with a field (AF) that differs
+      function anl(s) { return s == "\034" ? "null" : js(s) }
+      function aout(w, part, key, text, extra) { print "{\"kind\":\"architecture\",\"ids\":[" js(key) "],\"at\":null,\"what\":" js(w) ",\"part\":" js(part) ",\"text\":" js(text) extra ",\"capabilities\":[],\"window\":" js(win) "}" }
+      BEGIN { while ((getline l < prev) > 0) { split(l, f, "\t"); if (f[1] == "P") OS[f[2]] = f[3]; else if (f[1] == "AR") { OAR[f[2], f[3]] = 1; OARO[++noa] = f[2] "\t" f[3]; OAT[f[2], f[3]] = f[4] } else if (f[1] == "AF") OAF[f[2], f[3], f[4]] = f[5]; else OH[f[1], f[2]] = f[3] }
+        while ((getline l < cur) > 0) { split(l, f, "\t"); if (f[1] == "P") { NS[f[2]] = f[3]; PC[f[2]] = f[4]; PO[++np] = f[2] }
+          else if (f[1] == "AR") { NAR[f[2], f[3]] = 1; NARO[++nna] = f[2] "\t" f[3]; NAT[f[2], f[3]] = f[4] } else if (f[1] == "AF") { NAF[f[2], f[3], f[4]] = f[5]; NAFN[f[2], f[3]] = NAFN[f[2], f[3]] " " f[4] }
+          else { NH[f[1], f[2]] = f[3]; XO[++nx] = f[1] "\t" f[2]; XA[f[1], f[2]] = f[4]; XC[f[2]] = f[5]; XT[f[1], f[2]] = f[6] } }
         for (i = 1; i <= np; i++) { id = PO[i]; fr = (id in OS) ? OS[id] : "new"; if (fr != NS[id]) out("promise state", id, "", ",\"from\":" js(fr) ",\"to\":" js(NS[id]), PC[id]) }
         for (id in OS) if (!(id in NS)) out("promise state", id, "", ",\"from\":" js(OS[id]) ",\"to\":\"removed\"", "")
         for (i = 1; i <= nx; i++) { split(XO[i], f, "\t"); k = f[1] SUBSEP f[2]; if ((k in OH) && OH[k] == NH[k]) continue
           out("decision", f[2], (f[1] == "A" ? XA[k] : ""), ",\"text\":" js(XT[k]), XC[f[2]]) }
+        for (i = 1; i <= nna; i++) { split(NARO[i], f, "\t"); k = f[1] SUBSEP f[2]; if (!(k in OAR)) { aout("added", f[1], f[2], NAT[k], ""); continue }
+          fl = ""; n = split(NAFN[k], fn, " "); for (j = 1; j <= n; j++) { if (fn[j] == "") continue; a = OAF[f[1], f[2], fn[j]]; b = NAF[f[1], f[2], fn[j]]
+            if (a != b) fl = fl (fl == "" ? "" : ",") "{\"name\":" js(fn[j]) ",\"from\":" anl(a) ",\"to\":" anl(b) "}" }
+          if (fl != "") aout("changed", f[1], f[2], NAT[k], ",\"fields\":[" fl "]") }
+        for (i = 1; i <= noa; i++) { split(OARO[i], f, "\t"); k = f[1] SUBSEP f[2]; if (!(k in NAR)) aout("removed", f[1], f[2], OAT[k], "") }
         while ((getline l < cm) > 0) { split(l, f, "\t"); out("commit", f[1], f[2], ",\"text\":" js(f[3]), "") }
         FS = " " }
       { t = lastat(); if (t == "" || t <= t0 || t > t1) next }

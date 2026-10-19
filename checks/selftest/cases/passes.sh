@@ -295,7 +295,7 @@ fi
 # checked against that commit whenever this repository holds it. vid-build's two sections, their
 # headings dropped and the named edits undone (step 1's run-manager sentence removed, step 1b's
 # "the run manager's to RUN" read back as "yours to RUN", v0.9.8.1 R3: step 5's dirty-law exception read back
-# as its old three lines; v0.9.8.1 R18: the design law's "a ledger test file per screen" and "surface test" read
+# as its old three lines; v0.26.10.2 R17: step 6's three lines on module labels removed; v0.9.8.1 R18: the design law's "a ledger test file per screen" and "surface test" read
 # back as "one ledger test for every screen" and "per-screen test"), equal it line for line; the edits, the
 # builder's frame and the hand-back (v0.9.7.1 R4: the agent writes no `agent:` line) are present; the
 # hand-back's heading may carry its version; vid-build is internal. No line of the base longer
@@ -318,6 +318,10 @@ E3N='   and the inventory court judge what the commit stages, never the rest of
 E3O='   and the inventory court judge what the commit stages, never the rest of
    the working tree (v0.9.6 3.12) — uncommitted work elsewhere cannot fail
    an unrelated commit, so never stash or park work to get one through. Its'
+# v0.26.10.2 (R17e): a fourth named edit — step 6's module labels, three lines of their own — removed the same way
+E4='   A decision that bears on one module, or a few, names their module ids
+   in its `applies-to:` label, beside its row, requirement or screen
+   items, never instead of them (v0.26.10.2 R17).'
 P1='The design transcription law: `vid-build`.'
 P2='Building a step — steps 0–6: `vid-build` (`${CLAUDE_PLUGIN_ROOT}/skills/vid-build/SKILL.md`).'
 FRAME='A builder or fixer lands no law — no line in the regions `checks/lawfiles` names, no PRD change, nothing under checks/, no weakened ledger test, no protected design/ change, no DEPLOYMENT.md change — and hands it back instead.'
@@ -328,7 +332,8 @@ buildtext() { # $1=vid-build $2=vid-develop $3=vid-fix
   awk '/^## The design transcription law$/ { on = 1; skip = 1; next } /^## The hand-back( |$)/ { on = 0 }
     /^## Building a step — steps 0–6$/ { skip = 1; next }
     on { if (skip && $0 == "") { skip = 0; next } skip = 0; print }' "$1" | sed '$ { /^$/d; }' > "$TB/moved"
-  grep -vxF -e "$(printf '%s\n' "$E1" | sed -n 1p)" -e "$(printf '%s\n' "$E1" | sed -n 2p)" -e "$(printf '%s\n' "$E1" | sed -n 3p)" "$TB/moved" \
+  grep -vxF -e "$(printf '%s\n' "$E1" | sed -n 1p)" -e "$(printf '%s\n' "$E1" | sed -n 2p)" -e "$(printf '%s\n' "$E1" | sed -n 3p)" \
+    -e "$(printf '%s\n' "$E4" | sed -n 1p)" -e "$(printf '%s\n' "$E4" | sed -n 2p)" -e "$(printf '%s\n' "$E4" | sed -n 3p)" "$TB/moved" \
     | sed -e 's/the ritual is the run manager'"'"'s to RUN\./the ritual is yours to RUN./' \
         -e 's/^instrument is the fidelity evidence\*\* (v0\.9\.2 3\.4, R7, R20): a ledger$/instrument is the fidelity evidence** (v0.9.2 3.4, R7, R20): one ledger/' \
         -e 's/^test file per screen (v0\.9\.8\.1 R18), the surface test-author pass'"'"'s product, mapping$/test for every screen, the surface test-author pass'"'"'s product, mapping/' \
@@ -339,6 +344,7 @@ buildtext() { # $1=vid-build $2=vid-develop $3=vid-fix
   cmp -s "$TB/undone" "$BASE" || { echo "passes: $1 does not hold develop's build text word for word: $(diff "$BASE" "$TB/undone" | sed -n 2p)"; r=1; }
   case "$(tr '\n' ' ' < "$1" | tr -s ' ')" in *"$(printf '%s\n' "$E1" | tr '\n' ' ' | tr -s ' ' | sed 's/ $//')"*) ;; *) echo "passes: $1 lacks step 1's run-manager sentence"; r=1 ;; esac
   grep -qF "the ritual is the run manager's to RUN." "$1" || { echo "passes: $1 lacks step 1b's run manager"; r=1; }
+  case "$(tr '\n' ' ' < "$1" | tr -s ' ')" in *"$(printf '%s\n' "$E4" | tr '\n' ' ' | tr -s ' ' | sed 's/ $//')"*) ;; *) echo "passes: $1 lacks step 6's module labels"; r=1 ;; esac
   grep -qF 'set them aside with a WIP commit (on a side branch, never a' "$1" || { echo "passes: $1 lacks step 5's dirty-law exception"; r=1; }
   grep -qF 'test file per screen (v0.9.8.1 R18), the surface test-author' "$1" || { echo "passes: $1 lacks the design law's file per screen"; r=1; }
   for l in "$FRAME" "$HANDB"; do case "$(tr '\n' ' ' < "$1" | tr -s ' ')" in *"$l"*) ;; *) echo "passes: $1 lacks, word for word: $l"; r=1 ;; esac; done

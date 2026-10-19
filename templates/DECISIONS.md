@@ -13,7 +13,12 @@ Format:
 The label says where a brief quotes the decision. `applies-to:` items,
 comma separated: ROW, RULE or REQ ids of INVENTORY.md; screen codes (the
 part before `/` of an INVENTORY marker); DIF ids, when rows carry a
-`divergence:` field. `scope: project` only when it bears on many areas. A
+`divergence:` field; module ids of ARCHITECTURE.md's module table (its
+Module column, a dotted label read as a path). A decision that bears on
+one module, or a few, names them beside its row, requirement or screen
+items, never instead of them: a module item reaches only the briefs of
+builders whose step names the module, and graders, test authors and
+fixers join by rows. `scope: project` only when it bears on many areas. A
 commit may change a line's label and nothing else; that is the one edit
 this file allows.
 

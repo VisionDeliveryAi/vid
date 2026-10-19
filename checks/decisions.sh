@@ -15,7 +15,8 @@
 #                     .vid/briefs/labels-<n>.md for one general-purpose agent:
 #                     the list, the items a label may name (INVENTORY.md's
 #                     screen codes, rule rows, the REQ ids rows derive from,
-#                     DIF ids) and the return form, read access only, no edits.
+#                     DIF ids, ARCHITECTURE.md's module ids — v0.26.10.2 R17c)
+#                     and the return form, read access only, no edits.
 #                     Prints `propose: <k> decisions → <brief>`; none, writes nothing.
 #   apply [<file>] [--no-commit]
 #                     reads the proposals (default .vid/decision-labels.proposed,
@@ -25,6 +26,7 @@
 #                     line's enforced: field, only where the line's text hash
 #                     still matches its proposal (a changed line is not labelled
 #                     and is listed; a line gone or already labelled is skipped).
+#                     A module id is an item a brief joins on (R17c).
 #                     Unsure, malformed, or naming an item no brief joins on: the
 #                     label written is `scope: project` (widened). Keeps the
 #                     record .vid/decision-labels.applied (`D-NNN<TAB><label
@@ -71,6 +73,13 @@ inv_read() {
         while (n > 4 && tr($n) ~ /^(origin|proved-red|paid-at):/) { f = tr($n); if (f ~ /^origin:/) { sub(/^origin:[ \t]*/, "", f); og = j(f) } n-- }
         t0 = "no"; if (n >= 6) { t = tr($(n - 1)); if (t ~ /^(0|T0|t0|tier-0|tier0|Tier-0)$/) t0 = "yes" }
         print "RULE", tr($2), t0, og, tr($3) } }' > "$TMPD/inv"
+  # v0.26.10.2 (R17c): `MOD<TAB>id`, the module ids of ARCHITECTURE.md's module table, as the commit hook reads them
+  [ -f ARCHITECTURE.md ] && awk -F'|' 'function tr(s) { gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
+    /^[ \t]*\|/ { if (done) next; if (!intab) { intab = 1; if (!col) { n = split($0, c, "|"); for (k = 2; k < n; k++) if (tr(c[k]) == "Module") col = k } next }
+      if (!col || $0 ~ /^[ \t]*\|[ \t:|-]*$/) next; split($0, c, "|"); m = c[col]; gsub(/`/, "", m); m = tr(m)
+      if (m == "" || index(m, "{{") == 1 || m == "Module") next; if (m !~ /\// && m ~ /\./) gsub(/\./, "/", m); print m; next }
+    { if (intab && col) done = 1; intab = 0 }' ARCHITECTURE.md | awk -v OFS='\t' '{ print "MOD", $0 }' >> "$TMPD/inv"
+  return 0
 }
 
 case "$CMD" in
@@ -89,7 +98,9 @@ case "$CMD" in
       printf 'brief quotes it only where it bears: `applies-to: <items>`, comma separated, naming\n'
       printf 'the ROW, RULE or REQ ids, screen codes or DIF ids it bears on (only the items listed\n'
       printf 'under "The items a label may name", or a ROW id of INVENTORY.md); or `scope: project`,\n'
-      printf 'only when it bears on many areas. Say `sure` or `unsure`. Return exactly one line per\n'
+      printf 'only when it bears on many areas. A decision that bears on one module, or a few, also\n'
+      printf 'names their module ids, beside its row, requirement or screen items, never instead of\n'
+      printf 'them. Say `sure` or `unsure`. Return exactly one line per\n'
       printf 'decision, nothing else, the hash copied as given:\n\n'
       printf '    D-NNN <hash> | applies-to: <items> | sure\n    D-NNN <hash> | scope: project | unsure\n\n'
       printf '## The decisions (%s)\n\n' "$K"
@@ -100,6 +111,7 @@ case "$CMD" in
       printf 'Rule rows:\n'; awk -F'\t' '$1 == "RULE" { print "- " $2 " " $5 (($4 != "") ? " (origin: " $4 ")" : "") }' "$TMPD/inv"
       printf '\nRequirements rows derive from (statements in PRD.md): %s\n' "$(awk -F'\t' '$1 == "ROW" { n = split($3, a, " "); for (k = 1; k <= n; k++) if (a[k] ~ /^REQ-/) print a[k] }' "$TMPD/inv" | sort -u | paste -sd ' ' -)"
       printf 'Rows: every ROW id of INVENTORY.md'"'"'s vid-inventory block (%s rows).\n' "$(awk -F'\t' '$1 == "ROW"' "$TMPD/inv" | grep -c . || true)"
+      printf 'Module ids (ARCHITECTURE.md): %s\n' "$(awk -F'\t' '$1 == "MOD" { print $2 }' "$TMPD/inv" | paste -sd ' ' -)"
     } > "$B"
     echo "propose: $K decisions → $B"
     exit 0 ;;
@@ -119,7 +131,7 @@ if [ "$COMMIT" = yes ]; then
 fi
 inv_read
 # the proposals: `<D-id><TAB><hash><TAB><label written><TAB><sure|widened: why>` — a malformed line naming no decision is `?`
-awk -F'\t' -v OFS='\t' 'FILENAME == ARGV[1] { if ($1 == "ROW") { J[$2] = 1; n = split($3, a, " "); for (k = 1; k <= n; k++) if (a[k] ~ /^REQ-/) J[a[k]] = 1; n = split($4, a, " "); for (k = 1; k <= n; k++) J[a[k]] = 1; n = split($5, a, " "); for (k = 1; k <= n; k++) J[a[k]] = 1 } else if ($1 == "RULE") J[$2] = 1; next }
+awk -F'\t' -v OFS='\t' 'FILENAME == ARGV[1] { if ($1 == "ROW") { J[$2] = 1; n = split($3, a, " "); for (k = 1; k <= n; k++) if (a[k] ~ /^REQ-/) J[a[k]] = 1; n = split($4, a, " "); for (k = 1; k <= n; k++) J[a[k]] = 1; n = split($5, a, " "); for (k = 1; k <= n; k++) J[a[k]] = 1 } else if ($1 == "RULE" || $1 == "MOD") J[$2] = 1; next }
   function tr(s) { gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
   NF == 0 { next }
   { n = split($0, p, "|"); h = tr(p[1]); split(h, hp, /[ \t]+/); id = hp[1]; hs = hp[2]

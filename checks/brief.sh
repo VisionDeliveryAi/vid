@@ -818,13 +818,20 @@ if [ "${1:-}" = write ]; then
     rulerows "$W/inv.ref" "$W/itemids" > "$W/rules"
     awk -F'|' '{ x = $2; gsub(/^[ \t]+|[ \t]+$/, "", x); if (x ~ /^RULE-[0-9]+$/) print x }' "$W/rules" >> "$W/joinids"
   fi
+  # v0.26.10.2 (R17b): a builder's step modules, read from its step line before the filter, joined as archrows joins
+  #   them (`/` and `.` equal, a trailing `/` ignored); a label naming one of them reaches the builder, as scope: project does
+  : > "$W/stepmods"
+  if [ "$WROLE" = builder ]; then
+    steplines "$PF" "$WSTEP" | sed -n 1p | awk -F'|' 'function nm(s) { gsub(/^[ \t`]+|[ \t`]+$/, "", s); gsub(/\./, "/", s); sub(/\/+$/, "", s); return s }
+      { for (k = 2; k <= NF; k++) { x = $k; gsub(/^[ \t]+|[ \t]+$/, "", x); if (x ~ /^modules:/) { n = split(substr(x, 9), a, /[ ,\t]+/); for (i = 1; i <= n; i++) if (a[i] != "") print nm(a[i]) } } }' > "$W/stepmods"
+  fi
   # section 3: the join (every field, why: included) plus the named ids; a grader gets each one's rule, the line up to ' | why:'
   # v0.9.7.0.7 (3.2, R5): a builder's — the safe rule, narrowed to the step's screens: the screen codes of every row, and of the briefed rows
   awk -F'|' 'function tr(s) { gsub(/^[ \t]+|[ \t]+$/, "", s); return s } tr($1) ~ /^ROW-/ { n = split(tr($5), a, /[ ,]+/); for (k = 1; k <= n; k++) if (a[k] != "n/a" && index(a[k], "/") > 1) print substr(a[k], 1, index(a[k], "/") - 1) }' "$W/inv.ref" | sort -u > "$W/scall"
   awk -F'|' 'function tr(s) { gsub(/^[ \t]+|[ \t]+$/, "", s); return s } { n = split(tr($5), a, /[ ,]+/); for (k = 1; k <= n; k++) if (a[k] != "n/a" && index(a[k], "/") > 1) print substr(a[k], 1, index(a[k], "/") - 1) }' "$W/rows" | sort -u > "$W/scbrief"
   # v0.9.7.3 (3.2, R2): the DIF ids the briefed rows' divergence: fields name
   awk -F'|' '{ for (i = 8; i <= NF; i++) { f = $i; gsub(/^[ \t]+|[ \t]+$/, "", f); if (f ~ /^divergence:/) { sub(/^divergence:[ \t]*/, "", f); n = split(f, a, /[ ,]+/); for (k = 1; k <= n; k++) if (a[k] ~ /^DIF-[0-9]+$/) print a[k] } } }' "$W/rows" | sort -u > "$W/difbrief"
-  awk -v jf="$W/joinids" -v nf="$W/named" -v role="$WROLE" -v saf="$W/scall" -v sbf="$W/scbrief" -v dbf="$W/difbrief" "$WHOLE"'
+  awk -v jf="$W/joinids" -v nf="$W/named" -v role="$WROLE" -v saf="$W/scall" -v sbf="$W/scbrief" -v dbf="$W/difbrief" -v smf="$W/stepmods" "$WHOLE"'
     function anyid(s,   o, q, x, y) { q = s; o = 0; while (match(q, /(ROW|REQ|RULE)-[0-9]+/)) { x = (o + RSTART > 1) ? substr(s, o + RSTART - 1, 1) : ""; y = substr(s, o + RSTART + RLENGTH, 1); if (x !~ /[A-Za-z0-9_-]/ && y !~ /[A-Za-z0-9_-]/) return 1; o += RSTART; q = substr(s, o + 1) } return 0 }
     # label(): the line'"'"'s label (v0.9.7.3 R1) — "project", the applies-to items into AP (count in nap), or ""
     function label(   n, k, f, t, m, a, i2) { split("", AP); nap = 0; n = split($0, t, "|")
@@ -833,12 +840,16 @@ if [ "${1:-}" = write ]; then
         if (f ~ /^applies-to:/) { sub(/^applies-to:[ \t]*/, "", f); m = split(f, a, /[ ,]+/); for (i2 = 1; i2 <= m; i2++) if (a[i2] != "") AP[++nap] = a[i2]; return "applies" } }
       return "" }
     BEGIN { while ((getline l < jf) > 0) { J[++nj] = l; JS[l] = 1 } while ((getline l < nf) > 0) N["**" l "**"] = 1
-      while ((getline l < saf) > 0) SA[++ns] = l; while ((getline l < sbf) > 0) SB[l] = 1; while ((getline l < dbf) > 0) DB[l] = 1 }
+      while ((getline l < saf) > 0) SA[++ns] = l; while ((getline l < sbf) > 0) SB[l] = 1; while ((getline l < dbf) > 0) DB[l] = 1
+      while ((getline l < smf) > 0) SM[l] = 1 }
+    function mnm(s) { gsub(/\./, "/", s); sub(/\/+$/, "", s); return s }
     { hit = 0; match($0, /\*\*D-[0-9]+\*\*/); if (substr($0, RSTART, RLENGTH) in N) hit = 1
       for (i = 1; !hit && i <= nj; i++) if (has($0, J[i])) hit = 1
       lab = label()
       # a label adds a match: its items meet the briefed rows, their derived-from ids, the RULE join, their screen codes or DIF ids
       for (i = 1; !hit && i <= nap; i++) if ((AP[i] in JS) || (AP[i] in SB) || (AP[i] in DB)) hit = 1
+      # v0.26.10.2 (R17b): for a builder, a label naming one of the step modules
+      for (i = 1; !hit && role == "builder" && i <= nap; i++) if (mnm(AP[i]) in SM) hit = 1
       # the safe rule, a builder'"'"'s: an unlabelled line citing no id, or a scope: project line — narrowed to the step'"'"'s screens
       if (!hit && role == "builder" && (lab == "project" || (lab == "" && !anyid($0)))) { named = 0; mine = 0; for (i = 1; i <= ns; i++) if (has($0, SA[i])) { named = 1; if (SA[i] in SB) mine = 1 } hit = (!named || mine) }
       if (!hit) next

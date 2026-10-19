@@ -238,7 +238,7 @@ is visible to the vacuity extractor.
 
 ## Provider seam rows (v0.8 — read by checks/seams.sh)
 
-    seam | SEAM-NNN | service | purpose | chosen: D-NNN | credentials: <held|not-yet|never> | probe: <owed | probed(YYYY-MM-DD) | unreachable-risk(reason)> | evidence: <contract-test path + captured-response path, or owed> | quirks: <one per ";", or "none yet">
+    seam | SEAM-NNN | service | purpose | chosen: D-NNN | credentials: <held|not-yet|never> | probe: <owed | probed(YYYY-MM-DD) | unreachable-risk(reason)> | evidence: <contract-test path + captured-response path, or owed> | quirks: <one per ";", or "none yet"> [| module: <module id>]
 
 - One row per EXTERNAL service the product depends on — payments, mail,
   feeds, search, auth, storage: anything on the other side of the network
@@ -262,6 +262,10 @@ is visible to the vacuity extractor.
   quirks field and pinned by a contract test; a quirk touching product
   meaning ("empty response cannot be distinguished from a broken feed")
   goes to the owner as a product question, never a silent log line.
+- Optional `| module: <module id>` names the module of ARCHITECTURE.md's
+  module table that talks to the service (its Module column, a dotted
+  label read as a path). The project viewer lists the service among that
+  module's contracts; no court reads it.
 - Optional trailing `| match: <tokens>` names the greppable tokens that
   identify code touching this seam (client-library import names,
   hostnames, space-separated). Absent, the service field is the match

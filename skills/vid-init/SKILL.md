@@ -175,7 +175,8 @@ Fill every template; no placeholder survives. Specifics that matter:
   enumerates every EXTERNAL boundary — each service on the other side of
   the network (payments, mail, feeds, search, auth, storage) becomes a
   provider seam row in INVENTORY.md at ratification 3, born
-  `probe: owed` (§3.2 door 1). An external boundary without a seam row
+  `probe: owed` (§3.2 door 1), naming the module that talks to it
+  (`| module: <module id>`). An external boundary without a seam row
   cannot be ratified. Column contract: Module is the repo path, Public
   surface leads with the backticked import specifier, Dependents is the
   comma-separated allow list. This table is executed — checks/imports.sh

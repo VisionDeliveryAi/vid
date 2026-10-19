@@ -1,15 +1,20 @@
 # The page's changes
 
 `viewer/page/` is the owner's design from the release's design pack (kept in the
-repository's docs/, not shipped; Claude Design, 2026-10-13), used as the page's code. The build changes it only in three
+repository's docs/, not shipped; Claude Design), used as the page's code: since
+v0.26.10.2 its `VID Viewer v3.dc.html` (2026-10-19), which is v2 (2026-10-13)
+with the Architecture section added. The build changes it only in three
 kinds (spec §3.10): **1** one offline file, **2** reading the real data, **3**
 copy true of ViD and of the data. Layout, look and navigation never change.
 Every change is one entry below: its kind, where it is and why. The changes
-of kinds 2 and 3 are made in `viewer/page/ViD Viewer v2.dc.html`; each carries
+of kinds 2 and 3 are made in `viewer/page/ViD Viewer v3.dc.html`; each carries
 the design's text and the page's, and the case `view-page-diff` applies them,
 in order, to the design and requires the page byte for byte — any difference
-this file does not list fails it. `support.js`, `NOTE.md` and `screenshots/`
-are unchanged.
+this file does not list fails it. C-01 to C-58 were written for v2 and apply
+to v3 as they are, each old text found once (v0.26.10.2 §12); C-59 onward are
+v3's own. `NOTE.md` and `screenshots/arch-module-*` are v3's pack's, beside
+v2's screenshots; `support.js` is v2's pack's, since v3's pack returned none
+(its note: unchanged). All are unchanged.
 
 ## Kind 1 — one offline file (made when each snapshot is assembled, `viewer/view.sh`)
 
@@ -711,4 +716,48 @@ The header names the product as renamed.
 ~~~
 ~~~new
 <span style="font-size:12px;color:var(--ink2)">ViD Viewer · what is being built, how far, and the evidence</span>
+~~~
+
+### C-59 · kind 2 · the script: the project's name (v0.26.10.2 R11a)
+
+v3 writes the sample's name where v2 read it from the data; the page names the snapshot's own project again.
+
+~~~old
+const v={...handlers,loading:false,replayed,project:'Sample Job Board',
+~~~
+~~~new
+const v={...handlers,loading:false,replayed,project:m.project,
+~~~
+
+### C-60 · kind 2 · the script: the product definition's title (v0.26.10.2 R11a)
+
+The same, on the product definition's page.
+
+~~~old
+title:'Sample Job Board',size:'32px'
+~~~
+~~~new
+title:m.project,size:'32px'
+~~~
+
+### C-61 · kind 2 · the script: the design-only architecture previews (v0.26.10.2 R11b)
+
+The design's `archSample` switch (and its `window.VID_ARCH_SAMPLE` hook) builds invented states for the design's own review: "edge states" adds a module, a decision label and interface changes no project recorded, and "past snapshot" fixes a moment. A snapshot shows only what is recorded, so the switch is held at "as recorded" and the hook is gone; a snapshot replayed from the past says so through its own data.
+
+~~~old
+as=window.VID_ARCH_SAMPLE||this.props.archSample||'as recorded';
+~~~
+~~~new
+as='as recorded';
+~~~
+
+### C-62 · kind 3 · the script: the missing part's name, must-never-break (v0.26.10.2 R15)
+
+The data names a missing Tier-0 table as the part `mustNeverBreak`; the notice gives it a name a reader knows, as it does the other parts.
+
+~~~old
+planOnly:'Plan module names',all:'Architecture'};
+~~~
+~~~new
+planOnly:'Plan module names',mustNeverBreak:'Must-never-break rules',all:'Architecture'};
 ~~~

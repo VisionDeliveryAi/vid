@@ -281,6 +281,9 @@ fi
 # (the part before `/`), and the DIF ids its rows' divergence: fields name
 # (a DIF label is refused when no row carries one). Read from the staged
 # INVENTORY.md. Unlabelled legacy lines are not refused until they change.
+# v0.26.10.2 (R17a): and the module ids of the staged ARCHITECTURE.md's
+# module table — the first table with a Module column, a dotted label read
+# as a path, as the viewer reads it. Nothing requires a module item.
 if [ -n "$DLINES" ]; then
   DJF=$(mktemp)
   git show :INVENTORY.md 2>/dev/null | sed -n '/^```vid-inventory/,/^```$/p' | sed '1d;$d' | awk -F'|' '
@@ -291,6 +294,11 @@ if [ -n "$DLINES" ]; then
         n = split(tr($5), a, /[ ,]+/); for (k = 1; k <= n; k++) if (a[k] != "n/a" && index(a[k], "/") > 1) print substr(a[k], 1, index(a[k], "/") - 1)
         for (i = 8; i <= NF; i++) { f = tr($i); if (f ~ /^divergence:/) { sub(/^divergence:[ \t]*/, "", f); n = split(f, a, /[ ,]+/); for (k = 1; k <= n; k++) if (a[k] ~ /^DIF-[0-9]+$/) print a[k] } } }
       else if (id == "rule" && tr($2) ~ /^RULE-[0-9]+$/) print tr($2) }' | sort -u > "$DJF" 2>/dev/null || : > "$DJF"
+  git show :ARCHITECTURE.md 2>/dev/null | awk -F'|' 'function tr(s) { gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
+      /^[ \t]*\|/ { if (done) next; if (!intab) { intab = 1; if (!col) { n = split($0, c, "|"); for (k = 2; k < n; k++) if (tr(c[k]) == "Module") col = k } next }
+        if (!col || $0 ~ /^[ \t]*\|[ \t:|-]*$/) next; split($0, c, "|"); m = c[col]; gsub(/`/, "", m); m = tr(m)
+        if (m == "" || index(m, "{{") == 1 || m == "Module") next; if (m !~ /\// && m ~ /\./) gsub(/\./, "/", m); print m; next }
+      { if (intab && col) done = 1; intab = 0 }' >> "$DJF" 2>/dev/null || true
   LBAD=$(printf '%s\n' "$DLINES" | grep -v '^$' | awk -F'|' -v jf="$DJF" '
     function tr(s) { gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
     BEGIN { while ((getline l < jf) > 0) { J[l] = 1; if (l ~ /^DIF-/) dif = 1 } }
@@ -306,14 +314,14 @@ if [ -n "$DLINES" ]; then
         if (x in J) continue
         if (x ~ /^DIF-[0-9]+$/ && !dif) bad = bad "\n      " x ": no INVENTORY row carries a divergence: field, so nothing could join a DIF label"
         else if (x ~ /^(ROW|REQ|RULE|DIF)-[0-9]+$/) bad = bad "\n      " x ": not an id a brief joins on (INVENTORY row ids, their derived-from REQ ids, rule-row ids, divergence: DIF ids)"
-        else bad = bad "\n      " x ": not a screen code any INVENTORY row marks, nor a ROW, RULE, REQ or DIF id" }
+        else bad = bad "\n      " x ": not a screen code any INVENTORY row marks, nor a ROW, RULE, REQ or DIF id, nor a module id of ARCHITECTURE.md" }
       if (!k2) bad = "\n      applies-to: names nothing"
       if (bad != "") print "    " line bad }')
   rm -f "$DJF"
   if [ -n "$LBAD" ]; then
     echo 'ViD pre-commit: rejected — DECISIONS.md lines without a label a brief can join on (v0.9.7.3 R1):' >&2
     printf '%s\n' "$LBAD" >&2
-    echo 'Label a decision when you write it: | applies-to: <ROW, RULE or REQ ids, screen codes, DIF ids> — or | scope: project, only when it bears on many areas.' >&2
+    echo 'Label a decision when you write it: | applies-to: <ROW, RULE or REQ ids, screen codes, DIF ids, module ids> — or | scope: project, only when it bears on many areas.' >&2
     BY=decisions-label; exit 1
   fi
 fi

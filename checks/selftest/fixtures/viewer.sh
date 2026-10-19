@@ -121,3 +121,40 @@ VIEWER_SH="$CHECKS/../viewer/view.sh"
 vview() { sh "$VIEWER_SH" "$@"; }
 # vdata <snapshot file>: the snapshot's embedded data, one JSON object
 vdata() { awk '/^<script>window\.VID_DATA=/ { on = 1; sub(/^<script>window\.VID_DATA=/, "") } on && /;<\/script>$/ { sub(/;<\/script>$/, ""); print; exit } on { print }' "$1"; }
+# view_arch <HH:MM>: v0.26.10.2 — the fixture's architecture records, committed at that time: ARCHITECTURE.md (app/s1;
+# app.s2, a dotted label; app/s3, open to all and to web; app/s1/deep, nested; web at the top; a {{ row; an
+# External boundaries table after it, never read), BASELINE.md (a Stack table and a Tier-0 table: INV-001, which
+# ROW-005 carries, REQ-009, which none does, and a rule that is no id), and three seam rows (SEAM-001 module:
+# app/s1, SEAM-002 with none, SEAM-003 module: nowhere). app/s1's Dependents: a dotted name, a trailing-slash name,
+# a space-separated list and tests/invariants.
+view_arch() {
+  cat > ARCHITECTURE.md <<'ARCH'
+# Architecture
+
+Import court: report-only
+
+| Module | Responsibility | Owned tables/data | Public surface | Dependents |
+|---|---|---|---|---|
+| app/s1 | Finding things | items | `app.s1.api` — find() | app.s2, app/s3/, web tests/invariants |
+| app.s2 | Restocking | shelves | `app.s2.api` — restock() | web |
+| app/s3 | The shared clock | none | `app.s3.api` — now() | all, web |
+| app/s1/deep | Deep search | - | `app.s1.deep.api` — deep() | app/s1 |
+| web | The site | none | none — app layer | none |
+| {{MODULE}} | template | | | |
+
+## External boundaries
+
+| Module | Direction | What crosses |
+|---|---|---|
+| Pay | outbound | a charge |
+ARCH
+  printf '# Baseline\n\n## Stack\n\n| Layer | Choice | FORBIDDEN alternatives (named) |\n|---|---|---|\n| Language | Lang A 3 | Lang B, Lang C |\n| Database | Store X 16 | Store Y |\n\n| Layer | Choice | x |\n|---|---|---|\n| Not | read | here |\n\n## Tier-0 rows\n\n| Rule | Meaning |\n|---|---|\n| INV-001 | No price is ever negative. |\n| REQ-009 | Nothing is lost. |\n| No secret | No secret is in the repository. |\n' > BASELINE.md
+  awk '/^```$/ && !d { print "seam | SEAM-001 | Pay | taking payments | chosen: D-001 | credentials: held | probe: probed(2026-01-01) | evidence: tests/contracts/pay.py + tests/contracts/captured/ | quirks: none yet | module: app/s1"
+      print "seam | SEAM-002 | Mail | sending receipts | chosen: D-404 | credentials: not-yet | probe: unreachable-risk(no account yet) | evidence: owed | quirks: none yet | match: mailer"
+      print "seam | SEAM-003 | Maps | finding shops | chosen: D-001 | credentials: never | probe: owed | evidence: owed | quirks: none yet | module: nowhere"; d = 1 } { print }' INVENTORY.md > I.x && mv I.x INVENTORY.md
+  g add -A; vcommit "$1" 'the architecture'
+}
+# varch <snapshot file>: the snapshot's architecture part, one module, service, stack row or rule a line;
+# vmod <snapshot file> <module id>: that module's line
+varch() { vdata "$1" | awk '/^"architecture":/ { on = 1 } on { print } on && /"missing":/ { exit }'; }
+vmod() { varch "$1" | grep -F "{\"id\":\"$2\",\"responsibility\""; }

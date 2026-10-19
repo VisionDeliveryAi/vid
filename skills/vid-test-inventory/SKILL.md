@@ -412,7 +412,9 @@ ruled `design wins` on such a value, the deploy-owed row's).
 
 **Provider seam rows ratify here too (§3.1)** — one per external boundary
 the architecture step declared, born `probe: owed` with `match:` tokens
-the owner can recognise (client-library names, hostnames). The probe is
+the owner can recognise (client-library names, hostnames), and naming the
+module that talks to the service (`| module: <module id>`, its id in
+ARCHITECTURE.md's module table). The probe is
 paid in develop BEFORE the first client line (§3.3); where the service
 cannot be probed, `unreachable-risk(<reason>)` is the legal exit — stated,
 never silent. Credentials state is declared honestly (`held`, `not-yet`,

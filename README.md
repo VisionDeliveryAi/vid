@@ -70,7 +70,7 @@ The three commands in the Install section above.
 An install is checked the way ViD checks anything: the judges prove they
 convict, and one real init completes. Three steps, in order:
 
-1. **Version.** Say `vid help`. It must report **0.26.10.1**.
+1. **Version.** Say `vid help`. It must report **0.26.10.2**.
 2. **Court self-test.** Ask Claude: *"Run ViD's court self-test suite —
    `checks/selftest/run.sh` under the installed plugin root — and report
    the verdict line."* Expected: `selftest: 505/505 courts convict`.

@@ -1,6 +1,6 @@
 # VID records — the contract a reader relies on
 
-records: 21
+records: 22
 
 This file lists every record a reader outside VID may rely on — a viewer,
 a script, a person — with its path, its writer, when it is written, its
@@ -284,6 +284,16 @@ the debt. vid-develop and vid-fix write `records=21` and stop below 21.
 A reader of 20 keeps working: new event types, new fields taken by key, new
 files beside the old; a relative `brief=` reads as the path it is.
 
+Version 22 (VID 0.26.10.2, the viewer's architecture view) only adds to 21.
+A decision's `applies-to:` label may name module ids of ARCHITECTURE.md's
+module table (its Module column, a dotted label read as a path), beside its
+row, requirement or screen items; the commit hook accepts them. An
+INVENTORY.md `seam` row may carry `module: <module id>`, read by label.
+Both are optional to write. A checks/ of 21 refuses a module item, so
+vid-develop and vid-fix write `records=22` and stop below 22, and a
+project's checks/ is refreshed before its builders write one. A reader of
+21 keeps working: a label item and a seam field are taken by name.
+
 ## The viewer's own files *(19)*
 
 `/vid view` (the plugin's `viewer/view.sh`) reads the project's documents
@@ -401,7 +411,8 @@ a 0.9.3-or-later project. Rows:
 - `test`: a ledger test path, or `owed: <reason>` (`owed: paid by /vid
   deploy gate N — …` is paid at deploy).
 - `rule`, `seam` and the governance rows sit in the same block; their
-  first field is the word `rule` or `seam`.
+  first field is the word `rule` or `seam`. A `seam` row may carry
+  `module: <module id>` *(22)*.
 
 ### DESIGN-BRIEF.md
 

@@ -293,6 +293,9 @@ question, not a license to invent one.
    commit** (law-change rule, CLAUDE.md): a court or extractor change is an
    owner-sanctioned act tracing to owner law, standalone, self-test re-run —
    or it is a grade finding.
+   A decision that bears on one module, or a few, names their module ids
+   in its `applies-to:` label, beside its row, requirement or screen
+   items, never instead of them (v0.26.10.2 R17).
 
 ## The hand-back (v0.9.7.1 3.4)
 

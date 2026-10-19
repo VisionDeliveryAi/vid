@@ -1,4 +1,4 @@
-# The viewer's data contract — `viewer-data 1`
+# The viewer's data contract — `viewer-data 2`
 
 One JSON object per snapshot, embedded in its page as `window.VID_DATA`
 (v0.9.7.4 spec §3.6, R7). It is the shape the page reads (`viewer/page/`,
@@ -31,7 +31,11 @@ Types: `s` string, `n` number, `b` boolean, `a` array, `o` object; `|null`
 where a value may be absent. A field marked *now* is filled in the latest
 snapshot only (a past snapshot carries it empty).
 
-### `viewer-data` (n) — `1`
+### `viewer-data` (n) — `2`
+
+*(v0.26.10.2)* `2` adds the `architecture` part, three fields of each
+technical decision and the `architecture` change kind. `1` was v0.9.7.4 to
+v0.9.8.1.
 
 ### `meta` (o) — the run
 
@@ -108,7 +112,48 @@ is not computed by the viewer, §7).
   C. `delegated` is applied when the page is assembled: true when any
   `delegated` event names the answer, whatever its time.
 - `technical` (a of o): `id`, `what`, `why`, `appliesTo` (s\|null), `scope`
-  (s\|null) — DECISIONS.md at C, latest line per id.
+  (s\|null) — DECISIONS.md at C, latest line per id. *(v0.26.10.2 R13)*
+  `enforced` (s\|null): its `enforced:` field as written. `added` (o\|null):
+  `commit` (7 hex), `time` — the first commit on HEAD's first-parent history
+  whose DECISIONS.md holds its id. `stage`: `spec` when added at or before the
+  first `stage name=develop state=start` event by T, `build` after it. Both
+  `added` and `stage` are null when there is no such event by T, and when C
+  is not on HEAD's first-parent history.
+
+### `architecture` (o) — *(v0.26.10.2)* how the product is put together, as recorded at C
+
+Read from ARCHITECTURE.md, BASELINE.md and INVENTORY.md's seam rows at C,
+and the plan at T. Free prose is not read. A field marked "as written" keeps
+the document's text; null where a column or field is absent.
+
+| field | type | holds |
+|---|---|---|
+| `modules` | a of o | the first table of ARCHITECTURE.md whose header row has a cell `Module`, to the table's end, one per row (a Module cell empty or starting `{{` skipped) — below |
+| `planOnly` | a of o | `name` (as written), `steps` (a of s): a plan module name with no row |
+| `services` | a of o | INVENTORY.md's `seam` rows: `id`, `service`, `purpose` (s); `chosen`, `credentials`, `probe`, `evidence`, `quirks`, `module` (s\|null), by label, as written |
+| `stack` | a of o | the first table under BASELINE.md's `## Stack`: `layer`, `choice`, `ruledOut` (s\|null; the third column when its header starts `FORBIDDEN`) |
+| `mustNeverBreak` | a of o | the first table under BASELINE.md's `## Tier-0 rows`: `rule`, `meaning` (s\|null) |
+| `missing` | a of o | `part` (`modules`, `services`, `stack`, `mustNeverBreak`), `why` (s): each record that is absent — no ARCHITECTURE.md, no module table, a column missing, no seam rows, no BASELINE.md, no Stack or Tier-0 table. The page says "not recorded" with the reason |
+
+A module:
+
+| field | type | holds |
+|---|---|---|
+| `id` | s | its Module cell, backticks removed, a dotted label read as a path, as the import court reads it |
+| `responsibility`, `ownedData`, `surface`, `dependents` | s\|null | the `Responsibility`, `Owned tables/data`, `Public surface` and `Dependents` cells, as written; null when the column is missing |
+| `openToAll` | b | `all` is among its Dependents |
+| `mayBeUsedBy` | a of s | its Dependents names that are module ids, compared as written; the names split on commas and spaces, as the court reads them; `none` names none |
+| `otherNames` | a of s | its other Dependents names, as written (`tests/invariants`, say) |
+| `mayUse` | a of s | the modules whose `mayBeUsedBy` holds it, and every `openToAll` module but itself |
+| `steps` | a of s | the plan's steps whose `modules:` names it, joined as `brief.sh archrows` joins them (`/` and `.` equal, a trailing `/` ignored) |
+| `placement`, `level` | s, n\|null | `open-to-all`; `level` 0 for a module no other module may use, n+1 for one a level-n module may use (the shortest way down; its own name ignored); `unplaced` for one reached so by none. Computed, not recorded |
+| `decisions` | a of o | `id`, `by`, `match` (s\|null): each technical decision at C linked to it, once, by the first way it links — `module-label` (its `applies-to:` names the module), `label` (it names a row, requirement or screen code of the module's steps' promises), `mentions` (its what or why holds a path that starts with the module's id or dotted form at a path boundary and that the court's rule gives to this module; `match`: the words, as written). `scope: project` decisions are in no module |
+| `files` | a of s | the paths at C the import court gives it (`/src/` segments collapsed, the longest module path that is a prefix wins); no file is read |
+| `surfaceHistory` | a of o\|null | `commit`, `time`, `from` (null where the row first appears), `to`: each commit on HEAD's first-parent history up to C in which its Public surface cell changed; null when C is not on that history |
+
+The table records what may be used, not what the code imports: the page says
+"may use", never "uses". A module's promises are its steps' promises, on the
+page; one is counted under every module its step names.
 
 ### `needsYou` (o)
 - `questions` (a of s): *now*, RUN-STATE's open question lines as written
@@ -154,6 +199,7 @@ snapshot its window ends at). By kind:
 | `step` | a step started or closed in the window | `what` (`started`, `closed`) |
 | `question` | a question asked or answered in the window | `what` (`asked`, `answered`), `text` |
 | `commit` | a commit landed on the first-parent history in the window | `text` (its subject) |
+| `architecture` | *(v0.26.10.2)* a module, service or stack row added, removed or changed (any recorded field differs) | `what` (`added`, `removed`, `changed`), `part` (`module`, `service`, `stack`), `text` (the module id, service name or layer), `fields` on a change (each `name`, `from`, `to`); `ids` the module id, SEAM id or layer; `at` null; `capabilities` empty. Derived fields (placement, `mayUse`, `steps`) are never a change |
 
 A promise's capabilities come through its requirements; a decision's
 through what it settles or applies to; a plan change's through the ids its

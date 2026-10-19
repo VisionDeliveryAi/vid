@@ -67,6 +67,33 @@ details>summary{cursor:pointer}
 <h1 style="margin:0;font-size:{{ node.size }};line-height:1.2;letter-spacing:-0.02em;max-width:900px;text-wrap:pretty">{{ node.title }}</h1>
 <sc-if value="{{ node.hasSub }}"><p style="margin:0;color:var(--ink2);max-width:760px;font-size:15px;text-wrap:pretty">{{ node.sub }}</p></sc-if>
 </div>
+<sc-if value="{{ isMod }}" hint-placeholder-val="{{ false }}">
+<sc-if value="{{ mv.past }}"><div role="note" style="display:flex;flex-direction:column;gap:2px;padding:10px 14px;border-radius:8px;background:var(--banner);font-size:13px"><strong>{{ mv.pastHead }}</strong><span style="text-wrap:pretty">{{ mv.pastText }}</span></div></sc-if>
+<div role="tablist" aria-label="Module sections" style="display:flex;gap:2px;border-bottom:1px solid var(--line);overflow-x:auto">
+<sc-for list="{{ mtabs }}" as="t" hint-placeholder-count="5"><a href="{{ t.href }}" role="tab" aria-selected="{{ t.sel }}" style="display:inline-flex;align-items:center;gap:8px;padding:10px 16px;margin-bottom:-1px;border-bottom:3px solid {{ t.bd }};color:{{ t.fg }};font-weight:{{ t.w }};white-space:nowrap;font-size:14px" style-hover="text-decoration:none;color:var(--ink)">{{ t.label }}<sc-if value="{{ t.hasN }}"><span style="font-size:12px;padding:0 7px;border-radius:999px;background:{{ t.nbg }};color:{{ t.nfg }};font-weight:600">{{ t.n }}</span></sc-if></a></sc-for>
+</div>
+<sc-if value="{{ mt.ov }}"><section aria-labelledby="h-modpic" style="background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:20px;display:flex;flex-direction:column;gap:16px">
+<div style="display:flex;flex-direction:column;gap:2px"><h2 id="h-modpic" style="margin:0;font-size:17px">Who may use it, and what it may use</h2><span style="font-size:13px;color:var(--ink2)">From the module table: what is allowed, not what the code does.</span></div>
+<div style="display:grid;grid-template-columns:minmax(0,1fr) 28px minmax(150px,auto) 28px minmax(0,1fr);gap:12px;align-items:center">
+<div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end;text-align:right">
+<span style="font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--ink2);white-space:nowrap">May be used by · {{ mv.byCount }}</span>
+<div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end"><sc-for list="{{ mv.by }}" as="b"><sc-if value="{{ b.link }}"><a href="{{ b.href }}" style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;padding:4px 8px;border:1px solid var(--c-held);border-radius:5px;background:var(--panel);color:var(--ink)" style-hover="text-decoration:none;background:var(--sunk)">{{ b.id }}</a></sc-if><sc-if value="{{ b.plain }}"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;padding:4px 8px;border:1px dashed var(--line2);border-radius:5px;color:var(--ink2)">{{ b.id }}</span></sc-if></sc-for></div>
+<sc-if value="{{ mv.byG }}"><div style="display:flex;flex-direction:column;gap:6px;padding:8px;border:1px dashed var(--line2);border-radius:7px;background:var(--sunk)"><span style="font-size:11px;color:var(--ink2)">Open to every module · one group</span><div style="display:flex;flex-wrap:wrap;gap:6px"><sc-for list="{{ mv.byGroup }}" as="b"><sc-if value="{{ b.link }}"><a href="{{ b.href }}" style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;padding:4px 8px;border:1px solid var(--c-held);border-radius:5px;background:var(--panel);color:var(--ink)" style-hover="text-decoration:none;background:var(--sunk)">{{ b.id }}</a></sc-if><sc-if value="{{ b.plain }}"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;padding:4px 8px;border:1px dashed var(--line2);border-radius:5px;color:var(--ink2)">{{ b.id }}</span></sc-if></sc-for></div></div></sc-if>
+<sc-if value="{{ mv.byAll }}"><span style="padding:8px 10px;border:1px dashed var(--c-held);border-radius:7px;font-size:13px">Every module: it is open to all</span></sc-if>
+<sc-if value="{{ mv.byNone }}"><span style="font-size:13px;color:var(--ink2)">No module may use it</span></sc-if>
+</div>
+<span aria-hidden="true" style="font-size:20px;color:var(--c-held);text-align:center">→</span>
+<div style="padding:12px 14px;border-radius:8px;background:var(--accent);color:var(--bg);display:flex;flex-direction:column;gap:2px;text-align:center"><strong style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:14px">{{ mv.id }}</strong><span style="font-size:12px">{{ mv.place }}</span></div>
+<span aria-hidden="true" style="font-size:20px;color:var(--accent);text-align:center">→</span>
+<div style="display:flex;flex-direction:column;gap:8px;align-items:flex-start">
+<span style="font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--ink2);white-space:nowrap">May use · {{ mv.useCount }}</span>
+<div style="display:flex;flex-wrap:wrap;gap:6px"><sc-for list="{{ mv.use }}" as="b"><sc-if value="{{ b.link }}"><a href="{{ b.href }}" style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;padding:4px 8px;border:1px solid var(--accent);border-radius:5px;background:var(--panel);color:var(--ink)" style-hover="text-decoration:none;background:var(--sunk)">{{ b.id }}</a></sc-if><sc-if value="{{ b.plain }}"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;padding:4px 8px;border:1px dashed var(--line2);border-radius:5px;color:var(--ink2)">{{ b.id }}</span></sc-if></sc-for></div>
+<sc-if value="{{ mv.useG }}"><div style="display:flex;flex-direction:column;gap:6px;padding:8px;border:1px dashed var(--line2);border-radius:7px;background:var(--sunk)"><span style="font-size:11px;color:var(--ink2)">Open to every module · one group</span><div style="display:flex;flex-wrap:wrap;gap:6px"><sc-for list="{{ mv.useGroup }}" as="b"><sc-if value="{{ b.link }}"><a href="{{ b.href }}" style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;padding:4px 8px;border:1px solid var(--accent);border-radius:5px;background:var(--panel);color:var(--ink)" style-hover="text-decoration:none;background:var(--sunk)">{{ b.id }}</a></sc-if><sc-if value="{{ b.plain }}"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;padding:4px 8px;border:1px dashed var(--line2);border-radius:5px;color:var(--ink2)">{{ b.id }}</span></sc-if></sc-for></div></div></sc-if>
+<sc-if value="{{ mv.useNone }}"><span style="font-size:13px;color:var(--ink2)">It may use no other module</span></sc-if>
+</div>
+</div>
+</section></sc-if>
+</sc-if>
 <sc-if value="{{ node.hasSum }}">
 <section aria-label="Progress" style="background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:20px;display:flex;flex-direction:column;gap:18px">
 <p style="margin:0;font-size:15px;text-wrap:pretty">{{ sm.unitLine }}</p>
@@ -359,6 +386,7 @@ details>summary{cursor:pointer}
 <div style="display:flex;flex-direction:column;gap:3px"><span style="color:var(--ink2)">Closed</span><span>{{ sv.closed }}</span></div>
 <div style="display:flex;flex-direction:column;gap:3px"><span style="color:var(--ink2)">Builds on</span><span style="display:flex;gap:8px;flex-wrap:wrap"><sc-for list="{{ sv.on }}" as="b"><a href="{{ b.href }}" title="{{ b.name }}">{{ b.id }}</a></sc-for><sc-if value="{{ sv.noOn }}"><span>Nothing earlier</span></sc-if></span></div>
 <div style="display:flex;flex-direction:column;gap:3px"><span style="color:var(--ink2)">Later steps build on it</span><span style="display:flex;gap:8px;flex-wrap:wrap"><sc-for list="{{ sv.by }}" as="b"><a href="{{ b.href }}" title="{{ b.name }}">{{ b.id }}</a></sc-for><sc-if value="{{ sv.noBy }}"><span>None</span></sc-if></span></div>
+<div style="display:flex;flex-direction:column;gap:3px"><span style="color:var(--ink2)">Modules it names</span><span style="display:flex;gap:8px;flex-wrap:wrap"><sc-for list="{{ svMods.list }}" as="b"><a href="{{ b.href }}" style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px">{{ b.id }}</a></sc-for><sc-for list="{{ svMods.plan }}" as="b"><span title="Named in the plan; the module table has no row for it" style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:var(--ink2);border-bottom:1px dashed var(--line2)">{{ b.name }} (no row)</span></sc-for><sc-if value="{{ svMods.none }}"><span>{{ svMods.noneText }}</span></sc-if></span></div>
 </div>
 </sc-if>
 
@@ -369,6 +397,126 @@ details>summary{cursor:pointer}
 <sc-if value="{{ dv.hasWhy }}"><div style="display:flex;flex-direction:column;gap:4px"><div style="font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--ink2)">Why</div><p style="margin:0;text-wrap:pretty"><sc-for list="{{ dv.why }}" as="pt"><sc-if value="{{ pt.link }}"><a href="{{ pt.href }}">{{ pt.t }}</a></sc-if><sc-if value="{{ pt.plain }}">{{ pt.t }}</sc-if></sc-for></p></div></sc-if>
 <sc-if value="{{ dv.hasSettles }}"><div style="display:flex;flex-direction:column;gap:4px"><div style="font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--ink2)">Settles</div><div style="display:flex;gap:10px;flex-wrap:wrap"><sc-for list="{{ dv.settles }}" as="s"><sc-if value="{{ s.link }}"><a href="{{ s.href }}">{{ s.t }}</a></sc-if><sc-if value="{{ s.plain }}"><span>{{ s.t }}</span></sc-if></sc-for></div></div></sc-if>
 </div>
+</sc-if>
+
+<sc-if value="{{ isMod }}" hint-placeholder-val="{{ false }}">
+<sc-if value="{{ mt.ov }}">
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,400px),1fr));gap:20px;align-items:start">
+<section aria-labelledby="h-mwhat" style="grid-column:1/-1;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:20px;display:flex;flex-direction:column;gap:14px;min-width:0">
+<h2 id="h-mwhat" style="margin:0;font-size:17px">What it is</h2>
+<p style="margin:0;font-size:14px;text-wrap:pretty">{{ mv.resp }}</p>
+<div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--ink2)">Data it owns</span><span style="font-size:13px;overflow-wrap:anywhere;color:{{ mv.ownFg }}"><sc-for list="{{ mv.ownP }}" as="pt"><sc-if value="{{ pt.code }}"><code style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;padding:0 4px;border-radius:3px;background:var(--sunk)">{{ pt.t }}</code></sc-if><sc-if value="{{ pt.txt }}">{{ pt.t }}</sc-if></sc-for></span><sc-if value="{{ mv.hasOwnRule }}"><p style="margin:0;padding:8px 10px;border-radius:6px;background:var(--sunk);font-size:13px;text-wrap:pretty">{{ mv.ownRule }}</p></sc-if></div>
+<div style="display:grid;grid-template-columns:max-content minmax(0,1fr);gap:6px 14px;font-size:13px"><span style="color:var(--ink2)">Other names</span><span>{{ mv.otherText }}</span><span style="color:var(--ink2)">Placement</span><span>{{ mv.placeLong }}</span></div>
+</section>
+<section aria-labelledby="h-mway" style="grid-column:1/-1;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:20px;display:flex;flex-direction:column;gap:16px;min-width:0">
+<div style="display:flex;flex-direction:column;gap:2px"><h2 id="h-mway" style="margin:0;font-size:17px">Its way in</h2><span style="font-size:13px;color:var(--ink2)">{{ mv.surfRule }}</span></div>
+<sc-if value="{{ mv.hasEntry }}"><div style="display:grid;grid-template-columns:max-content minmax(0,1fr);gap:8px 16px;align-items:baseline;font-size:13px">
+<span style="color:var(--ink2)">Entry point</span><code style="justify-self:start;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:14px;font-weight:600;padding:4px 10px;border-radius:5px;background:var(--accent-soft);color:var(--ink);overflow-wrap:anywhere">{{ mv.entry }}</code>
+<sc-if value="{{ mv.hasDesc }}"><span style="color:var(--ink2)">As written</span><span style="text-wrap:pretty;overflow-wrap:anywhere">{{ mv.desc }}</span></sc-if>
+</div></sc-if>
+<sc-if value="{{ mv.noEntry }}"><div style="padding:10px 12px;border-radius:6px;border:1px solid var(--line2);font-size:13px;overflow-wrap:anywhere;color:{{ mv.surfFg }}"><sc-for list="{{ mv.surfP }}" as="pt"><sc-if value="{{ pt.code }}"><code style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;padding:0 4px;border-radius:3px;background:var(--sunk)">{{ pt.t }}</code></sc-if><sc-if value="{{ pt.txt }}">{{ pt.t }}</sc-if></sc-for></div></sc-if>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:20px;align-items:start;padding-top:14px;border-top:1px solid var(--line)">
+<div style="display:flex;flex-direction:column;gap:8px"><h3 style="margin:0;font-size:14px">Changes to the way in <span style="font-weight:400;color:var(--ink2);font-size:13px">{{ mv.histCount }}</span></h3>
+<sc-for list="{{ mv.hist }}" as="h" hint-placeholder-count="1"><div style="display:flex;flex-direction:column;gap:6px;padding:10px 12px;border:1px solid var(--line);border-radius:6px;font-size:13px">
+<div style="display:flex;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--ink2)"><strong style="color:var(--ink)">{{ h.when }}</strong><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">{{ h.commit }}</span><span>{{ h.kind }}</span></div>
+<div style="display:grid;grid-template-columns:52px minmax(0,1fr);gap:4px 10px;overflow-wrap:anywhere"><span style="color:var(--ink2)">Before</span><span style="color:{{ h.fromFg }};text-decoration:{{ h.fromDec }}">{{ h.from }}</span><span style="color:var(--ink2)">After</span><span>{{ h.to }}</span></div>
+</div></sc-for>
+<sc-if value="{{ mv.noHist }}"><p style="margin:0;font-size:13px;color:var(--ink2);text-wrap:pretty">{{ mv.noHistText }}</p></sc-if></div>
+<div style="display:flex;flex-direction:column;gap:8px"><h3 style="margin:0;font-size:14px">Decisions labelled for this module <span style="font-weight:400;color:var(--ink2);font-size:13px">{{ mv.ifCount }}</span></h3>
+<sc-for list="{{ mv.ifDecs }}" as="d"><div style="display:flex;flex-direction:column;gap:4px;font-size:13px;padding:8px 0;border-top:1px solid var(--line)"><div style="display:flex;gap:8px;align-items:baseline"><a href="{{ d.href }}" style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;white-space:nowrap">{{ d.id }}</a><span style="text-wrap:pretty;min-width:0;overflow-wrap:anywhere"><sc-for list="{{ d.whatP }}" as="wp"><sc-if value="{{ wp.code }}"><code style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;padding:0 4px;border-radius:3px;background:var(--sunk)">{{ wp.t }}</code></sc-if><sc-if value="{{ wp.txt }}">{{ wp.t }}</sc-if></sc-for></span></div><div style="display:flex;flex-wrap:wrap;gap:6px 12px;font-size:12px;padding-left:52px"><sc-if value="{{ d.conv }}"><span style="display:inline-flex;align-items:center;gap:6px;padding:2px 8px;border-radius:4px;background:var(--warn-soft);border:1px solid var(--warn);color:var(--ink);font-weight:700">Convention · nothing checks it</span></sc-if><sc-if value="{{ d.checked }}"><span style="display:flex;gap:4px 6px;flex-wrap:wrap;align-items:baseline;min-width:0;flex:1 1 100%"><span style="color:var(--ink2)">Held by</span><span style="overflow-wrap:anywhere"><sc-for list="{{ d.heldP }}" as="hp"><sc-if value="{{ hp.code }}"><code style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;padding:0 4px;border-radius:3px;background:var(--sunk)">{{ hp.t }}</code></sc-if><sc-if value="{{ hp.txt }}">{{ hp.t }}</sc-if></sc-for></span></span></sc-if><sc-if value="{{ d.noHeld }}"><span style="color:var(--ink2)">How it is held: not recorded</span></sc-if></div></div></sc-for>
+<sc-if value="{{ mv.noIf }}"><p style="margin:0;font-size:13px;color:var(--ink2);text-wrap:pretty">{{ mv.noIfText }} <a href="{{ mv.decHref }}">Decisions →</a></p></sc-if></div>
+
+</div>
+</section>
+<section aria-labelledby="h-mimpact" style="background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:20px;display:flex;flex-direction:column;gap:14px;min-width:0">
+<div style="display:flex;flex-direction:column;gap:2px"><h2 id="h-mimpact" style="margin:0;font-size:17px">What a change affects</h2><span style="font-size:13px;color:var(--ink2)">{{ mv.impSub }}</span></div>
+<sc-if value="{{ mv.hasImp }}"><div style="display:flex;flex-wrap:wrap;gap:6px"><sc-for list="{{ mv.imp }}" as="b"><sc-if value="{{ b.link }}"><a href="{{ b.href }}" style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;padding:4px 8px;border:1px solid var(--c-held);border-radius:5px;background:var(--panel);color:var(--ink)" style-hover="text-decoration:none;background:var(--sunk)">{{ b.id }}</a></sc-if><sc-if value="{{ b.plain }}"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;padding:4px 8px;border:1px dashed var(--line2);border-radius:5px;color:var(--ink2)">{{ b.id }}</span></sc-if></sc-for></div></sc-if>
+<p style="margin:0;font-size:13px;color:var(--ink2);text-wrap:pretty">{{ mv.impText }}</p>
+</section>
+<section aria-labelledby="h-msvc" style="background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:20px;display:flex;flex-direction:column;gap:14px;min-width:0">
+<h2 id="h-msvc" style="margin:0;font-size:17px">Outside services it talks to <span style="font-weight:400;color:var(--ink2);font-size:13px">{{ mv.svcCount }}</span></h2>
+<sc-for list="{{ mv.svcs }}" as="s"><div style="display:flex;flex-direction:column;gap:8px;padding:12px 14px;border:1px solid var(--line);border-radius:8px;background:var(--bg)">
+<div style="display:flex;gap:8px;align-items:baseline;flex-wrap:wrap"><a href="{{ s.href }}" style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px">{{ s.id }}</a><strong style="font-size:14px">{{ s.name }}</strong></div>
+<span style="font-size:13px;text-wrap:pretty">{{ s.purpose }}</span>
+<div style="display:grid;grid-template-columns:max-content minmax(0,1fr);gap:4px 12px;font-size:12px">
+<span style="color:var(--ink2)">Contract test</span><span style="display:flex;flex-wrap:wrap;gap:4px 8px;overflow-wrap:anywhere"><sc-for list="{{ s.evidence }}" as="e"><span style="font-family:{{ e.font }}">{{ e.t }}</span></sc-for></span>
+<span style="color:var(--ink2)">Probed</span><span style="display:inline-flex;gap:6px;align-items:center"><span style="width:8px;height:8px;border-radius:50%;background:{{ s.pc }}"></span>{{ s.probeLabel }}</span>
+<span style="color:var(--ink2)">Credentials</span><span>{{ s.cred }}</span>
+</div></div></sc-for>
+<sc-if value="{{ mv.noSvc }}"><p style="margin:0;font-size:13px;color:var(--ink2);text-wrap:pretty">{{ mv.noSvcText }} <a href="#architecture/services">Outside services →</a></p></sc-if>
+</section>
+</div>
+</sc-if>
+<sc-if value="{{ mt.dec }}">
+<section aria-labelledby="h-mdec" style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;flex-direction:column;gap:4px"><h2 id="h-mdec" style="margin:0;font-size:17px">Decisions linked to this module</h2><p style="margin:0;font-size:13px;color:var(--ink2);text-wrap:pretty;max-width:780px">{{ mv.decIntro }}</p></div>
+<div role="group" aria-label="Filter decisions" style="display:flex;flex-wrap:wrap;gap:6px"><sc-for list="{{ mv.decChips }}" as="c" hint-placeholder-count="4"><button type="button" onClick="{{ c.pick }}" aria-pressed="{{ c.on }}" style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border:1px solid {{ c.bd }};border-radius:999px;background:{{ c.bg }};color:{{ c.fg }};cursor:pointer;font-size:13px">{{ c.label }} <strong>{{ c.nText }}</strong></button></sc-for></div>
+<div style="border:1px solid var(--line);border-radius:8px;background:var(--panel);box-shadow:var(--shadow);overflow:hidden">
+<sc-for list="{{ mv.decs }}" as="d" hint-placeholder-count="4"><div style="display:grid;grid-template-columns:72px minmax(0,1fr);gap:12px;padding:12px 16px;border-top:1px solid var(--line);margin-top:-1px;background:{{ d.bg }}">
+<sc-if value="{{ d.link }}"><a href="{{ d.href }}" style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;padding-top:2px">{{ d.id }}</a></sc-if><sc-if value="{{ d.plain }}"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;padding-top:2px;color:var(--ink2)">{{ d.id }}</span></sc-if>
+<div style="display:flex;flex-direction:column;gap:6px;min-width:0">
+<span style="font-size:14px;text-wrap:pretty;overflow-wrap:anywhere"><sc-for list="{{ d.whatP }}" as="wp"><sc-if value="{{ wp.code }}"><code style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;padding:0 4px;border-radius:3px;background:var(--sunk)">{{ wp.t }}</code></sc-if><sc-if value="{{ wp.txt }}">{{ wp.t }}</sc-if></sc-for></span>
+<sc-if value="{{ d.hasWhy }}"><span style="font-size:13px;color:var(--ink2);text-wrap:pretty;overflow-wrap:anywhere"><strong style="color:var(--ink);font-weight:600">Why:</strong> {{ d.why }}</span></sc-if>
+<div style="display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;font-size:12px"><sc-if value="{{ d.conv }}"><span style="display:inline-flex;align-items:center;gap:6px;padding:2px 8px;border-radius:4px;background:var(--warn-soft);border:1px solid var(--warn);color:var(--ink);font-weight:700">Convention · nothing checks it</span></sc-if><sc-if value="{{ d.checked }}"><span style="display:flex;gap:4px 6px;flex-wrap:wrap;align-items:baseline;min-width:0;flex:1 1 100%"><span style="color:var(--ink2)">Held by</span><span style="overflow-wrap:anywhere"><sc-for list="{{ d.heldP }}" as="hp"><sc-if value="{{ hp.code }}"><code style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;padding:0 4px;border-radius:3px;background:var(--sunk)">{{ hp.t }}</code></sc-if><sc-if value="{{ hp.txt }}">{{ hp.t }}</sc-if></sc-for></span></span></sc-if><sc-if value="{{ d.noHeld }}"><span style="color:var(--ink2)">How it is held: not recorded</span></sc-if><span style="color:var(--ink2)">{{ d.when }}</span><span style="display:inline-flex;gap:6px;align-items:baseline;flex-wrap:wrap;padding:1px 8px;border-radius:999px;background:var(--sunk);color:var(--ink2)">{{ d.byText }}<sc-if value="{{ d.hasMatch }}"><code style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:var(--ink);overflow-wrap:anywhere">{{ d.match }}</code></sc-if></span></div>
+</div></div></sc-for>
+<sc-if value="{{ mv.decEmpty }}"><p style="margin:0;padding:16px;color:var(--ink2);font-size:13px">{{ mv.decEmptyText }}</p></sc-if>
+</div>
+<div style="border:1px solid var(--line);border-radius:8px;background:var(--panel);overflow:hidden">
+<button type="button" onClick="{{ mv.pwToggle }}" aria-expanded="{{ mv.pwOpen }}" style="display:flex;width:100%;gap:10px;align-items:baseline;padding:12px 16px;border:0;background:transparent;color:var(--ink);cursor:pointer;text-align:left;font-size:14px"><span aria-hidden="true" style="color:var(--ink2);width:12px">{{ mv.pwArrow }}</span><strong>Project-wide decisions</strong><span style="color:var(--ink2);font-size:13px">{{ mv.pwSub }}</span></button>
+<sc-if value="{{ mv.pwShow }}"><div><sc-for list="{{ mv.pw }}" as="d"><div style="display:grid;grid-template-columns:72px minmax(0,1fr);gap:12px;padding:12px 16px;border-top:1px solid var(--line);margin-top:-1px;background:{{ d.bg }}">
+<sc-if value="{{ d.link }}"><a href="{{ d.href }}" style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;padding-top:2px">{{ d.id }}</a></sc-if><sc-if value="{{ d.plain }}"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;padding-top:2px;color:var(--ink2)">{{ d.id }}</span></sc-if>
+<div style="display:flex;flex-direction:column;gap:6px;min-width:0">
+<span style="font-size:14px;text-wrap:pretty;overflow-wrap:anywhere"><sc-for list="{{ d.whatP }}" as="wp"><sc-if value="{{ wp.code }}"><code style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;padding:0 4px;border-radius:3px;background:var(--sunk)">{{ wp.t }}</code></sc-if><sc-if value="{{ wp.txt }}">{{ wp.t }}</sc-if></sc-for></span>
+<sc-if value="{{ d.hasWhy }}"><span style="font-size:13px;color:var(--ink2);text-wrap:pretty;overflow-wrap:anywhere"><strong style="color:var(--ink);font-weight:600">Why:</strong> {{ d.why }}</span></sc-if>
+<div style="display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;font-size:12px"><sc-if value="{{ d.conv }}"><span style="display:inline-flex;align-items:center;gap:6px;padding:2px 8px;border-radius:4px;background:var(--warn-soft);border:1px solid var(--warn);color:var(--ink);font-weight:700">Convention · nothing checks it</span></sc-if><sc-if value="{{ d.checked }}"><span style="display:flex;gap:4px 6px;flex-wrap:wrap;align-items:baseline;min-width:0;flex:1 1 100%"><span style="color:var(--ink2)">Held by</span><span style="overflow-wrap:anywhere"><sc-for list="{{ d.heldP }}" as="hp"><sc-if value="{{ hp.code }}"><code style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;padding:0 4px;border-radius:3px;background:var(--sunk)">{{ hp.t }}</code></sc-if><sc-if value="{{ hp.txt }}">{{ hp.t }}</sc-if></sc-for></span></span></sc-if><sc-if value="{{ d.noHeld }}"><span style="color:var(--ink2)">How it is held: not recorded</span></sc-if><span style="color:var(--ink2)">{{ d.when }}</span><span style="display:inline-flex;gap:6px;align-items:baseline;flex-wrap:wrap;padding:1px 8px;border-radius:999px;background:var(--sunk);color:var(--ink2)">{{ d.byText }}<sc-if value="{{ d.hasMatch }}"><code style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:var(--ink);overflow-wrap:anywhere">{{ d.match }}</code></sc-if></span></div>
+</div></div></sc-for><sc-if value="{{ mv.pwNone }}"><p style="margin:0;padding:12px 16px;border-top:1px solid var(--line);color:var(--ink2);font-size:13px">{{ mv.pwNoneText }}</p></sc-if></div></sc-if>
+</div>
+</section>
+</sc-if>
+<sc-if value="{{ mt.health }}">
+<section aria-labelledby="h-mrules" style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;flex-direction:column;gap:4px"><h2 id="h-mrules" style="margin:0;font-size:17px">Must-never-break rules its criteria prove <span style="font-weight:400;color:var(--ink2);font-size:13px">{{ mv.ruleCount }}</span></h2><p style="margin:0;font-size:13px;color:var(--ink2);text-wrap:pretty">A rule is listed when one of this module's criteria serves it. The bar is the test state of those criteria.</p></div>
+<sc-if value="{{ mv.hasRules }}"><div style="border:1px solid var(--line);border-radius:8px;background:var(--panel);box-shadow:var(--shadow);overflow:hidden">
+<sc-for list="{{ mv.rules }}" as="u" hint-placeholder-count="3"><div style="display:grid;grid-template-columns:72px minmax(0,1fr) minmax(160px,240px);gap:8px 16px;align-items:start;padding:12px 16px;border-top:1px solid var(--line);margin-top:-1px;font-size:13px">
+<sc-if value="{{ u.link }}"><a href="{{ u.href }}" style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;padding-top:2px">{{ u.rule }}</a></sc-if><sc-if value="{{ u.plain }}"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;padding-top:2px">{{ u.rule }}</span></sc-if>
+<span style="text-wrap:pretty">{{ u.meaning }}</span>
+<div style="display:flex;flex-direction:column;gap:4px"><div role="img" aria-label="{{ u.barLabel }}" style="display:flex;height:8px;border-radius:4px;overflow:hidden;gap:2px;background:var(--sunk)"><sc-for list="{{ u.segs }}" as="s"><span title="{{ s.label }}: {{ s.nText }}" style="flex-grow:{{ s.n }};flex-basis:0;min-width:3px;background:{{ s.color }}"></span></sc-for></div><span style="font-size:12px;color:var(--ink2)">{{ u.stText }}</span></div>
+</div></sc-for></div></sc-if>
+<sc-if value="{{ mv.noRules }}"><p style="margin:0;padding:14px 16px;border:1px dashed var(--line2);border-radius:8px;font-size:13px;color:var(--ink2)">{{ mv.noRulesText }}</p></sc-if>
+</section>
+<p style="margin:0;font-size:13px;color:var(--ink2);text-wrap:pretty">The criteria below list problems first (failing, not re-run since a change, never run, broken on review), then the rest by state.</p>
+</sc-if>
+<sc-if value="{{ mt.left }}">
+<section aria-labelledby="h-mlsteps" style="display:flex;flex-direction:column;gap:8px">
+<h2 id="h-mlsteps" style="margin:0;font-size:17px">Steps not closed <span style="font-weight:400;color:var(--ink2);font-size:13px">{{ mv.openStepCount }}</span></h2>
+<sc-if value="{{ mv.hasOpenSteps }}"><div style="border:1px solid var(--line);border-radius:8px;background:var(--panel);box-shadow:var(--shadow);overflow:hidden">
+<sc-for list="{{ mv.openSteps }}" as="s"><a href="{{ s.href }}" style="display:grid;grid-template-columns:48px minmax(0,1fr) auto;gap:12px;padding:10px 14px;border-top:1px solid var(--line);margin-top:-1px;font-size:13px;color:var(--ink)" style-hover="background:var(--sunk);text-decoration:none"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:var(--accent)">{{ s.id }}</span><span style="text-wrap:pretty">{{ s.name }}</span><span style="font-size:12px;color:var(--ink2);white-space:nowrap">{{ s.stateText }} · {{ s.here }}</span></a></sc-for>
+</div></sc-if>
+<sc-if value="{{ mv.noOpenSteps }}"><p style="margin:0;font-size:13px;color:var(--ink2);text-wrap:pretty">{{ mv.noOpenStepsText }}</p></sc-if>
+</section>
+<section aria-labelledby="h-mlps" style="display:flex;flex-direction:column;gap:8px">
+<div style="display:flex;flex-direction:column;gap:2px"><h2 id="h-mlps" style="margin:0;font-size:17px">Criteria not built or owed a test <span style="font-weight:400;color:var(--ink2);font-size:13px">{{ mv.leftCount }}</span></h2><span style="font-size:13px;color:var(--ink2)">{{ mv.leftSub }}</span></div>
+<sc-if value="{{ mv.hasLeft }}"><div style="border:1px solid var(--line);border-radius:8px;background:var(--panel);box-shadow:var(--shadow);overflow:hidden">
+<sc-for list="{{ mv.left }}" as="p" hint-placeholder-count="4"><a href="{{ p.href }}" style="display:grid;grid-template-columns:84px minmax(0,1fr) auto;gap:12px;padding:10px 14px;border-top:1px solid var(--line);margin-top:-1px;font-size:13px;color:var(--ink)" style-hover="background:var(--sunk);text-decoration:none"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:var(--accent)">{{ p.id }}</span><span style="text-wrap:pretty">{{ p.text }}</span><span style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;font-size:12px;white-space:nowrap"><span style="display:inline-flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:{{ p.color }}"></span>{{ p.why }}</span><span style="color:var(--ink2)">{{ p.step }}</span></span></a></sc-for>
+</div></sc-if>
+<sc-if value="{{ mv.leftMore }}"><button type="button" onClick="{{ mv.leftShowMore }}" style="align-self:flex-start;padding:7px 14px;border:1px solid var(--line2);border-radius:6px;background:transparent;color:var(--ink);cursor:pointer">{{ mv.leftMoreText }}</button></sc-if>
+<sc-if value="{{ mv.noLeft }}"><p style="margin:0;font-size:13px;color:var(--ink2);text-wrap:pretty">Every criterion of this module is built and has a test.</p></sc-if>
+</section>
+</sc-if>
+<sc-if value="{{ mt.files }}">
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:20px;align-items:start">
+<section aria-labelledby="h-mfiles" style="background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:20px;display:flex;flex-direction:column;gap:14px;min-width:0">
+<div style="display:flex;flex-direction:column;gap:2px"><h2 id="h-mfiles" style="margin:0;font-size:17px">Its files</h2><span style="font-size:13px;color:var(--ink2)">{{ mv.fileSub }}</span></div>
+<sc-for list="{{ mv.folders }}" as="g" hint-placeholder-count="3"><div style="display:flex;flex-direction:column;gap:4px"><div style="display:flex;gap:8px;align-items:baseline"><strong style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px">{{ g.dir }}</strong><span style="font-size:12px;color:var(--ink2)">{{ g.n }}</span></div><ul style="margin:0;padding:0 0 0 14px;list-style:none;display:flex;flex-direction:column;gap:2px;border-left:1px solid var(--line)"><sc-for list="{{ g.files }}" as="x"><li style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;overflow-wrap:anywhere;padding-left:8px">{{ x.name }}</li></sc-for></ul></div></sc-for>
+<sc-if value="{{ mv.noFiles }}"><p style="margin:0;font-size:13px;color:var(--ink2);text-wrap:pretty">No files are recorded for this module.</p></sc-if>
+</section>
+<section aria-labelledby="h-mtests" style="background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:20px;display:flex;flex-direction:column;gap:14px;min-width:0">
+<div style="display:flex;flex-direction:column;gap:2px"><h2 id="h-mtests" style="margin:0;font-size:17px">Test files its criteria use</h2><span style="font-size:13px;color:var(--ink2)">{{ mv.testSub }}</span></div>
+<sc-for list="{{ mv.testFolders }}" as="g"><div style="display:flex;flex-direction:column;gap:4px"><div style="display:flex;gap:8px;align-items:baseline"><strong style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px">{{ g.dir }}</strong><span style="font-size:12px;color:var(--ink2)">{{ g.n }}</span></div><ul style="margin:0;padding:0 0 0 14px;list-style:none;display:flex;flex-direction:column;gap:2px;border-left:1px solid var(--line)"><sc-for list="{{ g.files }}" as="x"><li style="display:flex;justify-content:space-between;gap:12px;padding-left:8px;font-size:12px"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;overflow-wrap:anywhere;min-width:0">{{ x.name }}</span><span style="color:var(--ink2);white-space:nowrap">{{ x.n }}</span></li></sc-for></ul></div></sc-for>
+<sc-if value="{{ mv.noTests }}"><p style="margin:0;font-size:13px;color:var(--ink2);text-wrap:pretty">None of its criteria names a test file.</p></sc-if>
+</section>
+</div>
+</sc-if>
 </sc-if>
 
 <sc-if value="{{ hasPlist }}" hint-placeholder-val="{{ false }}">
@@ -560,6 +708,7 @@ details>summary{cursor:pointer}
 <span style="display:flex;flex-direction:column;gap:3px;min-width:0">
 <sc-if value="{{ c.hasTitle }}"><strong style="font-weight:600">{{ c.title }}</strong></sc-if>
 <span style="text-wrap:pretty"><sc-for list="{{ c.parts }}" as="pt"><sc-if value="{{ pt.link }}"><a href="{{ pt.href }}">{{ pt.t }}</a></sc-if><sc-if value="{{ pt.plain }}">{{ pt.t }}</sc-if></sc-for></span>
+<sc-for list="{{ c.fields }}" as="f"><div style="display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 10px;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);font-size:13px"><strong style="grid-column:1/-1;font-weight:600;font-size:12px">{{ f.name }}</strong><span style="font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--ink2);padding-top:2px">Before</span><span style="text-wrap:pretty;color:var(--ink2);overflow-wrap:anywhere">{{ f.a1 }}<del style="text-decoration-color:var(--c-fail)">{{ f.a2 }}</del>{{ f.a3 }}</span><span style="font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--ink2);padding-top:2px">After</span><span style="text-wrap:pretty;overflow-wrap:anywhere">{{ f.b1 }}<ins style="text-decoration:none;background:color-mix(in oklch, var(--c-pass) 24%, transparent);border-radius:2px">{{ f.b2 }}</ins>{{ f.b3 }}</span></div></sc-for>
 <span style="display:flex;flex-wrap:wrap;gap:4px 10px;font-size:12px;color:var(--ink2)"><span>{{ c.at }}</span><sc-for list="{{ c.caps }}" as="k"><a href="{{ k.href }}" style="color:var(--ink2);text-decoration:underline;text-decoration-color:var(--line2)">{{ k.name }}</a></sc-for><sc-if value="{{ c.hasCapMore }}"><span>{{ c.capMore }}</span></sc-if></span>
 </span>
 </div>
@@ -584,6 +733,105 @@ details>summary{cursor:pointer}
 </sc-for>
 </ol>
 <div style="display:flex;gap:12px;flex-wrap:wrap"><a href="#changes" style="padding:8px 14px;border:1px solid var(--line2);border-radius:6px;color:var(--ink)">The whole change log →</a></div>
+</sc-if>
+
+<sc-if value="{{ isArch }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;flex-direction:column;gap:6px"><div style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;font-weight:600;color:var(--accent);letter-spacing:0.02em">{{ av.kicker }}</div><h1 style="margin:0;font-size:28px;letter-spacing:-0.02em">Architecture</h1><p style="margin:0;color:var(--ink2);max-width:760px;text-wrap:pretty">{{ av.intro }}</p></div>
+<sc-if value="{{ av.none }}"><div style="padding:32px;border:1px dashed var(--line2);border-radius:10px;display:flex;flex-direction:column;gap:6px;align-items:flex-start;background:var(--panel)"><strong style="font-size:16px">Not recorded</strong><p style="margin:0;color:var(--ink2);max-width:640px;text-wrap:pretty">{{ av.noneText }}</p><a href="#product" style="font-size:13px;font-weight:700">Go to the product →</a></div></sc-if>
+<sc-if value="{{ av.has }}">
+<div role="tablist" aria-label="Architecture sections" style="display:flex;gap:2px;border-bottom:1px solid var(--line);overflow-x:auto">
+<sc-for list="{{ atabs }}" as="t" hint-placeholder-count="3"><a href="{{ t.href }}" role="tab" aria-selected="{{ t.sel }}" style="display:inline-flex;align-items:center;gap:8px;padding:10px 16px;margin-bottom:-1px;border-bottom:3px solid {{ t.bd }};color:{{ t.fg }};font-weight:{{ t.w }};white-space:nowrap;font-size:14px" style-hover="text-decoration:none;color:var(--ink)">{{ t.label }}<sc-if value="{{ t.hasN }}"><span style="font-size:12px;padding:0 7px;border-radius:999px;background:{{ t.nbg }};color:{{ t.nfg }};font-weight:600">{{ t.n }}</span></sc-if></a></sc-for>
+</div>
+<sc-if value="{{ av.hasMissing }}"><div role="note" style="display:flex;flex-direction:column;gap:4px;padding:12px 16px;border-radius:8px;background:var(--warn-soft);font-size:13px"><strong>Parts of the architecture are not recorded in this snapshot</strong><sc-for list="{{ av.missing }}" as="x"><span><strong style="font-weight:600">{{ x.part }}:</strong> not recorded. {{ x.reason }}</span></sc-for></div></sc-if>
+
+<sc-if value="{{ av.tab.sys }}">
+<section aria-labelledby="h-sys" style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;flex-direction:column;gap:2px"><h2 id="h-sys" style="margin:0;font-size:17px">The whole system <span style="font-weight:400;color:var(--ink2);font-size:13px">{{ av.modCount }}</span></h2><p style="margin:0;font-size:13px;color:var(--ink2);max-width:880px;text-wrap:pretty">Arranged by who may use whom, computed from the module table, not drawn by anyone. Level 0 is at the top; the band at the bottom is open to every module. Point at a module to draw its lines; click it to open its page.</p></div>
+<sc-if value="{{ av.sysMissing }}"><div style="padding:24px;border:1px dashed var(--line2);border-radius:10px;display:flex;flex-direction:column;gap:4px;background:var(--panel)"><strong>Not recorded</strong><span style="color:var(--ink2);font-size:13px;text-wrap:pretty">{{ av.sysMissText }}</span></div></sc-if>
+<sc-if value="{{ av.sysHas }}">
+<div style="display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start">
+<div ref="{{ archRef }}" style="position:relative;flex:1 1 640px;min-width:0;display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow)">
+<sc-for list="{{ av.rows }}" as="row" hint-placeholder-count="4">
+<div style="display:grid;grid-template-columns:112px minmax(0,1fr);gap:16px;padding:16px;border-top:1px solid var(--line);margin-top:-1px;background:{{ row.bg }};border-radius:{{ row.rad }}">
+<div style="display:flex;flex-direction:column;gap:2px;padding-top:2px"><span style="font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--ink2)">{{ row.label }}</span><span style="font-size:12px;color:var(--ink2);text-wrap:pretty">{{ row.sub }}</span></div>
+<div style="display:flex;flex-wrap:wrap;gap:14px 10px">
+<sc-for list="{{ row.mods }}" as="b"><button type="button" data-mod="{{ b.id }}" onClick="{{ b.pick }}" onMouseEnter="{{ b.enter }}" onMouseLeave="{{ archLeave }}" onFocus="{{ b.enter }}" onBlur="{{ archLeave }}" aria-pressed="{{ b.on }}" title="{{ b.title }}" style="position:relative;z-index:1;display:flex;flex-direction:column;gap:5px;width:138px;padding:7px 9px;border:{{ b.bd }};border-radius:6px;background:{{ b.bg }};color:{{ b.fg }};opacity:{{ b.op }};cursor:pointer;text-align:left;transition:opacity .12s">
+<span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.3;overflow-wrap:anywhere"><span style="opacity:0.7">{{ b.pre }}</span><strong>{{ b.name }}</strong></span>
+<span role="img" aria-label="{{ b.barLabel }}" style="display:flex;width:100%;height:4px;border-radius:2px;overflow:hidden;gap:1px;background:var(--sunk)"><sc-for list="{{ b.segs }}" as="s"><span style="flex-grow:{{ s.n }};flex-basis:0;background:{{ s.color }}"></span></sc-for></span>
+<span style="font-size:11px;color:{{ b.fg2 }}">{{ b.meta }}</span>
+</button></sc-for>
+</div>
+</div>
+</sc-for>
+<sc-for list="{{ av.lines }}" as="l"><svg aria-hidden="true" style="position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;overflow:visible;z-index:0"><path d="{{ l.d }}" fill="none" stroke="{{ l.c }}" strokeWidth="1.5"></path><path d="{{ l.ah }}" fill="{{ l.c }}"></path></svg></sc-for>
+<div aria-live="polite" style="position:relative;z-index:1;padding:14px 16px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:6px;min-height:92px;background:var(--panel);border-radius:0 0 10px 10px">
+<sc-if value="{{ av.noFocus }}"><span style="font-size:13px;color:var(--ink2);text-wrap:pretty">{{ av.hint }}</span><span style="display:flex;flex-wrap:wrap;gap:6px 18px;font-size:12px;color:var(--ink2)"><span style="display:inline-flex;gap:6px;align-items:center"><span style="width:16px;height:2px;background:var(--accent)"></span>may use</span><span style="display:inline-flex;gap:6px;align-items:center"><span style="width:16px;height:2px;background:var(--c-held)"></span>may be used by</span><span>The bar in each box is its criteria's test results.</span></span></sc-if>
+<sc-if value="{{ av.hasFocus }}">
+<div style="display:flex;flex-wrap:wrap;gap:6px 14px;align-items:baseline"><a href="{{ av.f.href }}" style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:14px;font-weight:700">Open {{ av.f.id }} →</a><span style="font-size:12px;color:var(--ink2)">{{ av.f.place }} · {{ av.f.workText }}</span></div>
+<p style="margin:0;font-size:13px;text-wrap:pretty;max-width:820px">{{ av.f.resp }}</p>
+<div style="display:flex;flex-wrap:wrap;gap:6px 18px;font-size:12px"><span style="display:inline-flex;gap:6px;align-items:center"><span style="width:16px;height:2px;background:var(--accent)"></span>{{ av.f.useText }}</span><span style="display:inline-flex;gap:6px;align-items:center"><span style="width:16px;height:2px;background:var(--c-held)"></span>{{ av.f.byText }}</span></div>
+</sc-if>
+</div>
+</div>
+<aside aria-labelledby="h-edge" style="flex:0 1 250px;min-width:220px;display:flex;flex-direction:column;gap:8px">
+<h3 id="h-edge" style="margin:0;font-size:14px">Outside services <span style="font-weight:400;color:var(--ink2)">{{ av.svcCount }}</span></h3>
+<p style="margin:0;font-size:12px;color:var(--ink2);text-wrap:pretty">At the edge: what the product talks to beyond its own code. The table does not record which module talks to each, so no lines are drawn.</p>
+<div style="border:1px dashed var(--line2);border-radius:8px;background:var(--panel)">
+<sc-for list="{{ av.svcs }}" as="s" hint-placeholder-count="4"><a href="{{ s.href }}" style="display:flex;flex-direction:column;gap:2px;padding:8px 12px;border-top:1px solid var(--line);margin-top:-1px;color:var(--ink)" style-hover="background:var(--sunk);text-decoration:none"><span style="display:flex;gap:8px;align-items:baseline"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;color:var(--accent);white-space:nowrap">{{ s.id }}</span><span style="font-size:13px;font-weight:600;min-width:0">{{ s.short }}</span></span><span style="font-size:12px;color:var(--ink2)"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:{{ s.pc }};margin-right:6px"></span>{{ s.probeShort }} · {{ s.credShort }}</span></a></sc-for>
+</div>
+<a href="#architecture/services" style="font-size:13px">Each service in full →</a>
+</aside>
+</div>
+</sc-if>
+<section aria-labelledby="h-modidx" style="display:flex;flex-direction:column;gap:8px">
+<div style="display:flex;gap:10px;align-items:baseline;flex-wrap:wrap"><h2 id="h-modidx" style="margin:0;font-size:17px">Module pages</h2><span style="font-size:13px;color:var(--ink2)">Each module has its own page: what it is, its way in, linked decisions, health, what's left and its files.</span></div>
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));border:1px solid var(--line);border-radius:8px;background:var(--panel);overflow:hidden">
+<sc-for list="{{ av.idx }}" as="i" hint-placeholder-count="6"><a href="{{ i.href }}" style="display:flex;justify-content:space-between;gap:10px;align-items:baseline;padding:9px 14px;border-top:1px solid var(--line);border-right:1px solid var(--line);margin:-1px -1px 0 0;color:var(--ink)" style-hover="background:var(--sunk);text-decoration:none"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;color:var(--accent);overflow-wrap:anywhere">{{ i.id }}</span><span style="font-size:12px;color:var(--ink2);white-space:nowrap">{{ i.meta }} →</span></a></sc-for>
+</div>
+</section>
+<sc-if value="{{ av.hasApart }}">
+<div style="display:flex;flex-wrap:wrap;gap:16px">
+<sc-if value="{{ av.hasUnplaced }}"><div style="flex:1 1 300px;padding:14px 16px;border:1px dashed var(--warn);border-radius:10px;background:var(--panel);display:flex;flex-direction:column;gap:8px"><strong style="font-size:14px">Unplaced <span style="font-weight:400;color:var(--ink2)">{{ av.unplacedCount }}</span></strong><span style="font-size:12px;color:var(--ink2);text-wrap:pretty">In the module table, but the table gives it no place, so it is shown apart.</span><div style="display:flex;flex-wrap:wrap;gap:8px"><sc-for list="{{ av.unplaced }}" as="b"><sc-if value="{{ b.link }}"><a href="{{ b.href }}" style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;padding:4px 8px;border:1px solid var(--warn);border-radius:5px;background:var(--panel);color:var(--ink)" style-hover="text-decoration:none;background:var(--sunk)">{{ b.id }}</a></sc-if><sc-if value="{{ b.plain }}"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;padding:4px 8px;border:1px dashed var(--line2);border-radius:5px;color:var(--ink2)">{{ b.id }}</span></sc-if></sc-for></div></div></sc-if>
+<sc-if value="{{ av.hasPlanOnly }}"><div style="flex:1 1 300px;padding:14px 16px;border:1px dashed var(--line2);border-radius:10px;background:var(--panel);display:flex;flex-direction:column;gap:8px"><strong style="font-size:14px">Named in the plan, with no module row <span style="font-weight:400;color:var(--ink2)">{{ av.planOnlyCount }}</span></strong><span style="font-size:12px;color:var(--ink2);text-wrap:pretty">A build step names it, but the module table has no row for it, so nothing else about it is recorded.</span><sc-for list="{{ av.planOnly }}" as="p"><div style="display:flex;flex-wrap:wrap;gap:6px 8px;align-items:baseline;font-size:13px"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;padding:2px 8px;border:1px dashed var(--line2);border-radius:5px">{{ p.name }}</span><span style="color:var(--ink2)">named by</span><sc-for list="{{ p.steps }}" as="s"><a href="{{ s.href }}" title="{{ s.name }}" style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px">{{ s.id }}</a></sc-for></div></sc-for></div></sc-if>
+</div>
+</sc-if>
+</section>
+</sc-if>
+
+<sc-if value="{{ av.tab.svc }}">
+<sc-if value="{{ av.svcMissing }}"><div style="padding:24px;border:1px dashed var(--line2);border-radius:10px;display:flex;flex-direction:column;gap:4px;background:var(--panel)"><strong>Not recorded</strong><span style="color:var(--ink2);font-size:13px;text-wrap:pretty">{{ av.svcMissText }}</span></div></sc-if>
+<sc-if value="{{ av.svcHas }}">
+<div style="display:flex;flex-wrap:wrap;gap:6px 24px;font-size:14px"><span><strong>{{ av.svcSum1 }}</strong></span><span style="color:var(--ink2)">{{ av.svcSum2 }}</span></div>
+<div style="display:flex;flex-direction:column;gap:12px">
+<sc-for list="{{ av.svcs }}" as="s" hint-placeholder-count="4">
+<article id="{{ s.id }}" style="background:var(--panel);border:1px solid {{ s.bd }};border-radius:10px;box-shadow:var(--shadow);padding:16px 18px;display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;flex-wrap:wrap;gap:6px 12px;align-items:baseline"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;padding:1px 7px;border-radius:4px;background:var(--accent-soft);color:var(--accent);font-weight:600">{{ s.id }}</span><h3 style="margin:0;font-size:16px">{{ s.name }}</h3></div>
+<p style="margin:0;font-size:14px;text-wrap:pretty;max-width:860px">{{ s.purpose }}</p>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px 24px;font-size:13px">
+<div style="display:flex;flex-direction:column;gap:3px"><span style="color:var(--ink2)">Chosen by</span><sc-if value="{{ s.hasDec }}"><a href="{{ s.decHref }}" style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px">{{ s.dec }}</a><span style="font-size:12px;color:var(--ink2);text-wrap:pretty">{{ s.decText }}</span></sc-if><sc-if value="{{ s.decPlain }}"><span style="color:var(--ink2)">{{ s.decPlainText }}</span></sc-if></div>
+<div style="display:flex;flex-direction:column;gap:3px"><span style="color:var(--ink2)">Probe</span><span style="display:inline-flex;gap:6px;align-items:center;font-weight:600"><span style="width:8px;height:8px;border-radius:50%;background:{{ s.pc }};flex:none"></span>{{ s.probeLabel }}</span><sc-if value="{{ s.hasWhy }}"><span style="font-size:12px;color:var(--ink2);text-wrap:pretty">{{ s.why }}</span></sc-if></div>
+<div style="display:flex;flex-direction:column;gap:3px"><span style="color:var(--ink2)">Credentials</span><span>{{ s.cred }}</span></div>
+<div style="display:flex;flex-direction:column;gap:3px;min-width:0"><span style="color:var(--ink2)">Evidence</span><sc-for list="{{ s.evidence }}" as="e"><span style="font-family:{{ e.font }};font-size:12px;overflow-wrap:anywhere">{{ e.t }}</span></sc-for></div>
+</div>
+<sc-if value="{{ s.hasQuirks }}"><details style="border-top:1px solid var(--line);padding-top:10px"><summary style="font-size:13px;color:var(--accent)">What the probe found · {{ s.quirksN }}</summary><ul style="margin:8px 0 0;padding-left:18px;display:flex;flex-direction:column;gap:4px;font-size:13px;max-width:900px"><sc-for list="{{ s.quirks }}" as="q"><li style="text-wrap:pretty">{{ q.t }}</li></sc-for></ul></details></sc-if>
+<sc-if value="{{ s.noQuirks }}"><span style="font-size:12px;color:var(--ink2)">What the probe found: {{ s.quirksPlain }}</span></sc-if>
+</article>
+</sc-for>
+</div>
+</sc-if>
+</sc-if>
+
+<sc-if value="{{ av.tab.stack }}">
+<sc-if value="{{ av.stackMissing }}"><div style="padding:24px;border:1px dashed var(--line2);border-radius:10px;display:flex;flex-direction:column;gap:4px;background:var(--panel)"><strong>Not recorded</strong><span style="color:var(--ink2);font-size:13px;text-wrap:pretty">{{ av.stackMissText }}</span></div></sc-if>
+<sc-if value="{{ av.stackHas }}">
+<p style="margin:0;font-size:13px;color:var(--ink2);max-width:760px">Each layer, what was chosen for it, and the named alternatives that choice rules out, as written in the baseline.</p>
+<div style="border:1px solid var(--line);border-radius:10px;background:var(--panel);box-shadow:var(--shadow);overflow:hidden">
+<div style="display:grid;grid-template-columns:minmax(120px,190px) minmax(0,1.5fr) minmax(0,1fr);gap:16px;padding:8px 16px;font-size:11px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;color:var(--ink2);background:var(--sunk)"><span>Layer</span><span>The choice</span><span>Rules out</span></div>
+<sc-for list="{{ av.stack }}" as="s" hint-placeholder-count="6"><div style="display:grid;grid-template-columns:minmax(120px,190px) minmax(0,1.5fr) minmax(0,1fr);gap:16px;padding:12px 16px;border-top:1px solid var(--line);font-size:13px;align-items:start"><strong style="font-weight:600">{{ s.layer }}</strong><span style="text-wrap:pretty"><sc-for list="{{ s.choice }}" as="pt"><sc-if value="{{ pt.code }}"><code style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;padding:0 4px;border-radius:3px;background:var(--sunk)">{{ pt.t }}</code></sc-if><sc-if value="{{ pt.link }}"><a href="{{ pt.href }}">{{ pt.t }}</a></sc-if><sc-if value="{{ pt.txt }}">{{ pt.t }}</sc-if></sc-for></span><span style="text-wrap:pretty;color:var(--ink2)"><sc-for list="{{ s.out }}" as="pt"><sc-if value="{{ pt.code }}"><code style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;padding:0 4px;border-radius:3px;background:var(--sunk)">{{ pt.t }}</code></sc-if><sc-if value="{{ pt.link }}"><a href="{{ pt.href }}">{{ pt.t }}</a></sc-if><sc-if value="{{ pt.txt }}">{{ pt.t }}</sc-if></sc-for></span></div></sc-for>
+</div>
+</sc-if>
+</sc-if>
+</sc-if>
 </sc-if>
 
 <sc-if value="{{ isMissing }}" hint-placeholder-val="{{ false }}">
@@ -612,7 +860,7 @@ details>summary{cursor:pointer}
 <sc-for list="{{ sr.groups }}" as="g">
 <div style="padding:6px 0">
 <div style="padding:4px 16px;font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--ink2)">{{ g.kind }} · {{ g.nText }}</div>
-<sc-for list="{{ g.items }}" as="i"><a href="{{ i.href }}" onClick="{{ closeSearch }}" style="display:grid;grid-template-columns:84px minmax(0,1fr);gap:10px;padding:7px 16px;color:var(--ink);font-size:13px" style-hover="background:var(--sunk);text-decoration:none" style-focus="background:var(--sunk)"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:var(--accent)">{{ i.id }}</span><span>{{ i.text }}</span></a></sc-for>
+<sc-for list="{{ g.items }}" as="i"><a href="{{ i.href }}" onClick="{{ closeSearch }}" style="display:grid;grid-template-columns:84px minmax(0,1fr);gap:10px;padding:7px 16px;color:var(--ink);font-size:13px" style-hover="background:var(--sunk);text-decoration:none" style-focus="background:var(--sunk)"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:var(--accent);overflow-wrap:anywhere">{{ i.id }}</span><span>{{ i.text }}</span></a></sc-for>
 <sc-if value="{{ g.more }}"><div style="padding:2px 16px 4px 110px;font-size:12px;color:var(--ink2)">{{ g.moreText }}</div></sc-if>
 </div>
 </sc-for>
@@ -634,12 +882,28 @@ details>summary{cursor:pointer}
 
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props="{&quot;mode&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;snapshot&quot;,&quot;index&quot;],&quot;default&quot;:&quot;snapshot&quot;,&quot;tsType&quot;:&quot;'snapshot'|'index'&quot;},&quot;replayed&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;},&quot;dataset&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;full&quot;,&quot;empty&quot;],&quot;default&quot;:&quot;full&quot;,&quot;tsType&quot;:&quot;'full'|'empty'&quot;},&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;auto&quot;,&quot;light&quot;,&quot;dark&quot;],&quot;default&quot;:&quot;auto&quot;,&quot;tsType&quot;:&quot;'auto'|'light'|'dark'&quot;}}">
+<script type="text/x-dc" data-dc-script data-props="{&quot;mode&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;snapshot&quot;,&quot;index&quot;],&quot;default&quot;:&quot;snapshot&quot;,&quot;tsType&quot;:&quot;'snapshot'|'index'&quot;},&quot;replayed&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;},&quot;dataset&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;full&quot;,&quot;empty&quot;],&quot;default&quot;:&quot;full&quot;,&quot;tsType&quot;:&quot;'full'|'empty'&quot;},&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;auto&quot;,&quot;light&quot;,&quot;dark&quot;],&quot;default&quot;:&quot;auto&quot;,&quot;tsType&quot;:&quot;'auto'|'light'|'dark'&quot;},&quot;archSample&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;as recorded&quot;,&quot;edge states&quot;,&quot;not recorded&quot;,&quot;past snapshot&quot;],&quot;default&quot;:&quot;as recorded&quot;,&quot;tsType&quot;:&quot;'as recorded'|'edge states'|'not recorded'|'past snapshot'&quot;}}">
 const ORDER=['pass','red','stale','never','owed','deploy-owed','held','later'];
 const ST={pass:{l:'Passing',c:'var(--c-pass)',h:'Its test passed on the latest result counted for it, which may be on an earlier commit.'},red:{l:'Failing',c:'var(--c-fail)',h:'Its test failed on the latest run.'},stale:{l:'Stale',c:'var(--c-stale)',h:'Not re-run since a change, so the last result may no longer hold.'},never:{l:'Never run',c:'var(--c-never)',h:'It has a test, but no result of it is recorded yet.'},owed:{l:'Test owed',c:'var(--c-owed)',h:'No test can prove it yet; what will prove it is below.'},'deploy-owed':{l:'Checked at deploy',c:'var(--c-deploy)',h:'Only the deployed platform can prove it; it is checked when the product is deployed.'},held:{l:'Held for you',c:'var(--c-held)',h:'Waiting on the product owner.'},later:{l:'Later phase',c:'var(--line2)',h:'Every requirement it proves is for a later phase, so it is not tested yet.'},new:{l:'Not yet a criterion',c:'var(--line2)',h:''},removed:{l:'No longer a criterion',c:'var(--line2)',h:''}};
 const SHORT={pass:'test ran and passed',red:'test ran and failed',stale:'code changed since it last ran',never:'no result of its test recorded yet',owed:'no test can check it yet','deploy-owed':'checkable only once deployed',held:'waiting on your decision',later:'for a later phase'};
 const HUES=[262,170,300,45,200,340,120];const hueTint=h=>'color-mix(in oklch, oklch(0.62 0.15 '+h+') 15%, var(--panel))';const hueFg=h=>'color-mix(in oklch, oklch(0.52 0.16 '+h+') 82%, var(--ink))';
 const KINDS=[['promise state','Status changes'],['review','Reviews'],['decision','Decisions'],['plan','Plan changes'],['step','Steps'],['question','Questions'],['commit','Commits']];
+KINDS.push(['architecture','Architecture']);
+const CRED={never:'Never needed','not-yet':'Not yet held',held:'Held'};
+const AF={responsibility:'Responsibility',ownedData:'Owned data',surface:'Public surface',dependents:'May be used by (as written)',mayBeUsedBy:'May be used by',mayUse:'May use',otherNames:'Other names',placement:'Placement',level:'Level',steps:'Build steps',service:'Service',purpose:'Purpose',chosen:'Chosen by',credentials:'Credentials',probe:'Probe',evidence:'Evidence',quirks:'What the probe found',layer:'Layer',choice:'Choice',ruledOut:'Rules out'};
+const APART={modules:'Module table',services:'Outside services',stack:'Stack',planOnly:'Plan module names',mustNeverBreak:'Must-never-break rules',all:'Architecture'};
+function archEdge(A){const mods=A.modules.concat([{id:'apps/billing',responsibility:'Board plans and invoices (a design-state example, not in the sample)',ownedData:null,surface:null,dependents:'none',openToAll:false,mayBeUsedBy:[],otherNames:['billing','payments'],mayUse:['apps/tenancy','apps/audit'],steps:[],placement:'unplaced',level:null}]);
+  return {...A,modules:mods,services:A.services.map((s,i)=>i===A.services.length-1?{...s,chosen:null}:s),stack:[],missing:[{part:'stack',reason:'BASELINE.md had no stack table at this commit (a design-state example).'}]};}
+const codeP=s=>s==null?[{t:'not recorded',txt:true}]:String(s).split(/(`[^`]+`)/).filter(Boolean).map(t=>/^`.*`$/.test(t)?{t:t.slice(1,-1),code:true}:{t,txt:true});
+const MTABS=['decisions','health','left','files'];const PAST='2026-10-02T23:59:59Z';
+const BYL={'module-label':'Labelled for this module',label:'Labelled for its promises',mentions:'Mentions',names:'Mentions'};
+function archEdge2(A){const h0=A.modules.find(m=>m.id==='apps/jobs');const s0=h0?h0.surface:'';const s1=s0+', withdraw()',s2=s1.replace(' set_gear(),','');
+  const own={'SEAM-001':'apps/ingestion','SEAM-002':'apps/mail','SEAM-006':'services/search'};
+  return {...A,pw:['D-001','D-002','D-003'],decOverride:{'D-283':{added:null,stage:null}},services:A.services.map(s=>own[s.id]?{...s,module:own[s.id]}:s),
+    modules:A.modules.map(m=>m.id!=='apps/jobs'?m:{...m,surface:s2,decisions:[{id:'D-300',by:'module-label'},{id:'D-301',by:'label'},...(m.decisions||[]).filter(d=>d.id!=='D-300'&&d.id!=='D-301')],
+      surfaceHistory:[...(m.surfaceHistory||[]),{commit:'e1a2b3c',time:'2026-10-05T14:10:00Z',from:s0,to:s1},{commit:'f4d5e6a',time:'2026-10-09T09:02:00Z',from:s1,to:s2}]})};}
+const capF=s=>s?s.charAt(0).toUpperCase()+s.slice(1):s;
+function placeText(x){return x.placement==='level'&&x.level!=null?'Level '+x.level:x.placement==='open-to-all'?'Open to every module':x.placement==='unplaced'?'Unplaced':'Placement not recorded';}
 const TYPES={functional:'Functional',invariant:'Always true',nfr:'Quality',data_entity:'Data',ux_flow:'User flow'};
 const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const pad=x=>String(x).padStart(2,'0');
@@ -656,6 +920,7 @@ function emptyOf(D){return {...D,meta:{...D.meta,previous:null},goals:[],capabil
 class Component extends DCLogic {
   state={ready:false,route:{type:'product'},trail:{},pf:'all',plimit:30,reqQ:'',searchOpen:false,sq:'',canvas:null,theme:null,chFrom:0,chTo:1,chCap:'',chKinds:{},chText:'',chLimits:{},commitsOpen:false,stepFilter:'underway'};
   searchRef=React.createRef();canvasFrameRef=React.createRef();canvasCloseRef=React.createRef();
+  archRef=React.createRef();
 
   componentDidMount(){
     this._poll=setInterval(()=>{if(window.VID_DATA){clearInterval(this._poll);this.onHash();const ms=this.moments();this.setState({ready:true,chFrom:0,chTo:Math.max(1,ms.length-1)});}},40);
@@ -664,9 +929,11 @@ class Component extends DCLogic {
       if(e.key==='Escape'){if(this.state.canvas)this.setState({canvas:null});else if(this.state.searchOpen)this.setState({searchOpen:false});return;}
       if(!typing&&(e.key==='/'||((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'))){e.preventDefault();this.openSearch();}};
     window.addEventListener('keydown',this._key);this.applyTheme();
+    this._rs=()=>this.setState({archKey:null});window.addEventListener('resize',this._rs);
   }
   componentWillUnmount(){clearInterval(this._poll);window.removeEventListener('hashchange',this._hash);window.removeEventListener('keydown',this._key);}
   componentDidUpdate(pp,ps){this.applyTheme();
+    this.archMeasure();
     if(this.state.searchOpen&&!ps.searchOpen&&this.searchRef.current)this.searchRef.current.focus();
     if(this.state.canvas&&!ps.canvas){if(this.canvasCloseRef.current)this.canvasCloseRef.current.focus();const fr=this.canvasFrameRef.current;if(fr)fr.addEventListener('load',()=>this.scrollCanvas(fr),{once:true});}
     if(pp.mode!==this.props.mode)this.onHash(true);}
@@ -692,12 +959,14 @@ class Component extends DCLogic {
     D.requirements.forEach(r=>add(r.id,'Requirements',r.plain));D.promises.forEach(p=>add(p.id,'Acceptance criteria',p.text));
     D.steps.forEach(s=>add(s.id,'Steps',s.name));D.decisions.answers.forEach(a=>add(a.id,this.tierName(a)+'s',a.a));
     D.decisions.technical.forEach(t=>add(t.id,'Technical decisions',t.what));D.nonGoals.forEach(g=>add(g.id,'Out of scope',g.plain));
+    if(D.architecture&&D.promises.length){(D.architecture.modules||[]).forEach(m=>{all.add(m.id);add(m.id,'Modules',m.responsibility);});(D.architecture.services||[]).forEach(s=>{all.add(s.id);add(s.id,'Outside services',(s.service||'')+' · '+(s.purpose||''));});}
     return {D,P,R,C,S,A,G,NG,reqP,capP,capR,reqScr,settles,builtOnBy,all,si};
   }
 
   onHash(scroll){if(!window.VID_DATA)return;this.ensure();let h=decodeURIComponent((location.hash||'').replace(/^#/,''));
     if(!h)h=(this.mode()==='index')?'snapshots':'product';
     let r;const sl=h.split('/');if(['product','delivery'].includes(sl[0]))r={type:sl[0],tab:sl[1]||'overview'};else if(h==='non-goals')r={type:'product',tab:'scope'};else if(['changes','snapshots'].includes(h))r={type:h};else{const t=idType(h);r=t&&this.ix.all.has(h)?{type:t,id:h}:{type:'missing',id:h};}
+    if(r.type==='missing'){const ar=this.archRoute(h);if(ar)r=ar;}
     if(r.type==='goal')r={type:'product',tab:'capabilities',id:h};if(r.type==='ng')r={type:'product',tab:'scope',id:h};
     const ix=this.ix;let trail=this.state.trail||{};
     if(r.type==='cap')trail={cap:r.id};
@@ -706,6 +975,7 @@ class Component extends DCLogic {
       if(!req)req=p.requirements.find(x=>!cap||(ix.R.get(x)||{}).capability===cap)||p.requirements[0];if(!cap)cap=(ix.R.get(req)||{}).capability||p.capabilities[0];trail={cap,req};}
     this.setState({route:r,trail,pf:'all',plimit:30,reqQ:'',openReqs:{},expandAll:false,searchOpen:false,canvas:null});
     if(scroll){if(r.id&&(r.type==='product'||r.type==='non-goals'))setTimeout(()=>{const el=document.getElementById(r.id);if(el)window.scrollTo(0,el.getBoundingClientRect().top+window.scrollY-130);},60);else window.scrollTo(0,0);}
+    this.setState({archHover:null});if(scroll&&r.type==='arch'&&r.id)setTimeout(()=>{const el=document.getElementById(r.id);if(el)window.scrollTo(0,el.getBoundingClientRect().top+window.scrollY-130);},80);
   }
   openSearch=()=>this.setState({searchOpen:true});
   go(id){if(location.hash==='#'+id)this.onHash(true);else location.hash='#'+id;this.setState({searchOpen:false});}
@@ -771,6 +1041,7 @@ class Component extends DCLogic {
 
   chLc(c){if(c._lc)return c._lc;const p=c.kind==='promise state'||c.kind==='review'?(this.ix.P.get(c.ids[0])||{}).text||'':'';return c._lc=(c.ids.join(' ')+' '+(c.text||'')+' '+(c.why||'')+' '+(c.what||'')+' '+p).toLowerCase();}
   chItem(c){const ix=this.ix;let title='',detail='';const P0=ix.P.get(c.ids[0]);
+    if(c.kind==='architecture')return this.chArch(c);
     switch(c.kind){case 'promise state':title=(ST[c.from]||{l:c.from}).l+' → '+(ST[c.to]||{l:c.to}).l;detail=P0?P0.text:'';break;
       case 'review':title='Review '+(c.result==='kept'?'confirmed':'rejected')+(c.class==='product'?' · fault in the product':c.class==='test'?' · fault in the test':'');detail=P0?P0.text:'';break;
       case 'decision':title=c.ids[0].startsWith('A-')?(ix.A.get(c.ids[0])?this.tierName(ix.A.get(c.ids[0])):'Ruling'):'Technical decision';detail=c.text;break;
@@ -821,6 +1092,7 @@ class Component extends DCLogic {
     const replayed=!!(m.replayed||this.props.replayed);
     const treeT=['product','cap','req','prom','non-goals'];
     const navDef=[['Product','#product',treeT],['Delivery','#delivery',['delivery','step','dec']],['Change log','#changes',['changes']],['Snapshots','#snapshots',['snapshots']]];
+    navDef.splice(1,0,['Architecture','#architecture',['arch','mod']]);
     const nav=navDef.map(([label,href,ts])=>{const on=ts.includes(r.type);return {label,href,current:on?'page':undefined,weight:on?700:500,fg:on?'#fff':'#a9b2c7',bd:on?'oklch(0.72 0.15 262)':'transparent'};});
     const v={...handlers,loading:false,replayed,project:m.project,momentTime:fmtT(m.moment.time),commit:m.moment.commit,
       momentTag:(this.mode()==='index')?'Index':replayed?'Replayed':'Latest',prevHref:m.previous&&m.previous.file?m.previous.file:'#snapshots',nextHref:m.next&&m.next.file?m.next.file:'#snapshots',tagColor:replayed?'var(--c-stale)':'var(--c-pass)',
@@ -831,6 +1103,7 @@ class Component extends DCLogic {
       searchOpen:st.searchOpen,sq:st.sq,reqQ:st.reqQ,dgQ:st.dgQ||'',chFrom:String(st.chFrom),chTo:String(st.chTo),chCap:st.chCap,chText:st.chText,
       isProduct:r.type==='product',isNonGoals:r.type==='non-goals',isCap:r.type==='cap',isReq:r.type==='req',isProm:r.type==='prom',isStep:r.type==='step',isDec:r.type==='dec',
       isDelivery:r.type==='delivery',isChanges:r.type==='changes',isSnapshots:r.type==='snapshots',isMissing:r.type==='missing',missingId:r.id,hasPlist:false};
+    v.isArch=false;v.isMod=false;v.archRef=this.archRef;v.archLeave=()=>this.setState({archHover:null});
     // search
     const sres=this.search(st.sq);v.sr={idle:!sres,none:!!sres&&sres.total===0,groups:sres?sres.groups:[]};
     // canvas
@@ -954,7 +1227,165 @@ class Component extends DCLogic {
       v.sn={intro:idx?'Every snapshot in this folder, oldest first. Each is a single file that opens offline.':'This snapshot and the one before it. The folder\'s index lists every snapshot, each a single file that opens offline.',
         rows:ms.map((x,i)=>{const here=!idx&&(x.file?x.file===own:i===ms.length-1&&!replayed);const n=D.changes.filter(c=>c.window===x.file).length;return {label:x.name+(x.requested?' · requested':''),time:fmtT(x.time),commit:x.commit,changes:i===0?(ms.length>1&&!idx?'its changes are in its own file':'first snapshot'):PL(n,'change')+' since the one before',
           here,away:!here,href:x.file||'#snapshots',openText:'Open this snapshot',dot:here?'var(--ink)':'transparent',bg:here?'var(--sunk)':'transparent'};})};}
+    this.archV(v,r);
     return v;
+  }
+  archOf(){const ds=this.props.dataset??'full',as='as recorded';const key=ds+'|'+as+'|'+!!this.ix.D.architecture;if(this._archK===key&&this._archIx===this.ix)return this._arch;
+    let A=this.ix.D.architecture||null;if(ds==='empty'||as==='not recorded')A=null;else if(A&&as==='edge states')A=archEdge2(archEdge(A));let out=null;
+    if(A){const mods=A.modules||[];const Mm=new Map();mods.forEach(m=>Mm.set(m.id,m));const open=new Set(mods.filter(m=>m.placement==='open-to-all').map(m=>m.id));
+      const usedBy={};mods.forEach(m=>(m.mayUse||[]).forEach(u=>(usedBy[u]=usedBy[u]||[]).push(m.id)));const SV=new Map();(A.services||[]).forEach(s=>SV.set(s.id,s));
+      const miss={};(A.missing||[]).forEach(x=>{const o=typeof x==='string'?{part:'all',reason:x}:x;const k=o.part||o.what||'all';(miss[k]=miss[k]||[]).push(o.reason||o.why||'No reason was given.');});
+      const pm={};mods.forEach(m=>(m.steps||[]).forEach(sid=>((this.ix.S.get(sid)||{}).promises||[]).forEach(pid=>(pm[pid]=pm[pid]||new Set()).add(m.id))));
+      out={A,mods,M:Mm,open,usedBy,SV,miss,pm,ps:{},edge:as==='edge states',past:as==='past snapshot'?PAST:null};}
+    this._arch=out;this._archK=key;this._archIx=this.ix;return out;}
+  archRoute(h){const sl=h.split('/');if(sl[0]==='architecture')return {type:'arch',tab:sl[1]||'overview'};const a=this.archOf();if(!a)return null;
+    if(a.M.has(h))return {type:'mod',id:h,tab:'overview'};const k=h.lastIndexOf('/');if(k>0&&MTABS.includes(h.slice(k+1))&&a.M.has(h.slice(0,k)))return {type:'mod',id:h.slice(0,k),tab:h.slice(k+1)};if(a.SV.has(h))return {type:'arch',tab:'services',id:h};return null;}
+  modPs(a,x){if(a.ps[x.id])return a.ps[x.id];const seen=new Set(),out=[];(x.steps||[]).forEach(sid=>((this.ix.S.get(sid)||{}).promises||[]).forEach(pid=>{if(!seen.has(pid)){seen.add(pid);const p=this.ix.P.get(pid);if(p)out.push(p);}}));return a.ps[x.id]=out;}
+  archMeasure(){const r=this.state.route;if(!r||r.type!=='arch'||(r.tab||'overview')!=='overview')return;const box=this.archRef.current;if(!box)return;
+    const f=this.state.archHover||this.state.archPick||'';const key=f+'|'+box.clientWidth+'|'+box.clientHeight+'|'+(this.props.archSample||'')+'|'+(this.props.dataset||'');if(this.state.archKey===key)return;
+    const a=this.archOf();const lines=[];
+    if(f&&a&&a.M.has(f)){const base=box.getBoundingClientRect(),ox=base.left+box.clientLeft,oy=base.top+box.clientTop;
+      const rect=id=>{const el=box.querySelector('[data-mod="'+CSS.escape(id)+'"]');if(!el)return null;const q=el.getBoundingClientRect();return {x:q.left-ox,y:q.top-oy,w:q.width,h:q.height};};
+      const R=n=>Math.round(n*10)/10;
+      const link=(from,to,c)=>{const s=rect(from),t=rect(to);if(!s||!t)return;const sx=s.x+s.w/2,tx=t.x+t.w/2;let sy,ty,c1,c2;
+        if(t.y>s.y+s.h-2){sy=s.y+s.h;ty=t.y;const d=Math.max(22,(ty-sy)/2);c1=[sx,sy+d];c2=[tx,ty-d];}
+        else if(t.y+t.h<s.y+2){sy=s.y;ty=t.y+t.h;const d=Math.max(22,(sy-ty)/2);c1=[sx,sy-d];c2=[tx,ty+d];}
+        else{sy=s.y+s.h;ty=t.y+t.h;const d=12+Math.min(40,Math.abs(tx-sx)*0.12);c1=[sx,sy+d];c2=[tx,ty+d];}
+        const ang=Math.atan2(ty-c2[1],tx-c2[0]),L=7,W=3.5,bx=tx-L*Math.cos(ang),by=ty-L*Math.sin(ang),px=-Math.sin(ang)*W,py=Math.cos(ang)*W;
+        lines.push({d:'M'+R(sx)+','+R(sy)+' C'+R(c1[0])+','+R(c1[1])+' '+R(c2[0])+','+R(c2[1])+' '+R(tx)+','+R(ty),ah:'M'+R(tx)+','+R(ty)+' L'+R(bx+px)+','+R(by+py)+' L'+R(bx-px)+','+R(by-py)+' Z',c:c});};
+      const m=a.M.get(f);(m.mayUse||[]).filter(u=>!a.open.has(u)).forEach(u=>link(f,u,'var(--accent)'));
+      if(!a.open.has(f))(a.usedBy[f]||[]).filter(u=>!a.open.has(u)).forEach(u=>link(u,f,'var(--c-held)'));}
+    this.setState({archKey:key,archLines:lines,archFor:f});}
+  svcV(s,sel){const ix=this.ix;let probeLabel='Probe not recorded',pc='var(--c-never)',why='',short='probe not recorded',mm;const p=s.probe;
+    if(p&&(mm=/^probed\((.+)\)$/.exec(p))){probeLabel='Probed on '+fmtT(mm[1]);pc='var(--c-pass)';short='Probed '+fmtT(mm[1],true);}
+    else if(p&&(mm=/^unreachable-risk\((.*)\)$/.exec(p))){probeLabel='Not probed · declared a risk';pc='var(--warn)';why=mm[1];short='Declared a risk';}
+    else if(p&&/^owed/.test(p)){probeLabel='Probe owed';pc='var(--c-owed)';short='Probe owed';}else if(p){probeLabel=p;short=p;}
+    const dec=s.chosen?ix.A.get(s.chosen):null;const cred=s.credentials==null?'Not recorded':(CRED[s.credentials]||s.credentials);
+    const ev=s.evidence==null?[{t:'Not recorded',font:'inherit'}]:s.evidence==='owed'?[{t:'Owed',font:'inherit'}]:String(s.evidence).split(/\s\+\s/).map(t=>({t,font:MONO}));
+    const q=s.quirks;const qs=q&&q!=='none yet'?String(q).split(/;\s+/).map(t=>({t:capF(t)})):[];
+    const nm=s.service||'Name not recorded';
+    return {id:s.id,href:'#'+s.id,name:capF(nm),short:trunc(capF(nm),34),purpose:s.purpose?capF(s.purpose)+'.':'Purpose not recorded.',
+      hasDec:!!dec,dec:s.chosen||'',decHref:'#'+(s.chosen||''),decText:dec?trunc(String(dec.what||dec.a||'').replace(/\`/g,''),110):'',decPlain:!dec,decPlainText:!s.chosen?'No decision recorded':s.chosen+' (not in this snapshot)',
+      probeLabel,pc,hasWhy:!!why,why:why?'Why: '+why:'',probeShort:short,cred,credShort:s.credentials==='never'?'no credentials needed':'credentials '+cred.toLowerCase(),
+      evidence:ev,hasQuirks:qs.length>0,quirks:qs,quirksN:PL(qs.length,'finding'),noQuirks:!qs.length,quirksPlain:q==null?'not recorded':q,bd:sel?'var(--accent)':'var(--line)'};}
+  chArch(c){const ix=this.ix;const part={module:'Module',service:'Outside service',stack:'Stack layer'}[c.part]||'Architecture';const what={changed:'changed',added:'added',removed:'removed'}[c.what]||c.what||'';
+    const str=v=>v==null?null:Array.isArray(v)?v.join(', '):String(v);
+    const fields=(c.fields||[]).map(f=>{const a=str(f.from),b=str(f.to);if(a==null||b==null)return {name:AF[f.name]||f.name,a1:a==null?'not recorded':a,a2:'',a3:'',b1:b==null?'not recorded':b,b2:'',b3:''};
+      let i=0;while(i<a.length&&i<b.length&&a[i]===b[i])i++;let j=0;while(j<a.length-i&&j<b.length-i&&a[a.length-1-j]===b[b.length-1-j])j++;
+      return {name:AF[f.name]||f.name,a1:a.slice(0,i),a2:a.slice(i,a.length-j),a3:a.slice(a.length-j),b1:b.slice(0,i),b2:b.slice(i,b.length-j),b3:b.slice(b.length-j)};});
+    const ids=[...new Set(c.ids)].slice(0,6).map(id=>({id,href:'#'+id,link:ix.all.has(id),plain:!ix.all.has(id)}));
+    return {ids,title:part+' '+what,hasTitle:true,parts:[],at:c.at?fmtT(c.at):'between the two moments (no exact time)',caps:[],hasCapMore:false,capMore:'',fields};}
+  archV(v,r){const ix=this.ix,D=ix.D,m=D.meta,st=this.state;const a=this.archOf();
+    const tail=(arr)=>arr.map((c,i)=>({...c,sep:i>0,link:i<arr.length-1,last:i===arr.length-1}));
+    if(r.type==='step'){const sid=r.id;v.svMods=a?{list:a.mods.filter(x=>(x.steps||[]).includes(sid)).map(x=>({id:x.id,href:'#'+x.id})),plan:(a.A.planOnly||[]).filter(p=>(p.steps||[]).includes(sid)).map(p=>({name:p.name}))}:{list:[],plan:[]};
+      v.svMods.none=!v.svMods.list.length&&!v.svMods.plan.length;v.svMods.noneText=a?'None':'Not recorded';}
+    if(r.type!=='arch'&&r.type!=='mod')return;
+    v.isArch=r.type==='arch';v.isMod=r.type==='mod';
+    v.av={kicker:(v.replayed?'Replayed · ':'')+'As it stood at '+fmtT(m.moment.time)+' · '+m.moment.commit,intro:'How the product is put together: its modules and which may use which, the outside services it talks to, and its stack.',
+      none:!a,has:!!a,noneText:'This snapshot carries no architecture record: no module table, outside services or stack were recorded for this project at this moment, so there is nothing to show. The rest of the page is unaffected.',tab:{}};
+    if(!a)return;
+    const A=a.A,mods=a.mods,svcs=A.services||[],stack=A.stack||[],tb=r.tab||'overview';const ms=k=>(a.miss[k]||[]).join(' ');
+    v.atabs=this.tabs('architecture',[['overview','System',mods.length],['services','Outside services',svcs.length],['stack','Stack',stack.length]],tb);
+    v.av.tab={sys:tb==='overview',svc:tb==='services',stack:tb==='stack'};
+    v.av.missing=Object.entries(a.miss).map(([k,arr])=>({part:APART[k]||k,reason:arr.join(' ')}));v.av.hasMissing=v.av.missing.length>0;
+    const sv=svcs.map(s=>this.svcV(s,r.id===s.id));v.av.svcs=sv;v.av.svcCount=String(svcs.length);
+    if(r.type==='arch'){
+      v.av.sysHas=mods.length>0;v.av.sysMissing=!mods.length;v.av.sysMissText=ms('modules')||'The module table is empty in this snapshot.';
+      v.av.svcHas=svcs.length>0;v.av.svcMissing=!svcs.length;v.av.svcMissText=ms('services')||'No outside services are listed in this snapshot.';
+      v.av.stackHas=stack.length>0;v.av.stackMissing=!stack.length;v.av.stackMissText=ms('stack')||'No stack layers are listed in this snapshot.';
+      const pr=svcs.filter(s=>/^probed/.test(s.probe||'')).length,rk=svcs.filter(s=>/^unreachable-risk/.test(s.probe||'')).length,ow=svcs.length-pr-rk;
+      v.av.svcSum1=[pr&&N(pr)+' probed',rk&&N(rk)+' declared a risk',ow&&N(ow)+' other'].filter(Boolean).join(' · ');
+      const cc={};svcs.forEach(s=>{const k=s.credentials==null?'Not recorded':(CRED[s.credentials]||s.credentials);cc[k]=(cc[k]||0)+1;});v.av.svcSum2='Credentials: '+Object.entries(cc).map(([k,n])=>N(n)+' '+k.toLowerCase()).join(' · ');
+      v.av.stack=stack.map(s=>({layer:s.layer||'Layer not recorded',choice:codeP(s.choice),out:codeP(s.ruledOut)}));
+      v.av.modCount=PL(mods.length,'module');
+      const f=st.archHover||st.archPick||null;const fm=f&&a.M.get(f);const uses=new Set(fm?fm.mayUse||[]:[]);const by=new Set(fm&&!a.open.has(f)?(a.usedBy[f]||[]):[]);
+      const box=x=>{const ps=this.modPs(a,x),s=this.sum(ps);const i=x.id.lastIndexOf('/');const rel=!fm?'none':x.id===f?'self':uses.has(x.id)?'use':by.has(x.id)?'by':'off';
+        return {id:x.id,pre:i>=0?x.id.slice(0,i+1):'',name:i>=0?x.id.slice(i+1):x.id,segs:this.segs(s),barLabel:ps.length?'Test results: '+this.barLabel(s):'No criteria',meta:'may use '+(x.mayUse||[]).length+' · '+PL((x.steps||[]).length,'step'),
+          title:x.id+(x.otherNames&&x.otherNames.length?' (also '+x.otherNames.join(', ')+')':'')+': '+(x.responsibility||'responsibility not recorded'),on:st.archPick===x.id?'true':'false',
+          bd:rel==='self'||rel==='use'?'2px solid var(--accent)':rel==='by'?'2px solid var(--c-held)':'1px solid var(--line2)',
+          bg:rel==='self'?'var(--accent)':rel==='use'?'var(--accent-soft)':rel==='by'?'color-mix(in oklch, var(--c-held) 14%, var(--panel))':'var(--panel)',
+          fg:rel==='self'?'var(--bg)':'var(--ink)',fg2:rel==='self'?'var(--bg)':'var(--ink2)',op:rel==='off'?0.35:1,
+          pick:()=>{this.setState({archPick:null,archHover:null});this.go(x.id);},enter:()=>this.setState({archHover:x.id})};};
+      const lv=[...new Set(mods.filter(x=>x.placement==='level'&&x.level!=null).map(x=>x.level))].sort((p,q)=>p-q);
+      const rows=lv.map((L,li)=>{const ms2=mods.filter(x=>x.placement==='level'&&x.level===L);const top=ms2.every(x=>!(a.usedBy[x.id]||[]).length);
+        return {label:'Level '+L,sub:top?'No module may use these':'May be used by the levels above; some may use each other',mods:ms2.map(box),bg:'transparent',rad:li===0?'10px 10px 0 0':'0'};});
+      const op=mods.filter(x=>x.placement==='open-to-all');if(op.length)rows.push({label:'Open to every module',sub:'Any module may use these, so no lines are drawn to them',mods:op.map(box),bg:'var(--sunk)',rad:'0'});
+      v.av.rows=rows;const un=mods.filter(x=>!(x.placement==='level'&&x.level!=null)&&x.placement!=='open-to-all');
+      v.av.unplaced=un.map(x=>({id:x.id,href:'#'+x.id,link:true,plain:false}));v.av.hasUnplaced=un.length>0;v.av.unplacedCount=String(un.length);
+      const po=A.planOnly||[];v.av.planOnly=po.map(p=>({name:p.name,steps:(p.steps||[]).map(id=>({id,href:'#'+id,name:(ix.S.get(id)||{}).name||''}))}));v.av.hasPlanOnly=po.length>0;v.av.planOnlyCount=String(po.length);
+      v.av.hasPlanOnly=false;v.av.hasApart=un.length>0;v.av.idx=mods.map(x=>({id:x.id,href:'#'+x.id,meta:PL((x.decisions||[]).length,'decision')}));
+      v.av.lines=st.archFor===(f||'')?(st.archLines||[]):[];v.av.hasFocus=!!fm;v.av.noFocus=!fm;
+      v.av.hint='Point at a module to draw its lines. Click it to open its page.';
+      if(fm){const ps=this.modPs(a,fm);const u=fm.mayUse||[],uo=u.filter(x=>a.open.has(x)).length;
+        v.av.f={id:fm.id,href:'#'+fm.id,place:placeText(fm),resp:fm.responsibility||'Responsibility not recorded',workText:PL((fm.steps||[]).length,'build step')+' · '+PL(ps.length,'criterion','criteria'),
+          useText:'May use '+N(u.length)+(uo?' ('+N(uo)+' of them open to every module, not drawn)':''),byText:a.open.has(fm.id)?'May be used by every module (not drawn)':'May be used by '+N(by.size)+((a.usedBy[f]||[]).length>by.size?' drawn, plus '+N((a.usedBy[f]||[]).length-by.size)+' open to every module':'')};}}
+    if(r.type==='mod'){const x=a.M.get(r.id);const ps=this.modPs(a,x);v.isNode=true;const mt=r.tab||'overview';const cut=a.past;const past=!!cut;
+      const after=t=>cut&&t&&t>cut;
+      const steps=x.steps||[];const shared=ps.filter(p=>(a.pm[p.id]||new Set()).size>1).length;
+      const chip=id=>({id,href:'#'+id,link:a.M.has(id),plain:!a.M.has(id)});const sp=list=>({o:list.filter(id=>!a.open.has(id)).map(chip),g:list.filter(id=>a.open.has(id)).map(chip)});
+      const u=sp(x.mayUse||[]),isOpen=x.placement==='open-to-all'||x.openToAll,b=sp(isOpen?[]:(x.mayBeUsedBy||[]));
+      const isConv=e=>/^convention\b/i.test(String(e||'').trim());
+      const ovr=(a.A.decOverride||{});const decV=(id,by,match)=>{const t0=ix.A.get(id);const t=t0&&ovr[id]?{...t0,...ovr[id]}:t0;const isM=by==='mentions'||by==='names';const base={id,href:'#'+id,byText:isM?(match?'Mentions':'Mentions this module (words not recorded)'):(BYL[by]||'Listed (reason not recorded)'),hasMatch:isM&&!!match,match:match||''};
+        if(!t)return {...base,link:false,plain:true,whatP:[{t:'Not in this snapshot',txt:true}],hasWhy:false,why:'',conv:false,checked:false,noHeld:true,when:'',bg:'var(--panel)',time:'~',conv0:false,stage:null};
+        const conv=isConv(t.enforced),stg=t.stage==='spec'?'At spec':t.stage==='build'?'During the build':'Stage: not recorded',ad=t.added&&t.added.time;
+        return {...base,link:true,plain:false,whatP:codeP(t.what||t.a||''),hasWhy:!!t.why,why:t.why||'',conv,checked:!conv&&t.enforced!=null,noHeld:t.enforced==null,heldP:codeP(t.enforced),
+          when:stg+' · '+(ad?fmtT(ad)+(t.added.commit?' · '+t.added.commit:''):'Date: not recorded'),bg:conv?'color-mix(in oklch, var(--warn) 7%, var(--panel))':'var(--panel)',time:ad||'~',stage:t.stage};};
+      const all=(x.decisions||[]).map(d=>({...decV(d.id,d.by,d.match),by:d.by})).filter(d=>!after(d.time==='~'?null:d.time)).sort((p,q)=>p.time<q.time?-1:p.time>q.time?1:0);
+      const hidDec=(x.decisions||[]).length-all.length;
+      const df=st.mdf||'all';const dsel=all.filter(d=>df==='all'||(df==='conv'&&d.conv)||(df==='spec'&&d.stage==='spec')||(df==='build'&&d.stage==='build')||(df==='label'&&d.by!=='names'&&d.by!=='mentions'));
+      const nConv=all.filter(d=>d.conv).length,nLab=all.filter(d=>d.by!=='names'&&d.by!=='mentions').length;
+      const dchips=[['all','All',all.length],['conv','Convention only',nConv],['label','Labelled',nLab],['spec','At spec',all.filter(d=>d.stage==='spec').length],['build','During the build',all.filter(d=>d.stage==='build').length]].filter(c=>c[0]==='all'||(c[2]>0&&c[2]<all.length))
+        .map(([k,l,n])=>{const on=df===k;return {label:l,nText:N(n),on:on?'true':'false',bg:on?'var(--accent)':k==='conv'?'var(--warn-soft)':'var(--panel)',fg:on?'#fff':'var(--ink)',bd:k==='conv'&&!on?'var(--warn)':'var(--line2)',pick:()=>this.setState({mdf:k})};});
+      const named=new Set((x.decisions||[]).map(d=>d.id));
+      const pwIds=(a.A.pw||D.decisions.technical.filter(t=>t.scope==='project'||t.scope==='project-wide').map(t=>t.id)).filter(id=>!named.has(id));
+      const pw=pwIds.map(id=>({...decV(id,null),byText:'Project-wide',hasMatch:false})).filter(d=>!after(d.time==='~'?null:d.time)).sort((p,q)=>p.time<q.time?-1:1);const pwOpen=!!st.mpw;
+      const ifDecs=all.filter(d=>d.by==='module-label');
+      const histNull=x.surfaceHistory==null;const hist=(x.surfaceHistory||[]).filter(h=>!after(h.time)).slice().sort((p,q)=>(p.time||'')<(q.time||'')?1:-1).map(h=>({when:h.time?fmtT(h.time):'Date not recorded',commit:h.commit||'commit not recorded',kind:h.from==null?'First recorded':'Changed',
+        from:h.from==null?'Nothing: the row first appeared here':String(h.from).replace(/`/g,''),fromFg:h.from==null?'var(--ink2)':'var(--ink2)',fromDec:h.from==null?'none':'line-through',to:h.to==null?'not recorded':String(h.to).replace(/`/g,'')}));
+      const own=x.ownedData,ownNone=own!=null&&/^none\b/i.test(String(own).trim());
+      const surf=x.surface;const em=surf!=null?/^\s*`([^`]+)`\s*(?:[—–-]\s*)?([\s\S]*)$/.exec(String(surf)):null;const entry=em?em[1]:null,desc=em?em[2].replace(/`/g,'').trim():'';const surfNone=surf!=null&&/^none\b/i.test(String(surf).trim());
+      const svAll=a.A.services||[],mine=svAll.filter(s=>s.module===x.id),anyLinked=svAll.some(s=>s.module!=null);
+      const rules=(a.A.mustNeverBreak||[]).map(rl=>{const pp=ps.filter(p=>(p.requirements||[]).includes(rl.rule));if(!pp.length)return null;const s=this.sum(pp);
+        return {rule:rl.rule,href:'#'+rl.rule,link:ix.all.has(rl.rule),plain:!ix.all.has(rl.rule),meaning:rl.meaning||'Meaning not recorded',segs:this.segs(s),barLabel:this.barLabel(s),stText:PL(pp.length,'criterion','criteria')+': '+this.barLabel(s)};}).filter(Boolean);
+      const rank=p=>{const j=p.judgments||[],l=j[j.length-1];return p.state==='red'?0:p.state==='stale'?1:p.state==='never'?2:(l&&l.result==='broken')?3:10+ORDER.indexOf(p.state);};
+      const sorted=ps.slice().sort((p,q)=>rank(p)-rank(q));const nProb=ps.filter(p=>rank(p)<10).length;
+      const openSteps=steps.map(id=>ix.S.get(id)).filter(s=>s&&!s.closed);
+      const leftAll=ps.filter(p=>!p.built||p.state==='owed');const llim=st.mll||30;
+      const stepOf={};steps.forEach(id=>((ix.S.get(id)||{}).promises||[]).forEach(pid=>{if(!stepOf[pid])stepOf[pid]=id;}));
+      const grp=(paths,cnt)=>{const g={};paths.forEach(p=>{const i=p.lastIndexOf('/');const d=i>=0?p.slice(0,i+1):'./';(g[d]=g[d]||[]).push({name:i>=0?p.slice(i+1):p,n:cnt?PL(cnt[p],'criterion','criteria'):''});});
+        return Object.keys(g).sort().map(d=>({dir:d,n:PL(g[d].length,'file'),files:g[d].sort((p,q)=>p.name<q.name?-1:1)}));};
+      const files=x.files||[];const tc={};ps.forEach(p=>{if(p.test)tc[p.test]=(tc[p.test]||0)+1;});const tests=Object.keys(tc);
+      const fld=grp(files);const tfld=grp(tests,tc);
+      if(dchips.length===1)dchips.length=0;v.mtabs=this.tabs(x.id,[['overview','Overview'],['decisions','Decisions',all.length,nConv>0],['health','Health',nProb,true],['left','Left to build',openSteps.length+leftAll.length],['files','Files',files.length]],mt);
+      v.mt={ov:mt==='overview',dec:mt==='decisions',health:mt==='health',left:mt==='left',files:mt==='files'};
+      v.node={crumbs:tail([{label:'Architecture',href:'#architecture'},{label:x.id}]),kicker:'Module · '+placeText(x)+(past?' · replayed · as it stood at '+fmtT(cut):v.replayed?' · as it stood at '+fmtT(m.moment.time):''),title:x.id,size:'28px',hasSub:true,sub:x.responsibility||'Responsibility not recorded',hasSum:mt==='health'};
+      v.sm=this.summaryV(this.sum(ps),'mod',!steps.length?'No build step names this module yet, so no criteria are counted under it.':'The '+PL(steps.length,'build step')+' that name this module took on '+PL(ps.length,'criterion','criteria')+', each counted once here. Each criterion is checked twice: by an automatic test and by a reviewer.');
+      v.sm.hasShared=true;v.sm.sharedText='A criterion is counted under every module its step names. '+(shared?N(shared)+' of these are also counted under another module.':'None of these is counted under another module.');
+      v.mv={id:x.id,place:placeText(x),useCount:N((x.mayUse||[]).length),use:u.o,useG:u.g.length>0,useGroup:u.g,useNone:!(x.mayUse||[]).length,
+        byCount:isOpen?'all':N((x.mayBeUsedBy||[]).length),by:b.o,byG:b.g.length>0,byGroup:b.g,byAll:isOpen,byNone:!isOpen&&!(x.mayBeUsedBy||[]).length,
+        past,pastHead:'Replayed · As it stood at '+fmtT(cut),pastText:'Design-state example: only decisions and changes to the way in that existed by then are shown'+(hidDec?' ('+PL(hidDec,'later decision')+' and later way-in changes are left out)':'')+'. The rest of the page shows this snapshot.',
+        resp:x.responsibility||'Responsibility not recorded.',ownP:own==null?codeP(null):codeP(own),ownFg:own==null||ownNone?'var(--ink2)':'var(--ink)',
+        hasOwnRule:own!=null&&!ownNone,ownRule:'Only this module writes this data. Other modules go through its way in.',
+        otherText:x.otherNames==null?'not recorded':x.otherNames.length?x.otherNames.join(', '):'None',placeLong:placeText(x)+(x.placement==='level'?', computed from who may use whom':''),
+        surfP:codeP(surf),surfFg:surf==null||surfNone?'var(--ink2)':'var(--ink)',
+        surfRule:surf==null?'Its way in is not recorded.':surfNone?'As written in the module table.':entry?'As written in the module table. Other modules enter through the entry point.':'As written in the module table.',entry:entry||'',hasEntry:!!entry,noEntry:!entry,desc,hasDesc:!!desc,
+        hist,histCount:String(hist.length),noHist:!hist.length,noHistText:histNull?'Interface history: not recorded.':past?'No change to the way in was recorded by this moment.':'No change to the way in is recorded.',
+        ifDecs,ifCount:String(ifDecs.length),noIf:!ifDecs.length,noIfText:'No decision is labelled for this module.'+(all.length?' '+PL(all.length,'other decision')+' '+(all.length===1?'is':'are')+' linked to it.':''),decHref:'#'+x.id+'/decisions',
+        hasImp:!isOpen&&(x.mayBeUsedBy||[]).length>0,imp:(x.mayBeUsedBy||[]).map(chip),impSub:isOpen?'Every module may use it':!isOpen&&(x.mayBeUsedBy||[]).length?'The '+PL((x.mayBeUsedBy||[]).length,'module')+' that may use it':'No module may use it',
+        impText:isOpen?'It is open to every module, so a change can reach any of them. VID\'s fixes re-check a module together with the modules that may use it.':(x.mayBeUsedBy||[]).length?'A change here can reach these. VID\'s fixes re-check this module together with them.':'A change here reaches no other module. VID\'s fixes re-check it alone.',
+        svcs:mine.map(s=>this.svcV(s,false)),svcCount:String(mine.length),noSvc:!mine.length,noSvcText:anyLinked?'No outside service names this module.':'The records don\'t link outside services to modules: no service row in this snapshot names one.',
+        decIntro:!all.length?'No decision is linked to it'+(past?' by this moment.':'.'):PL(all.length,'decision')+' linked to it, in date order. A mention shows the words the decision uses; some mentions are not about this module.'+(nConv?' '+N(nConv)+(nConv===1?' is':' are')+' held by convention only: nothing checks '+(nConv===1?'it':'them')+', so a change can quietly break '+(nConv===1?'it':'them')+'.':' Each is held by a named check or test.'),
+        decChips:dchips,decs:dsel,decEmpty:!dsel.length,decEmptyText:all.length?'No decision matches this filter.':'No decision mentions or is labelled for this module.',
+        pw,pwOpen:pwOpen?'true':'false',pwShow:pwOpen,pwArrow:pwOpen?'▾':'▸',pwSub:pw.length?PL(pw.length,'decision')+' · shown on every module':'none in this snapshot',pwNone:!pw.length,pwNoneText:'No decision in this snapshot is marked project-wide.',pwToggle:()=>this.setState(s0=>({mpw:!s0.mpw})),
+        rules,hasRules:rules.length>0,noRules:!rules.length,ruleCount:N(rules.length)+' of '+N((a.A.mustNeverBreak||[]).length),noRulesText:'None of its criteria proves a must-never-break rule.',
+        openSteps:openSteps.map(s=>({id:s.id,href:'#'+s.id,name:s.name,stateText:s.started?'In progress':'Not started',here:PL((s.promises||[]).length,'criterion','criteria')})),openStepCount:String(openSteps.length),hasOpenSteps:openSteps.length>0,noOpenSteps:!openSteps.length,
+        noOpenStepsText:steps.length?'Every step that names it is closed.':'No build step names this module.',
+        left:leftAll.slice(0,llim).map(p=>({id:p.id,href:'#'+p.id,text:trunc(String(p.text||'').replace(/`/g,''),180),why:!p.built?'Not built':ST.owed.l,color:!p.built?'var(--c-never)':ST.owed.c,step:stepOf[p.id]?'Step '+stepOf[p.id]:''})),
+        leftCount:String(leftAll.length),hasLeft:leftAll.length>0,noLeft:!leftAll.length,leftSub:N(leftAll.filter(p=>!p.built).length)+' not built · '+N(leftAll.filter(p=>p.built&&p.state==='owed').length)+' built, test owed',
+        leftMore:leftAll.length>llim,leftMoreText:'Show '+Math.min(50,leftAll.length-llim)+' more ('+N(leftAll.length-llim)+' not shown)',leftShowMore:()=>this.setState(s0=>({mll:(s0.mll||30)+50})),
+        folders:fld,noFiles:!files.length,fileSub:PL(files.length,'path')+' in '+PL(fld.length,'folder')+'. Paths only.',
+        testFolders:tfld,noTests:!tests.length,testSub:PL(tests.length,'test file')+', with how many of its criteria each one checks.'};
+      v.hasPlist=mt==='health';v.pl=this.plistV(sorted);}
   }
   tabs(base,defs,cur){return defs.map(([k,l,n,warn])=>{const on=k===cur;return {label:l,href:'#'+base+(k==='overview'?'':'/'+k),sel:on?'true':'false',bd:on?'var(--accent)':'transparent',fg:on?'var(--ink)':'var(--ink2)',w:on?700:500,
     hasN:n!=null,n:N(n||0),nbg:warn&&n?'var(--warn)':on?'var(--accent-soft)':'var(--sunk)',nfg:warn&&n?'#1a1205':on?'var(--accent)':'var(--ink2)'};});}
