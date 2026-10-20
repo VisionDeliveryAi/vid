@@ -8,7 +8,9 @@
 # is <head>.live.sel-<hash>.run-<id>.xml with <receipt>.tree (tree=, base=,
 # frozen-at=, shape=inline) and <receipt>.cases beside it, the tree naming
 # the working tree's snapshot (not HEAD's); the `ledger-run` event names
-# that receipt with tree= and run=; no lock is taken. Env: CHECKS.
+# that receipt with tree= and run=; no lock is taken. v0.26.10.5 (case correction): the event may carry
+# ` waited=<s>` between run= and overhead= — a documented field since v0.9.6, written whenever the run waited a whole
+# second for its slot; the case refused it, and failed on a clock-second boundary. Env: CHECKS.
 set -eu
 T=$(mktemp -d); trap 'set +e; rm -f "$T/hold"; rm -rf "$T" 2>/dev/null' EXIT
 . "$CHECKS/selftest/fixtures/gated-run.sh"
@@ -42,5 +44,5 @@ TR=$(sed -n 's/^tree=//p' ".vid/ledger-results/$R.tree")
 git cat-file -p "$TR:app/main.py" | grep -q 'main v2 unstaged' || fail 'the recorded tree does not hold the tested content'
 grep -qx "base=$SHA" ".vid/ledger-results/$R.tree" && grep -qE '^frozen-at=[0-9TZ:-]+$' ".vid/ledger-results/$R.tree" && grep -qx 'shape=inline' ".vid/ledger-results/$R.tree" || fail 'the .tree sidecar lacks base=, frozen-at= or shape='
 grep -q '^case tests/invariants/t.py::a\[ROW-001\] passed' ".vid/ledger-results/$R.cases" || fail 'the .cases sidecar lacks the results reader lines'
-grep -qE "^ledger-run seconds=[0-9]+ kind=scoped report=$R status=0 role=builder tree=$TR run=[0-9TZ-]+ overhead=[0-9]+ at=" .vid/metrics-events || { tail -n 2 .vid/metrics-events >&2; fail 'the event does not name the kept receipt with tree= and run='; }
+grep -qE "^ledger-run seconds=[0-9]+ kind=scoped report=$R status=0 role=builder tree=$TR run=[0-9TZ-]+( waited=[0-9]+)? overhead=[0-9]+ at=" .vid/metrics-events || { tail -n 2 .vid/metrics-events >&2; fail 'the event does not name the kept receipt with tree= and run='; }
 exit 0

@@ -40,6 +40,61 @@ candidate, which a later release defines with the first real deploy's
 evidence; the deploy log below is written after cutover and cannot carry
 them.
 
+With `STAGES.md` and the project not complete, the claim is the stage's,
+read from its recorded close — "stage N complete" or "no stage closed
+yet" (Stages, below; v0.26.10.5 R12).
+
+## Stages — what deploy ships (v0.26.10.5 R11–R15)
+
+When `STAGES.md` exists and the project isn't complete (RUN-STATE's `run:
+complete`), deploy ships a **stage**. Start every such run with `sh
+checks/stages.sh deploy --platform none|present` (ask the platform's
+authenticated CLI first whether a production deployment exists; without
+the flag the first-deploy line says `unknown`). Without `STAGES.md`, or
+once the project is complete, the claim and the preconditions above and
+below are today's; only R15's first-deploy reading applies.
+
+- **Develop paused (R11).** While a develop run is active or waiting the
+  script refuses with one line: say "pause" to the build, deploy, then
+  say "continue". The build pauses for the deploy itself, not while the
+  owner thinks; you never pause it on your own.
+- **The claim (R12)** is read from the record, never recomputed: "stage N
+  complete" from the newest `stage-closed n=N … ready` event, or "no stage
+  closed yet" — preparation may proceed, the gates don't open. Its entry
+  checks are that record's: the full run, coverage and completion scoped
+  to stages 1 to N.
+- **The candidate** is that close's commit, tagged `vid/stage-N`. Build
+  and ship the tag's tree — `git archive vid/stage-N` (`--tree <dir>`
+  extracts it) — never the working tree: the half-built next stage never
+  reaches staging or production. Operational records (DEPLOYMENT.md, the
+  deploy log, paid stamps, probed seams, re-based contract tests) are read
+  from and committed to the current branch as today, so every later stage
+  tag holds them.
+- **Corrections since the tag (R10):** the script's `since:` lines — tell
+  the owner how many commits landed since the tag and that the live
+  candidate lacks them; they ship with the next stage's close.
+- **Production only moves forward (R14).** The script refuses a candidate
+  older than the commit of the deploy log's newest production row. A late
+  "yes" to an older stage means going live with the newest ready stage.
+- **The deploy debt of stages 1 to N:** the script's `owed:` lines. Gate 3
+  cannot open with one owed to gate 1 or 2 unpaid (scoped to stages 1 to
+  N); rows of later stages are not this deploy's.
+- **Staging, then the owner's decision (R13).** Gates 1 and 2 run as
+  below on the candidate; staging now holds the latest deployed stage,
+  which may be ahead of production. Gate 3 asks the owner as always: "no"
+  ends the deploy with staging updated and production unchanged — record
+  `sh checks/event.sh 'stage-deploy n=N staging=yes production=no'`;
+  "yes" cuts over — `stage-deploy n=N staging=yes production=yes`.
+- **The first production deploy (R15)** is the script's `first-deploy:
+  yes`: the deploy log holds no production row, no `deploy-gate gate=3`
+  start was ever recorded, and the platform shows no production
+  deployment. Only then may gate 1 be skipped. An interrupted cutover (a
+  gate-3 start with no log row) is reconciled first — what production now
+  runs, recorded in the deploy log — and then gate 1 applies. A project
+  whose staging deploys all said "no" still gets its first production
+  deploy this way; from the second production row on, gate 1's rehearsal
+  on a restored production backup is required.
+
 ## Preconditions — deploy ships only done states
 
 - `sh checks/test.sh` green.
@@ -73,14 +128,15 @@ migrations → boot the app → verify Tier-0 invariants: every pre-existing row
 of every append-only table survives verbatim → walk the golden path on the
 migrated, real-shaped data. Catches data and migration failures. Side effect
 by design: every release proves the backups actually restore. (First deploy:
-no production exists yet, so no gate 1.) Record the gate (v0.9.6.2 3.5,
+no production exists yet, so no gate 1 — first means `sh checks/stages.sh
+deploy --platform none` says `first-deploy: yes`, v0.26.10.5 R15.) Record the gate (v0.9.6.2 3.5,
 R5): `sh checks/deploy-gate.sh 1 start --candidate <commit> --env <name>`
 as it opens and `sh checks/deploy-gate.sh 1 end --result pass|fail` as it
 closes; on a first deploy, `sh checks/deploy-gate.sh 1 skipped --reason
 first-deploy`.
 
-**Gate 2 — STAGING (same platform, real providers).** Deploy the same
-commit to staging and run one real action through each live provider seam:
+**Gate 2 — STAGING (same platform, real providers).** Deploy the
+candidate to staging and run one real action through each live provider seam:
 one real OAuth login, one real email to the owner's address, one real file
 upload. Catches provider and environment failures — the class the ledger can
 NEVER see, because local fakes are the point of the ledger — plus
@@ -127,7 +183,8 @@ row (v0.9.1 3.6).
 
 ## Staging anti-rot
 
-Staging deploys the same commit and the same config-as-code as prod. Every
+Staging runs the same config-as-code as prod and holds the latest
+deployed stage (v0.26.10.5), which may be ahead of production. Every
 permitted staging/prod difference is enumerated in the ```vid-env-diff block
 in DEPLOYMENT.md; anything not listed must be identical. An undeclared
 difference found during a staging deploy STOPS the deploy. The diff is the

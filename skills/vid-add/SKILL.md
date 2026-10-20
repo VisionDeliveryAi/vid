@@ -65,6 +65,17 @@ the `A:` texts they cite.
   the answer it follows; the answer settles every row it names); the run records `sh checks/event.sh 'tokens slice=0 phase=review n=T'`.
 - BASELINE/ARCHITECTURE changes only if the feature genuinely adds a seam,
   stack element, or Tier-0 row — rare; prefer existing seams.
+- **A new feature's stage (v0.26.10.5 R5), when STAGES.md exists.** The
+  owner puts a new feature in a stage in the same sitting as its append:
+  recommend one — the current stage or a later one (a closed stage's tag
+  never moves) — ask, and record the answer as a row of the append's
+  answers block. After the append commit, the placement is its own law
+  commit: the feature joins a `STAGE-` line of STAGES.md's ```vid-stages
+  block (or a `split:` line places its requirements), the message citing
+  the answer (`Stages: A-NNN`) — commit-msg refuses a membership change
+  without one. Until it lands, `checks/stages.sh` refuses every other
+  commit (the feature is in no stage). A new requirement in an existing
+  feature takes that feature's stage; there is nothing to place.
 
 ## 2b. The inventory delta — delegated to /vid test-inventory (append mode)
 

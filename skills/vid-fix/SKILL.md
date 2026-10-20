@@ -14,9 +14,9 @@ between the two commands; that is where the human belongs.
 Narrate position between corrections ("2 of 5 applied; next: alert digest") —
 visibility, not approval-seeking.
 
-**Stage events (v0.9.5 3.11, R11; RECORDS.md).** In the project, record `sh checks/event.sh "stage name=fix state=start session=$CLAUDE_CODE_SESSION_ID records=24"` when this verb starts and `sh checks/event.sh "stage name=fix state=end session=$CLAUDE_CODE_SESSION_ID"` when it hands back. Every event this skill names is written the same way, `sh checks/event.sh '<event>'`, which appends it to `.vid/metrics-events` with its time.
+**Stage events (v0.9.5 3.11, R11; RECORDS.md).** In the project, record `sh checks/event.sh "stage name=fix state=start session=$CLAUDE_CODE_SESSION_ID records=25"` when this verb starts and `sh checks/event.sh "stage name=fix state=end session=$CLAUDE_CODE_SESSION_ID"` when it hands back. Every event this skill names is written the same way, `sh checks/event.sh '<event>'`, which appends it to `.vid/metrics-events` with its time.
 
-**Version skew (v0.9.7.0.7 3.8).** Read `checks/records-version` first. If it is absent or below 24, the project's checks/ predates this plugin: tell the owner it needs the refresh and stop before fixing. The refresh (v0.9.8.1 R5): first run `sh "${CLAUDE_PLUGIN_ROOT}/checks/local-changes.sh"` from the project's top level and show the owner its list — the project's commits under `checks/` since the last refresh, and its uncommitted changes there — since the copy overwrites them; each is carried over or dropped on purpose. Then copy `${CLAUDE_PLUGIN_ROOT}/checks/` changes over `./checks/` and commit it alone with `VID_ROLE=fix`, its subject `Refresh checks/ to VID <version>` (the next refresh's list counts from it) — its fixers are briefed with their test selection and hand back through `sh checks/brief.sh return --agent` (v0.9.7.1), which an older checks/ lacks.
+**Version skew (v0.9.7.0.7 3.8).** Read `checks/records-version` first. If it is absent or below 24, the project's checks/ predates this plugin: tell the owner it needs the refresh and stop before fixing; so too a project holding STAGES.md whose checks/ is below 25 (v0.26.10.5). The refresh (v0.9.8.1 R5): first run `sh "${CLAUDE_PLUGIN_ROOT}/checks/local-changes.sh"` from the project's top level and show the owner its list — the project's commits under `checks/` since the last refresh, and its uncommitted changes there — since the copy overwrites them; each is carried over or dropped on purpose. Then copy `${CLAUDE_PLUGIN_ROOT}/checks/` changes over `./checks/` and commit it alone with `VID_ROLE=fix`, its subject `Refresh checks/ to VID <version>` (the next refresh's list counts from it) — its fixers are briefed with their test selection and hand back through `sh checks/brief.sh return --agent` (v0.9.7.1), which an older checks/ lacks.
 
 **The internal skills (v0.9.7.0.6 3.5).** Right after the stage start, invoke the `vid-test-manager`, `vid-verify` and `vid-build` skills (the Skill tool) — the test manager's rules, the row-verdict contract and the rules for building a step. Claude Code restores after a compaction only the skills that were invoked, never a file that was only read.
 
@@ -47,6 +47,16 @@ ARCHITECTURE.md → DECISIONS.md. A correction that raises a load-bearing
 product question follows the two-channel rule: ask immediately, plain
 language, recommendation attached.
 A new DECISIONS line takes its number from `sh checks/decisions.sh next` (v0.26.10.4), reserved at the home, so you and your fixers never share one.
+
+**Stages (v0.26.10.5 R5, R10), when STAGES.md exists.** A correction that
+appends a new feature puts it in a stage as vid-add does: the owner's
+answer in the same sitting as the append, the placement its own law commit
+citing it (`Stages: A-NNN`); a new requirement in an existing feature takes
+that feature's stage. A correction to a stage already closed (a
+`stage-closed` event, its `vid/stage-N` tag) never moves the tag: it ships
+with the next stage's close, which re-checks stages 1 to N; until then
+`sh checks/stages.sh deploy` names it among the commits the live candidate
+lacks, and `sh checks/metrics.sh` lists it under "since stage N's close".
 
 **A change to the law, counted first (v0.26.10.3 R3, R5).** A question
 whose recommended answer would change a fail-if or a row's obligation

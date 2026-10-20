@@ -70,11 +70,11 @@ The three commands in the Install section above.
 An install is checked the way ViD checks anything: the judges prove they
 convict, and one real init completes. Three steps, in order:
 
-1. **Version.** Say `vid help`. It must report **0.26.10.4**.
+1. **Version.** Say `vid help`. It must report **0.26.10.5**.
 2. **Court self-test.** Ask Claude: *"Run ViD's court self-test suite —
    `checks/selftest/run.sh` under the installed plugin root — and report
-   the verdict line."* Expected: `selftest: 539/539 courts convict`.
-   One of the 539, view-page-diff, checks only in ViD's own repository
+   the verdict line."* Expected: `selftest: 548/548 courts convict`.
+   One of the 548, view-page-diff, checks only in ViD's own repository
    (it needs the design pack, which is not shipped); elsewhere it passes
    without checking. A line ending "rescued by a
    retry" is not a clean pass. A court that fails to convict its
@@ -120,7 +120,8 @@ pasted evidence outrank adjectives.
 The working sequence: **init** (once) → **design** (when the product has a
 face) → **develop** (build) → **grade** (look, any time) → **fix** (apply
 specific corrections) → **deploy** (ship: the only verb that touches
-anything real). **add** re-enters the loop for a new feature; **view** shows
+anything real). **stage** cuts the product into stages (inside init, or
+on request); **add** re-enters the loop for a new feature; **view** shows
 the project; **help** prints the installed version and the verb list.
 
 - **vid-init**: once, in an empty directory. Runs **vid-create-prd** inline
@@ -148,6 +149,14 @@ the project; **help** prints the installed version and the verb list.
   tested and why. Derived from the PRD, the design and the routes, with a
   counterexample lens on every row. Runs inside init, and again after PRD
   changes, showing the row-set difference.
+- **vid-stage**: cuts the product into stages, at the end of init or on
+  request. Through four lenses (what each stage lets people do, what must
+  be built first, your constraints, the risks) it finds the finest cut in
+  which every stage is usable and safe to release, then coarser versions
+  of it, shown as one ladder with counts; you pick a rung in one sitting,
+  adjust it, or keep a single stage. The cut
+  is `STAGES.md`, a law file; develop builds one stage at a time, closes
+  and tags each, and deploy can ship a closed stage.
 - **vid-design**: turns an owner-approved design into the visual half of
   the spec. It derives the screen-and-state brief from the PRD; you design
   from it in Claude Design or any tool (one canvas per screen for new

@@ -323,6 +323,9 @@
 #   teardown; nothing becomes due for it. R7: the due reader lists only the
 #   retained reasons (cap, setup, slow), so a recorded `analyst-due …
 #   reason=startup` stays in the events and is never listed.
+# v0.26.10.5 (R8): `request --type full --stage N` — the full run of a stage close; `stage=N` in the request. Its
+#   analyst's setup and slow triggers count only the cases of stages 1 to N (checks/stages.sh scope): later stages'
+#   rows are red in that run and are not read. Nothing else in the run changes.
 # v0.9.7.0.11 (3.1, R1): a request's report credits only the rows the request was frozen with. Before a report is
 #   published its `<report>.rows` (a copy of the ticket's `rows`; a full run has none) is written beside it, and
 #   copied with it to the commit-named copy. A report whose cases reach rows outside them is published and kept all
@@ -395,7 +398,7 @@ SVCPOLL=${VID_SERVICE_POLL:-15}   # v0.9.7.0.11 (3.3, R3): the stack watcher's p
 # --- v0.9.7.0.2 (3.1–3.3): requests, waits and the detached run ----------------------
 TX=$(printf '\t')
 rq_die() { echo "ViD test: refused — $*" >&2; exit 2; }
-rq_usage() { echo 'ViD test: usage — sh checks/test.sh request --type prove-red|iterate|close|checkpoint|full|deployed --role <role> [--try <id>] [--purpose proof] --why "<one line>" [--rows <ROW-id,…> | --rows-file <path>] [--steps <id,…>] [--expect <seconds>] [-- <selection> [--deployed-selection <selection>]] | request --type close --role orchestrator --steps <id,…> --batch --phase1 <file> --phase2 <file> --why "<one line>" | wait <ticket> | cancel --try <id>|--ticket <id> [--by <who>] | analyst-due' >&2; exit 2; }
+rq_usage() { echo 'ViD test: usage — sh checks/test.sh request --type prove-red|iterate|close|checkpoint|full|deployed --role <role> [--try <id>] [--purpose proof] --why "<one line>" [--rows <ROW-id,…> | --rows-file <path>] [--steps <id,…>] [--expect <seconds>] [--stage <N>] [-- <selection> [--deployed-selection <selection>]] | request --type close --role orchestrator --steps <id,…> --batch --phase1 <file> --phase2 <file> --why "<one line>" | wait <ticket> | cancel --try <id>|--ticket <id> [--by <who>] | analyst-due' >&2; exit 2; }
 rq_kv() { sed -n "s/^$1=//p" "$2" 2>/dev/null | head -n 1; }
 # v0.9.7.0.9 (3.3, R3): a selection word holding whitespace or a quote, which the harness command can't carry — refused at once
 selword() { case "$1" in *[[:space:]]*|*\'*|*\"*) echo "ViD test: refused — the selection word '$1' holds a space or a quote, which the harness command can't carry; select by test ids, without spaces" >&2; exit 2 ;; esac; }
@@ -639,6 +642,21 @@ rq_analyst() {
     [ -f "$_f" ] || continue
     if [ -f "$_f.cases" ]; then cat "$_f.cases"; elif [ -f checks/extractors/results.sh ]; then sh checks/extractors/results.sh "$_f" 2>/dev/null | grep -E '^case ' || true; fi >> "$_at/cases"
   done < "$_at/reports"
+  # v0.26.10.5 (R8): a request carrying stage=N — only the cases of stages 1 to N count for the setup and slow triggers:
+  # a case naming a scoped obligation is kept; one whose credited rows (checks/evidence.sh reach) are all outside the
+  # scope, or that names only obligations outside it, is left out; a case naming nothing and reaching nothing is kept
+  _stg=$(rq_kv stage "$1/request")
+  if [ -n "$_stg" ] && [ -f "$_h/STAGES.md" ] && [ -f "$_h/checks/stages.sh" ] && ( cd "$_h" && sh checks/stages.sh scope --upto "$_stg" ) > "$_at/scope" 2>/dev/null; then
+    : > "$_at/reachr"
+    if [ -f checks/evidence.sh ]; then while IFS= read -r _f; do [ -f "$_f" ] && sh checks/evidence.sh reach "$_f" --raw 2>/dev/null; done < "$_at/reports" > "$_at/reachr" || true; fi
+    awk -v sf="$_at/scope" -v rf="$_at/reachr" 'BEGIN { while ((getline l < sf) > 0) { S[++k] = l; a = l; gsub(/-/, "_", a); A[k] = a; IN[l] = 1 }
+        while ((getline l < rf) > 0) { split(l, x, "\t"); R[x[1]] = R[x[1]] " " x[2] } }
+      $1 != "case" { print; next }
+      { for (i = 1; i <= k; i++) if (index($2, S[i]) || index($2, A[i])) { print; next }
+        if ($2 in R) { n = split(R[$2], r, " "); for (i = 1; i <= n; i++) if (r[i] in IN) { print; next } next }
+        if ($2 ~ /(ROW|HOS|RULE)[-_][0-9]+/) next
+        print }' "$_at/cases" > "$_at/cases.s" && mv "$_at/cases.s" "$_at/cases"
+  fi
   an_fire() { # <reason> <fields>
     printf 'analyst-due request=%s reason=%s%s at=%s\n' "$_tk" "$1" "$2" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >> "$_h/.vid/metrics-events"
     printf 'analyst due: %s request=%s%s\n' "$1" "$_tk" "$2" >> "$_at/lines"
@@ -947,13 +965,13 @@ batch_serve() {
 
 case "${1:-}" in
   request)
-    shift; TYPE=''; RROLE=''; WHY=''; ROWS=''; ROWSF=''; STEPS=''; EXPECT=''; RSEL=''; RDSEL=''; RHASD=no; HASSEL=no; BATCH=no; PH1=''; PH2=''; RTRY=''; RPURP=''
+    shift; TYPE=''; RROLE=''; WHY=''; ROWS=''; ROWSF=''; STEPS=''; EXPECT=''; RSEL=''; RDSEL=''; RHASD=no; HASSEL=no; BATCH=no; PH1=''; PH2=''; RTRY=''; RPURP=''; RSTAGE=''
     while [ $# -gt 0 ]; do
       case "$1" in
         --batch) BATCH=yes; shift ;;
-        --type|--role|--why|--rows|--rows-file|--steps|--expect|--phase1|--phase2|--try|--purpose)
+        --type|--role|--why|--rows|--rows-file|--steps|--expect|--phase1|--phase2|--try|--purpose|--stage)
           [ $# -ge 2 ] || rq_usage
-          case "$1" in --type) TYPE=$2 ;; --role) RROLE=$2 ;; --why) WHY=$2 ;; --rows) ROWS=$2 ;; --rows-file) ROWSF=$2 ;; --steps) STEPS=$2 ;; --expect) EXPECT=$2 ;; --phase1) PH1=$2 ;; --phase2) PH2=$2 ;; --try) RTRY=$2 ;; --purpose) RPURP=$2 ;; esac
+          case "$1" in --type) TYPE=$2 ;; --role) RROLE=$2 ;; --why) WHY=$2 ;; --rows) ROWS=$2 ;; --rows-file) ROWSF=$2 ;; --steps) STEPS=$2 ;; --expect) EXPECT=$2 ;; --phase1) PH1=$2 ;; --phase2) PH2=$2 ;; --try) RTRY=$2 ;; --purpose) RPURP=$2 ;; --stage) RSTAGE=$2 ;; esac
           shift 2 ;;
         --) shift; HASSEL=yes
             while [ $# -gt 0 ] && [ "$1" != --deployed-selection ]; do selword "$1"; RSEL="${RSEL:+$RSEL }$1"; shift; done
@@ -966,6 +984,9 @@ case "${1:-}" in
     case "$WHY" in *'
 '*) rq_die 'the reason is one line.' ;; esac
     case "$EXPECT" in *[!0-9]*) rq_die '--expect takes whole seconds.' ;; esac
+    # v0.26.10.5 (R8): a full run for a stage close carries --stage N: the analyst's setup and slow triggers count only
+    # the cases of stages 1 to N (checks/stages.sh scope at the home); later stages' red cases are not read
+    case "$RSTAGE" in '') ;; *[!0-9]*|0) rq_die "--stage takes a stage number (1 or more), not '$RSTAGE'." ;; *) [ "$TYPE" = full ] || rq_die '--stage belongs to a full run, the whole suite for a stage close.' ;; esac
     # R3: the types and who may ask
     case "$TYPE" in
       prove-red) _who='test-author orchestrator fixer' ;;
@@ -1115,6 +1136,7 @@ $(head -n 10 "$RQT/bad")"
       "$TYPE" "$RROLE" "$RUNROLE" "$(printf '%s' "$WHY" | tr '"' "'")" "$NROWS" "$EST" "$SIL" "$SUL" "$LIM" "$STARTUP" "$TDN" "$CASES" "$EXPECT" "$NH" "$PWD" "$RSEL" "$RDSEL" "$RHASD" "$STEPS" "$RQG" "${VID_TESTENV_PROVE:-}" "$(date +%s)" "$RTRY" > "$TD/request"
     [ -z "$RPURP" ] || echo "purpose=$RPURP" >> "$TD/request"   # v0.9.8 (R15)
     [ "$BATCH" = no ] || echo 'batch=yes' >> "$TD/request"
+    [ -z "$RSTAGE" ] || echo "stage=$RSTAGE" >> "$TD/request"   # v0.26.10.5 (R8)
     rq_put "$TD/state" queued
     : > "$TD/log"
     SELFP="$(cd "$(dirname "$0")" && pwd)/${0##*/}"

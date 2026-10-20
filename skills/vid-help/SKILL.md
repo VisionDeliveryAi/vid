@@ -23,6 +23,7 @@ a version from memory.
 | **/vid create-prd** | Author the PRD: materiality-tested interview, owner-ratified content contract, typed items under the falsifier mandate, three ratification commits, court-grammared and portable. Init runs it inline as its first act; standalone in any directory, the result is adopted by a later init. Creation only — appends belong to fix and add. |
 | **/vid test-inventory** | Own the Test Inventory — the whole test contract, every test the project will ever have, routed by what can run it: derived by enumeration joins from the PRD, the design join and the route table; genus deliberated by fresh-context lenses; challenged by a counterexample lens; ratified as rows at recognition speed; materialised red behind the red gate. Init runs it inline, add and design's standalone round call its append mode; standalone it re-derives after appends or a consolidation and presents the row-set diff. Never runs verification. |
 | **/vid design** | Turn an owner-approved design into the visual half of the spec: brief + manifest derived from the PRD, then — once it has proven it can see its own drawings — it asks who makes the design: you in your own tool from the brief (recommended) or ViD here; canvases+tokens come back, the design-join court reconciles fail-closed, ratify — protected, marker-cited, token-fenced, fidelity-graded. |
+| **/vid stage** | Cut the product into stages you ratify in one sitting — outcome, technical order, constraints, risk; a ladder from the finest cut whose stages are each usable and safe to release to a single stage, with counts; you pick a rung. Init runs it at its end; on request it re-cuts. Each closed stage can go to staging, and live if you say so. |
 | **/vid develop** | Make the ledger green: build the entire PRD end to end, no approvals, ledger green at every commit, inventory and import courts at every commit; product questions come to the owner immediately, technical ones are decided and logged. Auto-grades at completion. |
 | **/vid grade** | Read-only adversarial review by fresh-context graders against each REQ's Fail-if; exit bar + convergence stop rule for loops, --visual fidelity mode, court-edit sweep; ranked findings table + dated report under .vid/grades/. Always safe to run, any repo. |
 | **/vid fix** | Targeted apply only: owner corrections or the accepted rows of a grade report → spec append + ledger test + fix in one commit, then a blast-radius re-grade (changed modules + declared dependents). Never sweeps. |
@@ -34,7 +35,8 @@ a version from memory.
 Close with the working sequence, one line: init (once; create-prd runs
 inside it, or standalone before it; test-inventory runs inside it, and
 on demand after any PRD append) → design (when the product has a
-face) → develop → grade → fix → deploy; add re-enters the loop. And the composition rule: grade discovers, the owner adjudicates,
+face) → develop (stage by stage, when the product is cut into stages) →
+grade → fix → deploy; add re-enters the loop; stage re-cuts. And the composition rule: grade discovers, the owner adjudicates,
 fix applies — the owner is the pipeline between them.
 
 ## Law for maintainers

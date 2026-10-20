@@ -14,7 +14,7 @@ narrated.
 ## Before any work
 
 **The stage event (v0.9.5 3.11, R11).** First of all, record
-`sh checks/event.sh "stage name=develop state=start session=$CLAUDE_CODE_SESSION_ID records=24"`
+`sh checks/event.sh "stage name=develop state=start session=$CLAUDE_CODE_SESSION_ID records=25"`
 — and again whenever a session takes over the run (Resume, below); the
 completion report records the `end` (`state=end`, the same form without
 `records=`). Every event this skill names is written with
@@ -39,7 +39,9 @@ on this release's run mechanics, below), `questions:` carried over (or
 observer and the death record cover it. **Version skew:** Read
 `checks/records-version` first. If it is absent or below 24, the
 project's checks/ predates this plugin: tell the owner it needs the
-refresh and stop before building. The refresh (v0.9.8.1 R5): first run
+refresh and stop before building; so too a project holding STAGES.md
+whose checks/ is below 25 (v0.26.10.5: the stage court and the stage
+close are 25's). The refresh (v0.9.8.1 R5): first run
 `sh "${CLAUDE_PLUGIN_ROOT}/checks/local-changes.sh"` from the project's top
 level and show the owner its list — the project's commits under `checks/`
 since the last refresh, and its uncommitted changes there — since the copy
@@ -942,6 +944,69 @@ accordingly.
 - "Blocked" is reserved for the genuinely impossible: Docker absent, no
   network, a credential only the owner holds. Say plainly what is missing and
   keep building everything that does not depend on it.
+
+## Stages (v0.26.10.5 R6–R10) — when STAGES.md exists
+
+Without `STAGES.md` this section does nothing; the run is as before.
+
+**The current stage (R6).** At develop's start, when RUN-STATE carries no
+`stage:` line, write `stage: 1` under `plan:`. Plan the current stage
+only: `sh checks/plan.sh start` and `admit` refuse a step holding a row
+outside stages 1 to N (`sh checks/stages.sh scope` lists them), with no
+exception. Depth first or breadth first applies within the stage, and its
+hardening steps belong to it. Stage 1 builds its walking skeleton first —
+the thin journey its card names in STAGES.md.
+
+**The pull-forward rule (R7).** You may bring forward the minimum
+technical work needed to deliver the current stage, if it keeps the
+product scope, the acceptance obligations and the owner's constraints:
+- record it as today's plan change with its trigger, `sh checks/plan.sh
+  change add|split|rows "<why>" --trigger discovered-dependency --evidence
+  <ref> --expect "<effect>"`, a decision naming who uses the piece, its
+  contract, its module and its tests, and `sh checks/event.sh
+  'pull-forward step=<id> decision=<D-id>'`;
+- the later feature's rows stay in their stage: the piece is proven by
+  the current stage's rows that use it. A stub behind a seam is allowed
+  while building; at the stage close the promised behaviour must be real;
+- ask the owner instead, while the build continues elsewhere, when the
+  piece is something the owner would see; changes data retention,
+  permissions, a provider commitment, the spend limit or a delivery
+  constraint; or can't be separated without changing the outcome or its
+  quality. The answer is a re-cut (`/vid stage`) or a ratified addition to
+  the stage.
+
+**The stage close (R8).** When the current stage's steps are done, ask
+for the whole suite with the stage: `sh checks/test.sh request --type
+full --role orchestrator --stage N --why "stage N's close"` (the
+analyst's setup and slow triggers then count only stages 1
+to N; later stages' rows are red in it and nobody reads them). Grade what
+is ungraded, then `sh checks/metrics.sh stage-close --stage N`: `ready`
+needs every row of stages 1 to N passing in that run and KEPT, none to
+confirm, their hostility probes and rule cases passing, the census clean,
+`coverage.sh --strict --rows` clean for them, their hardening done and no
+open question gating them; rows owed to a deploy gate are listed as
+deploy debt, never required. Work every `unmet` line as you work any red.
+The final stage's close is today's completion, unchanged.
+
+**At a ready close (R9).**
+1. `sh checks/metrics.sh stage-close --stage N --record` — it records
+   `stage-closed n=N sha=<HEAD> ready rows=<n> debt=<n> stages-blob=<blob>`
+   (what deploy reads; nothing recomputes a past commit), tags `vid/stage-N`
+   at HEAD (annotated), writes the `## stage N <UTC>` section of
+   `.vid/SLICE-REPORTS.md` (counts: what the stage holds, the full run for
+   stages 1 to N, the deploy debt with what each owed row needs, the
+   pull-forwards, open questions, what the next stage holds) and sets
+   `stage: N+1`.
+2. Tell the owner in one line: the section, and "`/vid deploy` takes this
+   stage to staging, and to production if you confirm; pause the build
+   first".
+3. Plan stage N+1 and carry on. Never wait for the owner's deploy decision.
+
+**A closed stage corrected later (R10).** A commit that changes the code,
+tests or law of stages 1 to N after their close never touches the tag. It
+ships with the next stage's close, which re-checks stages 1 to N; `sh
+checks/metrics.sh` lists such commits under "since stage N's close", and
+deploy names them as missing from the live candidate.
 
 ## Done — evidence, then the adversarial grade
 

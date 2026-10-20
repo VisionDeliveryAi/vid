@@ -110,6 +110,10 @@
 #   currency paths, an unrecorded plan hash, a step not in the plan and, for
 #   admit, rows not of the step each also write `refused phase=admission
 #   by=<rule> attempt=<id> step=<id>` at the home.
+#   v0.26.10.5 (R6): with STAGES.md at the home, admission (start, admit)
+#   first refuses a step holding a row outside stages 1 to the current one
+#   (RUN-STATE's `stage:`; checks/stages.sh scope) — started or not, with
+#   no exception for a pull-forward — `refused … by=stage`.
 #   map [--all]        the currency map checks/evidence.sh reads (`<row>
 #                      <step> <paths>`): the block's rows, and every row that
 #                      ever belonged to a started step (rebuilt from
@@ -416,7 +420,7 @@ budget() {
   echo "$_b"
 }
 # v0.9.6.2 (3.4, R4): an admission refusal is recorded at the home —
-# `refused phase=admission by=<dirty-currency|rule-B|rule-A|unrecorded-plan|no-step|rows-not-of-step> attempt=<UTC time plus 4 hex> step=<id>`
+# `refused phase=admission by=<dirty-currency|rule-B|rule-A|unrecorded-plan|no-step|rows-not-of-step|stage> attempt=<UTC time plus 4 hex> step=<id>`
 refused_ev() {
   mkdir -p "$H/.vid" 2>/dev/null || return 0
   printf 'refused phase=admission by=%s attempt=%s step=%s at=%s\n' "$1" "$(date -u '+%Y%m%dT%H%M%SZ')-$(od -An -N2 -tx1 /dev/urandom 2>/dev/null | tr -d ' \n')" "$2" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >> "$H/.vid/metrics-events"
@@ -521,6 +525,17 @@ admit_step() {
   if [ "$_lh" != "$PLANHASH" ] && [ -f "$H/.vid/plans/$_lh.plan" ] && [ "$(canon < "$TMPD/block")" = "$(canon < "$H/.vid/plans/$_lh.plan")" ]; then PLANHASH=$_lh; fi
   if [ "$_lh" != "$PLANHASH" ]; then echo "ViD plan: refused — the plan changed without a recorded change (block $PLANHASH, last recorded $_lh): run sh checks/plan.sh change <what> \"<why>\"." >&2; refused_ev unrecorded-plan "$_s"; return 1; fi
   grep -q "^step	$_s	" "$TMPD/parsed" || { echo "ViD plan: refused — no step $_s in the plan." >&2; refused_ev no-step "$_s"; return 1; }
+  # v0.26.10.5 (R6): with STAGES.md at the home, a step holding a row outside stages 1 to the current one is refused,
+  # started or not, a pull-forward or not — the next stage's steps are planned when the current one closes
+  if [ -f "$H/STAGES.md" ] && [ -f "$H/checks/stages.sh" ]; then
+    ( cd "$H" && sh checks/stages.sh scope ) > "$TMPD/stscope" 2> "$TMPD/stscope.err" || { echo "ViD plan: refused — the stage scope cannot be read (checks/stages.sh scope): $(head -n 1 "$TMPD/stscope.err")" >&2; refused_ev stage "$_s"; return 1; }
+    _cur=$( cd "$H" && sh checks/stages.sh current )
+    _out=$(awk -F'\t' 'NR == FNR { S[$1] = 1; next } $1 == "row" && $3 == s && !($2 in S) { printf "%s%s", (n++ ? ", " : ""), $2 }' s="$_s" "$TMPD/stscope" "$TMPD/parsed")
+    if [ -n "$_out" ]; then
+      echo "ViD plan: refused — $_s holds rows outside stages 1 to $_cur (the current stage): $_out. A later stage's rows are planned when the current stage closes; a pull-forward brings the minimum piece forward and never admits a later row (proven by this stage's rows that use it)." >&2
+      refused_ev stage "$_s"; return 1
+    fi
+  fi
   started
   if grep -qx "$_s" "$TMPD/started"; then echo "ViD plan: $_s already started — admitted (a started step is never refused again)"; return 0; fi
   _bf=$(strat)

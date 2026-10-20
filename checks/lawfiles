@@ -10,9 +10,11 @@
 # are governed by the stricter verbatim-import regime (protected path +
 # fail-closed design-join) and stay outside this rule so a visual correction
 # can keep changing design/ and code in the same commit (CLAUDE.md design law).
+# v0.26.10.5 (R3): STAGES.md's vid-stages block — the stage cut — is law; the stage cards around it are not.
 CLAUDE.md vid-placement
 BASELINE.md vid-allowed-extensions
 BASELINE.md vid-forbidden
 ARCHITECTURE.md seam-table
 INVENTORY.md vid-inventory
 docker-compose.test.yml whole
+STAGES.md vid-stages

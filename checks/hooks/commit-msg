@@ -14,6 +14,7 @@
 # phase=commit-msg by=decisions|tests-by attempt=<UTC time plus 4 hex>` to
 # the run's events (checks/event.sh, so at the run's home). Nothing new is
 # enforced.
+# v0.26.10.5 (R4): a third refusal, by=stages — a stage membership change citing no owner answer.
 set -eu
 
 MSG_FILE="$1"
@@ -39,6 +40,15 @@ if ! grep -v '^#' "$MSG_FILE" | grep -qE '^Decisions:[[:space:]]*[^[:space:]]'; 
   echo '    Decisions: <entries added, or "none — nothing surprising">' >&2
   echo '    Seams: <ARCHITECTURE.md rows changed, or "none">' >&2
   refused decisions
+  exit 1
+fi
+
+# v0.26.10.5 (R4): a change to stage membership — STAGES.md's STAGE-, split: or row: lines, or the file created or
+# deleted — cites the owner's answer (A-NNN) in its message; checks/stages.sh msg judges it, silent while neither HEAD
+# nor the index holds STAGES.md.
+_st="$(dirname "$0")/../stages.sh"
+if [ -f "$_st" ] && ! sh "$_st" msg "$MSG_FILE"; then
+  refused stages
   exit 1
 fi
 

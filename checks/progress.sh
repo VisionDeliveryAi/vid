@@ -44,6 +44,7 @@
 #           an open takeover on its own line.
 #   Your questions, Estimate, Plan changes since the last update, Now (the
 #           build's own words).
+# v0.26.10.5 (R6): with STAGES.md, a first row `Stage` — the current stage of all, its name, and the stages closed.
 # v0.9.7.2 (3.5, 3.8, 3.10, 3.11; R12, R14, R15) — read from `sh checks/metrics.sh step-state --all` (on the states
 # and held rows read once, below) and row-state --table's verdict columns:
 #   Debt    one line on every print, each row once: `<n> rows owed — in hardening, not done <a> · passing, not KEPT
@@ -367,7 +368,17 @@ LASTP=$(awk "$AWKAT"' $1 == "progress" { a = lastat() } END { print a }' "$EV")
 PCH=$(awk -v since="$LASTP" "$AWKAT"' $1 == "plan-change" { a = lastat(); if (since != "" && a <= since) next; w = $0; sub(/.* why="/, "", w); sub(/" at=.*/, "", w); printf "%s%s — \"%s\"", (n++ ? "; " : ""), kv("what"), w }' "$EV")
 NOWT=$(sed -n 's/^now:[[:space:]]*//p' "$RS" | head -n 1); [ "$NOWT" = - ] && NOWT=''
 HEADL="## $(printf '%s' "$NOWU" | cut -c1-16)Z — progress ($TRIG)"
+# v0.26.10.5 (R6): with STAGES.md, the stage being built — `<n> of <k>, <name>` — and the stages closed so far
+STGL=''
+if [ -f STAGES.md ] && [ -f checks/stages.sh ]; then
+  _cs=$(sh checks/stages.sh current 2>/dev/null || echo 1)
+  _sb=$(sed -n '/^```vid-stages$/,/^```$/p' STAGES.md | grep -E '^[[:space:]]*STAGE-[0-9]+[[:space:]]*\|' || true)
+  _sn=$(printf '%s\n' "$_sb" | awk -F'|' -v n="STAGE-$_cs" '{ id = $1; gsub(/^[ \t]+|[ \t]+$/, "", id) } id == n { x = $2; gsub(/^[ \t]+|[ \t]+$/, "", x); print x; exit }')
+  _sc=$(awk '$1 == "stage-closed" && / ready( |$)/ { for (i = 2; i <= NF; i++) if (index($i, "n=") == 1) printf "%s%s", (k++ ? ", " : ""), substr($i, 3) }' "$EV" 2>/dev/null)
+  STGL="$_cs of $(printf '%s\n' "$_sb" | grep -c . || true)${_sn:+, $_sn}${_sc:+ · closed: $_sc}"
+fi
 { printf '%s\n\n| | |\n|---|---|\n' "$HEADL"
+  [ -n "$STGL" ] && printf '| Stage | %s |\n' "$STGL"
   printf '| Passing | %s |\n' "$DONEL"
   printf '| Debt | %s |\n' "$DEBT"
   [ -n "$CNG" ] && printf '| Closed, not graded | %s — their dependents wait (the graded gate); catch-up: sh checks/brief.sh write --role grader --catch-up <step> --slice <N> |\n' "$CNG"

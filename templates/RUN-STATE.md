@@ -37,6 +37,9 @@ held: {{HELD_ROW_IDS_OR_-}}
          words>"`, which keeps the words in .vid/plans/decisions/. Under
          breadth first the plan's hardening steps and protected: line apply
          (below); switched back, they are inert.
+       `stage:` (v0.26.10.5) — only when STAGES.md exists: the stage being
+         built, `stage: 1` at develop's start; set to N+1 only by `sh
+         checks/metrics.sh stage-close --stage N --record`.
        `now:` (v0.9.6) — one line in the build's own words, the last row of
          the progress update; written with `sh checks/progress.sh --now
          "<line>"`.

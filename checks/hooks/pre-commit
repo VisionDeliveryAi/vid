@@ -234,9 +234,11 @@ fi
 # 3. Every new source file declares its purpose up front.
 # design/ is exempt: ratified design artifacts are imported verbatim from the
 # owner — they are spec, not source (CLAUDE.md design law).
+# v0.26.10.5 (amendment 1, R18): so is checks/selftest/fixtures/ — the self-test's
+# test data, copied with checks/ at init (17 shipped files carry no Purpose: line).
 for f in $(git diff --cached --name-only --diff-filter=A); do
   case "$f" in
-    design/*) continue ;;
+    design/*|checks/selftest/fixtures/*) continue ;;
     *.md|*.yml|*.yaml|*.json|*.toml|*.ini|*.cfg|*.lock|*.txt|*.csv|*.svg|*.png|*.jpg|*.jpeg|*.gif|*.ico|*.woff|*.woff2) continue ;;
     LICENSE*|*/LICENSE*|.*|*/.*) continue ;;
     checks/lawfiles) continue ;;
@@ -367,11 +369,13 @@ court placement sh checks/placement.sh
 court conformance sh checks/conformance.sh
 if [ -f checks/imports.sh ]; then court imports sh checks/imports.sh; fi
 if [ -f checks/seams.sh ]; then court seams sh checks/seams.sh; fi
+# v0.26.10.5 (R4): the stage court, silent while the index holds no STAGES.md; it rides the quick gate, untimed
+if [ -f checks/stages.sh ]; then court stages sh checks/stages.sh; fi
 settle
 F_placement=$(sec placement); F_conformance=$(sec conformance)
 if [ -f "$TD/imports.run" ]; then F_imports=$(sec imports); fi
 if [ -f "$TD/seams.run" ]; then F_seams=$(sec seams); fi
-replay placement conformance imports seams
+replay placement conformance imports seams stages
 if [ -n "$FAILED" ]; then
   echo "ViD pre-commit: rejected — refused by:$FAILED" >&2
   BY=$(printf '%s' "$FAILED" | sed 's/^ *//; s/ /,/g'); exit 1

@@ -25,6 +25,9 @@ in order:
     Test Inventory rows (incl. genus rows and the
       census row classes) → owner ratifies →
       materialised as failing ledger tests           ← ratification 3
+    the stage cut → /vid stage, run inline; one
+      sitting: the owner ratifies the cards, changes
+      them, or keeps a single stage (v0.26.10.5)      ← the stage sitting
 
 Before anything else, read the plugin's seed library
 (`${CLAUDE_PLUGIN_ROOT}/seed/`): rules.md and checklist.md are promoted
@@ -526,6 +529,15 @@ by their own ritual, never by the gate. The skill owns the gate; init
 owns the moment it runs — after the scaffold, the courts, the extractors
 and the harness exist, and before anything else lands.
 
+## 7b. The stage cut (v0.26.10.5 R1, R2)
+
+After the proved-red stamp and before the hand-back, run the vid-stage
+skill (`${CLAUDE_PLUGIN_ROOT}/skills/vid-stage/SKILL.md`) inline: it reads
+the whole baseline, proposes a cut through its four lenses and presents
+one card per stage in one sitting — the owner's last pause at init. The
+owner ratifies the cut, changes it, or keeps a single stage (no
+STAGES.md). Its hand-back's lines join step 8's.
+
 ## 8. Hand back
 
 A few sentences, no ceremony — what was ratified (PRD — the create-prd
@@ -535,7 +547,7 @@ any; inventory — the test-inventory hand-back's counts: rows by axis,
 rule rows and census classes, DIF rows and paying steps, seam rows, the
 hostility set against the Tier-0 count as two numbers, golden sets,
 genus proposals kept per lens per round, proposed Fail-if amendments;
-extractor set; and red-ledger count — proved red at the gate), what was decided (call out every
+extractor set; and red-ledger count — proved red at the gate; the stages — one line each, or "one stage"), what was decided (call out every
 `origin: proposal` default), where the artifacts live, and that the next
 verb is /vid develop: make the ledger green. Then record
 `sh checks/event.sh "stage name=init state=end session=$CLAUDE_CODE_SESSION_ID"`.

@@ -539,3 +539,12 @@ return-refused-untouched.sh
 brief-fixer-header.sh
 merge-main-gate.sh
 decision-next.sh
+stages-court.sh
+stages-scope.sh
+plan-stage-admission.sh
+stage-close.sh
+stage-tag-report.sh
+deploy-stage.sh
+no-stages-unchanged.sh
+stages-split-stage.sh
+init-commit-fixtures.sh

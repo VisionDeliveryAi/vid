@@ -31,8 +31,22 @@ set -eu
 IFS='
 '
 
-STRICT=0
-[ "${1:-}" = "--strict" ] && STRICT=1
+STRICT=0; ROWSF=''
+# v0.26.10.5 (R8): --rows <scope file> — the obligation ids (ROW, RULE, DIF, EXC, SUP, HOS) and the PRD items (REQ,
+# INV) of stages 1 to N, one per line (sh checks/stages.sh scope --upto N --reqs). Every join then reads only them:
+# the pilot set (REQs not in the file are not judged), the ROW pass, the design markers (a marker counts when a
+# scoped row binds it or no row does), the inventory reader's GAP/OWED/ORPHAN lines (an id outside the file is left
+# out; a line naming no row or item — a route, a seam — counts) and the VID-QUESTION markers (a marker whose ids,
+# an OQ carrier read as the items citing it, all lie outside the file is left out). Without it, unchanged.
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --strict) STRICT=1; shift ;;
+    --rows) [ -n "${2:-}" ] && [ -f "$2" ] || { echo 'ViD coverage: --rows takes a scope file (sh checks/stages.sh scope --upto N --reqs).' >&2; exit 2; }; ROWSF=$2; shift 2 ;;
+    *) shift ;;
+  esac
+done
+SCOPE=''; [ -n "$ROWSF" ] && SCOPE=" $(grep -v '^[[:space:]]*$' "$ROWSF" | tr '\n' ' ') "
+inscope() { [ -z "$ROWSF" ] && return 0; case "$SCOPE" in *" $1 "*) return 0 ;; esac; return 1; }
 [ -f PRD.md ] || { echo 'ViD coverage: PRD.md missing.' >&2; exit 1; }
 [ -f CLAUDE.md ] || { echo 'ViD coverage: CLAUDE.md missing — failing closed.' >&2; exit 1; }
 
@@ -63,6 +77,7 @@ if grep -q '^```vid-prd$' PRD.md; then
 else
   REQS=$(grep -oE 'REQ-[0-9]+' PRD.md | sort -u)
 fi
+if [ -n "$ROWSF" ]; then REQS=$(for r in $REQS; do if inscope "$r"; then printf '%s\n' "$r"; fi; done); fi
 IBLOCK=''; [ -f INVENTORY.md ] && IBLOCK=$(sed -n '/^```vid-inventory/,/^```$/p' INVENTORY.md | sed '1d;$d' || true)
 GAPS=0; DEPLOYOWED=0
 
@@ -131,8 +146,9 @@ if [ "$STRICT" -eq 1 ] && [ "$IGRAMMAR" = 0.9.3 ]; then
   case "$DP" in none-declared) echo 'deployed: none declared (no deployed-selector: in the harness contract)' ;; none) echo 'deployed: none — the harness declares a deployed shape and no <S>.deployed.xml stands beside the receipt' ;; *) echo "deployed: $DP" ;; esac
   TABLE=$(sh checks/metrics.sh row-state --table)
   LMARK=''; [ -f DESIGN-BRIEF.md ] && LMARK=$(sed -n '/^```vid-design-manifest/,/^```$/p' DESIGN-BRIEF.md | sed '1d;$d' | grep -E '\|[[:space:]]*later:' | sed -E 's/^[[:space:]]*([A-Za-z0-9_-]+)[[:space:]]*\|[[:space:]]*([A-Za-z0-9_-]+).*/\1\/\2/' || true)
-  PASSOUT=$(printf '%s\n' "$TABLE" | awk -F'\t' -v later=" $(printf '%s\n' "$LATER" "$LMARK" | tr '\n' ' ') " '
+  PASSOUT=$(printf '%s\n' "$TABLE" | awk -F'\t' -v later=" $(printf '%s\n' "$LATER" "$LMARK" | tr '\n' ' ') " -v scope="$SCOPE" '
     $2!="kept" && $2!="unverdicted" && $2!="breached" && $2!="red" { next }
+    scope != "" && index(scope, " " $1 " ") == 0 { next }
     $10 ~ /^unrecognized test field/ { next }
     { n=split($9, t, /[ ,]+/); only=1; any=0
       for (k=1;k<=n;k++) { if (t[k]=="") continue; any=1; if (index(later, " " t[k] " ")==0) only=0 }
@@ -227,8 +243,15 @@ if [ -n "$DMARKERS" ]; then
       | grep -E '\|[[:space:]]*(owed|descoped|fenced|later):' \
       | sed -E 's/^[[:space:]]*([A-Za-z0-9_-]+)[[:space:]]*\|[[:space:]]*([A-Za-z0-9_-]+).*/\1\/\2/' || true)
   fi
+  # v0.26.10.5 (R8): scoped, a marker counts when a scoped ROW binds it (its marker field) or no ROW binds it
+  BOUND=''; SBOUND=''
+  if [ -n "$ROWSF" ]; then
+    BOUND=$(printf '%s\n' "$IBLOCK" | awk -F'|' '$1 ~ /^[[:space:]]*ROW-/ { id = $1; gsub(/^[ \t]+|[ \t]+$/, "", id); m = $5; gsub(/^[ \t]+|[ \t]+$/, "", m); if (m != "" && m != "n/a") print id " " m }')
+    SBOUND=$(printf '%s\n' "$BOUND" | while read -r _i _m; do if [ -n "$_i" ] && inscope "$_i"; then printf '%s\n' "$_m"; fi; done)
+  fi
   for tok in $DMARKERS; do
     printf '%s\n' "$RESOLVED" | grep -qxF "$tok" && continue
+    if [ -n "$ROWSF" ] && printf '%s\n' "$BOUND" | awk '{ print $2 }' | grep -qxF "$tok" && ! printf '%s\n' "$SBOUND" | grep -qxF "$tok"; then continue; fi
     D=no
     for p in $PREFIXES; do
       case "$p" in tests*|checks*|design*) continue ;; esac
@@ -263,8 +286,21 @@ fi
 # Tier-0 protection, an unproved probe) all count as coverage gaps.
 if [ -f INVENTORY.md ] && [ -f checks/inventory.sh ]; then
   INV=$(VID_COURT_EVENT=off sh checks/inventory.sh --report || true)
-  printf '%s\n' "$INV" | grep -E '^(GAP|OWED|ORPHAN|DEPLOY-OWED)' | sed 's/^/    /' || true
   ISUM=$(printf '%s\n' "$INV" | grep '^inventory: ' | tail -n 1 || true)
+  if [ -n "$ROWSF" ]; then
+    # v0.26.10.5 (R8): scoped, the reader's lines are counted one by one — an id outside the scope file is left out
+    ISC=$(printf '%s\n' "$INV" | grep -E '^(GAP|OWED|ORPHAN|DEPLOY-OWED) ' | while IFS= read -r _l; do
+      _id=$(printf '%s\n' "$_l" | awk '{ print $2 }')
+      case "$_id" in (ROW-*|RULE-*|DIF-*|EXC-*|SUP-*|HOS-*|REQ-*|INV-*) inscope "$_id" || continue ;; esac
+      printf '%s\n' "$_l"; done)
+    printf '%s\n' "$ISC" | grep -v '^$' | sed 's/^/    /' || true
+    IGAPS=$(printf '%s\n' "$ISC" | grep -cE '^(GAP|OWED|ORPHAN) ' || true)
+    GAPS=$((GAPS + IGAPS))
+    echo "    inventory (stages in scope): $IGAPS gaps of the reader's lines${ISUM:+ — the whole: $ISUM}"
+    ISUM=''
+  else
+    printf '%s\n' "$INV" | grep -E '^(GAP|OWED|ORPHAN|DEPLOY-OWED)' | sed 's/^/    /' || true
+  fi
   if [ -n "$ISUM" ]; then
     IGAPS=0
     for kv in $(printf '%s\n' "$ISUM" | tr ' ' '\n' | grep -E '^(route-gaps|owed|orphans|missing-tests|hostility-gaps)=' || true); do
@@ -278,6 +314,21 @@ fi
 # The archive is invisible to the census (v0.9.1 3.4, R12-iii): PRD-HISTORY-*.md
 # and SEED.md keep every carrier verbatim; only live carriers count.
 Q=$(grep -rn 'VID-QUESTION:' --exclude-dir=.git --exclude-dir=checks --exclude=CLAUDE.md --exclude='PRD-HISTORY-*.md' --exclude=SEED.md . 2>/dev/null | wc -l | tr -d ' ')
+# v0.26.10.5 (R8): scoped, a marker whose ids (an OQ carrier read as the PRD items citing it) all lie outside the
+# scope file is left out; a marker naming nothing counts
+if [ -n "$ROWSF" ]; then
+  EFFP=''; [ -f PRD.md ] && [ -f checks/prd.sh ] && EFFP=$(sh checks/prd.sh --effective PRD.md 2>/dev/null || true)
+  Q=$(grep -rh 'VID-QUESTION:' --exclude-dir=.git --exclude-dir=checks --exclude=CLAUDE.md --exclude='PRD-HISTORY-*.md' --exclude=SEED.md . 2>/dev/null | while IFS= read -r _l; do
+      _ids=$(printf '%s\n' "$_l" | grep -oE '(REQ|INV|ROW|HOS|RULE|DIF|EXC|SUP)-[0-9]+' || true)
+      for _oq in $(printf '%s\n' "$_l" | grep -oE 'OQ-[0-9]+' || true); do
+        _ids="$_ids
+$(printf '%s\n' "$EFFP" | grep -E "(^|[^A-Za-z0-9-])$_oq([^0-9]|\$)" | awk -F'|' '{ id = $1; gsub(/^[ \t]+|[ \t]+$/, "", id); print id }')"
+      done
+      _ids=$(printf '%s\n' "$_ids" | grep -v '^$' || true)
+      if [ -z "$_ids" ]; then echo q; continue; fi
+      for _i in $_ids; do if inscope "$_i"; then echo q; break; fi; done
+    done | grep -c . || true)
+fi
 N=$(printf '%s\n' "$REQS" | grep -c . || true)
 NLM=0; [ -f DESIGN-BRIEF.md ] && NLM=$(sed -n '/^```vid-design-manifest/,/^```$/p' DESIGN-BRIEF.md | grep -cE '\|[[:space:]]*later:' || true)
 echo ''
