@@ -35,7 +35,7 @@ grep -q 'no deployed-selector:' "$T/req" || fail 'the deployed words refusal doe
 [ "$(nt)" -eq 0 ] || fail 'a refused batch left a ticket'
 # a lawful batch, a commit while its first chunks run
 groups "$T/p1" 3 4; touch "$T/hold"
-VID_CAP_SCALE=100 STUB_HOLD="$T/hold" STUB_ENTER="$T/entered" batch || fail 'a lawful batch was refused'
+STUB_HOLD="$T/hold" STUB_ENTER="$T/entered" batch || fail 'a lawful batch was refused'
 TD=.vid/requests/$TK
 grep -qx 'batch=yes' "$TD/request" && [ "$(grep -c . "$TD/groups")" -eq 4 ] || fail 'the ticket does not record the batch and its groups'
 waitfor "$T/entered" 30 || fail 'no chunk reached its up'

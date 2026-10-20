@@ -105,9 +105,19 @@ if [ -f .vid/NUDGE ]; then
   esac
 fi
 
+# v0.26.10.4 (R11, F-44): while a merge is in progress (MERGE_HEAD), JUDGED is what the merge itself adds — the staged
+# paths whose content differs from both parents: a conflict resolution or an edit; a path one parent already holds
+# as staged is that parent's, judged when it was committed. Else JUDGED is every staged path. Rules 1 and 2 judge
+# JUDGED (the 2026-10-19 spec correction: the law-standalone rule too); every other court runs as for any commit.
+JUDGED=$STAGED_ALL
+if _mh=$(git rev-parse -q --verify MERGE_HEAD 2>/dev/null); then
+  _ob() { git rev-parse -q --verify "$1" 2>/dev/null || echo none; }
+  JUDGED=$(for _f in $STAGED_ALL; do _s=$(_ob ":$_f"); [ "$_s" = "$(_ob "HEAD:$_f")" ] || [ "$_s" = "$(_ob "$_mh:$_f")" ] || printf '%s\n' "$_f"; done)
+fi
+
 # 1. Ledger and courts are outside ordinary write scope (CLAUDE.md ledger law).
 if [ "${VID_ROLE:-}" != "fix" ]; then
-  PROT=$(printf '%s\n' "$STAGED_ALL" | grep -E '^(tests/invariants/|checks/|design/)' || true)
+  PROT=$(printf '%s\n' "$JUDGED" | grep -E '^(tests/invariants/|checks/|design/)' || true)
   if [ -n "$PROT" ]; then
     echo 'ViD pre-commit: rejected — protected paths staged without VID_ROLE=fix:' >&2
     printf '%s\n' "$PROT" | sed 's/^/    /' >&2
@@ -159,7 +169,7 @@ if git rev-parse -q --verify HEAD:checks >/dev/null 2>&1; then
   }
   TRIGGERS=''
   # (a) any staged change under checks/
-  if printf '%s\n' "$STAGED_ALL" | grep -q '^checks/'; then
+  if printf '%s\n' "$JUDGED" | grep -q '^checks/'; then
     TRIGGERS="${TRIGGERS}checks/ (the courts and their harness)
 "
   fi
@@ -167,7 +177,7 @@ if git rev-parse -q --verify HEAD:checks >/dev/null 2>&1; then
   if [ -f checks/lawfiles ]; then
     for lf in $(grep -v '^#' checks/lawfiles | grep -v '^[[:space:]]*$' || true); do
       f=${lf%% *}; reg=${lf#* }
-      printf '%s\n' "$STAGED_ALL" | grep -qxF "$f" || continue
+      printf '%s\n' "$JUDGED" | grep -qxF "$f" || continue
       if [ "$(extract "HEAD:$f" "$reg")" != "$(extract ":$f" "$reg")" ]; then
         TRIGGERS="${TRIGGERS}$f ($reg)
 "
@@ -176,7 +186,9 @@ if git rev-parse -q --verify HEAD:checks >/dev/null 2>&1; then
   fi
   # (c) deletions/weakenings in the ledger: removed assert lines or removed
   #     test functions in the staged diff (additions do not trigger).
-  KILLS=$(git diff --cached -U0 -- tests/invariants/ 2>/dev/null | grep -E '^-' | grep -v '^---' \
+  # v0.26.10.4 (R11): the ledger paths judged (all of tests/invariants/ outside a merge)
+  JLEDGER=tests/invariants/; [ -n "${_mh:-}" ] && JLEDGER=$(printf '%s\n' "$JUDGED" | grep '^tests/invariants/' || true)
+  KILLS=0; [ -n "$JLEDGER" ] && KILLS=$(git diff --cached -U0 -- $JLEDGER 2>/dev/null | grep -E '^-' | grep -v '^---' \
     | grep -cE '\bassert\b|\bexpect\(|def test_|\bit\(|\btest\(' || true)
   if [ "${KILLS:-0}" -gt 0 ]; then
     TRIGGERS="${TRIGGERS}tests/invariants/ ($KILLS removed assertion/test line(s) — deleting or weakening is a law change; adding is free)
@@ -184,7 +196,7 @@ if git rev-parse -q --verify HEAD:checks >/dev/null 2>&1; then
   fi
   # (c2) neutering by ADDITION: an added skip/xfail marker over a row-bound
   #      test has the same effect as deleting its assertions — same law.
-  SKIPS=$(git diff --cached -U0 -- tests/invariants/ 2>/dev/null | grep '^+' | grep -v '^+++' \
+  SKIPS=0; [ -n "$JLEDGER" ] && SKIPS=$(git diff --cached -U0 -- $JLEDGER 2>/dev/null | grep '^+' | grep -v '^+++' \
     | grep -cE '@[A-Za-z_.]*skip|\bskipif\b|\bxfail\b|\bskipTest\b|\.skip\(|\bpytest\.skip\b' || true)
   if [ "${SKIPS:-0}" -gt 0 ]; then
     TRIGGERS="${TRIGGERS}tests/invariants/ ($SKIPS added skip/xfail marker(s) — neutering by addition is a law change)
@@ -193,7 +205,7 @@ if git rev-parse -q --verify HEAD:checks >/dev/null 2>&1; then
   # (d) the ratified design changes only as a visible, standalone act:
   #     modifications/deletions under design/ are law changes; additions
   #     stay free (the ratification import and new screens).
-  DMOD=$(git diff --cached --name-only --diff-filter=MD -- design/ 2>/dev/null || true)
+  DMOD=$(git diff --cached --name-only --diff-filter=MD -- design/ 2>/dev/null | while IFS= read -r _f; do printf '%s\n' "$JUDGED" | grep -qxF -- "$_f" && printf '%s\n' "$_f"; done || true)
   if [ -n "$DMOD" ]; then
     TRIGGERS="${TRIGGERS}design/ (modified/deleted — the ratified design has ledger standing)
 "
@@ -201,7 +213,7 @@ if git rev-parse -q --verify HEAD:checks >/dev/null 2>&1; then
   if [ -n "$TRIGGERS" ]; then
     LAWCOMMIT=yes
     NONLAW=''
-    for f in $STAGED_ALL; do
+    for f in $JUDGED; do
       case "$f" in checks/*|tests/invariants/*|design/*|DESIGN-BRIEF.md) continue ;; esac
       grep -v '^#' checks/lawfiles 2>/dev/null | grep -q "^$f " && continue
       NONLAW="$NONLAW$f

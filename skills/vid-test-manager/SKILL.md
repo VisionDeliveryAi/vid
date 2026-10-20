@@ -1,6 +1,6 @@
 ---
 name: vid-test-manager
-description: Internal — invoked by vid-develop and vid-fix; not a verb, never run by the owner. The test manager's rules — every test run is a request to checks/test.sh, waited on in calls of at most 200 seconds (the request rules themselves are vid-build's "Requests"); cancel by attempt; estimates, caps and reach; the test environments, broken-test sorting, checkpoints, frozen and scoped runs, the close's runs and leftovers; the test analyst, started when a result says analyst due.
+description: Internal — invoked by vid-develop and vid-fix; not a verb, never run by the owner. The test manager's rules — every test run is a request to checks/test.sh, waited on in calls of at most 200 seconds (the request rules themselves are vid-build's "Requests"); cancel by attempt; estimates, what stops a run, and reach; the test environments, broken-test sorting, checkpoints, frozen and scoped runs, the close's runs and leftovers; the test analyst, started when a result says analyst due.
 user-invocable: false
 ---
 
@@ -17,8 +17,8 @@ Nobody runs the test runner directly. To get a test result, make a request to th
 ## Requests and waits (v0.9.7.0.2 3.1–3.3)
 
 **The request rules are `vid-build`'s "Requests" section** (moved there
-whole, v0.9.7.1): asking, the types and who may ask, the estimate and the
-cap, reach, and `wait` — calls of at most 200 seconds, called again until
+whole, v0.9.7.1): asking, the types and who may ask, the estimate and
+what stops a run, reach, and `wait` — calls of at most 200 seconds, called again until
 the result. Builders and fixers preload that one copy; you read it too.
 Here is the run manager's side.
 
@@ -37,10 +37,13 @@ full requests carry no attempt id; they keep the close batch's stop.
 outside one — the manager checks three triggers, in order, and each that
 fires writes an `analyst-due` event and an `analyst due` line in the
 result:
-- **cap** — the request was stopped at its cap, unless the host slept
-  during the run (its result says `host slept <n> s during this run`;
-  the sleep is not counted against the cap, and a cap it explains calls
-  no analyst);
+- **cap** — the request's watcher stopped it (v0.26.10.4): silent for the
+  silence limit (20 minutes; a likely hang), a pass's start-up past the
+  start-up limit (60 minutes; a stack that won't come up), or the run
+  limit (24 hours awake; unusual). The event and the line carry
+  `stop=silent|startup|limit` and `last-output=<UTC>`; brief both to the
+  analyst. `.vid/budget`'s `silence-minutes=`, `startup-minutes=` and
+  `run-limit-minutes=` set the three;
 - **setup** — 5 or more of the run's cases are red, each taking over
   60 seconds, whatever their messages: red cases that waited on
   something;
@@ -241,7 +244,7 @@ an immutable fixture is a product question for the harness, not a retry.
    each chunk as a sub-ticket `<ticket>/chunks/<n>` on its own environment
    — while another request waits, it leaves one environment free. Phase 2
    starts only when every phase-1 chunk covers its rows' expected cases
-   with no red case. A chunk stopped by its cap, a signal or a service
+   with no red case. A chunk stopped by its watcher, a signal or a service
    other than the product's processes dying is run once more, alone. One
    `wait` on the ticket: `green`; `red phase <p>, rows …` (fix, request
    again); or `incomplete phase <p>, chunks …` (each chunk's why is under

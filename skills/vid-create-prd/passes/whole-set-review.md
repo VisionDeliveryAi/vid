@@ -71,6 +71,14 @@ the ruling ever changes, not rows for this sitting. One more line, in
 both modes (v0.9.1 3.6): flag a `pilot` item whose fail-if depends on a
 `later` item.
 
+**The narrowest landing, and its count (v0.26.10.3 R5).** A repair or a
+recommended answer that restates an item keeps every clause it does not
+change word for word. A `needs_owner` finding whose recommended answer
+would change a fail-if or a row's obligation carries that answer as text
+the caller can draft; the caller runs `sh checks/inventory.sh impact` on
+the draft and quotes, in the owner's question, the rows it would reset and
+put to confirm (vid-develop's two-channel rule).
+
 ## Consolidation review (v0.9.1 3.4 — 7b, mode whole over a consolidated file)
 
 You receive the consolidated PRD (its `## Appends` empty, history

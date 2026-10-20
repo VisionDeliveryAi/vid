@@ -1,7 +1,7 @@
 #!/bin/sh
 # Purpose: selftest case — a request outlives its caller (v0.9.7.0.2 spec
 # 3.1; §6 B-4, round 2 finding 2). The shell that made the request exits
-# and its process group is then killed; the run and its cap watcher go on,
+# and its process group is then killed; the run and its watcher go on,
 # the run ends and writes `result`, and the final state is done. Env: CHECKS.
 set -eu
 T=$(mktemp -d); trap 'set +e; rm -f "$T/hold"; rm -rf "$T" 2>/dev/null' EXIT
@@ -20,7 +20,7 @@ wait "$CP" 2>/dev/null || true
 kill -0 "$CP" 2>/dev/null && fail 'the caller is still alive'
 sleep 1
 kill -0 "$(cat "$TD/supervisor")" 2>/dev/null || fail 'the run died with its caller'
-kill -0 "$(cat "$TD/watcher")" 2>/dev/null || fail 'the cap watcher died with its caller'
+kill -0 "$(cat "$TD/watcher")" 2>/dev/null || fail "the run's watcher died with its caller"
 [ "$(cat "$TD/state")" = running ] || fail 'the run is not running'
 rm -f "$T/hold"
 VID_WAIT_MAX=30 sh checks/test.sh wait "$TK" > "$T/out" 2>&1 || fail 'the run did not end green'

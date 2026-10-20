@@ -14,7 +14,7 @@ fail() { echo "batch-subtickets: $*" >&2; cat "$T/req" "$T/wait" 2>/dev/null >&2
 batch_repo "$T/repo"
 groups "$T/p1" 3 4; groups "$T/p2" 1 2
 touch "$T/hold"
-VID_CAP_SCALE=100 STUB_HOLD="$T/hold" STUB_ENTER="$T/entered" STUB_CASE_TIME=300 batch || fail 'the batch was refused'
+STUB_HOLD="$T/hold" STUB_ENTER="$T/entered" STUB_CASE_TIME=300 batch || fail 'the batch was refused'
 TD=.vid/requests/$TK
 waitfor "$T/entered" 30 || fail 'no chunk reached its up'
 rc=0; VID_WAIT_MAX=3 sh checks/test.sh wait "$TK" > "$T/wait" 2>&1 || rc=$?

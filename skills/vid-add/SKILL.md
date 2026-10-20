@@ -21,6 +21,7 @@ Every answer lands in the PRD's answer ledger (below); a skipped product
 answer is a `model_proposed` ledger row and the item it grounds is born
 `provisional | confirms_via: owner-decision/no` — routed, never narrated;
 a skipped technical choice is a DECISIONS entry with `| origin: proposal`.
+A new DECISIONS line takes its number from `sh checks/decisions.sh next` (v0.26.10.4), reserved at the home.
 Under a PRD headed `grammar: 0.9.4` or later, a skipped answer that a T0
 item would rest on is not skipped: the owner is present, so the
 mini-interview asks it (checks/prd.sh join 18 refuses a T0 item resting on
@@ -113,6 +114,25 @@ Run /vid grade (see the vid-grade skill) with focus restricted to the
 new/amended REQs plus every seam the delta touched. Present the findings
 table; the owner adjudicates; apply the accepted rows via the /vid fix
 protocol — same dual-write, same scoped internal re-grade.
+
+**A change to the law, counted first (v0.26.10.3 R3, R5).** A question
+whose recommended answer would change a fail-if or a row's obligation
+quotes `sh checks/inventory.sh impact` on a scratch draft of the change,
+and a bulk approval asks once before landing when any row would be reset
+(vid-develop's two-channel rule). Before the re-grade, the test-author
+pass judges every row the sitting's amendments flag (`sh checks/brief.sh
+authority --changed`, rows to confirm included): kept with `authority
+--kept`, or its obligation amended.
+
+**ViD's own defects (v0.26.10.3 R12, R13).** When a ViD check, hook,
+skill or agent role misbehaves — it refuses legitimate work, crashes,
+contradicts itself or its documentation, or gives a wrong count — or when
+you use a workaround around one, append an entry to `.vid/VID-FINDINGS.md`
+in the form of `${CLAUDE_PLUGIN_ROOT}/templates/VID-FINDINGS.md` (the file
+is created from it at the first entry; entries are numbered in the file),
+record `sh checks/event.sh 'vid-finding n=<n> area=check|hook|skill|agent file=<ViD
+path>'`, and tell the owner in one line. A defect in the product being
+built is not a ViD finding.
 
 ## 5. Hand back
 

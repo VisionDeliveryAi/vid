@@ -4,7 +4,7 @@
 # teardown blocked: `wait` returns the result and the run's own exit
 # status — 0 for a passing run, 1 for a failing one — followed by
 # `teardown pending`, while the slot and the run folder are still held and
-# the ledger-run event is written but no teardown event yet; the cap's
+# the ledger-run event is written but no teardown event yet; the run's
 # watcher has stopped. Released, the teardown frees both, writes `teardown
 # seconds=<s> report=<the receipt>`, and the result is left as the run
 # wrote it. The published seconds hold no teardown. (R2) Outside a develop
@@ -39,7 +39,7 @@ for c in passed:0 failed:1; do
   grep -q "^ledger-run .* request=$TK " .vid/metrics-events || fail "$CS: no ledger-run event before the teardown"
   [ "$(grep -c '^teardown ' .vid/metrics-events || true)" -eq "$N0" ] || fail "$CS: a teardown event before the teardown"
   [ "$(cat "$TD/state")" = done ] && [ "$(cat "$TD/exit")" = "$RC0" ] || fail "$CS: the state or the exit is not the run's"
-  kill -0 "$(cat "$TD/watcher")" 2>/dev/null && fail "$CS: the cap's watcher outlived the result"
+  kill -0 "$(cat "$TD/watcher")" 2>/dev/null && fail "$CS: the run's watcher outlived the result"
   R0=$(cksum < "$TD/result"); RF=$(cat "$TD/run")   # v0.9.8.1 (R45): `run` goes with its folder — read it while held
   rm -f "$T/hold"
   gone "$T/run/vid-host/stack.1" || fail "$CS: the slot was not freed after the teardown"

@@ -170,7 +170,7 @@
 # v0.9.7.0.2 (3.1–3.3; R1–R3, R8, R9) — every run is a request:
 #   request --type <type> --role <role> --why "<one line>" [--rows <ROW-id,…> | --rows-file <path>]
 #           [--steps <id,…>] [--expect <seconds>] [-- <selection> [--deployed-selection <selection>]]
-#     answers at once (at most 6 lines: the ticket, the estimate and the cap,
+#     answers at once (at most 6 lines: the ticket, the estimate and the limits,
 #     the rows with no history, the queue position, the next command) and
 #     starts the run detached from the caller, in a new session where the
 #     host offers one. Types and who may ask: prove-red (test-author,
@@ -184,7 +184,7 @@
 #     selection is the caller's, in the runner's syntax (ViD never builds
 #     one); full takes none. The ticket is .vid/requests/<UTC>-<4 hex>/ at the
 #     run's home (here outside a run): `request` (the arguments, rows,
-#     estimate, cap), `state` (queued, running, done, capped,
+#     estimate, limits), `state` (queued, running, done, capped,
 #     failed-to-start, stopped), `log` (the run's own output, never
 #     printed), `passes`, `result`. The run is this script's matching
 #     invocation with --wait (the lease's wait is the queue) and
@@ -198,29 +198,34 @@
 #     with no history 10 s; --expect <s> replaces the rows' case total of
 #     one pass and is recorded (v0.9.8.1 R12: an iterate whose deployed
 #     selection repeats an inline selection word counts the cases once a
-#     pass, --expect included). The cap is twice the estimate, counted from the moment
-#     the run takes its slot (`running`): a watcher started with the run
-#     writes `cap-hit` and stops the run through the signal path (v0.9.8.1 R40: the cap counts from when the
-#     tests container is first seen running, tests-at, once there is one; until then from running-at; R43: a gap between the watcher's 5 s ticks of more
-#     than 40 s is host sleep, added to the deadline, said as `host slept <n> s during this run`, recorded as the
-#     request's slept=<n>, and no analyst is due for such a run's cap) (no later
-#     pass, no receipt, `capped=yes` in the event). Only the run's own
-#     completion writes a final state, after `result`.
-#   wait <ticket>  reads `state` every 5 s for at most 240 s: queued or
-#     running → one line `<state> <elapsed>s of estimate <e>s, cap <c>s`
-#     (`stopping (cap)` while cap-hit exists), exit 75; still running 60 s
-#     past its cap with no cap-hit → `overdue`, exit 76; ended (done,
-#     capped, failed-to-start, stopped, with `result`) → `result`, and the
-#     run's own exit status; no such ticket → exit 2. Never the run's log.
-#   VID_WAIT_MAX and VID_CAP_SCALE are test-only overrides (the wait's
-#   bound in seconds; a factor on the cap and the overdue margin).
+#     pass, --expect included). v0.26.10.4 (R1–R5): the estimate stops nothing — it
+#     plans, shows and chunks. A watcher started with the run (rq_watch) stops it on
+#     silence: no new output for the silence limit (20 min), a watched pass's
+#     start-up past the start-up limit (60 min), or the run limit (24 h awake) —
+#     `.vid/budget` silence-minutes=, startup-minutes=, run-limit-minutes=; the env
+#     VID_SILENCE_SECONDS, VID_STARTUP_SECONDS, VID_RUN_LIMIT_SECONDS override them
+#     (the self-test's). Time is ticks × 5 s, so a host sleep never counts. It
+#     writes `cap-hit` (reason=silent|startup|limit, last-output=) and stops the run
+#     through the signal path (no later pass, no receipt, `capped=yes
+#     stop=<reason>` in the event). The request carries silence=, startup=, limit=
+#     (the estimate's start-up term is estimate-startup=; old tickets' cap= and
+#     slept= are still read as written). Only the run's own completion writes a
+#     final state, after `result`.
+#   wait <ticket>  reads `state` every 5 s for at most 200 s: queued → one line
+#     `queued <elapsed>s of estimate <e>s`; running → `running <awake>s of
+#     estimate <e>s, silent <s>s of <limit>s`, the watcher's own counts from its
+#     `watch` file (`stopping (<reason>)` while cap-hit exists), exit 75; still
+#     running while its watcher's process is gone → `overdue`, exit 76; ended
+#     (done, capped, failed-to-start, stopped, with `result`) → `result`, and
+#     the run's own exit status; no such ticket → exit 2. Never the run's log.
+#   VID_WAIT_MAX is a test-only override (the wait's bound in seconds).
 #   v0.9.7.3 (3.9, R9): VID_WAIT_MAX is ignored in a checkout whose .vid/home
-#   names a run; a capped result prints `retry: --expect <s>`, s twice the
-#   ticket's `cases=` estimate.
+#   names a run. A capped result's first line says why (v0.26.10.4 R4).
 # v0.9.7.0.3 (3.1; R1–R3) — the test analyst's triggers: a request's
 #   completion, after `result` and before the final `state`, checks three
 #   triggers in order (a legacy plain run never: it is no request):
-#   cap — `cap-hit` is in the ticket folder; setup — AN_SETUP_CASES or more
+#   cap — `cap-hit` is in the ticket folder (v0.26.10.4 R6: any of its three reasons; the event and the line carry
+#   stop=<reason> last-output=<UTC>); setup — AN_SETUP_CASES or more
 #   of the run's cases are red (not passed or skipped), each over
 #   AN_SETUP_SECONDS, whatever their messages; slow — a case over
 #   AN_SLOW_SECONDS, named by its row when `checks/evidence.sh reach`
@@ -266,11 +271,9 @@
 #   no-history line lists the row as `ROW-x (+k lines since its history)`.
 #   No test field, no file or an unreadable commit: no change. Lines, not
 #   cases: comments match too, so it only ever adds time.
-# v0.9.7.0.9 (3.2, R2): a capped run sets a floor. Each `ledger-run …
-#   capped=yes` event at the home names its request; each row of that
-#   ticket's rows file gets seconds ÷ the ticket's row count, rounded up; a
-#   row's estimate is at least the largest such floor written after its
-#   newest kept history. A capped run still keeps no receipt.
+# v0.9.7.0.9 (3.2, R2): a capped run set a floor on its rows' estimates —
+#   removed by v0.26.10.4 (R5): a run stopped on silence says nothing about
+#   its rows' duration. A capped run still keeps no receipt.
 # v0.9.7.0.9 (3.3, R3): a selection word holding whitespace or a quote is
 #   refused at once — by `request` before a ticket, by the direct run
 #   before any stack — naming the word: the harness command can't carry it.
@@ -279,7 +282,7 @@
 # v0.9.7.0.9 (3.5, R6): `request --type iterate` by a builder, fixer or
 #   test-author takes `--deployed-selection <selection>` when the harness
 #   declares deployed-selector: (refused when it does not): one ticket, one
-#   slot, one cap; the inline pass (<head>.live.sel-<hash>.run-<id>.xml),
+#   slot, one watcher; the inline pass (<head>.live.sel-<hash>.run-<id>.xml),
 #   then unless stopped the deployed pass, named by its own selection's
 #   hash (<head>.live.deployed.sel-<hash>.run-<id>.xml), each on a fresh
 #   stack; the estimate counts the start-up twice and the cases once.
@@ -297,7 +300,7 @@
 #   or the inline pass when a later pass is stopped — this script writes
 #   the ticket's `exit` (the aggregate status), `result`, the analyst's
 #   triggers and the final `state` (rq_final, once; `serve` then writes
-#   nothing), and stops the cap's watcher; then it tears down. The slot and
+#   nothing), and stops the run's watcher; then it tears down. The slot and
 #   the run folder are released after the final teardown, as before; `wait`
 #   adds `teardown pending` while the ticket's run folder (`run` in the
 #   ticket) is held. A teardown that fails between two passes stops the
@@ -329,7 +332,7 @@
 #   tests container is `running` until it has exited, every SVCPOLL s (15) one `docker inspect` over the run's compose
 #   project: a container of another service that exited non-zero or was killed for memory (OOMKilled), its FinishedAt
 #   at or after the tests' StartedAt, stops the run — the cause latched in the run folder first (`stopped: service
-#   <name> exited code <c>|killed for memory at <UTC> — see services.<pass>.txt`), then the cap's stop path (TERM to
+#   <name> exited code <c>|killed for memory at <UTC> — see services.<pass>.txt`), then the watcher's stop path (TERM to
 #   this script). Nothing is published; the result's first line is the cause; `ledger-run … report=none status=130 …
 #   stopped=service:<name>`. Exit 0 is no death (a one-shot); unhealthy is not judged. The watcher is stopped and
 #   reaped before publish and teardown. Docker only (VID_DOCKER), so stack-neutral; none without Docker.
@@ -382,7 +385,7 @@
 #   (<head>.proof.sel-<hash>.run-<id>.xml, <head>.proof.deployed.sel-<hash>.run-<id>.xml) — never an ordinary name, so
 #   no copy or alias is overwritten. The one ordinary-receipt rule is checks/evidence.sh's (`ordinary`): every reader
 #   that credits, claims, briefs, estimates or triggers skips such a receipt. Here: the estimate's history and its
-#   start-up median read no proof receipt, a capped proof sets no floor, and a proof's completion fires no analyst
+#   start-up median read no proof receipt, and a proof's completion fires no analyst
 #   trigger. Cost accounting keeps it (its `ledger-run` event stands).
 set -eu
 # v0.9.7.0.3 (3.1): the analyst's thresholds — named in skills/vid-test-manager
@@ -405,12 +408,20 @@ rq_hostd() { _hd="${XDG_RUNTIME_DIR:-${TMPDIR:-/tmp}}"; printf '%s/vid-host\n' "
 rq_sub() { case "$1" in */*) printf '%s/chunks/%s\n' "${1%%/*}" "${1#*/}" ;; *) printf '%s\n' "$1" ;; esac; }
 # rq_dir <ticket> [<home>]: the ticket's folder — at the run's home, else here
 rq_dir() { for _d in "${2:-.}/.vid/requests/$(rq_sub "$1")" ".vid/requests/$(rq_sub "$1")"; do [ -d "$_d" ] && { (cd "$_d" && pwd); return 0; }; done; return 1; }
+# v0.26.10.3 (R8, F-42): the run's home whether the gate is on or not (plan.sh home-of), else '' — and a ticket found
+# wherever its run is: at that home, here, then in every checkout's .vid/requests/ (ticket ids are unique), so a stopped
+# run's ticket is found after its agent has ended; rq_stopped <ticket dir> prints "the run is stopped" when its home's
+# RUN-STATE says so
+rq_home() { [ -f checks/plan.sh ] || return 0; sh checks/plan.sh home-of 2>/dev/null | head -n 1; }
+rq_find() { rq_dir "$1" "$2" && return 0
+  for _w in $(git worktree list --porcelain 2>/dev/null | sed -n 's/^worktree //p'); do [ -d "$_w/.vid/requests/$(rq_sub "$1")" ] && { (cd "$_w/.vid/requests/$(rq_sub "$1")" && pwd); return 0; }; done; return 1; }
+rq_stopped() { _sh=${1%/.vid/requests/*}; [ "$(sed -n 's/^run:[[:space:]]*//p' "$_sh/.vid/RUN-STATE.md" 2>/dev/null | head -n 1 | awk '{ print $1 }')" = stopped ] && echo 'the run is stopped'; return 0; }
 # ROWLINES: the awk program of the builder brief's section 9 search (checks/brief.sh holds the same line) — the numbers
 # of the lines holding row id `a` as ROW-n or ROW_n, a whole id, comma-separated
 ROWLINES='BEGIN { b = a; gsub(/-/, "_", b) } function w(s, id,   p, q, o, x, y) { q = s; o = 0; while ((p = index(q, id)) > 0) { x = (o + p > 1) ? substr(s, o + p - 1, 1) : ""; y = substr(s, o + p + length(id), 1); if (x !~ /[A-Za-z0-9]/ && y !~ /[A-Za-z0-9]/) return 1; o += p; q = substr(s, o + 1) } return 0 } w($0, a) || w($0, b) { printf "%s%d", (n++ ? "," : ""), NR }'
 # rq_nlines <row>: how many lines of stdin name the row (the section 9 search)
 rq_nlines() { awk -v a="$1" "$ROWLINES" | tr ',' '\n' | grep -c . || true; }
-# rq_estimate <home> <rows file> → STARTUP CASES EST CAP NH, $RQT/nohist, $RQT/unseen (R8; v0.9.7.0.9 R1, R2)
+# rq_estimate <home> <rows file> → STARTUP CASES EST NH, $RQT/nohist, $RQT/unseen (R8; v0.9.7.0.9 R1; v0.26.10.4 R5: no cap, no floor)
 # SUPN (default 1): how many times the start-up is counted — 2 for an iterate request carrying both passes (R6)
 # CASN (default 1): how many times the cases are counted — 2 when that request's deployed selection repeats an inline word (v0.9.8.1 R12)
 # TWOP (default no): yes for a request with two passes — its teardown between them is counted once, TDN
@@ -463,23 +474,10 @@ rq_estimate() {
       [ "$_n1" -gt "$_n0" ] && printf '%s\t%s\n' "$_id" "$((_n1 - _n0))"
     done > "$RQT/unseen" || true
   fi
-  # v0.9.7.0.9 (3.2, R2): each capped request at the home (a `ledger-run … capped=yes` event, its ticket's rows file)
-  # sets a floor on each of its rows, seconds ÷ its row count rounded up — the largest since the row's newest kept history
-  : > "$RQT/floors"
-  if [ -f "$_ev" ]; then
-    awk '$1 == "ledger-run" && / capped=yes( |$)/ && !/ purpose=proof( |$)/ { t = ""; s = ""; for (i = 2; i <= NF; i++) { if (index($i, "request=") == 1) t = substr($i, 9); else if (index($i, "seconds=") == 1) s = substr($i, 9) }
-      if (t != "" && s ~ /^[0-9]+$/) print NR "\t" t "\t" s }' "$_ev" | while IFS="$TX" read -r _ln _tk _s; do
-      _rf="$1/.vid/requests/$(rq_sub "$_tk")/rows"; [ -s "$_rf" ] || continue
-      _n=$(grep -c . "$_rf"); awk -v ln="$_ln" -v f="$(( (_s + _n - 1) / _n ))" 'NF { print ln "\t" $1 "\t" f }' "$_rf"
-    done > "$RQT/floors" || true
-  fi
-  CASES=$(awk -F'\t' -v uf="$RQT/unseen" -v ff="$RQT/floors" -v ev="$_ev" '
-    BEGIN { while ((getline l < uf) > 0) { split(l, a, "\t"); U[a[1]] = a[2] }
-      while ((getline l < ev) > 0) { n++; if (l !~ /^ledger-run /) continue; k = split(l, a, " "); for (i = 2; i <= k; i++) if (index(a[i], "report=") == 1) L[substr(a[i], 8)] = n }
-      while ((getline l < ff) > 0) { split(l, a, "\t"); FL[++nf] = a[1]; FR[nf] = a[2]; FV[nf] = a[3] } }
-    { r = $2; if ($1 == "H") { v = $3 + 10 * U[r]; h = L[$4] + 0 } else { v = 10; h = 0 }
-      for (i = 1; i <= nf; i++) if (FR[i] == r && FL[i] > h && FV[i] > v) v = FV[i]
-      s += v }
+  # v0.26.10.4 (R5): no capped floor — a run stopped on silence says nothing about its rows' duration
+  CASES=$(awk -F'\t' -v uf="$RQT/unseen" '
+    BEGIN { while ((getline l < uf) > 0) { split(l, a, "\t"); U[a[1]] = a[2] } }
+    { r = $2; if ($1 == "H") v = $3 + 10 * U[r]; else v = 10; s += v }
     END { printf "%d\n", s + 0.999 }' "$RQT/hist")
   # v0.9.8.1 (R26, F-15): a selection word that names a test file reaches every recorded case of it — the newest
   # seconds of each, inline receipts for the inline selection, deployed ones for the deployed — and the larger of
@@ -511,34 +509,73 @@ rq_estimate() {
   # the start-up term: a deployed-only request the deployed figure; two passes the inline and the deployed; else the inline
   if [ "${TYPE:-}" = deployed ]; then SUT=$STARTUPD; elif [ "${SUPN:-1}" -eq 2 ]; then SUT=$((STARTUP + STARTUPD)); else SUT=$STARTUP; fi
   EST=$(( SUT + ${CASN:-1} * CASES + TDN ))
-  CAP=$(awk -v e="$EST" -v f="${VID_CAP_SCALE:-1}" 'BEGIN { c = int(2 * e * f + 0.5); if (c < 1) c = 1; print c }')
 }
-# rq_watch <ticket dir> <cap>: the cap's watcher — from `running`, at the cap: cap-hit, then the stop signal (R9)
+# v0.26.10.4 (R1–R3): rq_limits <home> → SIL SUL LIM, the silence, start-up and run limits in seconds — 20, 60 and
+# 1440 minutes, else the home's .vid/budget `silence-minutes=`, `startup-minutes=`, `run-limit-minutes=`; the env
+# VID_SILENCE_SECONDS, VID_STARTUP_SECONDS, VID_RUN_LIMIT_SECONDS override them (the self-test's)
+rq_limits() {
+  _bm() { _v=$(sed -n "s/^$1=\([0-9][0-9]*\).*/\1/p" "$2/.vid/budget" 2>/dev/null | head -n 1); [ -n "$_v" ] && [ "$_v" -gt 0 ] && echo $((_v * 60)) || echo "$3"; }
+  SIL=$(_bm silence-minutes "$1" 1200); SUL=$(_bm startup-minutes "$1" 3600); LIM=$(_bm run-limit-minutes "$1" 86400)
+  case "${VID_SILENCE_SECONDS:-}" in ''|*[!0-9]*) ;; *) SIL=$VID_SILENCE_SECONDS ;; esac
+  case "${VID_STARTUP_SECONDS:-}" in ''|*[!0-9]*) ;; *) SUL=$VID_STARTUP_SECONDS ;; esac
+  case "${VID_RUN_LIMIT_SECONDS:-}" in ''|*[!0-9]*) ;; *) LIM=$VID_RUN_LIMIT_SECONDS ;; esac
+}
+# rq_dur <seconds>: a limit as said — `20 min`, `24 h`, `45 s`
+rq_dur() { if [ "$1" -gt 3600 ] && [ $(($1 % 3600)) -eq 0 ]; then echo "$(($1 / 3600)) h"; elif [ "$1" -ge 60 ] && [ $(($1 % 60)) -eq 0 ]; then echo "$(($1 / 60)) min"; else echo "$1 s"; fi; }
+# rq_size <file>: its bytes, 0 when it is not there
+rq_size() { if [ -f "$1" ]; then wc -c < "$1" | tr -d ' '; else echo 0; fi; }
+# rq_watch <ticket dir>: the run's watcher (v0.26.10.4 R1–R3; it replaces the cap's) — from `running`, one tick each
+# 5 s, every count ticks × 5 s, so a host sleep pauses it and never counts. The pass is the run's `pass` file
+# (inline|deployed); its phase is `tests` once `tests-at.<pass>` exists, else `startup`. New output: new bytes in the
+# ticket's `log`; during start-up also new bytes in the pass's Compose output (`compose.<pass>.err`) and a changed
+# last line of any service (`svcout.<pass>`, the services watcher's); after the tests start, only the tests
+# service's line. Each tick writes `watch` (awake= silent= pass= phase= at=). It stops the run — `cap-hit` with
+# reason= and last-output=, then TERM through the signal path — when the silence reaches the silence limit, a
+# watched pass's start-up (the services watcher started for it) reaches the start-up limit, or the awake time the run limit.
 rq_watch() {
   while :; do
     case "$(cat "$1/state" 2>/dev/null)" in running) break ;; queued) ;; *) return 0 ;; esac
     kill -0 "$(cat "$1/supervisor" 2>/dev/null || echo 0)" 2>/dev/null || return 0
     sleep 1
   done
-  # v0.9.8.1 (R40, F-32): the cap counts from when the tests start (tests-at, written by the services watcher once the
-  # tests container runs), not from when the environment was taken; until then from running-at, as before, so a stack
-  # that never comes up still ends at running-at + cap. Without Docker no tests-at is written: today's clock.
-  # v0.9.8.1 (R43, F-34): the watcher ticks every 5 s; a gap between ticks of more than twice that plus 30 s is host
-  # sleep, and the gap less one tick is added to the deadline (a sleep before the tests start is dropped with the old
-  # base). The total is kept in the ticket's `slept`. No OS sleep log is read.
-  _ra=$(cat "$1/running-at"); _b=$_ra; _ta=''; _sb=0; _tk=$(date +%s)
-  _end=$(( _b + $2 ))
-  while [ "$(date +%s)" -lt "$_end" ]; do
-    [ "$(cat "$1/state" 2>/dev/null)" = running ] || return 0
-    if [ -z "$_ta" ] && [ -f "$1/tests-at" ]; then _ta=$(cat "$1/tests-at" 2>/dev/null); case "$_ta" in ''|*[!0-9]*) _ta=x ;; *) [ "$_ta" -gt "$_ra" ] && { _b=$_ta; _sb=0; _end=$(( _b + $2 )); } ;; esac; fi
-    _l=$(( _end - $(date +%s) )); [ "$_l" -gt 5 ] && _l=5; [ "$_l" -gt 0 ] && sleep "$_l"
-    _n=$(date +%s); _g=$(( _n - _tk )); _tk=$_n
-    if [ "$_g" -gt 40 ]; then _sb=$(( _sb + _g - 5 )); _end=$(( _b + $2 + _sb ))
-      rq_put "$1/slept" "$(( $(cat "$1/slept" 2>/dev/null || echo 0) + _g - 5 ))"; fi
+  _sil=$(rq_kv silence "$1/request"); _sul=$(rq_kv startup "$1/request"); _lim=$(rq_kv limit "$1/request")
+  _p0=inline; { [ "$(rq_kv type "$1/request")" = deployed ] || { [ -z "$(rq_kv sel "$1/request")" ] && [ "$(rq_kv hasdsel "$1/request")" = yes ]; }; } && _p0=deployed
+  _aw=0; _si=0; _su=0; _pa=''; _last=$(date -u '+%Y-%m-%dT%H:%M:%SZ'); _ls=$(rq_size "$1/log"); _ws=0; _sv=''; _ph=''
+  _why=''
+  while [ -z "$_why" ]; do
+    sleep 5
+    [ "$(cat "$1/state" 2>/dev/null)" = running ] && [ ! -f "$1/result" ] || return 0
+    _aw=$((_aw + 5))
+    _p=$(cat "$1/pass" 2>/dev/null || true); [ -n "$_p" ] || _p=$_p0
+    _f=startup; [ -f "$1/tests-at.$_p" ] && _f=tests
+    if [ "$_p" != "$_pa" ] || [ "$_f" != "$_ph" ]; then   # a new pass or phase: its own baselines, never output in itself
+      [ "$_p" != "$_pa" ] && { _su=0; _ws=$(rq_size "$1/compose.$_p.err"); }
+      _pa=$_p; _ph=$_f; _sv=$(if [ "$_f" = tests ]; then grep '^tests	' "$1/svcout.$_p"; else cat "$1/svcout.$_p"; fi 2>/dev/null || true)
+    fi
+    _o=no
+    _n=$(rq_size "$1/log"); [ "$_n" -gt "$_ls" ] && _o=yes; _ls=$_n
+    if [ "$_f" = startup ]; then _n=$(rq_size "$1/compose.$_p.err"); [ "$_n" -gt "$_ws" ] && _o=yes; _ws=$_n; fi
+    _n=$(if [ "$_f" = tests ]; then grep '^tests	' "$1/svcout.$_p"; else cat "$1/svcout.$_p"; fi 2>/dev/null || true)
+    [ "$_n" != "$_sv" ] && [ -n "$_n" ] && _o=yes; _sv=$_n
+    if [ "$_o" = yes ]; then _si=0; _last=$(date -u '+%Y-%m-%dT%H:%M:%SZ'); else _si=$((_si + 5)); fi
+    [ "$_f" = startup ] && _su=$((_su + 5))
+    rq_put "$1/watch" "awake=$_aw silent=$_si pass=$_p phase=$_f at=$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+    if [ "$_si" -ge "${_sil:-1200}" ]; then _why=silent
+    elif [ "$_f" = startup ] && [ -f "$1/svcout.$_p" ] && [ "$_su" -ge "${_sul:-3600}" ]; then _why=startup
+    elif [ "$_aw" -ge "${_lim:-86400}" ]; then _why=limit; fi
   done
   [ "$(cat "$1/state" 2>/dev/null)" = running ] && [ ! -f "$1/result" ] || return 0
-  rq_put "$1/cap-hit" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+  printf 'reason=%s\npass=%s\nlast-output=%s\nat=%s\n' "$_why" "$_p" "$_last" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" > "$1/cap-hit.tmp" && mv "$1/cap-hit.tmp" "$1/cap-hit"
   kill -TERM "$(cat "$1/pid" 2>/dev/null || echo 0)" 2>/dev/null || true
+}
+# rq_stopline <ticket dir>: the result's line saying why the watcher stopped the run (v0.26.10.4 R4)
+rq_stopline() {
+  _r=$(rq_kv reason "$1/cap-hit"); _lo=$(rq_kv last-output "$1/cap-hit" | sed 's/^[0-9-]*T\([0-9][0-9]:[0-9][0-9]\).*/\1/')
+  case "$_r" in
+    silent) echo "stopped: no new output for $(rq_dur "$(rq_kv silence "$1/request")") (last at $_lo UTC)" ;;
+    startup) echo "stopped: the $(rq_kv pass "$1/cap-hit") pass's start-up passed $(rq_dur "$(rq_kv startup "$1/request")")" ;;
+    limit) echo "stopped at the run limit ($(rq_dur "$(rq_kv limit "$1/request")") awake)" ;;
+  esac
 }
 # rq_result <ticket dir> <exit status>: `result` — never the log (R2)
 rq_result() {
@@ -547,9 +584,12 @@ rq_result() {
   {
     [ -s "$1/build-failed" ] && cat "$1/build-failed"   # v0.9.7.3 (3.9, R9): a failed image build, named first
     [ -s "$1/stopped" ] && cat "$1/stopped"   # v0.9.7.0.11 (3.3, R3): a service's death, named first
+    [ "$_cp" = yes ] && rq_stopline "$1"   # v0.26.10.4 (R4): why the watcher stopped it, in one line
     echo "status=$2 ran-to-end=${_rte:-no} capped=$_cp report=${_rep:-none}"
-    [ -s "$1/slept" ] && echo "host slept $(cat "$1/slept") s during this run"   # v0.9.8.1 (R43): not counted against the cap
-    awk -F'\t' '$1 != "none" { print $5 "/" $1 ".cases" }' "$1/passes" 2>/dev/null | while IFS= read -r _f; do [ -f "$_f" ] && cat "$_f"; done |
+    # v0.26.10.3 (R9, F-43): the counts from the receipt kept for the ticket — its .cases, else the report itself read by
+    # the results reader — so `cases none` means only that the receipt holds no case
+    awk -F'\t' '$1 != "none" { print $5 "/" $1 }' "$1/passes" 2>/dev/null | while IFS= read -r _f; do
+      if [ -f "$_f.cases" ]; then cat "$_f.cases"; elif [ -f "$_f" ] && [ -f checks/extractors/results.sh ]; then sh checks/extractors/results.sh "$_f" 2>/dev/null | grep -E '^case ' || true; fi; done |
       awk '$1 == "case" { n[$3]++; t++ } END { if (!t) { print "cases none"; exit } o = "cases"; split("passed failed error skipped", k, " ")
         for (i = 1; i <= 4; i++) if (k[i] in n) { o = o " " k[i] "=" n[k[i]]; delete n[k[i]] } for (s in n) o = o " " s "=" n[s]; print o }'
     if [ -f checks/evidence.sh ]; then
@@ -564,9 +604,6 @@ rq_result() {
     if [ -n "$_dx" ]; then echo "deployed pass: ended outside completed (exit $_dx), no receipt — the inline pass's receipt is kept"
       grep -E '^V[Ii]D test: (refused|teardown FAILED|the inline pass did not)' "$1/log" 2>/dev/null | head -n 3 | sed 's/^V[Ii]D test: /why: /'
     else grep -E '^V[Ii]D test: (refused|no report|teardown FAILED|the inline pass did not)' "$1/log" 2>/dev/null | head -n 3 | sed 's/^V[Ii]D test: /why: /'; fi
-    if [ "$_cp" = yes ] && [ -s "$1/nohist" ]; then echo "no-history rows=$(head -n 10 "$1/nohist" | paste -sd ',' -) — capped on 10 s a row; if they are slow, request again with --expect <seconds>"; fi
-    # v0.9.7.3 (3.9, R9): a capped result's retry figure — twice the ticket's case-seconds estimate
-    if [ "$_cp" = yes ]; then _cse=$(rq_kv cases "$1/request"); case "$_cse" in ''|*[!0-9]*) ;; *) [ "$_cse" -gt 0 ] && echo "retry: --expect $((2 * _cse))" ;; esac; fi
   } > "$1/result.tmp"
   mv "$1/result.tmp" "$1/result"
 }
@@ -581,7 +618,6 @@ rq_final() {
     rq_put "$1/state" cancelled; kill "$(cat "$1/watcher" 2>/dev/null || echo 0)" 2>/dev/null || true; return 0
   fi
   rq_put "$1/exit" "$2"
-  [ -s "$1/slept" ] && [ -z "$(rq_kv slept "$1/request")" ] && echo "slept=$(cat "$1/slept")" >> "$1/request"   # v0.9.8.1 (R43): the request records the host's sleep
   rq_result "$1" "$2"
   # v0.9.8 (R15): a proof's run triggers no analyst — its red is the fault's, by design
   [ "$(rq_kv purpose "$1/request")" = proof ] || rq_analyst "$1" || true   # v0.9.7.0.3 (3.1): before the final state, so a wait always sees it
@@ -591,7 +627,7 @@ rq_final() {
   elif [ ! -s "$1/passes" ]; then _fs=failed-to-start
   else _fs=done; fi
   rq_put "$1/state" "$_fs"
-  kill "$(cat "$1/watcher" 2>/dev/null || echo 0)" 2>/dev/null || true   # the cap's watcher stops with the result
+  kill "$(cat "$1/watcher" 2>/dev/null || echo 0)" 2>/dev/null || true   # the run's watcher stops with the result
 }
 # rq_analyst <ticket dir>: the analyst's triggers (v0.9.7.0.3 3.1) — one event and one result line per trigger that fires
 rq_analyst() {
@@ -607,8 +643,8 @@ rq_analyst() {
     printf 'analyst-due request=%s reason=%s%s at=%s\n' "$_tk" "$1" "$2" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >> "$_h/.vid/metrics-events"
     printf 'analyst due: %s request=%s%s\n' "$1" "$_tk" "$2" >> "$_at/lines"
   }
-  # v0.9.8.1 (R43, F-34): a cap on a run the host slept during is the sleep's — no analyst for it
-  [ -f "$1/cap-hit" ] && [ ! -s "$1/slept" ] && an_fire cap ''
+  # v0.26.10.4 (R6): the cap trigger fires on all three reasons the watcher stops a run, with the reason and the last output time
+  [ -f "$1/cap-hit" ] && an_fire cap " stop=$(rq_kv reason "$1/cap-hit") last-output=$(rq_kv last-output "$1/cap-hit")"
   _n=$(awk -v s="$AN_SETUP_SECONDS" '$1 == "case" && $3 != "passed" && $3 != "skipped" && $4 + 0 > s { n++ } END { print n + 0 }' "$_at/cases")
   if [ "$_n" -ge "$AN_SETUP_CASES" ]; then
     _g=''
@@ -679,9 +715,9 @@ bt_mkchunk() {
   _sl=$(awk -F'\t' '$5 != "" { printf "%s%s", (n++ ? " " : ""), $5 }' "$_cd/groups.t"); _dl=$(awk -F'\t' '$6 != "" { printf "%s%s", (n++ ? " " : ""), $6 }' "$_cd/groups.t")
   _sp=1; _td=0; _hd=no; [ -n "$_dl" ] && _hd=yes
   if [ -n "$_sl" ] && [ -n "$_dl" ]; then _sp=2; _td=$TDN; fi
-  _e=$(( _sp * STARTUP + $4 + _td )); _c=$(awk -v e="$_e" -v f="${VID_CAP_SCALE:-1}" 'BEGIN { c = int(2 * e * f + 0.5); if (c < 1) c = 1; print c }')
-  printf 'id=%s/%s\nbatch=%s\nchunk=%s\nphase=%s\ntype=close\nrole=orchestrator\nrunrole=close\nwhy=%s — chunk %s, phase %s\nrows=%s\nestimate=%s\ncap=%s\nstartup=%s\nteardown=%s\ncases=%s\nexpect=\nno-history=0\ncwd=%s\nsel=%s\ndsel=%s\nhasdsel=%s\nsteps=%s\ngated=yes\nprove=\nexport=%s\ntree=%s\nbase=%s\ncreated=%s\n' \
-    "$BID" "$1" "$BID" "$1" "$2" "$(rq_kv why "$TD/request")" "$1" "$2" "$(grep -c . "$_cd/rows" || true)" "$_e" "$_c" "$STARTUP" "$_td" "$4" "$PWD" "$_sl" "$_dl" "$_hd" "$(rq_kv steps "$TD/request")" "$BEXP" "$BTREE" "$BBASE" "$(date +%s)" > "$_cd/request"
+  _e=$(( _sp * STARTUP + $4 + _td ))   # v0.26.10.4 (R2): each chunk its own limits, the batch's (SIL SUL LIM)
+  printf 'id=%s/%s\nbatch=%s\nchunk=%s\nphase=%s\ntype=close\nrole=orchestrator\nrunrole=close\nwhy=%s — chunk %s, phase %s\nrows=%s\nestimate=%s\nsilence=%s\nstartup=%s\nlimit=%s\nestimate-startup=%s\nteardown=%s\ncases=%s\nexpect=\nno-history=0\ncwd=%s\nsel=%s\ndsel=%s\nhasdsel=%s\nsteps=%s\ngated=yes\nprove=\nexport=%s\ntree=%s\nbase=%s\ncreated=%s\n' \
+    "$BID" "$1" "$BID" "$1" "$2" "$(rq_kv why "$TD/request")" "$1" "$2" "$(grep -c . "$_cd/rows" || true)" "$_e" "$SIL" "$SUL" "$LIM" "$STARTUP" "$_td" "$4" "$PWD" "$_sl" "$_dl" "$_hd" "$(rq_kv steps "$TD/request")" "$BEXP" "$BTREE" "$BBASE" "$(date +%s)" > "$_cd/request"
   echo "$2" > "$_cd/phase"; rm -f "$_cd/groups.t"
   rq_put "$_cd/state" queued; : > "$_cd/log"
 }
@@ -832,7 +868,7 @@ batch_serve() {
   # packing: each phase's groups in order into chunks of about chunk-seconds of recorded case seconds; a group with no
   # history counts as the median per word (10 s a row when no group has any)
   CS=$(sed -n 's/^chunk-seconds=\([0-9][0-9]*\).*/\1/p' "$RQH/.vid/budget" 2>/dev/null | head -n 1); CS=${CS:-1200}
-  EXPECT=''; SUPN=1; TWOP=yes; rq_estimate "$RQH" "$TD/rows"
+  EXPECT=''; SUPN=1; TWOP=yes; rq_estimate "$RQH" "$TD/rows"; rq_limits "$RQH"
   awk -F'\t' -v hf="$RQT/hist" 'BEGIN { while ((getline l < hf) > 0) { split(l, a, "\t"); if (a[1] == "H") H[a[2]] = a[3] } }
     { n = split($4, r, ","); s = 0; h = 0; for (i = 1; i <= n; i++) if (r[i] in H) { s += H[r[i]]; h = 1 }
       w = split($5 " " $6, ww, " "); print $2 "\t" $3 "\t" (h ? s : -1) "\t" w "\t" n }' "$TD/groups" > "$RQT/gsec"
@@ -1067,7 +1103,7 @@ $(head -n 10 "$RQT/bad")"
     # declaring deployed-selector: — counts the teardown between them once
     TWOP=no; [ "$RHASD" = yes ] && TWOP=yes
     if [ "$TYPE" = full ] && [ -n "$(awk '/^x-vid-harness:/{inx=1; next} inx && /^[^ #]/{inx=0} inx && $1=="deployed-selector:" { print; exit }' docker-compose.test.yml 2>/dev/null)" ]; then TWOP=yes; fi
-    rq_estimate "$RQH" "$RQT/rows"
+    rq_estimate "$RQH" "$RQT/rows"; rq_limits "$RQH"
     NROWS=$(grep -c . "$RQT/rows" || true)
     TK="$(date -u '+%Y%m%dT%H%M%SZ')-$(od -An -N2 -tx1 /dev/urandom | tr -d ' \n')"
     mkdir -p "$RQH/.vid/requests"
@@ -1075,8 +1111,8 @@ $(head -n 10 "$RQT/bad")"
     TD=$(cd "$RQH/.vid/requests/$TK" && pwd)
     cp "$RQT/rows" "$TD/rows"; cp "$RQT/nohist" "$TD/nohist"
     [ "$BATCH" = no ] || cp "$RQT/groups" "$TD/groups"
-    printf 'type=%s\nrole=%s\nrunrole=%s\nwhy=%s\nrows=%s\nestimate=%s\ncap=%s\nstartup=%s\nteardown=%s\ncases=%s\nexpect=%s\nno-history=%s\ncwd=%s\nsel=%s\ndsel=%s\nhasdsel=%s\nsteps=%s\ngated=%s\nprove=%s\ncreated=%s\ntry=%s\n' \
-      "$TYPE" "$RROLE" "$RUNROLE" "$(printf '%s' "$WHY" | tr '"' "'")" "$NROWS" "$EST" "$CAP" "$STARTUP" "$TDN" "$CASES" "$EXPECT" "$NH" "$PWD" "$RSEL" "$RDSEL" "$RHASD" "$STEPS" "$RQG" "${VID_TESTENV_PROVE:-}" "$(date +%s)" "$RTRY" > "$TD/request"
+    printf 'type=%s\nrole=%s\nrunrole=%s\nwhy=%s\nrows=%s\nestimate=%s\nsilence=%s\nstartup=%s\nlimit=%s\nestimate-startup=%s\nteardown=%s\ncases=%s\nexpect=%s\nno-history=%s\ncwd=%s\nsel=%s\ndsel=%s\nhasdsel=%s\nsteps=%s\ngated=%s\nprove=%s\ncreated=%s\ntry=%s\n' \
+      "$TYPE" "$RROLE" "$RUNROLE" "$(printf '%s' "$WHY" | tr '"' "'")" "$NROWS" "$EST" "$SIL" "$SUL" "$LIM" "$STARTUP" "$TDN" "$CASES" "$EXPECT" "$NH" "$PWD" "$RSEL" "$RDSEL" "$RHASD" "$STEPS" "$RQG" "${VID_TESTENV_PROVE:-}" "$(date +%s)" "$RTRY" > "$TD/request"
     [ -z "$RPURP" ] || echo "purpose=$RPURP" >> "$TD/request"   # v0.9.8 (R15)
     [ "$BATCH" = no ] || echo 'batch=yes' >> "$TD/request"
     rq_put "$TD/state" queued
@@ -1097,7 +1133,7 @@ $(head -n 10 "$RQT/bad")"
     if [ "$BATCH" = yes ]; then echo "ViD test: request $TK — close batch, $NROWS row(s) in $(grep -c . "$TD/groups") group(s), role $RROLE; chunks are packed at serve, after close-rows is frozen"
     else echo "ViD test: request $TK — $TYPE, $NROWS row(s), role $RROLE"; fi
     if [ "$TYPE" = deployed ]; then _sul="${STARTUPD}s"; elif [ "$SUPN" -eq 2 ] && [ "$STARTUP" = "$STARTUPD" ]; then _sul="2 × ${STARTUP}s"; elif [ "$SUPN" -eq 2 ]; then _sul="${STARTUP}s + ${STARTUPD}s deployed"; else _sul="${STARTUP}s"; fi
-    echo "estimate ${EST}s (start-up $_sul + cases $([ "$CASN" -eq 2 ] && echo '2 × ')${CASES}s${EXPECT:+, from --expect}$([ -z "$EXPECT" ] && [ "$FROMF" = yes ] && echo ", from the selection's files")$([ "$TDN" -gt 0 ] && echo " + teardown between the passes ${TDN}s")) · cap ${CAP}s from when it takes a slot"
+    echo "estimate ${EST}s (start-up $_sul + cases $([ "$CASN" -eq 2 ] && echo '2 × ')${CASES}s${EXPECT:+, from --expect}$([ -z "$EXPECT" ] && [ "$FROMF" = yes ] && echo ", from the selection's files")$([ "$TDN" -gt 0 ] && echo " + teardown between the passes ${TDN}s")) · stops after $(rq_dur "$SIL") with no output, $(rq_dur "$SUL") of start-up, or $(rq_dur "$LIM")"
     # v0.9.8.1 (R26): the selection words resolving to no recorded case — the estimate cannot see what they reach
     if [ -z "$EXPECT" ] && [ -s "$RQT/unresolved" ]; then echo "selection reaches more than the rows: give --expect ($(head -n 10 "$RQT/unresolved" | paste -sd ' ' -) — no recorded case)"; fi
     # v0.9.7.0.9 (3.1, R1): a row whose test file gained lines naming it since its history is listed beside the rows with none
@@ -1125,7 +1161,7 @@ $(head -n 10 "$RQT/bad")"
     set +f
     # v0.9.7.1 (3.6, R6): a marked ticket never starts
     if [ -f "$TD/cancel" ]; then rq_final "$TD" 77; exit 0; fi
-    rq_watch "$TD" "$(rq_kv cap "$TD/request")" & echo "$!" > "$TD/watcher"
+    rq_watch "$TD" & echo "$!" > "$TD/watcher"
     _id=$(rq_kv id "$TD/request"); VID_REQUEST=${_id:-${TD##*/}} sh checks/test.sh "$@" >> "$TD/log" 2>&1 &
     TP=$!; echo "$TP" > "$TD/pid"
     rq_put "$TD/pid-start" "$(ps -o lstart= -p "$TP" 2>/dev/null | sed 's/^ *//')"
@@ -1152,9 +1188,15 @@ $(head -n 10 "$RQT/bad")"
     if [ -n "$CTRY" ] && [ -n "$CTK" ]; then rq_usage; fi
     [ -n "$CTRY$CTK" ] || rq_usage
     case "$CTRY$CTK$CBY" in *[!A-Za-z0-9._:-]*) rq_die "cancel takes an attempt id or a ticket id, and a name: letters, digits, '.', '_', ':' and '-'." ;; esac
-    _h=.; if [ -f checks/plan.sh ]; then _g=$(sh checks/plan.sh gate 2>/dev/null) || true; case "$_g" in 'on '*) [ -d "${_g#on }/.vid" ] && _h=${_g#on } ;; esac; fi
+    # v0.26.10.3 (R8): at the home whether the gate is on or not; with no match there, in every checkout
+    _h=.; _hh=$(rq_home); [ -n "$_hh" ] && [ -d "$_hh/.vid" ] && _h=$_hh
+    _hp=$(cd "$_h" && pwd -P); _cands=$_h
     _n=0
-    for _r in "$_h"/.vid/requests/*/request; do
+    for _cw in $(git worktree list --porcelain 2>/dev/null | sed -n 's/^worktree //p'); do [ "$(cd "$_cw" 2>/dev/null && pwd -P)" = "$_hp" ] || _cands="$_cands
+$_cw"; done
+    for _ch in $_cands; do
+    [ "$_n" -gt 0 ] && break
+    for _r in "$_ch"/.vid/requests/*/request; do
       [ -f "$_r" ] || continue
       if [ -n "$CTK" ]; then _rd=$(dirname "$_r"); [ "${_rd##*/}" = "$CTK" ] || continue; else [ "$(rq_kv try "$_r")" = "$CTRY" ] || continue; fi
       _d=$(cd "$(dirname "$_r")" && pwd); _t=${_d##*/}; _n=$((_n + 1)); _ctry=$(rq_kv try "$_r")   # the ticket's own try, empty when none
@@ -1162,7 +1204,7 @@ $(head -n 10 "$RQT/bad")"
       case "$_s" in done|capped|failed-to-start|stopped|cancelled) echo "$_t: $_s — left alone"; continue ;; esac
       if [ -f "$_d/cancel" ]; then echo "$_t: cancel already marked — nothing more"; continue; fi
       printf 'by=%s\nat=%s\n' "$CBY" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" > "$_d/cancel.tmp.$$" && mv "$_d/cancel.tmp.$$" "$_d/cancel"
-      printf 'ticket-cancelled ticket=%s try=%s by=%s at=%s\n' "$_t" "$_ctry" "$CBY" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >> "$_h/.vid/metrics-events"
+      printf 'ticket-cancelled ticket=%s try=%s by=%s at=%s\n' "$_t" "$_ctry" "$CBY" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >> "$_ch/.vid/metrics-events"
       _sig=no
       if [ "$(cat "$_d/state" 2>/dev/null)" = running ]; then
         _p=$(cat "$_d/pid" 2>/dev/null || true); _ps=$(cat "$_d/pid-start" 2>/dev/null || true)
@@ -1174,20 +1216,22 @@ $(head -n 10 "$RQT/bad")"
           && ps -o command= -p "$_sv" 2>/dev/null | grep -qF -- "serve $_d"; then kill -TERM "$_p" 2>/dev/null && _sig=yes; fi
       fi
       echo "$_t: $_s — cancel marked$([ "$_sig" = yes ] && echo ', TERM sent to its run'); confirm with sh checks/test.sh wait $_t"
+      rq_stopped "$_d"
+    done
     done
     if [ "$_n" -eq 0 ]; then if [ -n "$CTK" ]; then echo "ViD test: no ticket $CTK at $_h/.vid/requests/"; else echo "ViD test: no ticket carries try=$CTRY at $_h/.vid/requests/"; fi; fi
     exit 0 ;;
   wait)
     TK=${2:-}; [ -n "$TK" ] || rq_usage
-    _h=''; if [ -f checks/plan.sh ]; then _g=$(sh checks/plan.sh gate 2>/dev/null) && _h=${_g#on }; fi
-    TD=$(rq_dir "$TK" "$_h") || { echo "ViD test: no ticket $TK (.vid/requests/ at the run's home or here)." >&2; exit 2; }
+    _h=$(rq_home)   # v0.26.10.3 (R8): the home whether the gate is on or not, then every checkout
+    TD=$(rq_find "$TK" "$_h") || { echo "ViD test: no ticket $TK (.vid/requests/ at the run's home, here, or in any checkout)." >&2; exit 2; }
+    STOPL=$(rq_stopped "$TD")
     MAX=${VID_WAIT_MAX:-200}; W0=$(date +%s)
     # v0.9.7.3 (3.9, R9): VID_WAIT_MAX is the self-test's override only — ignored in a checkout whose .vid/home names
     # a run (a builder's worktree): its wait returns within 200 s
     _wt=$(git rev-parse --show-toplevel 2>/dev/null || pwd -P); _wh=$(sed -n 1p "$_wt/.vid/home" 2>/dev/null || true)
     if [ -n "$_wh" ] && [ -f "$_wh/.vid/RUN-STATE.md" ]; then MAX=200; fi
-    E=$(rq_kv estimate "$TD/request"); C=$(rq_kv cap "$TD/request")
-    OD=$(awk -v f="${VID_CAP_SCALE:-1}" 'BEGIN { c = int(60 * f + 0.5); if (c < 1) c = 1; print c }')
+    E=$(rq_kv estimate "$TD/request"); SL=$(rq_kv silence "$TD/request")
     while :; do
       S=$(cat "$TD/state" 2>/dev/null || echo queued)
       case "$S" in done|capped|failed-to-start|stopped|cancelled) if [ -f "$TD/result" ]; then cat "$TD/result"
@@ -1197,26 +1241,36 @@ $(head -n 10 "$RQT/bad")"
             if grep -q '^teardown-failed' "$_rf/holder" 2>/dev/null; then echo 'teardown failed — the slot and the run folder are kept (teardown-failed at the run'"'"'s home); the result stands'
             else echo 'teardown pending'; fi
           fi
+          [ -n "$STOPL" ] && echo "$STOPL"
           exit "$(cat "$TD/exit" 2>/dev/null || echo 1)"; fi ;; esac
       NOW=$(date +%s)
-      # v0.9.7.0.12 (3.2, R2): a batch's parent — its chunks' progress; it has no cap of its own (each chunk has one)
+      # v0.9.7.0.12 (3.2, R2): a batch's parent — its chunks' progress; it has no limits of its own (each chunk has its own)
       if [ "$(rq_kv batch "$TD/request")" = yes ]; then
         if [ $(( NOW - W0 )) -ge "$MAX" ]; then
           if [ "$S" = running ]; then echo "running $(( NOW - $(cat "$TD/running-at" 2>/dev/null || echo "$NOW") ))s — chunks $(TD=$TD bt_progress) done"
           else echo "queued $(( NOW - $(rq_kv created "$TD/request") ))s — freezing close-rows and packing the chunks"; [ -s "$TD/holders" ] && cat "$TD/holders"; fi
+          [ -n "$STOPL" ] && echo "$STOPL"
           exit 75
         fi
         _l=$(( MAX - (NOW - W0) )); [ "$_l" -gt 5 ] && _l=5; sleep "$_l"; continue
       fi
-      if [ "$S" = running ]; then EL=$(( NOW - $(cat "$TD/running-at" 2>/dev/null || echo "$NOW") )); else EL=$(( NOW - $(rq_kv created "$TD/request") )); fi
-      if [ "$S" = running ] && [ ! -f "$TD/cap-hit" ] && [ "$EL" -gt $(( C + OD )) ]; then
-        echo "overdue ${EL}s of estimate ${E}s, cap ${C}s — still running ${OD}s past its cap with no cap-hit: its cap watcher is gone (ticket $TK)"
+      # v0.26.10.4 (R4): a running request's counts are its watcher's own (the `watch` file: awake, silent), so the two
+      # never disagree; `overdue` means the run is still running while its watcher's process is gone
+      if [ "$S" = running ]; then EL=$(sed -n 's/^awake=\([0-9]*\).*/\1/p' "$TD/watch" 2>/dev/null || true); SI=$(sed -n 's/.* silent=\([0-9]*\).*/\1/p' "$TD/watch" 2>/dev/null || true)
+        EL=${EL:-0}; SI=${SI:-0}
+      else EL=$(( NOW - $(rq_kv created "$TD/request") )); fi
+      if [ "$S" = running ] && [ ! -f "$TD/cap-hit" ] && [ -s "$TD/watcher" ] && ! pid_alive "$(cat "$TD/watcher")" \
+        && [ ! -f "$TD/result" ] && [ "$(cat "$TD/state" 2>/dev/null)" = running ]; then
+        echo "overdue ${EL}s of estimate ${E}s — still running and its watcher's process ($(cat "$TD/watcher")) is gone: nothing stops it on silence (ticket $TK)"
         exit 76
       fi
       if [ $(( NOW - W0 )) -ge "$MAX" ]; then
-        if [ -f "$TD/cap-hit" ]; then echo "stopping (cap) ${EL}s of estimate ${E}s, cap ${C}s"; else echo "$S ${EL}s of estimate ${E}s, cap ${C}s"; fi
+        if [ -f "$TD/cap-hit" ]; then echo "stopping ($(rq_kv reason "$TD/cap-hit")) ${EL}s of estimate ${E}s"
+        elif [ "$S" = running ]; then echo "running ${EL}s of estimate ${E}s, silent ${SI}s of ${SL:-1200}s"
+        else echo "$S ${EL}s of estimate ${E}s"; fi
         # v0.9.7.0.8 (T2.1): while queued, why — the slots' holders as the run last saw them
         [ "$S" = queued ] && [ -s "$TD/holders" ] && cat "$TD/holders"
+        [ -n "$STOPL" ] && echo "$STOPL"
         exit 75
       fi
       _l=$(( MAX - (NOW - W0) )); [ "$_l" -gt 5 ] && _l=5
@@ -1296,7 +1350,7 @@ if [ -n "${VID_REQUEST:-}" ]; then
   for _d in "${VHOME:-.}/.vid/requests/$(rq_sub "$VID_REQUEST")" ".vid/requests/$(rq_sub "$VID_REQUEST")"; do [ -d "$_d" ] && { TD=$(cd "$_d" && pwd); break; }; done
   if [ -n "$TD" ]; then   # the request's fields ride its events; a direct call with no ticket (the runner's own tests) records none
     _rk() { sed -n "s/^$1=//p" "$TD/request" | head -n 1; }
-    RQF=" request=$VID_REQUEST type=$(_rk type) rows=$(_rk rows) estimate=$(_rk estimate) cap=$(_rk cap)"
+    RQF=" request=$VID_REQUEST type=$(_rk type) rows=$(_rk rows) estimate=$(_rk estimate) silence=$(_rk silence) startup=$(_rk startup) limit=$(_rk limit)"
     [ -n "$(_rk try)" ] && RQF="$RQF try=$(_rk try)"   # v0.9.7.1 (3.6, R6)
     [ -n "$(_rk expect)" ] && RQF="$RQF expect=$(_rk expect)"
     [ "$(_rk no-history)" != 0 ] && RQF="$RQF no-history=$(_rk no-history)"
@@ -1564,6 +1618,7 @@ teardown() {
   [ -n "$DOWNA" ] || return 0
   _a=$DOWNA; _pr=$DOWNP; DOWNA=''; DOWNP=''
   if [ "$_pr" = deployed ]; then set -- --profile deployed down; else set -- down; fi
+  [ "$INTERRUPTED" -eq 1 ] && norestart   # v0.26.10.3 (R11): before the logs below, whichever path got here
   if [ "$GATED" = yes ]; then
     svc_states "${_pr:-inline}"   # v0.9.7.0.11 (3.4, R4): the pass's container states, before its down — the signal path too
     [ "$INTERRUPTED" -eq 1 ] && tl_stop "${_pr:-inline}"   # v0.9.8.1 (R44): a stopped pass's logs, before its down
@@ -1581,15 +1636,18 @@ teardown() {
 proj_left() { _o=$($DOCKER ps -a -q --filter "label=com.docker.compose.project=$COMPOSE_PROJECT_NAME" 2>/dev/null) || return 1; printf '%s\n' "$_o" | grep -c . || true; }
 # up_stop: v0.9.7.0.12 (3.9, R9) — the signal path while a pass's Compose call runs: TERM to it and its children, reaped
 # within VID_UP_REAP (60) s, then the down; with Docker, the project's containers confirmed gone (else 10 s, the down again)
+# norestart: v0.9.8.1 (R45, F-37) — a stop is final: no restart policy applies to the project's containers, so none (the
+# tests container's above all) starts again before the down (Docker only). v0.26.10.3 (R11): every interrupted teardown
+# path runs it before it collects logs — a cancel or TERM during a deployed run's first `up -d` included
+norestart() {
+  [ -n "$DOCKER" ] && [ -n "${COMPOSE_PROJECT_NAME:-}" ] || return 0
+  _ids=$($DOCKER ps -a -q --filter "label=com.docker.compose.project=$COMPOSE_PROJECT_NAME" 2>/dev/null || true)
+  # shellcheck disable=SC2086
+  [ -z "$_ids" ] || $DOCKER update --restart=no $_ids >/dev/null 2>&1 || true
+}
 up_stop() {
   _da=$DOWNA; _dp=$DOWNP; _kids=$(pgrep -P "$UPPID" 2>/dev/null || true)
-  # v0.9.8.1 (R45, F-37): a stop is final — before the TERM, no restart policy applies to the project's containers, so
-  # none (the tests container's above all) starts again between the TERM and the down (Docker only)
-  if [ -n "$DOCKER" ] && [ -n "${COMPOSE_PROJECT_NAME:-}" ]; then
-    _ids=$($DOCKER ps -a -q --filter "label=com.docker.compose.project=$COMPOSE_PROJECT_NAME" 2>/dev/null || true)
-    # shellcheck disable=SC2086
-    [ -z "$_ids" ] || $DOCKER update --restart=no $_ids >/dev/null 2>&1 || true
-  fi
+  norestart   # before the TERM
   # shellcheck disable=SC2086
   kill -TERM $_kids 2>/dev/null || true; kill -TERM "$UPPID" 2>/dev/null || true
   _live() { for _p in "$UPPID" $_kids; do kill -0 "$_p" 2>/dev/null && return 0; done; return 1; }
@@ -1641,7 +1699,8 @@ cleanup() {
   return 0
 }
 # v0.9.7.0.2 (3.1, R9): a request stopped at its cap — the event, written after teardown: report=none capped=yes
-# (v0.9.7.0.11 3.3, R3: or <mark>, stopped=service:<name> for a service's death)
+# (v0.9.7.0.11 3.3, R3: or <mark>, stopped=service:<name> for a service's death; v0.26.10.4 R4: a run its watcher
+# stopped, capped=yes stop=silent|startup|limit)
 rq_capev() {
   _k=${KIND:-}; [ -n "$_k" ] || { _k=full; [ -n "$SEL" ] && _k=scoped; [ "$SELCLOSE" = yes ] && _k=$ROLE; }
   _x=''; [ "$GATED" = yes ] && _x=" tree=${TREE:-} run=$RUNID"; [ "$TDFAIL" = yes ] && _x="$_x teardown=failed"
@@ -1652,7 +1711,7 @@ on_signal() { INTERRUPTED=1; rm -f "$PENDING"
   _sv=''; [ -n "$RUN" ] && [ -s "$RUN/stopped" ] && _sv=$(cat "$RUN/stopped")   # v0.9.7.0.11 (3.3, R3): latched before the signal
   [ -n "$_sv" ] && [ -n "$TD" ] && rq_put "$TD/stopped" "$_sv"
   cleanup
-  if [ -n "$TD" ] && [ -f "$TD/cap-hit" ]; then rq_capev; echo 'ViD test: stopped at its cap — no later pass, no receipt.' >&2
+  if [ -n "$TD" ] && [ -f "$TD/cap-hit" ]; then rq_capev "capped=yes stop=$(rq_kv reason "$TD/cap-hit")"; echo "ViD test: $(rq_stopline "$TD") — no later pass, no receipt." >&2
   elif [ -n "$TD" ] && [ -f "$TD/cancel" ] && [ -f "$TD/running-at" ]; then rq_capev 'cancelled=yes'; echo 'ViD test: cancelled — no later pass, no receipt.' >&2
   elif [ -n "$TD" ] && [ -n "$_sv" ]; then rq_capev "stopped=service:$(printf '%s\n' "$_sv" | sed -n 's/^stopped: service \([^ ]*\) .*/\1/p')"; echo "ViD test: $_sv — no later pass, no receipt." >&2; fi
   echo 'ViD test: interrupted — no report written (a receipt names a run that completed).' >&2; exit 130; }
@@ -1938,17 +1997,23 @@ svc_inspect() {
   # shellcheck disable=SC2086
   $DOCKER inspect --format "$1" $_ids 2>/dev/null
 }
-# svc_watch <pass>: every SVCPOLL s while the tests container runs, a container of another service that exited non-zero
-# or was killed for memory, finished after the tests started, stops the run through the cap's stop path — the cause first
+# svc_watch <pass>: every SVCPOLL s from the pass's bring-up (v0.26.10.4 R1: the deployed pass's too, before its `up -d`)
+# — each service's last log line to the ticket's svcout.<pass> (`<service><TAB><line>`; a changed line is the service's
+# new output, read by the run's watcher); and, while the tests container runs, a container of another service that
+# exited non-zero or was killed for memory, finished after the tests started, stops the run through the watcher's stop
+# path — the cause first
 svc_watch() {
-  _wf='{{index .Config.Labels "com.docker.compose.service"}}|{{.State.Status}}|{{.State.ExitCode}}|{{.State.OOMKilled}}|{{.State.StartedAt}}|{{.State.FinishedAt}}'
+  _wf='{{index .Config.Labels "com.docker.compose.service"}}|{{.State.Status}}|{{.State.ExitCode}}|{{.State.OOMKilled}}|{{.State.StartedAt}}|{{.State.FinishedAt}}|{{.Name}}'
   while :; do
     sleep "$SVCPOLL"
     svc_inspect "$_wf" > "$RUN/svc.now" 2>/dev/null || continue
+    awk -F'|' 'NF >= 7 && $1 != "" { n = $7; sub(/^\//, "", n); print $1 "\t" n }' "$RUN/svc.now" | while IFS="$TX" read -r _sn _cn; do
+      printf '%s\t%s\n' "$_sn" "$($DOCKER logs --timestamps --tail 1 "$_cn" 2>&1 | tail -n 1 | cut -c1-300)"; done > "$TD/svcout.$1.tmp" 2>/dev/null && mv "$TD/svcout.$1.tmp" "$TD/svcout.$1"
     _t0=$(awk -F'|' '$1 == "tests" && $2 == "running" { print substr($5, 1, 19); exit }' "$RUN/svc.now")
     [ -n "$_t0" ] || continue   # armed only while the tests container runs
-    # v0.9.8.1 (R40, F-32): the moment the tests are first seen running — the cap watcher counts the cap from it
-    [ -f "$TD/tests-at" ] || { date +%s > "$TD/tests-at.tmp" && mv "$TD/tests-at.tmp" "$TD/tests-at"; }
+    # v0.26.10.4 (R1): the moment this pass's tests are first seen running — its start-up ends; the watcher judges its
+    # output by the tests service alone from then (v0.9.8.1 R40's tests-at, now one per pass)
+    [ -f "$TD/tests-at.$1" ] || { date +%s > "$TD/tests-at.$1.tmp" && mv "$TD/tests-at.$1.tmp" "$TD/tests-at.$1"; }
     _d=$(awk -F'|' -v t0="$_t0" '$1 != "tests" && ($2 == "exited" || $2 == "dead") && ($3 != 0 || $4 == "true") && substr($6, 1, 19) >= t0 {
         print $1 "|" ($4 == "true" ? "killed for memory" : "exited code " $3) "|" substr($6, 1, 19) "Z"; exit }' "$RUN/svc.now")
     [ -n "$_d" ] || continue
@@ -1958,7 +2023,9 @@ svc_watch() {
   done
 }
 SWPID=''
-svc_start() { [ "$GATED" = yes ] && [ -n "$TD" ] && [ -n "$DOCKER" ] || return 0; svc_watch "$1" & SWPID=$!; }
+# svc_start <pass>: the services watcher, with an empty svcout.<pass> at once — a watched pass, whose start-up the
+# run's watcher may bound (v0.26.10.4 R2)
+svc_start() { [ "$GATED" = yes ] && [ -n "$TD" ] && [ -n "$DOCKER" ] || return 0; : > "$TD/svcout.$1"; svc_watch "$1" & SWPID=$!; }
 svc_stop() { [ -n "$SWPID" ] || return 0; kill "$SWPID" 2>/dev/null || true; wait "$SWPID" 2>/dev/null || true; SWPID=''; }
 # svc_states <pass>: the ticket's services.<pass>.txt — name, state, exit, memory kill, health, restarts, started-at,
 # kept-healthy-at (v0.9.8 R17, was ready-at: the first passing check Docker still kept in its rolling health log when
@@ -2064,8 +2131,11 @@ inline_pass() {
   rm -f "$PENDING"; TDREP=none
   START=$(date +%s); STATUS=0
   DOWNA=$3; DOWNP=''
+  [ -z "$TD" ] || rq_put "$TD/pass" inline   # v0.26.10.4 (R1): the pass the run's watcher judges
   svc_start inline
-  WERR=$(mktemp)   # v0.9.7.3 (R9): Compose's standard error, kept to read a failed build, then passed on
+  # v0.9.7.3 (R9): Compose's standard error, kept to read a failed build, then passed on; v0.26.10.4 (R1): a request's
+  # in its ticket folder, compose.inline.err, so the run's watcher sees it grow during the start-up
+  if [ -n "$TD" ]; then WERR="$TD/compose.inline.err"; : > "$WERR"; else WERR=$(mktemp); fi
   waited dc up --build --exit-code-from tests tests || STATUS=$?
   cat "$WERR" >&2 2>/dev/null || true
   BUILDFAIL=no; build_failed "$STATUS" "$WERR" && BUILDFAIL=yes; rm -f "$WERR"; WERR=
@@ -2091,14 +2161,15 @@ deployed_pass() {
   START=$(date +%s); STATUS=0
   VID_SELECTOR=$3; export VID_SELECTOR
   DOWNA='--remove-orphans --volumes'; DOWNP=deployed
+  [ -z "$TD" ] || rq_put "$TD/pass" deployed   # v0.26.10.4 (R1): the pass the run's watcher judges
+  svc_start deployed   # v0.26.10.4 (R1): from the bring-up, not after `up -d` returns
   # shellcheck disable=SC2086
   if ( VID_INLINE=0; VID_SCHEDULE_FAST=1; export VID_INLINE VID_SCHEDULE_FAST; dc --profile deployed up -d --build product $PROFSVCS ); then
-    svc_start deployed
     waited deployed_up || STATUS=$?
-    svc_stop
   else
     STATUS=$?; echo "ViD test: the deployed shape did not come up (product and $PROFSVCS) — no deployed report." >&2
   fi
+  svc_stop
   if [ "$GATED" = yes ]; then   # v0.9.7.0.10 (3.1): publish, the result, then tear down
     publish "$1" "$2" "$STATUS" "$(( $(date +%s) - START ))" "${4:-}" deployed
     rq_early

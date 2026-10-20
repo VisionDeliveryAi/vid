@@ -4,7 +4,8 @@
 # main checkout: a worktree whose own RUN-STATE is stopped stays off (its
 # test run takes the lock, ungated); a worktree whose valid .vid/home names
 # a stopped run stays off too — the link wins over the live run found
-# among the checkouts; an unrelated repository stays off. Env: CHECKS.
+# among the checkouts; an unrelated repository stays off. v0.26.10.3 (R8): both stay off because no live agent of
+# the stopped run is bound to their branch; the bound case is gate-stopped-agent's. Env: CHECKS.
 set -eu
 T=$(mktemp -d); trap 'set +e; rm -rf "$T" 2>/dev/null' EXIT
 . "$CHECKS/selftest/fixtures/gated-run.sh"

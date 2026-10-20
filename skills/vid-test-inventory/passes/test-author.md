@@ -55,6 +55,9 @@ returns, one line per row briefed, never fewer:
     interface contract the harness lacks> — paid at <slice/boundary>
   - <row id> → kept — <why its test stands under the changed
     authority>   (a row briefed as authority-changed, v0.9.8 R6)
+  - <row id> → amend — <the changed clause this row tests, or why
+    the pass can't show it doesn't>   (a row briefed as to confirm,
+    v0.26.10.3 R3; the caller amends its obligation in a law commit)
 ```
 
 **The brief is a file (v0.9.3 3.1).** The caller writes this pass's brief

@@ -2,7 +2,7 @@
 # Purpose: selftest case — a chunk is retried once, alone, only after a cap, a signal or a non-product service's
 # death (v0.9.7.0.12 spec 3.4; R4; §6 B). Phase 1 is one chunk (both S2 rows in one group). A signal to its run:
 # retried from the export, the retry green, the batch green, retried=1. A datastore's death: retried and green. A
-# cap, then a cap of its retry: `incomplete phase 1, chunks 1` with `incomplete chunk=1 why=its retry was lost too
+# cap (v0.26.10.4: its watcher's stop), then a cap of its retry: `incomplete phase 1, chunks 1` with `incomplete chunk=1 why=its retry was lost too
 # (cap)`. A run whose tests exit outside `completed:`: incomplete, no retry. The product's death: red, naming the
 # chunk, no retry. Each batch at a tree of its own. Env: CHECKS.
 set -eu
@@ -45,13 +45,13 @@ export VID_DOCKER="$T/docker.sh" VID_SERVICE_POLL=1
 printf 'db|running|0|false|2026-01-01T00:00:01Z|%s\n' "$Z" > "$T/watch.ok"
 fresh; printf 'tests|running|0|false|2026-01-01T00:00:10Z|%s\ndb|exited|1|false|2026-01-01T00:00:01Z|2026-01-01T00:00:20Z\n' "$Z" > "$T/watch"
 held
-VID_CAP_SCALE=100 STUB_HOLD="$T/hold" go; unset STUB_HOLD VID_CAP_SCALE
+STUB_HOLD="$T/hold" go; unset STUB_HOLD
 [ "$RC" -eq 0 ] || fail "a datastore's death was not retried green ($RC)"
 grep -q '^stopped: service db ' "$TD/chunks/1/stopped" && [ "$(cat "$TD/chunks/1/outcome")" = retry ] || fail 'the datastore death was not the retry cause'
 # the product dies: red, no retry
 fresh; printf 'tests|running|0|false|2026-01-01T00:00:10Z|%s\nproduct|exited|1|false|2026-01-01T00:00:01Z|2026-01-01T00:00:20Z\n' "$Z" > "$T/watch"
 held
-VID_CAP_SCALE=100 STUB_HOLD="$T/hold" go; unset STUB_HOLD VID_CAP_SCALE
+STUB_HOLD="$T/hold" go; unset STUB_HOLD
 [ "$RC" -eq 1 ] && head -n 1 "$TD/result" | grep -qx 'red phase 1, chunks 1' || fail "the product's death did not end the batch red at chunk 1 ($RC)"
 grep -q "^red chunk=1 why=the product's process product died" "$TD/result" && [ ! -d "$TD/chunks/1-retry" ] || fail "the product's death was retried or not named"
 unset VID_DOCKER VID_SERVICE_POLL
@@ -59,8 +59,8 @@ unset VID_DOCKER VID_SERVICE_POLL
 fresh; STUB_STATUS=2 go; unset STUB_STATUS
 [ "$RC" -eq 1 ] && head -n 1 "$TD/result" | grep -qx 'incomplete phase 1, chunks 1' || fail "an exit outside completed: did not end incomplete ($RC)"
 [ ! -d "$TD/chunks/1-retry" ] && ev | grep -q ' retried=0 ' || fail 'an exit outside completed: was retried'
-# a cap, then its retry's cap: incomplete
-fresh; : > "$T/hold"; VID_CAP_SCALE=1 STUB_HOLD="$T/hold" go; unset STUB_HOLD VID_CAP_SCALE; rm -f "$T/hold"
+# a cap (its watcher's silence stop, v0.26.10.4), then its retry's cap: incomplete
+fresh; : > "$T/hold"; VID_SILENCE_SECONDS=5 STUB_HOLD="$T/hold" go; unset STUB_HOLD VID_SILENCE_SECONDS; rm -f "$T/hold"
 [ "$RC" -eq 1 ] && head -n 1 "$TD/result" | grep -qx 'incomplete phase 1, chunks 1' || fail "a capped retry did not end incomplete ($RC)"
 grep -q '^incomplete chunk=1 why=its retry was lost too (cap)' "$TD/result" && ev | grep -q ' retried=1 ' || fail 'the lost retry is not named'
 [ "$(cat "$TD/chunks/1/state")" = capped ] && [ "$(cat "$TD/chunks/1-retry/state")" = capped ] || fail 'the chunk and its retry were not both capped'

@@ -73,6 +73,7 @@
 #        sh checks/metrics.sh step-state <id>[,<id>…]|--all | defer --kind product|test --row <id> --why "<…>" --from brief:<path>#<row>|receipt:<name> [--by <who>] | defer-resolved --row <id> --by <commit|brief>   (v0.9.7.2)
 #        sh checks/metrics.sh delegated --answer <A-id>   (v0.9.7.4)
 #        sh checks/metrics.sh test-state [--rows <ROW-id,…>]   (v0.9.8: written, passing, proven per row — derived)
+#        sh checks/metrics.sh to-confirm [--rows <ROW-id,…>]   (v0.26.10.3: the rows whose law changed and no resolution covers — R2)
 #        sh checks/metrics.sh proof --row <id> --brief <grader brief> --fault <patch> --target <case> --control <case> --clean <receipt|none> --red <receipt|none>   (v0.9.8)
 # Always exits 0 — a reporter, not a gate; the blocking lives in the
 # courts that own each number.
@@ -465,6 +466,57 @@ if [ "${1:-}" = timing ]; then
   exit 0
 fi
 
+# --- v0.26.10.3 (R2): the to-confirm state, and its one resolution rule ---------------------------------------------
+# A row is TO CONFIRM when it has a `law-changed row=<id> sha=<L> item=<REQ-id,…>` (checks/hooks/post-commit: an item
+# it derives from changed its effective fail-if; its own obligation did not) that no resolution covers. A resolution —
+# `authority-kept row= sha=<S>` (checks/brief.sh authority --kept) or `amended row= sha=<S>` — covers L only when L is
+# an ancestor of S (S incorporates the change; S = L counts) and S is an ancestor of the HEAD evaluated (S has landed):
+# a resolution on a branch not merged, or made on a branch forked before L, never counts. A change at an L the HEAD
+# evaluated does not hold is not a change to that HEAD's law and puts nothing to confirm. Verdicts, attempts, holds,
+# allowances and evidence are untouched (checks/evidence.sh reads only `amended`); completion counts the rows unmet.
+# This function is the rule; `to-confirm` prints it for checks/brief.sh authority --changed and checks/inventory.sh.
+#   sh checks/metrics.sh to-confirm [--rows <ROW-id,…>]   → `to-confirm row=<id> since=<L> item=<ids>` per row (its
+#   earliest uncovered change, the items of every uncovered one), then `to-confirm rows=<n>`
+toconfirm93() { # $1=out file → `<row><TAB><L><TAB><items>` per row to confirm, sorted by row
+  : > "$1"
+  [ -f "$EV" ] && grep -q '^law-changed ' "$EV" 2>/dev/null || return 0
+  git rev-parse -q --verify HEAD > /dev/null 2>&1 || return 0
+  _tw=$(mktemp -d)
+  awk 'function kv(k,   i) { for (i = 2; i <= NF; i++) if (index($i, k "=") == 1) return substr($i, length(k) + 2); return "" }
+    $1 == "law-changed" && kv("row") != "" && kv("sha") != "" { print "L\t" kv("row") "\t" kv("sha") "\t" NR "\t" kv("item"); next }
+    ($1 == "authority-kept" || $1 == "amended") && kv("row") != "" && kv("sha") != "" { print "S\t" kv("row") "\t" kv("sha") "\t" NR }' "$EV" > "$_tw/ev"
+  awk -F'\t' 'NR == FNR { if ($1 == "L") L[$2] = 1; next } ($2 in L)' "$_tw/ev" "$_tw/ev" > "$_tw/ev3"   # the rows with a change
+  # each distinct commit: does the HEAD evaluated hold it?
+  cut -f3 "$_tw/ev3" | sort -u | while IFS= read -r _c; do
+    if git merge-base --is-ancestor "$_c" HEAD 2> /dev/null; then printf '%s\tyes\n' "$_c"; else printf '%s\tno\n' "$_c"; fi
+  done > "$_tw/inhead"
+  # the pairs to judge: a change and a resolution of the same row, both held by HEAD
+  awk -F'\t' 'FILENAME == ARGV[1] { H[$1] = $2; next } H[$3] != "yes" { next } $1 == "L" { NL[$2]++; LS[$2, NL[$2]] = $3 } $1 == "S" { NS[$2]++; SS[$2, NS[$2]] = $3 }
+    END { for (r in NL) for (i = 1; i <= NL[r]; i++) for (j = 1; j <= NS[r] + 0; j++) { k = LS[r, i] "\t" SS[r, j]; if (!(k in P)) { P[k] = 1; print k } } }' "$_tw/inhead" "$_tw/ev3" > "$_tw/pairs"
+  while IFS='	' read -r _l _s; do
+    if [ "$_l" = "$_s" ] || git merge-base --is-ancestor "$_l" "$_s" 2> /dev/null; then printf '%s\t%s\n' "$_l" "$_s"; fi
+  done < "$_tw/pairs" > "$_tw/covers"
+  awk -F'\t' 'FILENAME == ARGV[1] { H[$1] = $2; next } FILENAME == ARGV[2] { C[$1, $2] = 1; next }
+    H[$3] != "yes" { next }
+    $1 == "S" { NS[$2]++; SS[$2, NS[$2]] = $3; next }
+    $1 == "L" { NL[$2]++; LS[$2, NL[$2]] = $3; LI[$2, NL[$2]] = $5 }
+    END { for (r in NL) { since = ""; items = ""
+        for (i = 1; i <= NL[r]; i++) { cov = 0; for (j = 1; j <= NS[r] + 0; j++) if ((LS[r, i], SS[r, j]) in C) { cov = 1; break }
+          if (cov) continue
+          if (since == "") since = LS[r, i]
+          n = split(LI[r, i], it, ","); for (k = 1; k <= n; k++) if (it[k] != "" && !((r, it[k]) in SEEN)) { SEEN[r, it[k]] = 1; items = items (items == "" ? "" : ",") it[k] } }
+        if (since != "") print r "\t" since "\t" (items == "" ? "-" : items) } }' "$_tw/inhead" "$_tw/covers" "$_tw/ev3" | sort > "$1"
+  rm -rf "$_tw"
+}
+if [ "${1:-}" = to-confirm ]; then
+  shift; TCR=''
+  while [ $# -gt 0 ]; do case "$1" in --rows) TCR=${2:-}; shift 2 ;; *) echo 'metrics to-confirm: usage — sh checks/metrics.sh to-confirm [--rows <ROW-id,…>]' >&2; exit 2 ;; esac; done
+  tmp93; toconfirm93 "$TMP93/tc"
+  if [ -n "$TCR" ]; then printf '%s\n' "$TCR" | tr ', ' '\n\n' | grep -v '^$' > "$TMP93/tcw"; awk -F'\t' 'NR == FNR { W[$1] = 1; next } ($1 in W)' "$TMP93/tcw" "$TMP93/tc" > "$TMP93/tc2" && mv "$TMP93/tc2" "$TMP93/tc"; fi
+  awk -F'\t' '{ printf "to-confirm row=%s since=%s item=%s\n", $1, $2, $3; n++ } END { printf "to-confirm rows=%d\n", n + 0 }' "$TMP93/tc"
+  exit 0
+fi
+
 # --- v0.9.3 early-exit subcommands (3.5, 3.6, 3.10, 3.13) — the engine above ---
 case "${1:-}" in receipt|row-state|closure|completion|fix-population)
   SUB=$1; shift
@@ -530,6 +582,15 @@ case "${1:-}" in receipt|row-state|closure|completion|fix-population)
       U=$(printf '%s\n' "$CL" | awk '$2=="contract-ambiguity"||$2=="invalid-test-evidence"||$2=="unfinished-implementation" { sub(/^n=/,"",$3); u+=$3 } END { print u+0 }')
       ND=$(printf '%s\n' "$CL" | awk '$2=="deploy-owed" { sub(/^n=/,"",$3); print $3+0 }')
       NL=$(printf '%s\n' "$CL" | awk '$2=="later" { sub(/^n=/,"",$3); print $3+0 }')
+      # v0.26.10.3 (R2): never complete while a row is to confirm — each counted unmet (once: a row the closure
+      # already counts unmet is not counted again) and named
+      toconfirm93 "$TMP93/tc"
+      TCL=''
+      if [ -s "$TMP93/tc" ]; then
+        TCL="to confirm: $(grep -c . "$TMP93/tc") ($(cut -f1 "$TMP93/tc" | paste -sd ' ' -))"
+        TCX=$(printf '%s\n' "$CL" | awk 'NR == FNR { if ($2=="contract-ambiguity"||$2=="invalid-test-evidence"||$2=="unfinished-implementation") for (i=4;i<=NF;i++) M[$i]=1; next } { split($0, a, "\t"); if (!(a[1] in M)) n++ } END { print n+0 }' - "$TMP93/tc")
+        U=$((U + TCX))
+      fi
       G=uncounted
       if [ -f checks/coverage.sh ]; then
         CS=$(VID_COURT_EVENT=off sh checks/coverage.sh --strict 2>/dev/null | grep '^REQs: ' | tail -n 1 || true)
@@ -558,6 +619,7 @@ case "${1:-}" in receipt|row-state|closure|completion|fix-population)
         else HND='unread (checks/metrics.sh step-state)'; fi
       fi
       printf '%s\n' "$CL"
+      [ -n "$TCL" ] && printf '%s\n' "$TCL"
       [ -n "$LO" ] && printf '%s\n' "$LO"
       [ -n "$HND" ] && echo "hardening not done: $HND"
       echo "completion unmet=$U strict-gaps=$G"

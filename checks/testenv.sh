@@ -9,7 +9,7 @@
 #   measure --rows <ids> [--expect <s>] -- <sel>
 #                      one run of <sel>, a request (v0.9.7.0.2 3.4: `sh
 #                      checks/test.sh request --type iterate --role testenv
-#                      --rows <ids> -- <sel>`, so it has an estimate, a cap
+#                      --rows <ids> -- <sel>`, so it has an estimate, its limits
 #                      and a ticket; the rows are kept for prove) — this
 #                      call blocks until it ends, while `docker stats --no-stream` samples that run's
 #                      compose project every 5 s; records the peak memory of
@@ -66,17 +66,53 @@
 #                      into the home's branch, and (v0.9.8.1 R10) those whose
 #                      agent's return is recorded; declared operations with no
 #                      `done`. One `leftover <what> (<age>)` line each, then
-#                      `leftovers n=<k>`. Always exits 0.
+#                      `leftovers n=<k>`. Always exits 0. v0.26.10.3 (R10): a worktree whose branch a live agent or
+#                      Codex job is bound to (bound, below) is `in use`, never a leftover — judged before merged or returned.
 # VID_DOCKER overrides the docker command (the self-test drives a stub).
 # v0.9.7.0.8 (T3): with IFS a newline only, `--expect` and its value are passed
 # to the request as two words (as one, `--expect 120`, every request was refused).
-# Usage: sh checks/testenv.sh measure --rows <ROW-id,…> [--expect <seconds>] -- <selector> | heaviest | pick | prove [-- <selector>] | record | leftovers
+# Usage: sh checks/testenv.sh measure --rows <ROW-id,…> [--expect <seconds>] -- <selector> | heaviest | pick | prove [-- <selector>] | record | leftovers | bound [--home <dir>] [--branch <b>]
 set -u
 IFS='
 '
 DK=${VID_DOCKER:-docker}
-usage() { echo 'ViD testenv: usage — sh checks/testenv.sh measure --rows <ROW-id,…> [--expect <seconds>] -- <selector> | heaviest | pick | prove [-- <selector>] | record | leftovers' >&2; exit 2; }
+usage() { echo 'ViD testenv: usage — sh checks/testenv.sh measure --rows <ROW-id,…> [--expect <seconds>] -- <selector> | heaviest | pick | prove [-- <selector>] | record | leftovers | bound [--home <dir>] [--branch <b>]' >&2; exit 2; }
 SUB=${1:-}; [ -n "$SUB" ] || usage; shift
+# v0.26.10.3 (R10): the one liveness rule, shared with checks/plan.sh's gate (R8) — read before the gate, never through it.
+# An agent is LIVE when it has an `agent-start` or an `agent-brief` and no `agent-stop`, `build-cost` or
+# `agent-returned` after it (by agent=<id>, in the home's events); it is BOUND to the branch its recorded brief names
+# (the agent-brief's brief=, relative to the home or an older absolute path: its `branch:` header) and to the
+# platform's own worktree branch, worktree-agent-<id>. A Codex job is live from its `job-start` until a `job-exit`,
+# `job-cleaned` or `job-stop` (by try=), bound to vid/<try>. bound_list <home> prints `<branch><TAB><what>` a line.
+bound_list() {
+  _bev="$1/.vid/metrics-events"; [ -f "$_bev" ] || return 0
+  awk -v h="$1" 'function kv(k,   i) { for (i = 2; i <= NF; i++) if (index($i, k "=") == 1) return substr($i, length(k) + 2); return "" }
+    function bkv(   i, s, j) { i = index($0, " brief="); if (!i) return ""; s = substr($0, i + 7); j = match(s, / [a-z][a-z-]*=/); if (j) s = substr(s, 1, j - 1); if (index(s, h "/") == 1) s = substr(s, length(h) + 2); return s }
+    { a = kv("agent"); t = kv("try") }
+    ($1 == "agent-start" || $1 == "agent-brief") && a != "" { on[a] = 1; if ($1 == "agent-brief") B[a] = bkv() }
+    ($1 == "agent-stop" || $1 == "build-cost" || $1 == "agent-returned") && a != "" { on[a] = 0 }
+    $1 == "job-start" && t != "" { J[t] = 1 }
+    ($1 == "job-exit" || $1 == "job-cleaned" || $1 == "job-stop") && t != "" { J[t] = 0 }
+    END { for (a in on) if (on[a]) { print "worktree-agent-" a "\tagent " a; if (B[a] != "" && B[a] != "unavailable") print "\001\t" a "\t" B[a] }
+      for (t in J) if (J[t]) print "vid/" t "\tCodex job " t }' "$_bev" | while IFS='	' read -r _bb _ba _bp; do
+    if [ "$_bb" = "$(printf '\001')" ]; then
+      case "$_bp" in /*) _bf=$_bp ;; *) _bf="$1/$_bp" ;; esac
+      _bbr=$(sed -n '1,12s/^branch:[[:space:]]*//p' "$_bf" 2>/dev/null | head -n 1 | sed 's/[[:space:]]*$//')
+      [ -n "$_bbr" ] && printf '%s\tagent %s\n' "$_bbr" "$_ba"
+    else printf '%s\t%s\n' "$_bb" "$_ba"; fi
+  done
+}
+#   bound [--home <dir>] [--branch <b>]   the live agents' and jobs' branches at the run's home (default this
+#                      checkout), `bound <branch> <agent <id>|Codex job <try>>` a line; with --branch, exit 0 when a live
+#                      agent or job is bound to it, else 1, printing nothing. Read by checks/plan.sh gate and home-of.
+if [ "$SUB" = bound ]; then
+  BDH=''; BDB=''
+  while [ $# -gt 0 ]; do case "$1" in --home) BDH=${2:-}; shift 2 ;; --branch) BDB=${2:-}; shift 2 ;; *) usage ;; esac; done
+  [ -n "$BDH" ] || BDH=$(git rev-parse --show-toplevel 2>/dev/null || pwd -P)
+  if [ -n "$BDB" ]; then bound_list "$BDH" | awk -F'\t' -v b="$BDB" '$1 == b { f = 1 } END { exit f ? 0 : 1 }'; exit $?; fi
+  bound_list "$BDH" | sort -u | awk -F'\t' '{ print "bound " $1 " " $2 }'
+  exit 0
+fi
 G=$(sh checks/plan.sh gate 2>/dev/null || true)
 case "$G" in
   'on '*) H=${G#on } ;;
@@ -273,6 +309,7 @@ $d/"; continue; fi
         $1 == "build-cost" && (bkv(h) == b || bkv(hp) == b) { f = 1 } END { exit !f }' "$EV" && RETB="$RETB$rbr	${rf#"$H"/}
 "
     done
+    BOUND=$(bound_list "$H")
     for l in $(git -C "$H" worktree list --porcelain 2>/dev/null | awk '/^worktree / { w = substr($0, 10); n++ } /^branch refs\/heads\// { if (n > 1) print w "\t" substr($0, 19) }'); do
       WT=${l%%	*}; BR=${l#*	}
       [ "$(cd "$WT" 2>/dev/null && pwd -P)" = "$HP" ] && continue
@@ -281,15 +318,8 @@ $d/"; continue; fi
       # v0.9.8.1 (R39, F-33, safety): a worktree a live agent or attempt owns is `in use`, never a leftover — the branch
       # worktree-agent-<id> of an agent started with no stop, cost or return after, or vid/<try> of a Codex job started
       # with no exit or clean after
-      IU=''
-      case "$BR" in
-        worktree-agent-*) _ag=${BR#worktree-agent-}
-          [ -f "$EV" ] && awk -v a="agent=$_ag" '{ hit = 0; for (i = 2; i <= NF; i++) if ($i == a) hit = 1 } !hit { next }
-              $1 == "agent-start" { on = 1 } $1 == "agent-stop" || $1 == "build-cost" || $1 == "agent-returned" { on = 0 } END { exit on ? 0 : 1 }' "$EV" && IU="agent $_ag" ;;
-        vid/*) _tr=${BR#vid/}
-          [ -f "$EV" ] && awk -v t="try=$_tr" '{ hit = 0; for (i = 2; i <= NF; i++) if ($i == t) hit = 1 } !hit { next }
-              $1 == "job-start" { on = 1 } $1 == "job-exit" || $1 == "job-cleaned" || $1 == "job-stop" { on = 0 } END { exit on ? 0 : 1 }' "$EV" && IU="Codex job $_tr" ;;
-      esac
+      # v0.26.10.3 (R10): the one liveness rule (bound_list, above) — bound by the agent's recorded brief too
+      IU=$(printf '%s\n' "$BOUND" | awk -F'\t' -v b="$BR" '$1 == b { print $2; exit }')
       if [ -n "$IU" ]; then echo "in use: worktree $WT (branch $BR, $IU still working) — never a leftover"; continue; fi
       # merged only when the branch has commits beyond its base (its tip moved from where it was created, by its reflog)
       # and they are in the home's branch; a fresh worktree whose tip is its base is never offered

@@ -47,13 +47,13 @@ printf 'ledger-run seconds=15 kind=scoped report=nohead.live.sel-2.xml status=0 
 touch "$T/hold"; export STUB_HOLD="$T/hold"
 # the control: nothing gained since the history
 A=$(ask --type iterate --role builder --try t1 --rows ROW-001,ROW-002,ROW-003,ROW-004 --why 'nothing gained' -- tests/x)
-grep -q '^estimate 24s (start-up 13s + cases 11s) · cap 48s ' "$T/out" || fail "an unchanged test file changed the estimate: $(grep '^estimate' "$T/out")"
+grep -q '^estimate 24s (start-up 13s + cases 11s) · stops after ' "$T/out" || fail "an unchanged test file changed the estimate: $(grep '^estimate' "$T/out")"
 grep -q '^no-history' "$T/out" && fail 'a row whose test file is unchanged was listed'
 # ROW-001's file gains 3 lines naming it (one as ROW_001, one in a comment); ROW-002's is unchanged; ROW-003 owed
 printf 'check one-b  # ROW-001\n  step\ncheck_ROW_001_c\n  step\n# ROW-001 again\n' >> tests/invariants/t.py
 printf 'ROW-003 has a file nobody names\n' > tests/invariants/v.py
 B=$(ask --type iterate --role builder --try t1 --rows ROW-001,ROW-002,ROW-003,ROW-004 --why 'three lines gained' -- tests/x)
-grep -q '^estimate 54s (start-up 13s + cases 41s) · cap 108s ' "$T/out" || fail "3 lines gained did not add 30 s: $(grep '^estimate' "$T/out")"
+grep -q '^estimate 54s (start-up 13s + cases 41s) · stops after ' "$T/out" || fail "3 lines gained did not add 30 s: $(grep '^estimate' "$T/out")"
 grep -qx 'no-history 0: ROW-001 (+3 lines since its history) — 10 s each; give --expect <seconds> when they are slow' "$T/out" || fail "the no-history line does not list ROW-001's gained lines: $(grep '^no-history' "$T/out")"
 grep -q 'ROW-002\|ROW-003\|ROW-004' "$T/out" && fail 'an unchanged, owed or unreadable row was listed'
 # committed, the gain still counts against the history's commit; a row alone: ROW-002 untouched

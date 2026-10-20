@@ -45,8 +45,7 @@ TF=tests/invariants/test_s1.py
 WST=0
 run() { # <report> <request arguments…>: the ticket folder; the wait's exit in $T/wst
   _r=$1; shift
-  # v0.9.7.3 (R7): the toy's estimate is 1 s and its cap 2 s, which a loaded host overruns; the cap is not tested here
-  VID_CAP_SCALE=100 STUB_REPORT=$_r sh checks/test.sh request "$@" > "$T/out" 2>&1 || fail "the request was refused: $*"
+  STUB_REPORT=$_r sh checks/test.sh request "$@" > "$T/out" 2>&1 || fail "the request was refused: $*"
   _k=$(sed -n 's/^next: sh checks\/test.sh wait //p' "$T/out")
   # v0.9.7.3 (R7): waited until the ticket ends (the wait's 75: still queued or running), not for one bounded call
   _i=0; while :; do _w=0; VID_WAIT_MAX=10 sh checks/test.sh wait "$_k" > "$T/res" 2>&1 || _w=$?; [ "$_w" -eq 75 ] && [ "$_i" -lt 120 ] || break; _i=$((_i + 1)); done

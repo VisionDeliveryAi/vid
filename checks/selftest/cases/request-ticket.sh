@@ -2,7 +2,7 @@
 # Purpose: selftest case — a request answers at once (v0.9.7.0.2 spec 3.1,
 # R1; §6 B-1). Inside a develop run, an `iterate` request made from a linked
 # worktree with no .vid/ answers within 10 seconds (v0.9.8.1: 2 before), in at most 6 lines: the
-# ticket, the estimate and the cap, the queue position and the next
+# ticket, the estimate and the limits (v0.26.10.4; the cap before), the queue position and the next
 # command, `sh checks/test.sh wait <ticket>`. Its folder is at the run's
 # home, holding `request` and `state` (queued or running) — nothing in the
 # worktree — and `wait` from the worktree finds it. Env: CHECKS.
@@ -20,7 +20,7 @@ sh checks/test.sh request --type iterate --role builder --try t1 --rows ROW-001 
 [ "$(grep -c . "$T/out")" -le 6 ] || fail 'the answer is longer than 6 lines'
 TK=$(sed -n 's/^ViD test: request \([0-9TZ]*-[0-9a-f]*\) .*/\1/p' "$T/out")
 [ -n "$TK" ] || fail 'the answer names no ticket'
-grep -qE '^estimate [0-9]+s .* cap [0-9]+s' "$T/out" || fail 'the answer has no estimate and cap'
+grep -qE '^estimate [0-9]+s .* · stops after [0-9]+ (s|min|h) with no output, [0-9]+ (s|min|h) of start-up, or [0-9]+ (s|min|h)$' "$T/out" || fail 'the answer has no estimate and limits'
 grep -q '^queue: ' "$T/out" || fail 'the answer has no queue position'
 grep -qx "next: sh checks/test.sh wait $TK" "$T/out" || fail 'the answer does not name the wait command'
 [ -f "$T/home/.vid/requests/$TK/request" ] || fail 'the ticket folder is not at the home'

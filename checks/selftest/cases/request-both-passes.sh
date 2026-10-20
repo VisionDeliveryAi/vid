@@ -38,7 +38,7 @@ SHA=$(git rev-parse --short=12 HEAD)
 sh checks/test.sh request --type iterate --role builder --try t1 --rows ROW-001 --why 'both passes' -- tests/x --deployed-selection tests/d > "$T/out" 2>&1 || fail 'the request with both passes was refused'
 TK=$(sed -n 's/^next: sh checks\/test.sh wait //p' "$T/out")
 [ -n "$TK" ] && [ "$(ls .vid/requests | grep -c .)" -eq 1 ] || fail 'not exactly one ticket'
-grep -q '^estimate 190s (start-up 2 × 90s + cases 10s) · cap 380s ' "$T/out" || fail "the start-up is not counted twice and the cases once: $(grep '^estimate' "$T/out")"
+grep -q '^estimate 190s (start-up 2 × 90s + cases 10s) · stops after ' "$T/out" || fail "the start-up is not counted twice and the cases once: $(grep '^estimate' "$T/out")"
 grep -qx 'hasdsel=yes' ".vid/requests/$TK/request" && grep -qx 'dsel=tests/d' ".vid/requests/$TK/request" || fail 'the ticket does not carry the deployed selection'
 VID_WAIT_MAX=60 sh checks/test.sh wait "$TK" > "$T/out" 2>&1 || fail 'the run did not end green'
 L=$(grep '^r|' "$STUB_LOG")

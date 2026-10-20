@@ -1,6 +1,6 @@
 #!/bin/sh
 # Purpose: selftest case — a capped pass keeps its logs (v0.9.8.1 R44, F-36, widening R27). A held request stopped
-# at its 4 s cap: before its down, its ticket keeps the whole timeline (timeline.inline.log.gz, no tail, every line
+# by its watcher on 5 s of silence (v0.26.10.4; was a 4 s cap): before its down, its ticket keeps the whole timeline (timeline.inline.log.gz, no tail, every line
 # the stack printed) and each service's last 200 lines (last-lines.inline.log, a --tail 200), and both outlive the
 # run folder. A cancelled running request keeps them the same way. Env: CHECKS.
 set -eu
@@ -18,7 +18,7 @@ kept_logs() { # <ticket dir> <what>
     fail "the $2 pass's logs were not taken (whole and --tail) before its down"
 }
 touch "$T/hold"; : > "$STUB_LOG"
-VID_CAP_SCALE=0.02 sh checks/test.sh request --type iterate --role builder --try t1 --rows ROW-001 --why 'capped' -- tests/a > "$T/out" 2>&1 || fail 'the request was refused'
+VID_SILENCE_SECONDS=5 sh checks/test.sh request --type iterate --role builder --try t1 --rows ROW-001 --why 'capped' -- tests/a > "$T/out" 2>&1 || fail 'the request was refused'
 A=$(sed -n 's/^next: sh checks\/test.sh wait //p' "$T/out")
 VID_WAIT_MAX=60 sh checks/test.sh wait "$A" > "$T/out" 2>&1 || true
 [ "$(cat ".vid/requests/$A/state")" = capped ] || fail 'the run was not capped'

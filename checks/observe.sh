@@ -695,11 +695,65 @@ progress_tick() {
   return 0
 }
 
+# --- v0.26.10.3 (R6): the drop alarm — passing rows falling sharply, with their causes ---------------------------
+# For a run with `plan: required`, each tick reads every row's state (checks/evidence.sh rows over checks/plan.sh map
+# --all) and keeps, in .vid/observer.passing, one line per tick of the last 60 minutes: `<epoch> <HH:MM> <passing>
+# <ids,…>`. When passing has fallen by 20 rows or more against the highest count among them, it writes one notice,
+# keyed on the drop's start (the tick of that high), and records the drop in .vid/observer.drop (`<epoch> <HH:MM>
+# <A> <B> <ids at B>`). A further notice comes only when passing falls a further 20 below that notice's B (its causes
+# then counted from B's set), or after passing has recovered to within 20 of the drop's high (the drop ends) and
+# falls again. The causes, from the rows that lost passing (in the earlier set, not in the current one), each counted
+# once, in the first that applies: an `amended` for it since the earlier tick (X, with its commits); its state now red
+# (Y); now stale for another reason (Z); now held (H); anything else (O) — so the parts add up to A − B. Counts only.
+drop_tick() {
+  [ -f checks/evidence.sh ] && [ -f checks/plan.sh ] && [ -f "$RS" ] || return 0
+  [ "$(sed -n 's/^plan:[[:space:]]*//p' "$RS" | head -n 1 | sed 's/[[:space:]]*$//')" = required ] || return 0
+  _dt=$(mktemp -d) || return 0
+  sh checks/plan.sh map --all > "$_dt/map" 2> /dev/null && [ -s "$_dt/map" ] || { rm -rf "$_dt"; return 0; }
+  sh checks/evidence.sh rows --at HEAD --map "$_dt/map" > "$_dt/states" 2> /dev/null || { rm -rf "$_dt"; return 0; }
+  _hm=$(awk -v e="$NOW" 'BEGIN { s = e % 86400; printf "%02d:%02d", int(s / 3600), int((s % 3600) / 60) }')
+  _ids=$(awk -F'\t' '$2 == "pass" { print $1 }' "$_dt/states" | sort | paste -sd, -)
+  _np=$(awk -F'\t' '$2 == "pass"' "$_dt/states" | grep -c . || true)
+  PF=.vid/observer.passing; DF=.vid/observer.drop
+  { [ -f "$PF" ] && awk -v now="$NOW" '$1 + 0 >= now - 3600 && $1 + 0 < now' "$PF"; printf '%s %s %s %s\n' "$NOW" "$_hm" "$_np" "${_ids:--}"; } > "$PF.tmp" && mv "$PF.tmp" "$PF"
+  # the earlier snapshot a notice compares with: the drop's B when one stands, else the window's high (its latest tick)
+  _cmp=''
+  if [ -s "$DF" ]; then
+    IFS=' ' read -r _de _dh _da _db _dids < "$DF"
+    if [ "$_np" -gt $((_da - 20)) ]; then : > "$DF"; for _k in $(sed -n 's/^\(notified\.drop\.[^ ]*\) .*/\1/p' "$STF"); do sset "$_k" ''; done   # recovered: the drop ends
+    elif [ "$_np" -le $((_db - 20)) ]; then _cmp="$_de $_dh $_db $_dids"; fi
+  fi
+  if [ ! -s "$DF" ] && [ -z "$_cmp" ]; then
+    _cmp=$(awk '{ if ($3 + 0 >= m) { m = $3 + 0; l = $0 } } END { print l }' "$PF")
+    set -- $(printf '%s\n' "$_cmp" | tr ' ' '\n'); [ $# -ge 3 ] && [ $(($3 - _np)) -ge 20 ] || _cmp=''
+  fi
+  if [ -n "$_cmp" ]; then
+    set -- $(printf '%s\n' "$_cmp" | tr ' ' '\n'); _ce=$1; _ch=$2; _ca=$3; _cids=${4:--}
+    printf '%s\n' "$_cids" | tr ',' '\n' | grep -v '^-\?$' > "$_dt/was" || true
+    printf '%s\n' "${_ids:--}" | tr ',' '\n' | grep -v '^-\?$' > "$_dt/now" || true
+    _parts=$(awk -F'\t' -v ce="$_ce" -v ev="$EV" "$EVAWK"'
+      FILENAME == ARGV[1] { N[$0] = 1; next }
+      FILENAME == ARGV[2] { S[$1] = $2; next }
+      FILENAME == ARGV[3] { if (!($0 in N)) L[$0] = 1; next }
+      END { while ((getline line < ev) > 0) { n = split(line, f, " "); if (f[1] != "amended") continue; r = ""; s = ""; a = ""
+              for (i = 2; i <= n; i++) { if (index(f[i], "row=") == 1) r = substr(f[i], 5); if (index(f[i], "sha=") == 1) s = substr(f[i], 5); if (index(f[i], "at=") == 1) a = substr(f[i], 4) }
+              if ((r in L) && a != "" && ep(a) >= ce + 0) { AM[r] = 1; if (!(s in SH)) { SH[s] = 1; shl = shl (shl == "" ? "" : ", ") s } } }
+        for (r in L) { if (r in AM) x++; else if (S[r] == "red") y++; else if (S[r] == "stale") z++; else if (S[r] == "held") h++; else o++ }
+        out = ""; if (x) out = out ", " x " reset by an amendment (commits " shl ")"; if (y) out = out ", " y " now red"; if (z) out = out ", " z " not re-run since a test change"
+        if (h) out = out ", " h " held"; if (o) out = out ", " o " other"; print substr(out, 3) }' "$_dt/now" "$_dt/states" "$_dt/was")
+    notify "drop.$_ce" "ViD: passing rows fell from $_ca to $_np since $_ch UTC: $_parts. Open the session and ask what changed."
+    if [ -s "$DF" ]; then IFS=' ' read -r _de _dh _da _db _dids < "$DF"; else _da=$_ca; fi
+    printf '%s %s %s %s %s\n' "$NOW" "$_hm" "$_da" "$_np" "${_ids:--}" > "$DF"
+  fi
+  rm -rf "$_dt"; return 0
+}
+
 OPS=$(ops)
 if [ "$RUN" != active ] && [ -z "$OPS" ]; then
   if [ "$(sget idle)" != 1 ]; then obs "idle — run: $RUN, nothing declared; silent until a run or an operation begins, but for the owner's notices"; sset idle 1; fi
   for f in $FLAGS; do obs "$f"; done
   progress_tick
+  drop_tick
   conditions
   exit 0
 fi
@@ -718,6 +772,7 @@ fi
 for f in $FLAGS; do obs "$f"; done
 
 progress_tick
+drop_tick
 conditions
 QSTAND=$(sget quiet.standing)
 

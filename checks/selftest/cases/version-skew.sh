@@ -59,7 +59,9 @@
 # delegated mark through metrics.sh delegated.
 # v0.9.8 (R14): checks/ is 20 and RECORDS.md says so; develop and vid-fix both write records=20 and stop below 20.
 # v0.26.10.2 (R18): checks/ is 22 and RECORDS.md says so; develop and vid-fix both write records=22 and stop below 22;
-# their refresh first lists the project's local changes (R5).
+# their refresh first lists the project's local changes (R5). v0.26.10.3 (R14): checks/ is 23 and RECORDS.md says so; develop and
+# vid-fix both write records=23 and stop below 23. v0.26.10.4 (R14): checks/ is 24 and RECORDS.md says so; develop and
+# vid-fix both write records=24 and stop below 24.
 # In a project neither file exists and the case proves
 # nothing. Env: CHECKS.
 set -eu
@@ -78,18 +80,18 @@ if [ -f "$D" ]; then
   F=$(tr '\n' ' ' < "$D" | tr -s ' ')
   has() { printf '%s' "$F" | grep -qF -- "$1"; }
   # v0.9.7.0.2 (3.7, R12): one rule — a checks/ older than this plugin stops develop before building
-  has 'Read `checks/records-version` first. If it is absent or below 22, the project'"'"'s checks/ predates this plugin: tell the owner it needs the refresh and stop before building.' || fail "develop's start does not stop on a checks/ older than records: 22"
+  has 'Read `checks/records-version` first. If it is absent or below 24, the project'"'"'s checks/ predates this plugin: tell the owner it needs the refresh and stop before building.' || fail "develop's start does not stop on a checks/ older than records: 24"
   has 'first run `sh "${CLAUDE_PLUGIN_ROOT}/checks/local-changes.sh"` from the project'"'"'s top level and show the owner its list' || fail "develop's refresh does not list the local changes first"
   has 'commit it alone with `VID_ROLE=fix`, its subject `Refresh checks/ to VID <version>`' || fail "develop's refresh commit does not keep its subject"
   has 'Record the stop as `run: stopped checks/ needs the refresh`' || fail 'develop does not record the refresh stop'
-  grep -q 'name=develop state=start session=$CLAUDE_CODE_SESSION_ID records=22"`' "$D" || fail 'develop does not write records=22'
+  grep -q 'name=develop state=start session=$CLAUDE_CODE_SESSION_ID records=24"`' "$D" || fail 'develop does not write records=24'
   has '**The harness upgrade (v0.9.7.0.10 3.6, R13; v0.9.7.0.11 3.2, R2).** Right after the version check, run `sh checks/harness.sh rules`.' || fail "develop does not run harness.sh rules right after the version check"
-  grep -q 'name=fix state=start session=$CLAUDE_CODE_SESSION_ID records=22"`' "$FX" || fail 'vid-fix does not write records=22'
-  tr '\n' ' ' < "$FX" | tr -s ' ' | grep -qF 'Read `checks/records-version` first. If it is absent or below 22, the project'"'"'s checks/ predates this plugin' || fail 'vid-fix does not stop on a checks/ older than records: 22'
+  grep -q 'name=fix state=start session=$CLAUDE_CODE_SESSION_ID records=24"`' "$FX" || fail 'vid-fix does not write records=24'
+  tr '\n' ' ' < "$FX" | tr -s ' ' | grep -qF 'Read `checks/records-version` first. If it is absent or below 24, the project'"'"'s checks/ predates this plugin' || fail 'vid-fix does not stop on a checks/ older than records: 24'
   # the per-version degradations are gone: no rule for an older checks/ remains
   printf '%s' "$F" | grep -qE 'If it says `records: [0-9]+`|`records: [0-9]+` or later' && fail 'develop still carries a rule for an older checks/'
   printf '%s' "$F" | grep -qF 'until the refresh' && fail 'develop still builds on an older checks/ until the refresh'
-  [ "$(sed -n 's/^records: //p' "$CHECKS/records-version")" = 22 ] || fail 'checks/records-version is not 22'
-  [ "$(sed -n 's/^records: //p' "$CHECKS/../RECORDS.md")" = 22 ] || fail 'RECORDS.md does not say records: 22'
+  [ "$(sed -n 's/^records: //p' "$CHECKS/records-version")" = 24 ] || fail 'checks/records-version is not 24'
+  [ "$(sed -n 's/^records: //p' "$CHECKS/../RECORDS.md")" = 24 ] || fail 'RECORDS.md does not say records: 24'
 fi
 exit 0

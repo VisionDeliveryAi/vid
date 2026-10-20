@@ -183,7 +183,7 @@
 # v0.9.7.1 (3.4, R4) — returns and continuations. `protected` (below) is the one protected-path set: the commit
 # hook's rule 1 directories (tests/invariants/, checks/, design/), every file checks/lawfiles names, PRD.md,
 # DEPLOYMENT.md, DESIGN-BRIEF.md and the harness file; DECISIONS.md is not in it.
-#   return <file> --agent <id|codex:<try>>   writes the `agent:` line in (the agent writes the file without it);
+#   return <file> --agent <id|codex:<try>>   writes the `agent:` line in (the agent writes the file without it; v0.26.10.4 R10: only on acceptance — a refused return file is left as the agent wrote it);
 #     refuses a `commit:` that does not descend from the brief's quoted-at — except a `wrong base` return (every
 #     row `not | none | wrong base: …`) — and a `not` reason pointing at a report ("see … report") when no
 #     <role>-<n>.report.md is beside the return. A pass whose receipt's tree= differs from the committed tree in a
@@ -246,6 +246,9 @@
 # `<row><TAB><commit>` lines, sets the baseline. `authority --kept <ROW-id,…>` records `authority-kept row= sha=<HEAD>`
 # — a test-author pass kept the row as it is — which clears its flag until the bundle changes again. Verdicts,
 # attempts and holds are untouched; checks/inventory.sh --report lists the flag.
+# v0.26.10.3 (R3): the default listing (no --since, no --base) adds every row checks/metrics.sh to-confirm lists (R2's
+# rule) that the flag does not already list, `authority-changed row=<id> since=<its change> what=<items> to-confirm=yes`,
+# whatever its baseline says: an edit to its INVENTORY line or test lines never takes it off. `--kept` resolves it.
 # Usage: sh checks/brief.sh <brief-file> [--at <sha>]
 #        sh checks/brief.sh authority --row <ROW-id> [--at <commit>] | --changed [--rows <ROW-id,…>] [--since <commit> | --base <file>] | --kept <ROW-id,…>   (v0.9.8)
 #        sh checks/brief.sh return <hand-back file> [--agent <id|codex:<try>>]
@@ -266,6 +269,12 @@ WHOLE='function has(s, id,   p, q, b, a) { q = s; while ((p = index(q, id)) > 0)
 # whole id, comma-separated. checks/test.sh's estimate holds the same line (v0.9.7.0.9 3.1); the selftest pins the two.
 ROWLINES='BEGIN { b = a; gsub(/-/, "_", b) } function w(s, id,   p, q, o, x, y) { q = s; o = 0; while ((p = index(q, id)) > 0) { x = (o + p > 1) ? substr(s, o + p - 1, 1) : ""; y = substr(s, o + p + length(id), 1); if (x !~ /[A-Za-z0-9]/ && y !~ /[A-Za-z0-9]/) return 1; o += p; q = substr(s, o + 1) } return 0 } w($0, a) || w($0, b) { printf "%s%d", (n++ ? "," : ""), NR }'
 # locs <rows file> <commit>: section 9 — one line per row, from its test field's file at <commit>
+# rolecells <develop SKILL.md> <role>: the role's two cells of develop's role table — receives, then must not receive,
+# tab-separated. v0.26.10.4 (R9, F-45): read from the table's own rows only (lines starting `|`): the header template
+# above the table, `role: builder|fixer|grader|test-author …`, split on `|` gave the fixer the cells `grader` and
+# `test-author    slice: <N> …`
+rolecells() { case "$2" in grader) _rc='grader (slice close)' ;; *) _rc=$2 ;; esac
+  sed -n '/^## Spawned roles/,/^## /p' "$1" | awk -F'|' -v r="$_rc" '/^\|/ { c = $2; gsub(/^[ \t]+|[ \t]+$/, "", c); if (c == r) { a = $3; b = $4; gsub(/^[ \t]+|[ \t]+$/, "", a); gsub(/^[ \t]+|[ \t]+$/, "", b); print a "\t" b; exit } }'; }
 locs() {
   awk -F'|' 'function tr(s) { gsub(/^[ \t]+|[ \t]+$/, "", s); return s } { t = tr($8); sub(/[ \t].*/, "", t); print tr($1) "\t" t }' "$1" | while IFS='	' read -r _id _t; do
     case "$_t" in owed:*) printf '%s owed\n' "$_id"; continue ;; '') printf '%s none\n' "$_id"; continue ;; esac
@@ -999,7 +1008,7 @@ if [ "${1:-}" = write ]; then
   fi
   # the header: role, slice, step for a builder or fixer, quoted-at, and the role's cells of develop's role table, verbatim
   case "$WROLE" in grader) RC='grader (slice close)' ;; *) RC=$WROLE ;; esac
-  CELLS=$(sed -n '/^## Spawned roles/,/^## /p' "$DEVSK" | awk -F'|' -v r="$RC" '{ c = $2; gsub(/^[ \t]+|[ \t]+$/, "", c) } c == r { a = $3; b = $4; gsub(/^[ \t]+|[ \t]+$/, "", a); gsub(/^[ \t]+|[ \t]+$/, "", b); print a "\t" b; exit }')
+  CELLS=$(rolecells "$DEVSK" "$WROLE")
   [ -n "$CELLS" ] || wrefuse "develop's role table has no row '$RC' ($DEVSK)"
   D=.vid/briefs/$WSLICE; mkdir -p "$D"
   N=$(ls "$D" 2>/dev/null | sed -n "s/^$WROLE-\([0-9][0-9]*\)\.md$/\1/p" | sort -n | tail -n 1); N=$(( ${N:-0} + 1 ))
@@ -1144,8 +1153,16 @@ if [ "${1:-}" = authority ]; then
       elif [ -n "$AS" ]; then git rev-parse -q --verify "$AS^{commit}" > /dev/null 2>&1 || { echo "ViD authority: --since $AS names no commit" >&2; exit 1; }
         [ -s "$W/want" ] || ausage; awk -v c="$AS" '{ print $0 "\t" c }' "$W/want" > "$W/base"
       else abase > "$W/base.all"; if [ -s "$W/want" ]; then awk -F'\t' 'NR == FNR { W[$1] = 1; next } ($1 in W)' "$W/want" "$W/base.all" > "$W/base"; else mv "$W/base.all" "$W/base"; fi; fi
-      [ -s "$W/base" ] || exit 0
-      achanged "$W/base" "$W" | awk -F'\t' '{ printf "authority-changed row=%s since=%s what=%s\n", $1, substr($2, 1, 12), $3 }' ;;
+      : > "$W/flagged"
+      [ -s "$W/base" ] && achanged "$W/base" "$W" | awk -F'\t' '{ printf "authority-changed row=%s since=%s what=%s\n", $1, substr($2, 1, 12), $3 }' > "$W/flagged"
+      cat "$W/flagged"
+      # v0.26.10.3 (R3): the default listing adds every row to confirm (checks/metrics.sh to-confirm, R2's rule) that the
+      # flag above does not already list, whatever its baseline says; an explicit --base or --since stays as it is
+      if [ -z "$AB" ] && [ -z "$AS" ] && [ -f checks/metrics.sh ]; then
+        if [ -n "$AR" ]; then sh checks/metrics.sh to-confirm --rows "$AR"; else sh checks/metrics.sh to-confirm; fi 2> /dev/null | awk 'FILENAME == ARGV[1] { for (i = 2; i <= NF; i++) if (index($i, "row=") == 1) L[substr($i, 5)] = 1; next }
+          $1 == "to-confirm" { r = ""; s = ""; it = ""; for (i = 2; i <= NF; i++) { if (index($i, "row=") == 1) r = substr($i, 5); if (index($i, "since=") == 1) s = substr($i, 7); if (index($i, "item=") == 1) it = substr($i, 6) }
+            if (r != "" && s != "" && !(r in L)) printf "authority-changed row=%s since=%s what=%s to-confirm=yes\n", r, s, it }' "$W/flagged" -
+      fi ;;
     kept)
       [ -n "$AR" ] || ausage
       H=$(git rev-parse --short=12 HEAD)
@@ -1313,16 +1330,19 @@ if [ "${1:-}" = return ]; then
   case "$RF" in *.tmp) echo "ViD return: $RF is a temporary file — the agent renames it into place when it is whole" >&2; exit 2 ;; esac
   W=$(mktemp -d); trap 'rm -rf "$W"' EXIT
   # v0.9.7.1 (3.4a, R4): the agent writes its return without `agent:`; the run manager's --agent writes it in
+  # v0.26.10.4 (R10, F-39): composed in a copy ($RFC) that every check reads; moved into place only on acceptance, so
+  # a refused return file is left exactly as the agent wrote it
+  RFC=$RF
   if [ -n "$RAG" ]; then
     case "$RAG" in *[!A-Za-z0-9._:-]*) echo "ViD return: --agent takes the host's agent id or codex:<try>, not '$RAG'" >&2; exit 2 ;; esac
     awk -v a="agent: $RAG" 'index($0, "agent:") == 1 { next } { print } index($0, "brief:") == 1 && !d { print a; d = 1 }' "$RF" > "$W/rf"
     grep -qx "agent: $RAG" "$W/rf" || { printf 'agent: %s\n' "$RAG"; cat "$W/rf"; } > "$W/rf2" && [ -f "$W/rf2" ] && mv "$W/rf2" "$W/rf"
-    cat "$W/rf" > "$RF.tmp.$$" && mv "$RF.tmp.$$" "$RF"
+    RFC=$W/rf
   fi
   RFAIL=''
   rbad() { RFAIL="$RFAIL$1
 "; }
-  hv() { awk -v k="$1" 'index($0, k ":") == 1 { v = substr($0, length(k) + 2); gsub(/^[ \t]+|[ \t]+$/, "", v); print v; exit }' "$RF"; }
+  hv() { awk -v k="$1" 'index($0, k ":") == 1 { v = substr($0, length(k) + 2); gsub(/^[ \t]+|[ \t]+$/, "", v); print v; exit }' "$RFC"; }
   RB=$(hv brief); RA=$(hv agent); RBR=$(hv branch); RC=$(hv commit)
   [ -n "$RB" ] || rbad "header: no 'brief:' line"
   [ -n "$RA" ] || rbad "header: no 'agent:' line — the run manager adds the agent id from the Agent tool's result"
@@ -1347,7 +1367,7 @@ if [ "${1:-}" = return ]; then
       END { for (r in ok) if (!(r in inv)) print r }' .vid/metrics-events > "$W/valid"
   fi
   # the row lines: each row of the brief once, no other; a pass shown passing by its receipt
-  awk -F'|' '{ id = $1; gsub(/^[ \t]+|[ \t]+$/, "", id) } id ~ /^ROW-/ { print NR "\t" $0 }' "$RF" > "$W/lines"
+  awk -F'|' '{ id = $1; gsub(/^[ \t]+|[ \t]+$/, "", id) } id ~ /^ROW-/ { print NR "\t" $0 }' "$RFC" > "$W/lines"
   NP=0; NROWS=$(grep -c . "$W/want")
   while IFS='	' read -r ln l; do
     id=$(printf '%s\n' "$l" | awk -F'|' '{ x = $1; gsub(/^[ \t]+|[ \t]+$/, "", x); print x }')
@@ -1399,7 +1419,7 @@ if [ "${1:-}" = return ]; then
     _wtr=$(git worktree list --porcelain 2>/dev/null | awk -v b="refs/heads/$RBR" '$1 == "worktree" { w = substr($0, 10) } $1 == "branch" && $2 == b { print w; exit }')
     if [ -n "$_wtr" ] && [ -f "$_wtr/$_rr" ]; then cp "$_wtr/$_rr" "$RPT.tmp.$$" && mv "$RPT.tmp.$$" "$RPT" && echo "ViD return: the report was in the worktree ($_wtr/$_rr) — copied to $RPT"; fi
   fi
-  if [ ! -f "$RPT" ] && awk -F'|' '{ x = tolower($4); if (x ~ /see[ \t]+([^ \t|]+[ \t]+)?report/) f = 1 } END { exit f ? 0 : 1 }' "$RF"; then
+  if [ ! -f "$RPT" ] && awk -F'|' '{ x = tolower($4); if (x ~ /see[ \t]+([^ \t|]+[ \t]+)?report/) f = 1 } END { exit f ? 0 : 1 }' "$RFC"; then
     rbad "a not reason points at a report, and there is none: $RPT"
   fi
   # v0.9.7.1 (3.9, R9): a pass's receipt tested the committed protected paths — every builder and fixer, a harness upgrade (## 13) excepted
@@ -1416,6 +1436,8 @@ if [ "${1:-}" = return ]; then
   fi
   if [ -n "$RFAIL" ]; then
     echo "ViD return: refused — $RF:" >&2; printf '%s' "$RFAIL" | sed 's/^/    /' >&2; exit 1
+  fi
+  if [ "$RFC" != "$RF" ]; then cat "$RFC" > "$RF.tmp.$$" && mv "$RF.tmp.$$" "$RF"
   fi
   echo "ViD return: ok — $RF ($NP of $NROWS rows pass)"
   # v0.9.7.1 (3.7, R7): the hand-off in one command — what the run manager acts on, printed; nothing routed
@@ -1501,6 +1523,18 @@ grep -qE 'must not receive:' "$B" || bad "header: no 'must not receive:' field"
 [ -n "$SLICE" ] || bad "header: no 'slice:' field"
 [ -n "$QAT" ] || bad "header: no 'quoted-at:' line"
 case "$ROLE" in builder|fixer|grader|test-author|test-analyst) ;; '') bad "header: no 'role:' field" ;; *) bad "header: role '$ROLE' is none of builder, fixer, grader, test-author, test-analyst" ;; esac
+# v0.26.10.4 (R9, F-45): the receives: line is its role's row of develop's role table, both cells verbatim — the
+# plugin's table as `write` finds it ($CLAUDE_PLUGIN_ROOT, else this file's ../); a role with no row (the test
+# analyst), or no table found, is not judged here
+_pr=${CLAUDE_PLUGIN_ROOT:-}; [ -n "$_pr" ] && [ -f "$_pr/skills/vid-develop/SKILL.md" ] || _pr=$(cd "$(dirname "$0")/.." 2>/dev/null && pwd)
+if [ -f "$_pr/skills/vid-develop/SKILL.md" ] && [ -n "$ROLE" ]; then
+  _cl=$(rolecells "$_pr/skills/vid-develop/SKILL.md" "$ROLE")
+  if [ -n "$_cl" ]; then
+    _want="receives: $(printf '%s' "$_cl" | cut -f1)    must not receive: $(printf '%s' "$_cl" | cut -f2-)"
+    _got=$(grep -m 1 '^receives:' "$B" || true)
+    [ -z "$_got" ] || [ "$_got" = "$_want" ] || bad "header: the receives: line is not the $ROLE row of develop's role table ($_pr/skills/vid-develop/SKILL.md) — it should read: $_want"
+  fi
+fi
 REF=${AT:-$QAT}
 if [ -n "$REF" ] && ! git cat-file -e "$REF^{commit}" 2>/dev/null; then bad "header: quoted-at '$REF' resolves to no commit"; REF=''; fi
 PBIRTH=$(hval pending-birth); PAPPEND=$(hval pending-append)

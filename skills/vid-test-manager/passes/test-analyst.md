@@ -11,7 +11,7 @@ Independence is a mechanism here, not a property.
 
 <!-- v0.9.7.0.3 spec 3.3 (R4). Spawned by the conductor (vid-develop's
      orchestrating session, or vid-fix) when a request's result says
-     `analyst due`: the request was capped, 5 or more of its cases failed
+     `analyst due`: its watcher stopped the request, 5 or more of its cases failed
      each after more than 60 s, or a case took more than 240 s. It reads
      and reports; the conductor acts on the return
      (skills/vid-test-manager, the test analyst). -->
@@ -20,6 +20,7 @@ Independence is a mechanism here, not a property.
 receives:
   - the run's home path and the ticket id
   - the ticket folder: request, result, the last 200 lines of log
+  - for a `cap`, the stop's reason and the last output time (`cap-hit`'s reason= and last-output=, the `analyst due` line's stop= and last-output=)
   - the ticket's timeline.<pass>.log (or .log.gz) files (each pass's stack lines with their times), a stopped pass's last-lines.<pass>.log (each service's last 200 lines) and services.<pass>.txt (each pass's container end states), by name
   - the receipt's .cases and `sh checks/evidence.sh red <receipt>` (when a receipt or partial report exists)
   - the triggering rows' INVENTORY lines verbatim, and every `difference` row
@@ -38,8 +39,9 @@ must not receive:
 
 ## The steps
 
-1. Read the result and the trigger: `cap` (the run was stopped at its
-   cap), `setup` (red cases that each waited over a minute), or `slow`
+1. Read the result and the trigger: `cap` (its watcher stopped the run:
+   `stop=silent`, no new output for the silence limit; `stop=startup`, a
+   pass's start-up past its limit; `stop=limit`, the run limit), `setup` (red cases that each waited over a minute), or `slow`
    (a case over 4 minutes, named by its row or its case id).
 2. **Setup:** read the red cases' messages and the code they stop in.
    Decide whether they share a cause — a prerequisite the harness does

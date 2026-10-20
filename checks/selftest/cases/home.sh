@@ -15,7 +15,7 @@ T=$(mktemp -d); trap 'set +e; rm -rf "$T" 2>/dev/null' EXIT
 . "$CHECKS/selftest/fixtures/plan-run.sh"
 fail() { echo "home: $*" >&2; cat "$T/out" >&2 2>/dev/null; exit 1; }
 plan_repo "$T/repo"; rows s1 1 2; commit_all rows
-mkdir -p checks/hooks; cp "$CHECKS/hooks/post-commit" checks/hooks/; commit_all 'the post-commit hook'
+mkdir -p checks/hooks; cp "$CHECKS/hooks/post-commit" checks/hooks/; cp "$CHECKS/inventory.sh" checks/; commit_all 'the post-commit hook'
 g config core.hooksPath checks/hooks
 HOMEP=$(pwd -P)
 mkdir -p .vid/briefs/1; printf 'role: builder    slice: 1    step: S1\n' > .vid/briefs/1/builder-1.md

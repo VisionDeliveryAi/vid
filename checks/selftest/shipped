@@ -5,6 +5,10 @@ agent-activity.sh
 agent-net.sh
 agent-notice.sh
 agent-state.sh
+amend-branch-no-clear.sh
+amend-new-row.sh
+amend-sibling-kept.sh
+amended-old-events.sh
 amended.sh
 analyst-cap.sh
 analyst-due-retired.sh
@@ -96,7 +100,7 @@ design-mod.sh
 design-pins.sh
 design-question.sh
 direct-refused.sh
-estimate-capped-floor.sh
+drop-alarm-causes.sh
 estimate-intermediate-teardown.sh
 estimate-unseen.sh
 estimate.sh
@@ -108,6 +112,7 @@ fix-population-hold.sh
 frozen-compose.sh
 frozen-scoped.sh
 gate-scope.sh
+gate-stopped-agent.sh
 gated-work.sh
 golden-paying-step.sh
 guard-report.sh
@@ -138,6 +143,7 @@ host-lease.sh
 hostility.sh
 identical-runs.sh
 image-name.sh
+impact-equals-post-commit.sh
 imports.sh
 index-courts-env.sh
 index-courts.sh
@@ -151,6 +157,7 @@ law-dirty.sh
 law-rule.sh
 lease-wait.sh
 ledger-imports.sh
+leftovers-live-claude-agent.sh
 leftovers.sh
 logs-kept.sh
 metrics-claim.sh
@@ -260,6 +267,7 @@ slot-memory.sh
 stage-pairing.sh
 started-and-moved.sh
 step-base.sh
+stop-during-deployed-up.sh
 stop-during-up.sh
 strength-grain.sh
 strict-verdicts.sh
@@ -292,6 +300,7 @@ upgrade.sh
 verdict-classes.sh
 version-skew.sh
 wait-bounded.sh
+wait-cases-kept.sh
 wait-result.sh
 watchdog-bound.sh
 watchdog-envelope.sh
@@ -387,7 +396,6 @@ selftest-cert-corrupt.sh
 selftest-cert-unstaged.sh
 codex-limit-not-from-output.sh
 build-fail-no-later-pass.sh
-cap-retry-figure.sh
 wait-max-ignored.sh
 report-from-worktree.sh
 return-analyst-due-try.sh
@@ -495,12 +503,9 @@ prd-join17-parenthesised.sh
 prd-join17-old-grammar-reported.sh
 leftovers-fresh-worktree-in-use.sh
 leftovers-merged-worktree.sh
-cap-clock-from-test-start.sh
 cap-startup-still-bounded.sh
 iterate-deployed-fails-inline-kept.sh
 analyst-setup-group-label.sh
-cap-sleep-extends-deadline.sh
-cap-no-sleep-unchanged.sh
 timeline-capped-kept.sh
 stop-no-restart.sh
 ticket-run-folder-exists.sh
@@ -523,3 +528,14 @@ view-arch-services.sh
 view-arch-stack.sh
 view-arch-steps.sh
 view-arch-surface-history.sh
+silence-stops.sh
+silence-chatty-runs-long.sh
+silence-startup-output.sh
+startup-limit.sh
+limit-stops.sh
+wait-watch.sh
+waits-prose.sh
+return-refused-untouched.sh
+brief-fixer-header.sh
+merge-main-gate.sh
+decision-next.sh

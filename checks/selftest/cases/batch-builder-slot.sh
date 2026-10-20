@@ -20,7 +20,7 @@ untilst() { _u=$1; shift; _i=0; until "$@"; do [ "$_i" -ge "$_u" ] && return 1; 
 nrun() { [ "$(running)" -eq "$1" ]; }
 c2is() { [ "$(cat "$C2/state" 2>/dev/null)" = "$1" ]; }
 held() { touch "$T/hold"; rm -f "$T/entered"
-  VID_CAP_SCALE=100 STUB_HOLD="$T/hold" STUB_ENTER="$T/entered" batch || fail 'the batch was refused'
+  STUB_HOLD="$T/hold" STUB_ENTER="$T/entered" batch || fail 'the batch was refused'
   waitfor "$T/entered" 120 || fail 'no chunk reached its up'; }
 # alone: two chunks at once
 held
@@ -45,7 +45,7 @@ untilst 120 launched || fail 'the two chunks were not both launched'
 untilst 120 nrun 1 || fail "$(running) chunks ran with one slot free"
 C2=''; for _c in 1 2; do [ "$(cat ".vid/requests/$TK/chunks/$_c/state" 2>/dev/null)" = queued ] && C2=.vid/requests/$TK/chunks/$_c; done
 [ -n "$C2" ] && nrun 1 && c2is queued || fail 'the other chunk did not wait for the held slot'
-VID_CAP_SCALE=100 sh checks/test.sh request --type iterate --role builder --try t1 --rows ROW-003 --why 'a builder meanwhile' -- "$(w 2 3)" > "$T/req" 2>&1 || fail 'the builder request was refused'
+sh checks/test.sh request --type iterate --role builder --try t1 --rows ROW-003 --why 'a builder meanwhile' -- "$(w 2 3)" > "$T/req" 2>&1 || fail 'the builder request was refused'
 BK=.vid/requests/$(sed -n 's/^next: sh checks\/test.sh wait //p' "$T/req")
 kill "$FP"; FP=''; rm -rf "$XDG_RUNTIME_DIR/vid-host/stack.2"
 # the builder's stub run can end within a second, so the order is read from the start times, not caught live

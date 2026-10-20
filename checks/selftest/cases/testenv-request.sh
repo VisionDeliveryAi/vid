@@ -3,7 +3,7 @@
 # (v0.9.7.0.2 spec 3.4; §6 C-5b, round 2 finding 1). Before any step-start
 # (the plan holds ROW-001 in an unstarted S1), `testenv.sh measure --rows
 # ROW-001 -- <selection>` runs as a `testenv` request — a ticket with an
-# estimate and a cap, its event role=testenv with request= and cap= —
+# estimate and its limits, its event role=testenv with request= and silence=, startup=, limit= (v0.26.10.4; cap= before) —
 # exempt from the unstarted-step refusal (a builder's request for the same
 # row is refused); `prove` reuses its rows in its two requests, each
 # carrying the proof id. v0.9.7.0.8 (T3): measure is given `--expect 120`;
@@ -29,8 +29,8 @@ wait "$_mt" || true   # v0.9.8.1 (R2): the hold's timer ends before the next ste
 wait
 [ "$(ls .vid/requests | grep -c .)" -eq 1 ] || fail 'measure made no request'
 M=.vid/requests/$(ls .vid/requests)
-grep -qx 'role=testenv' "$M/request" && grep -qx 'type=iterate' "$M/request" && grep -qE '^cap=[0-9]+$' "$M/request" || fail 'the measure request is not a capped testenv request'
-grep '^ledger-run ' .vid/metrics-events | tail -n 1 | grep -qE " role=testenv .*request=${M##*/} type=iterate rows=1 estimate=[0-9]+ cap=[0-9]+ " || fail 'the measure event is not a testenv request with its cap'
+grep -qx 'role=testenv' "$M/request" && grep -qx 'type=iterate' "$M/request" && grep -qE '^silence=[0-9]+$' "$M/request" && grep -qE '^startup=[0-9]+$' "$M/request" && grep -qE '^limit=[0-9]+$' "$M/request" || fail 'the measure request is not a testenv request with its limits'
+grep '^ledger-run ' .vid/metrics-events | tail -n 1 | grep -qE " role=testenv .*request=${M##*/} type=iterate rows=1 estimate=[0-9]+ silence=[0-9]+ startup=[0-9]+ limit=[0-9]+ " || fail 'the measure event is not a testenv request with its lap'
 grep -qx 'expect=120' "$M/request" || fail 'the measure request did not take --expect 120 as two words'
 grep -qx 'rows=ROW-001' .vid/testenv || fail 'measure did not keep its rows'
 sh checks/testenv.sh pick > "$T/out" 2>&1; grep -q '^testenv pick k=3 ' "$T/out" || fail 'the pick is not 3'

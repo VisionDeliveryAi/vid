@@ -5,7 +5,8 @@
 # change again, then an edit in the row's test file that names only ROW-202 leaves it flagged (a shared file's edit
 # for another row), and an edit to a line naming ROW-201 clears it; a later change again, then a commit changing the
 # row's INVENTORY line clears it. A review attestation is no baseline: the events file holding one changes nothing.
-# Env: CHECKS.
+# v0.26.10.3 (R3): a row to confirm (`law-changed`, no resolution) stays listed after edits to its INVENTORY line and
+# its test lines; `authority --kept` resolves it. Env: CHECKS.
 set -eu
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 . "$CHECKS/selftest/fixtures/brief-write.sh"
@@ -34,4 +35,15 @@ au_prd 'twelve hours' > PRD.md; g commit -qam 'A-001 a fourth time'
 [ "$(au_flags)" = 'ROW-201 A-001' ] || fail "the change after the test's does not flag: '$(au_flags)'"
 sed 's/a link refuses after seven days/a link refuses once its lifetime ends/' INVENTORY.md > i && mv i INVENTORY.md; g commit -qam 'the row restated'
 [ -z "$(au_flags)" ] || fail "a change to the row's line did not clear it: '$(au_flags)'"
+# v0.26.10.3 (R3): the baseline clears R6's own flag, never a row to confirm
+cp "$CHECKS/metrics.sh" checks/; g add -A && g commit -qm 'the to-confirm reader'
+L=$(git rev-parse --short=12 HEAD)
+printf 'law-changed row=ROW-201 sha=%s item=REQ-001 at=2026-10-19T00:00:00Z\n' "$L" >> .vid/metrics-events
+[ "$(au_flags)" = 'ROW-201 REQ-001 to-confirm=yes' ] || fail "the row to confirm is not listed: '$(au_flags)'"
+sed 's/a link refuses once its lifetime ends/a link refuses as soon as its lifetime ends/' INVENTORY.md > i && mv i INVENTORY.md; g commit -qam 'the row restated again'
+[ "$(au_flags)" = 'ROW-201 REQ-001 to-confirm=yes' ] || fail "a change to the row's line took the row to confirm off: '$(au_flags)'"
+sed 's/^test_ROW_201() { : revisited; }$/test_ROW_201() { : revisited twice; }/' tests/invariants/links.sh > x && mv x tests/invariants/links.sh; g commit -qam 'ROW-201 revisited twice'
+[ "$(au_flags)" = 'ROW-201 REQ-001 to-confirm=yes' ] || fail "an edit to its test lines took the row to confirm off: '$(au_flags)'"
+sh checks/brief.sh authority --kept ROW-201 > /dev/null || fail 'authority --kept refused the row to confirm'
+[ -z "$(au_flags)" ] || fail "authority --kept did not resolve the row to confirm: '$(au_flags)'"
 exit 0

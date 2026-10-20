@@ -1,9 +1,10 @@
 #!/bin/sh
 # Purpose: selftest case — stale apart from red, and out of the rate (v0.9.8.1 R8, F-6). A toy develop run, four rows:
 # a receipt 6 h ago passing none, one 5 h ago passing all four; then, now, a test edit to the lines naming ROW-001 and
-# ROW-002. Convicts unless Left counts 2 rows stale apart from red (0 red), and the rate's last-3-h window reads 0
-# rows, not −2: the two stale rows are left out of both ends. v0.9.8.1 (R37): then ROW-003 amended: 3 not re-run, 0 red,
-# the rate still 0. Env: CHECKS.
+# ROW-002. Convicts unless Left counts 2 rows stale apart from red (0 red), and (before v0.26.10.3) the rate's last-3-h window read 0
+# rows, not −2: the two stale rows are left out of both ends. v0.9.8.1 (R37): then ROW-003 amended: 3 not re-run, 0 red.
+# v0.26.10.3 (R7): stale rows leave the estimate — with only they left it says "nothing left to build" and "Not in the
+# estimate: <n> to re-run; of the passing, <k> to confirm" (k 1 once ROW-004 is to confirm). Env: CHECKS.
 set -eu
 T=$(mktemp -d); trap 'set +e; rm -rf "$T" 2>/dev/null' EXIT
 . "$CHECKS/selftest/fixtures/gated-run.sh"
@@ -28,10 +29,14 @@ sed 's/^def test_001(): pass  # ROW-001$/def test_001(): assert True  # ROW-001/
 commit_all 'a test edit for ROW-001 and ROW-002'
 sh checks/progress.sh > "$T/out" 2>&1 || fail 'progress failed'
 grep '^| Left |' "$T/out" | grep -q '(0 red, 2 not re-run since a rule or test change, ' || fail "Left counts stale rows as red: $(grep '^| Left |' "$T/out")"
-grep '^| Estimate |' "$T/out" | grep -q 'last 3 h: 0 rows; since develop began: 2 rows' || fail "the rate counts the stale rows as lost: $(grep '^| Estimate |' "$T/out")"
+grep '^| Estimate |' "$T/out" | grep -q '| nothing left to build\. .* Not in the estimate: 2 to re-run; of the passing, 0 to confirm\. |$' || fail "only stale rows left is not 'nothing left to build' with the left-out line: $(grep '^| Estimate |' "$T/out")"
 # v0.9.8.1 (R37): an amended row (post-commit's `amended`) is stale too — apart from red, out of the rate
 printf 'amended row=ROW-003 sha=%s by=obligation at=%s\n' "$(git rev-parse --short=12 HEAD)" "$(ago 60)" >> .vid/metrics-events
 sh checks/progress.sh > "$T/out" 2>&1 || fail 'progress failed after the amendment'
 grep '^| Left |' "$T/out" | grep -q '(0 red, 3 not re-run since a rule or test change, ' || fail "an amended row is not counted apart from red: $(grep '^| Left |' "$T/out")"
-grep '^| Estimate |' "$T/out" | grep -q 'last 3 h: 0 rows' || fail "the amended row counts as lost in the rate: $(grep '^| Estimate |' "$T/out")"
+grep '^| Estimate |' "$T/out" | grep -q '| nothing left to build\. .* Not in the estimate: 3 to re-run; of the passing, 0 to confirm\. |$' || fail "the amended row is priced as build work: $(grep '^| Estimate |' "$T/out")"
+# v0.26.10.3 (R7): a passing row to confirm is named in the left-out line, never priced
+printf 'law-changed row=ROW-004 sha=%s item=REQ-001 at=%s\n' "$(git rev-parse --short=12 HEAD)" "$(ago 30)" >> .vid/metrics-events
+sh checks/progress.sh > "$T/out" 2>&1 || fail 'progress failed after the law change'
+grep '^| Estimate |' "$T/out" | grep -q 'Not in the estimate: 3 to re-run; of the passing, 1 to confirm\. |$' || fail "the passing row to confirm is not named: $(grep '^| Estimate |' "$T/out")"
 exit 0

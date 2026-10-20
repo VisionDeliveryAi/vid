@@ -72,7 +72,9 @@
 #   judged at the commit HEAD was at t; the rate over a window w is (P(now)
 #   − P(now − w)) / w, for w = 3 h and w = the time since develop's first
 #   valid receipt (the first at or after its first stage start); the red, never-run and not-in-the-plan rows divided by each
-#   positive rate make the range. One positive rate: one number, its window
+#   positive rate make the range (v0.26.10.3 R7: the stale rows leave it — re-runs, not build work; a line says
+#   "Not in the estimate: S to re-run; of the passing, C to confirm", and with only stale rows left the estimate
+#   says "nothing left to build"). One positive rate: one number, its window
 #   named. Neither: "no estimate: no rows turned green in the last 3 h".
 #   Fewer than two valid receipts: "no estimate yet". The slice-close full
 #   runs and grading are not included, and it says so.
@@ -174,7 +176,7 @@ eval "$(awk -F'\t' -v pf="$T/parsed" -v sf="$T/started" '
     printf "NSTEPS=%d NPASS=%d P=%d TOT=%d RED=%d STL=%d NEV=%d NIP=%d BLK=%d BO=%d BH=%d DEP=%d LAT=%d NNS=%d\n", ns, np, P, tot, red, stl, nev, nip, blk, bo, bh, dep, lat, nns
     gsub(q, q "\\" q q, done); gsub(q, q "\\" q q, now); gsub(q, q "\\" q q, notst)
     printf "DONE=%s%s%s\nNOWS=%s%s%s\nNOTST=%s%s%s\n", q, done, q, q, now, q, q, notst, q }' "$T/map" "$T/states")"
-LEFT=$((RED + STL + NEV + NIP + BLK)); EST=$((RED + STL + NEV + NIP))
+LEFT=$((RED + STL + NEV + NIP + BLK)); EST=$((RED + NEV + NIP))   # v0.26.10.3 (R7): stale rows are re-runs, not build work
 # v0.9.7.1 (3.10, R10): the two earlier readings the rate needs run side by side, while the rest is computed
 if [ "$NRC" -ge 2 ] && [ "$EST" -ne 0 ]; then
   # develop's first valid receipt: the first at or after develop's first stage start
@@ -189,7 +191,7 @@ NPROV=$(sh checks/metrics.sh provisional 2>/dev/null | sed -n 's/^provisional ro
 [ "${NPROV:-0}" -gt 0 ] && DONEL="$DONEL ($NPROV provisional: claimed on a selected close, not yet run whole by a checkpoint or the full run)"
 NOWLN=${NOWS:-no step in progress}
 if [ "$NNS" -eq 1 ]; then LEFTL="1 step not started: $NOTST."; elif [ "$NNS" -gt 1 ]; then LEFTL="$NNS steps not started: $NOTST."; else LEFTL='every step started.'; fi
-LEFTL="$LEFTL $EST rows not yet passing ($RED red, $STL not re-run since a rule or test change, $NEV never run"
+LEFTL="$LEFTL $((RED + STL + NEV + NIP)) rows not yet passing ($RED red, $STL not re-run since a rule or test change, $NEV never run"
 [ "$NIP" -gt 0 ] && LEFTL="$LEFTL, $NIP not in the plan"
 LEFTL="$LEFTL)"
 if [ "$BLK" -gt 0 ]; then
@@ -225,9 +227,13 @@ else QUES='none open'; fi
 # the estimate
 LASTFULL=$(awk -F'\t' '$3 == "full" { a = $1 } END { print a }' "$T/rcpts")
 NOTINC="Not included: the slice-close full runs and grading (last full run: ${LASTFULL:-none yet})"
-ESTF=none
-if [ "$NRC" -lt 2 ]; then ESTL="no estimate yet — fewer than two valid receipts. $NOTINC"
-elif [ "$EST" -eq 0 ]; then _bn=''; [ "$BLK" -gt 0 ] && _bn=" — blocked, not estimated: $BLK"; ESTL="nothing left to turn green$_bn. $NOTINC"; ESTF=0-0
+# v0.26.10.3 (R7): what the estimate leaves out — the rows to re-run (stale) and, of the passing, the rows to confirm
+# (checks/metrics.sh to-confirm); when only rows to re-run are left, nothing is left to build
+TCP=$(sh checks/metrics.sh to-confirm 2>/dev/null | sed -n 's/^to-confirm row=\([^ ]*\) .*/\1/p' | awk -F'\t' 'NR == FNR { if ($2 == "pass") P[$1] = 1; next } ($1 in P) { n++ } END { print n + 0 }' "$T/states" -)
+OUTL=''; [ $((STL + TCP)) -gt 0 ] && OUTL=" Not in the estimate: $STL to re-run; of the passing, $TCP to confirm."
+ESTF=none; NONE0='nothing left to turn green'; [ "$STL" -gt 0 ] && NONE0='nothing left to build'
+if [ "$NRC" -lt 2 ]; then ESTL="no estimate yet — fewer than two valid receipts. $NOTINC$OUTL"
+elif [ "$EST" -eq 0 ]; then _bn=''; [ "$BLK" -gt 0 ] && _bn=" — blocked, not estimated: $BLK"; ESTL="$NONE0$_bn. $NOTINC$OUTL"; ESTF=0-0
 else
   wait "$PJ3" "$PJA" 2>/dev/null || true
   P3=$(cat "$T/p3" 2>/dev/null); P3=${P3:-0}
@@ -246,6 +252,7 @@ else
       printf "%.1f–%.1f h to the last row passing, at %.1f–%.1f rows/hour %s. %s%s\n", lo, hi, rl, rh, basis, notinc, bl
       printf "ESTF=%.1f-%.1f\n", lo, hi > "/dev/stderr" }' 2>"$T/estf")
   ESTF=$(sed -n 's/^ESTF=//p' "$T/estf"); ESTF=${ESTF:-none}
+  ESTL="$ESTL$OUTL"
 fi
 # v0.9.7.0.7 (3.5): the builders' cost, from the build-cost events
 BLD=$(awk "$AWKAT"' $1 == "build-cost" && (kv("role") == "builder" || kv("role") == "fixer") { n++; r += kv("rows"); k += kv("rows-passed"); b = kv("before-change"); if (b ~ /^[0-9]+$/) V[++nv] = b + 0; else u++ }
@@ -384,7 +391,7 @@ if [ "$REC" = no ]; then cat "$T/table"; exit 0; fi
 [ -f .vid/PROGRESS.md ] || printf '# Progress — the build, hourly and at every plan change (checks/progress.sh)\n' > .vid/PROGRESS.md
 { printf '\n'; cat "$T/table"; } >> .vid/PROGRESS.md
 printf 'progress trigger=%s by=%s rows-passing=%s rows-left=%s estimate=%s at=%s\n' "$TRIG" "$BY" "$P" "$LEFT" "$ESTF" "$(utc)" >> "$EV"
-case "$ESTF" in none) HE='no estimate' ;; 0-0) HE='nothing left to turn green' ;; *) HE="${ESTF%-*}–${ESTF#*-} h left" ;; esac
+case "$ESTF" in none) HE='no estimate' ;; 0-0) HE=$NONE0 ;; *) HE="${ESTF%-*}–${ESTF#*-} h left" ;; esac
 [ "$NRC" -lt 2 ] && HE='no estimate yet'
 echo "$(basename "$H"): $P of $TOT rows passing · step $NPASS of $NSTEPS · $HE · debt ${DEBTN:-uncounted}"
 exit 0

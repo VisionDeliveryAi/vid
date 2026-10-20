@@ -14,7 +14,7 @@ narrated.
 ## Before any work
 
 **The stage event (v0.9.5 3.11, R11).** First of all, record
-`sh checks/event.sh "stage name=develop state=start session=$CLAUDE_CODE_SESSION_ID records=22"`
+`sh checks/event.sh "stage name=develop state=start session=$CLAUDE_CODE_SESSION_ID records=24"`
 — and again whenever a session takes over the run (Resume, below); the
 completion report records the `end` (`state=end`, the same form without
 `records=`). Every event this skill names is written with
@@ -37,7 +37,7 @@ on this release's run mechanics, below), `questions:` carried over (or
 `- · next Q1`) and `slice: -` until the first slice opens, and record
 `sh checks/event.sh 'run state=active'` — before any planning, so the
 observer and the death record cover it. **Version skew:** Read
-`checks/records-version` first. If it is absent or below 22, the
+`checks/records-version` first. If it is absent or below 24, the
 project's checks/ predates this plugin: tell the owner it needs the
 refresh and stop before building. The refresh (v0.9.8.1 R5): first run
 `sh "${CLAUDE_PLUGIN_ROOT}/checks/local-changes.sh"` from the project's top
@@ -353,8 +353,33 @@ pass, briefed with the row (`brief.sh write --role
 test-author --rows …`, its authority bundle in section 15). The pass
 returns the row `kept` — the test stands under the new authority — or
 amends it (a law commit; weakening needs an owner answer). Record the kept ones: `sh checks/brief.sh authority --kept
-<ROW-id,…>`. Verdicts, attempts and holds are untouched; the `amended`
-wipe is unchanged.
+<ROW-id,…>`. Verdicts, attempts and holds are untouched.
+
+**A changed fail-if puts rows to confirm, never wipes them (v0.26.10.3
+R1–R3).** After a law commit, a row whose own obligation changed is reset
+(`amended … by=obligation`, the wipe). A row present before and after
+whose obligation did not change, but which derives from an item whose
+fail-if changed, gets `law-changed` and is **to confirm**: it keeps its
+verdicts, attempts, holds, allowances and passing state, and
+`sh checks/metrics.sh completion` counts it unmet and names it until a
+resolution covers the change (`sh checks/metrics.sh to-confirm` lists
+them). The next close's test-author pass briefs every row to confirm,
+with the flagged rows above; `authority --changed` and `inventory.sh
+--report` list them whatever their baseline says. The pass keeps a row
+only when the changed clause is not one this row tests (record it with
+`authority --kept`); when it is, or when the pass can't show it isn't, it
+amends the row's obligation, which resets it. A resolution counts only on
+a commit that holds the change and has landed on the run's line.
+
+**ViD's own defects (v0.26.10.3 R12, R13).** When a ViD check, hook,
+skill or agent role misbehaves — it refuses legitimate work, crashes,
+contradicts itself or its documentation, or gives a wrong count — or when
+you use a workaround around one, append an entry to `.vid/VID-FINDINGS.md`
+in the form of `${CLAUDE_PLUGIN_ROOT}/templates/VID-FINDINGS.md` (the file
+is created from it at the first entry; entries are numbered in the file),
+record `sh checks/event.sh 'vid-finding n=<n> area=check|hook|skill|agent file=<ViD
+path>'`, and tell the owner in one line. A defect in the product being
+built is not a ViD finding.
 
 **The four legal stops (v0.9.5 3.2, R2).**
 
@@ -563,6 +588,7 @@ brief and the commit it quoted (`brief=<path> quoted-at=<sha>`);
 (`honesty FLAG verdicts-without-brief`). The grader's CODE read stays
 unbounded — that is where findings come from; the end grade's domain
 batches are GRADING.md's, in this same format.
+Run the check with `CLAUDE_PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT}"`, as `write`: it then also holds the `receives:` line to its role's row of the table above (v0.26.10.4).
 
 **The hand-back (v0.9.7.0.7 3.3; v0.9.7.1 3.4, 3.7).** Every builder and
 fixer writes its return file itself, at the path its brief's header names
@@ -874,6 +900,23 @@ accordingly.
   question per review, listing each row, its arm and the answer it
   follows; the answer settles every row it names), and the run records `sh checks/event.sh 'tokens slice=N
   phase=review n=T'`; add a ledger test if testable, continue.
+- **A question that would change the law (v0.26.10.3 R5).** When the
+  recommended answer would change a fail-if or a row's obligation, draft
+  the change first in a scratch copy of PRD.md and INVENTORY.md and run
+  `sh checks/inventory.sh impact --prd <draft> --inventory <draft>`; say
+  in the question, in plain words, "this answer resets N rows (M now
+  passing) and puts K rows to confirm". Land the narrowest change: an
+  AMENDED restatement keeps every clause the answer does not change word
+  for word. When the owner approves several answers in one message,
+  draft them all and run `impact` once on the combined drafts: if no row
+  would be reset, land them and report the counts; if any would be, state
+  the total ("these N answers reset R rows, P of them passing, and put K
+  to confirm") and ask once for the owner's confirmation before landing.
+  A question that showed no recommendation is never part of a bulk
+  approval. When the answer lands, record `sh checks/event.sh 'reissued
+  row=<id> why=<A-id>'` for each row the question gated that the answer
+  did not reset; a row the answer only put to confirm is otherwise still
+  held, reported "hold unreleased".
 - Hit a TECHNICAL unknown? Decide, log to DECISIONS.md with its label
   (`| applies-to: <ids and codes>`, or `| scope: project` only when it bears
   on many areas — the hook refuses a line with neither), keep moving. A
@@ -881,6 +924,7 @@ accordingly.
   beside its row, requirement or screen items, never instead of them. Never
   ask — unless the choice forces a product tradeoff, which makes it a product
   question ("instant search or cheap infra — pick one").
+  Take a new line's number from `sh checks/decisions.sh next` (v0.26.10.4): reserved at the home, so you and your agents never share one.
 - **The owner's queue is questions too (v0.9.5 3.1).** Rows held for the
   owner, rows owed on an owner decision, and grade findings awaiting
   adjudication are recorded the same way: one `Q<n>` line each, gating

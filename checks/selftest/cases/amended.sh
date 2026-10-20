@@ -6,11 +6,12 @@
 # fixture. Convicts unless: a commit changing one obligation records one
 # `amended row=ID sha=<that commit>`; a commit refused by commit-msg records
 # no amendment (v0.9.6.2 3.4: only its own `refused` event); a PRD commit changing one item's `fail-if:` records one event
-# per row derived from it and `failif-amendment n=1` (the fixed grep — the
+# per row derived from it (law-changed from v0.26.10.3) and `failif-amendment n=1` (the fixed grep — the
 # 0.9.2 grep counted zero on the lowercase field); an AMENDED row changing
 # only `phase:` records none; a consolidation commit records neither; and
 # under a 0.9.2 block the post-commit hook records nothing. v0.9.8 (R6): each event names its cause, by=obligation
-# or by=fail-if. Env: CHECKS.
+# or by=fail-if. v0.26.10.3 (R1): the fail-if commit records `law-changed row= sha= item=REQ-001` per derived row and
+# no `amended` (one row, one cause). Env: CHECKS.
 set -eu
 ATRE='at=[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z'   # v0.9.5 3.11: every event line ends ` at=<UTC>`
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
@@ -58,8 +59,9 @@ g add PRD.md && g commit -qm 'REQ-001 fail-if
 Decisions: none — the owner widened the repeat to any search' >/dev/null 2>&1 || fail 'the fail-if commit was refused'
 H=$(git rev-parse --short=12 HEAD)
 grep -qxE "failif-amendment n=1 $ATRE" "$EVF" || fail 'the fixed grep did not count the lowercase fail-if'
-grep -qxE "amended row=ROW-001 sha=$H by=fail-if $ATRE" "$EVF" && grep -qxE "amended row=ROW-002 sha=$H by=fail-if $ATRE" "$EVF" || fail 'not one event per row derived from the amended item'
-[ "$(grep -c '^amended ' "$EVF")" -eq 2 ] || fail 'a row not derived from the item was amended'
+grep -qxE "law-changed row=ROW-001 sha=$H item=REQ-001 $ATRE" "$EVF" && grep -qxE "law-changed row=ROW-002 sha=$H item=REQ-001 $ATRE" "$EVF" || fail 'not one law-changed event per row derived from the amended item'
+[ "$(grep -c '^law-changed ' "$EVF")" -eq 2 ] || fail 'a row not derived from the item was put to confirm'
+grep -q '^amended ' "$EVF" && fail 'a fail-if change wiped a row whose own obligation did not change (v0.26.10.3 R1)'
 # 4. an AMENDED row changing only phase: → no amended event
 : > "$EVF"
 L=$(grep '^REQ-003 | ' PRD.md)

@@ -77,7 +77,7 @@ syntax, in words without spaces or quotes; ViD never builds one. A word
 holding a space or a quote is refused at once, naming it: the harness
 command can't carry it, so select by test ids. An `iterate` with
 `--deployed-selection` (a builder, fixer or test-author asking) is one
-ticket and one cap: the inline pass, then the deployed pass with its own
+ticket and one watcher: the inline pass, then the deployed pass with its own
 selection, two receipts; its estimate counts the start-up twice and the
 teardown between the passes once. The
 `deployed` type stays for a deployed pass alone; with no inline pass
@@ -86,7 +86,7 @@ before it, it builds the tests' image from its own checkout first
 receipt credits only journey and `(process)` rows, so a `deployed`
 request naming any other row is refused at once, naming it: request it
 inline (v0.9.7.0.11). The answer, at most 6
-lines, gives the ticket, the estimate and the cap, the rows with no
+lines, gives the ticket, the estimate and the limits, the rows with no
 history, the queue position and the next command, `sh checks/test.sh wait <ticket>`. The run
 starts detached: it outlives the call and the agent that asked.
 
@@ -105,24 +105,32 @@ queues waits, before it takes a test environment, saying `waiting for a
 clean worktree`, for up to 10 minutes, then is refused; what runs is
 HEAD's tree when it starts (v0.9.7.0.11).
 
-**The estimate and the cap.** The estimate is each row's case seconds in
+**The estimate.** The estimate is each row's case seconds in
 the newest results at the run's home that name it, plus the start-up
 time measured on recent runs; a row with no history counts 10 seconds,
 and the answer names it. A row whose test file has gained lines naming
 it since its history ran adds 10 seconds a line, listed `ROW-x (+k lines
-since its history)`. A capped run's seconds, divided by its row count,
-are a floor on each of its rows until a newer kept receipt credits the
-row. The cap is twice the estimate, counted from the
-moment the run takes a test environment. At the cap the run is stopped:
-no later pass, no receipt, `capped=yes`. When you know the rows are slow
+since its history)`. When you know the rows are slow
 — a test fixed from a fast red into a slow green, a row with no history
 — give `--expect <seconds>`, the case seconds you expect for one pass,
 start-up excluded (a deployed selection that repeats an inline word
 counts them again, v0.9.8.1). It replaces the history and is recorded
-with your reason. A
-capped result prints `retry: --expect <s>` (twice the ticket's case
-seconds): request again once with that figure (v0.9.7.3). Never set
-`VID_WAIT_MAX` — a wait in your worktree ignores it.
+with your reason. The estimate plans and shows; it stops nothing
+(v0.26.10.4).
+
+**What stops a run (v0.26.10.4).** The run's watcher stops it when it
+goes silent: no new output for 20 minutes. During a pass's start-up the
+test environment's own output counts too; once its tests start, only the
+tests' output does. It also stops a pass whose start-up passes 60
+minutes, and any run at 24 hours awake. A project sets the three in
+`.vid/budget`: `silence-minutes=`, `startup-minutes=`,
+`run-limit-minutes=`. Time is counted in the watcher's ticks, so a host
+sleep never counts. A stopped run has no later pass and no receipt; its
+result says `capped=yes`, and its first line says why: `stopped: no new
+output for 20 min (last at HH:MM UTC)`, `stopped: the deployed pass's
+start-up passed 60 min`, or `stopped at the run limit (24 h awake)`.
+`--expect` does not keep a run alive. Never set `VID_WAIT_MAX` — a wait
+in your worktree ignores it.
 
 **Reach.** After each pass, before anything is published, the manager
 reads which rows the run's cases reach (the evidence join). A report
@@ -135,12 +143,14 @@ rows=<…> — not credited`, its later passes run, and its exit comes from
 its cases.
 
 **Wait.** `sh checks/test.sh wait <ticket>` returns within 200 seconds (v0.9.7.1):
-- `queued` or `running`, with the elapsed time, the estimate and the cap
-  (exit 75), or `stopping (cap)` while a capped run comes down; while
+- `queued`, with the elapsed time and the estimate, or `running`, with
+  the watcher's awake time, the estimate and the silence so far against
+  its limit (exit 75), or `stopping (<reason>)` while a stopped run
+  comes down; while
   `queued`, followed by the holders of the host's test environments as
   the run last saw them — live, or STALE with their age;
-- `overdue` (exit 76) when a run is still running a minute past its cap —
-  its cap's watcher is gone: say so in the record;
+- `overdue` (exit 76) when a run is still running while its watcher's
+  process is gone — nothing stops it on silence: say so in the record;
 - or the result, and the run's own exit status: the status line
   (`status=<n> ran-to-end=<yes|no> capped=<yes|no> report=<receipt|none>`),
   the counts by case status, a red run's failures sorted by first message,
@@ -330,6 +340,24 @@ paths, and leaves your work as it was.
 An `analyst due` line in a request's result is not yours to act on: you
 can't start an agent, and the run manager gets the line at the hand-back.
 
+## Your branch (v0.26.10.4)
+
+- **Main's changes:** take them with `git merge main` in your worktree.
+  The commit hook judges a merge by what the merge itself adds — a
+  conflict resolution, an edit — so main's protected paths and its law
+  commits pass. Never
+  rebase: a rebase's replayed commits skip the commit hook.
+- **A commit message in a file:** write it to
+  `"$(git rev-parse --git-dir)/vid-commit-msg"` — your worktree's own git
+  directory — and commit with `git commit -F` that path. Never a shared
+  scratchpad or a `/tmp` name: agents working at once would cross their
+  messages.
+- **A new D-number:** take it with `sh checks/decisions.sh next --try
+  <your try>`. It is reserved at the run's home, above every number in
+  your branch, the home's and every reservation, so agents working at once
+  never pick the same one. A number you then don't use is a gap, which is
+  fine.
+
 ## The harness upgrade (v0.9.7.0.10 3.6, R13)
 
 A brief carrying `## 13 harness upgrade` is this pass, once per project:
@@ -377,6 +405,8 @@ readiness declarations and gains rule 4 only.
   started in the background with one `sleep` of at most 200 s, then Read
   of its output file. Never a loop: a hook refuses `while` and `until`
   loops that sleep or repeat a status probe, and sleeps over 200 s.
+  It reads shell syntax only (v0.26.10.4): quoted text and a
+  here-document's lines are prose, so a `--why` saying "while" passes.
 - **Commits:** run the whole `git commit` with the host's background
   facility; its hooks run inside it and still block. While it runs, wait
   as above, and touch neither the index nor the files you staged. Never a

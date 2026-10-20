@@ -38,7 +38,11 @@
 # first `up` whose selection holds the word $STUB_SIGNAL_SEL sends TERM to its run instead (a
 # signal; later ones run). v0.9.7.3: with $STUB_BUILD_FAIL set to a status, an `up --build` prints a failed build to standard
 # error and exits with that status, writing no report. A TERM to `up` records `ended-by-term lease=held|free folder=exists|gone`
-# and exits 143; with $STUB_UP_NOTERM set, `up` ignores TERM (a Compose call that outlives its stop). The host lease lives in a private runtime directory. Env: CHECKS, T.
+# and exits 143; with $STUB_UP_NOTERM set, `up` ignores TERM (a Compose call that outlives its stop). v0.26.10.4: with
+# $STUB_PRINT set, `up` prints that many lines, one a second, before it holds; with $STUB_CHATTY set, it prints a line each
+# second while it holds (a runner's output, to standard output); with $STUB_CHATTY_ERR set, a line each second to standard
+# error (Compose's own output, as a build's); with $STUB_HOLD_DEPLOYED set, an `up` of the deployed profile holds on that
+# file instead of $STUB_HOLD. The host lease lives in a private runtime directory. Env: CHECKS, T.
 g() { git -c user.email=vid@selftest -c user.name=vid "$@"; }
 utcnow() { date -u '+%Y-%m-%dT%H:%M:%SZ'; }
 mkdir -p "$T/run"; export XDG_RUNTIME_DIR="$T/run"
@@ -70,8 +74,12 @@ case " $* " in
       echo "ended-by-term lease=$_l folder=$_d" >> "$STUB_LOG"; exit 143' TERM; fi
     case " $* " in *"${STUB_KILL_ON:-no such arguments}"*) kill -TERM "$(tpid)"; exit 143 ;; esac
     [ -n "${STUB_ENTER:-}" ] && : > "$STUB_ENTER"
-    while [ -n "${STUB_HOLD:-}" ] && [ -f "$STUB_HOLD" ]; do
+    _pn=0; while [ "$_pn" -lt "${STUB_PRINT:-0}" ]; do _pn=$((_pn + 1)); echo "stub runner line $_pn"; sleep 1; done
+    _hf=${STUB_HOLD:-}; case " $* " in *' --profile deployed '*) _hf=${STUB_HOLD_DEPLOYED:-$_hf} ;; esac
+    while [ -n "$_hf" ] && [ -f "$_hf" ]; do
       [ -n "${STUB_DOWN_ENDS:-}" ] && [ ! -f "$SD/up.$PJ" ] && break
+      [ -n "${STUB_CHATTY:-}" ] && echo "stub runner line at $(date +%s)"
+      [ -n "${STUB_CHATTY_ERR:-}" ] && echo "stub build step at $(date +%s)" >&2
       sleep 1; done
     if [ -n "$RF" ]; then R="$RF/results"; else R=.vid/ledger-results; fi
     if [ -n "${STUB_DOWN_ENDS:-}" ] && [ ! -f "$SD/up.$PJ" ]; then   # ended by its project's down: what was still held then; then a late write, as a runner may make

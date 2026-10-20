@@ -117,6 +117,11 @@ code, never in another row's test file; a row still cites one test file
 (v0.9.8.1 R36).
 Existing files are not split or moved. There is no size court.
 
+### A row whose authority changed (v0.26.10.3 R3)
+
+A row briefed as authority-changed or to confirm: *keep only when the changed clause is not one this row tests; when unsure, amend.*
+"The test still passes" never confirms a row.
+
 ### Carried over
 
 **The boundary rule (R6), verbatim:** *A promise is proved at the

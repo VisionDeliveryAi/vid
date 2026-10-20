@@ -37,6 +37,15 @@
 #                      refuse (exit 1) instead of reading it as "rules off".
 #                      Outside a live run nothing is discovered: records
 #                      stay local.
+#                      v0.26.10.3 (R8, F-42): a stopped run still owns its live
+#                      agents. With `run: stopped …` (the stage still
+#                      develop's), `gate` read in a checkout other than the
+#                      home answers `on <home>` only when a live agent or an
+#                      unfinished Codex job of that run is bound to this
+#                      checkout's branch (checks/testenv.sh bound: R10's one
+#                      rule); home-of's step 3 also finds that home for such a
+#                      checkout. The home itself, and a checkout with only a
+#                      .vid/home path and no live agent bound, read it off.
 #   home --brief <f>   a builder worktree records its run's home in .vid/home:
 #                      the worktree holding the brief file <f>. The builder
 #                      runs it as its first act; receipts, events and the
@@ -203,6 +212,13 @@ IFS='
 '
 usage() { echo 'ViD plan: usage — sh checks/plan.sh gate | home-of | home --brief <f> | check | change <what> "<why>" --trigger <t>[,<t>…] [--evidence <ref>[,<ref>…]] --expect "<one line>" [--alternatives "<one line>"] [--not-needed-by <id>[,<id>…] "<why>"] | strategy <depth-first|breadth-first> --by owner --words "<the owner'"'"'s words>" | start <id> | admit --brief <f> | map [--all] | charged | base <id> | parse [<file>] | redstamp --staged' >&2; exit 2; }
 top() { git rev-parse --show-toplevel 2>/dev/null || pwd -P; }
+# bound_here <home>: this checkout's branch has a live agent or an unfinished Codex job of the run at <home> bound to it
+# (v0.26.10.3 R8, R10: checks/testenv.sh bound, the one liveness rule; without it, nothing is bound)
+bound_here() {
+  _bt="$(dirname "$0")/testenv.sh"; [ -f "$_bt" ] || return 1
+  _bb=$(git rev-parse --abbrev-ref HEAD 2>/dev/null) && [ -n "$_bb" ] && [ "$_bb" != HEAD ] || return 1
+  sh "$_bt" bound --home "$1" --branch "$_bb" > /dev/null 2>&1
+}
 # home_of: the run's home, absolute (exit 0); nothing (exit 1); the live runs, one per line (exit 3)
 home_of() {
   _t=$(top)
@@ -211,10 +227,14 @@ home_of() {
     _h=$(sed -n 1p "$_t/.vid/home")
     if [ -n "$_h" ] && [ -f "$_h/.vid/RUN-STATE.md" ]; then printf '%s\n' "$_h"; return 0; fi
   fi
-  # v0.9.7.0.1 (3.1, R1, R2): the one live run among the repository's checkouts
+  # v0.9.7.0.1 (3.1, R1, R2): the one live run among the repository's checkouts; v0.26.10.3 (R8): a stopped run's home
+  # too, for a checkout a live agent or job of that run is bound to (bound_here)
   _live=''; _n=0
   for _w in $(git worktree list --porcelain 2>/dev/null | sed -n 's/^worktree //p'); do
-    [ -f "$_w/.vid/RUN-STATE.md" ] && gate_at "$_w" >/dev/null 2>&1 || continue
+    [ -f "$_w/.vid/RUN-STATE.md" ] || continue
+    if ! gate_at "$_w" >/dev/null 2>&1; then
+      gate_at "$_w" stopped >/dev/null 2>&1 && [ "$(cd "$_w" 2>/dev/null && pwd -P)" != "$(cd "$_t" && pwd -P)" ] && bound_here "$_w" || continue
+    fi
     _live="$_live$_w
 "; _n=$((_n + 1))
   done
@@ -223,12 +243,13 @@ home_of() {
   [ "$_n" -eq 1 ] && return 0
   return 3
 }
-# gate_at <home>: exit 0 when on; prints the reason when off
+# gate_at <home> [stopped]: exit 0 when on; prints the reason when off. With `stopped`, a `run: stopped …` passes too
+# (v0.26.10.3 R8: the rest of the rule unchanged) — read only for a checkout a live agent of that run is bound to.
 gate_at() {
   _rs="$1/.vid/RUN-STATE.md"; _ev="$1/.vid/metrics-events"
   [ "$(sed -n 's/^plan:[[:space:]]*//p' "$_rs" | head -n 1 | sed 's/[[:space:]]*$//')" = required ] || { echo 'no plan: key — a 0.9.5 run, or not develop; rules off'; return 1; }
   _run=$(sed -n 's/^run:[[:space:]]*//p' "$_rs" | head -n 1 | awk '{ print $1 }')
-  case "$_run" in active|waiting) ;; *) echo "run: ${_run:-none} — the gate needs active or waiting"; return 1 ;; esac
+  case "$_run" in active|waiting) ;; stopped) [ "${2:-}" = stopped ] || { echo "run: stopped — the gate needs active or waiting"; return 1; } ;; *) echo "run: ${_run:-none} — the gate needs active or waiting"; return 1 ;; esac
   [ -f "$_ev" ] || { echo 'no events — no develop stage has started'; return 1; }
   _st=$(awk 'function lastat(  i) { for (i = NF; i >= 2; i--) if (index($i, "at=") == 1) { if ($i ~ /^at=[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]Z$/) return substr($i, 4); return "" } return "" }
     function kv(k,  i) { for (i = 2; i <= NF; i++) if (index($i, k "=") == 1) return substr($i, length(k) + 2); return "" }
@@ -657,6 +678,10 @@ case "${1:-}" in
       *) echo 'off no run here — neither .vid/RUN-STATE.md nor .vid/home, and no live run among the repository'"'"'s checkouts'; exit 1 ;;
     esac
     if WHY=$(gate_at "$H"); then printf 'on %s\n' "$H"; exit 0; fi
+    # v0.26.10.3 (R8): a stopped run still owns its live agents — a checkout other than the home, its branch bound to a
+    # live agent or an unfinished Codex job of that run, reads the gate on; the home itself, and a checkout with only a
+    # .vid/home path, read it off; a complete run, or one whose develop stage ended, is off everywhere
+    if [ "$(cd "$(top)" && pwd -P)" != "$(cd "$H" && pwd -P)" ] && gate_at "$H" stopped > /dev/null 2>&1 && bound_here "$H"; then printf 'on %s\n' "$H"; exit 0; fi
     printf 'off %s\n' "$WHY"; exit 1 ;;
   home-of)
     H=$(home_of); _hrc=$?

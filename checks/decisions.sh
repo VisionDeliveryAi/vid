@@ -36,15 +36,47 @@
 #                     step 7) writes without committing, the labels landing in
 #                     the initial commit. Records `decision-labels applied=<a>
 #                     widened=<w> changed=<c> skipped=<s>`.
+#   next [--try <try>]
+#                     v0.26.10.4 (R13, F-48): prints the next free `D-NNN` and
+#                     reserves it in the home's .vid/decision-ids (`D-NNN<TAB>
+#                     <try|manager><TAB><UTC>`), under the home's lock
+#                     (.vid/decision-ids.lock). Free means above every D-number
+#                     in the caller's HEAD, in the home's checked-out HEAD and
+#                     in every reservation, so a caller whose branch lags the
+#                     home can't pick one already used. The home is
+#                     checks/plan.sh home-of's, else this checkout. A reserved
+#                     number never used is a gap; no court reads D-numbers in
+#                     order. Every writer of a new D-number takes it here.
 # Reads the working tree; writes only DECISIONS.md, the record (apply), the brief
-# (propose) and the event. Usage: sh checks/decisions.sh propose [--all] | apply [<file>] [--no-commit]
+# (propose), the reservations (next) and the event. Usage: sh checks/decisions.sh propose [--all] | apply [<file>] [--no-commit] | next [--try <try>]
 set -eu
 IFS='
 '
-usage() { echo "ViD decisions: usage — sh checks/decisions.sh propose [--all] | apply [<file>] [--no-commit]" >&2; exit 2; }
+usage() { echo "ViD decisions: usage — sh checks/decisions.sh propose [--all] | apply [<file>] [--no-commit] | next [--try <try>]" >&2; exit 2; }
 refuse() { echo "ViD decisions: refused — $*" >&2; exit 1; }
 [ $# -ge 1 ] || usage
 CMD=$1; shift
+# --- v0.26.10.4 (R13): next — a D-number reserved at the home --------------------------------------------------
+if [ "$CMD" = next ]; then
+  NTRY=manager
+  case "${1:-}" in --try) [ -n "${2:-}" ] || usage; NTRY=$2 ;; '') ;; *) usage ;; esac
+  case "$NTRY" in *[!A-Za-z0-9._:-]*) refuse "--try takes an attempt id: letters, digits, '.', '_', ':' and '-'" ;; esac
+  NH=''; [ -f checks/plan.sh ] && NH=$(sh checks/plan.sh home-of 2>/dev/null | head -n 1) || true
+  [ -n "$NH" ] && [ -d "$NH/.vid" ] || NH=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+  mkdir -p "$NH/.vid"
+  NL="$NH/.vid/decision-ids.lock"; _i=0
+  until mkdir "$NL" 2>/dev/null; do _i=$((_i + 1)); [ "$_i" -lt 300 ] || refuse "the home's lock $NL is held for 30 s — another reservation is under way, or a stale lock is left; remove it if no ViD process holds it"; sleep 0.1; done
+  trap 'rmdir "$NL" 2>/dev/null' EXIT
+  dnum() { awk '{ s = $0; while (match(s, /D-[0-9]+/)) { x = (RSTART > 1) ? substr(s, RSTART - 1, 1) : ""; if (x !~ /[A-Za-z0-9_-]/) { v = substr(s, RSTART + 2, RLENGTH - 2) + 0; if (v > m) m = v } s = substr(s, RSTART + RLENGTH) } } END { print m + 0 }'; }
+  M1=$(git show HEAD:DECISIONS.md 2>/dev/null | dnum)
+  M2=$(git -C "$NH" show HEAD:DECISIONS.md 2>/dev/null | dnum)
+  M3=$(cut -f1 "$NH/.vid/decision-ids" 2>/dev/null | dnum)
+  N=$(printf '%s\n%s\n%s\n' "$M1" "$M2" "$M3" | sort -n | tail -n 1); N=$((N + 1))
+  ID=$(printf 'D-%03d' "$N")
+  printf '%s\t%s\t%s\n' "$ID" "$NTRY" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >> "$NH/.vid/decision-ids"
+  echo "$ID"
+  exit 0
+fi
 [ -f DECISIONS.md ] || refuse 'no DECISIONS.md here'
 TMPD=$(mktemp -d); trap 'rm -rf "$TMPD"' EXIT
 TAB=$(printf '\t')

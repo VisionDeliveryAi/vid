@@ -4,7 +4,8 @@
 # passes a brief as written; refuses it after one character is changed
 # ("changed after writing — write it again"), also under --at HEAD; and
 # checks an unstamped hand-made brief as before — passed when well formed
-# (the expected-unchanged control). Env: CHECKS.
+# (the expected-unchanged control; v0.26.10.4 R9: its receives: line the
+# fixer row's). Env: CHECKS.
 set -eu
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 . "$CHECKS/selftest/fixtures/brief-write.sh"
@@ -27,7 +28,7 @@ grep -qF 'changed after writing' "$T/out" || fail '--at HEAD does not check the 
 sh checks/brief.sh "$F" --at HEAD > "$T/out" 2>&1 || fail '--at HEAD refused the brief as written'
 # the control: an unstamped hand-made brief is checked as before
 Q=$(git rev-parse --short=12 HEAD)
-{ printf 'role: fixer    slice: 7\nquoted-at: %s\nreceives: 1–8    must not receive: another batch'"'"'s brief\n\n## 1 rows\n%s\n## 8 further reading (optional)\nPRD.md\n' "$Q" "$(grep '^ROW-101 ' INVENTORY.md)"; } > "$T/hand.md"
+{ printf 'role: fixer    slice: 7\nquoted-at: %s\nreceives: 1–8 (7 carries the counterexample)    must not receive: another batch'"'"'s brief\n\n## 1 rows\n%s\n## 8 further reading (optional)\nPRD.md\n' "$Q" "$(grep '^ROW-101 ' INVENTORY.md)"; } > "$T/hand.md"
 sh checks/brief.sh "$T/hand.md" > "$T/out" 2>&1 || fail 'an unstamped hand-made brief was refused'
 sed 's/a created code resolves to exactly/a created code resolves to exacty/' "$T/hand.md" > "$T/hand2.md"
 if sh checks/brief.sh "$T/hand2.md" > "$T/out" 2>&1; then fail 'an unstamped paraphrase passed'; fi

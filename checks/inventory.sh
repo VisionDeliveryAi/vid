@@ -72,13 +72,76 @@
 # v0.9.8 (3.3, R6): --report also lists `authority-changed row=<id> since=<commit> what=<ids>` for each row whose
 # authority bundle changed since it was last looked at (checks/brief.sh authority --changed), then `authority:
 # changed=<n>` — a flag, never a wipe, and never a gate.
-# Usage: sh checks/inventory.sh [--strict|--report|protected]
+# Usage: sh checks/inventory.sh [--strict|--report|protected] | sh checks/inventory.sh impact [--base <commit>] [--prd <file>] [--inventory <file>] [--detail]
 set -eu
 IFS='
 '
 
 MODE=default
 case "${1:-}" in --strict) MODE=strict ;; --report) MODE=report ;; protected) MODE=protected ;; esac
+
+# v0.26.10.3 (R4): impact — what a change to the law would do, by post-commit's rule (R1), read-only, exit 0.
+#   sh checks/inventory.sh impact [--base <commit>] [--prd <file>] [--inventory <file>] [--detail]
+# The before is PRD.md and INVENTORY.md at --base (default HEAD); the after the files given (default the working
+# tree's). Under an after inventory block whose first fence line is `grammar: 0.9.3`, for each ROW row present in both:
+# its own obligation column changed → RESET (post-commit's `amended … by=obligation`, the wipe); else an item in its
+# derived-from changed its effective fail-if (checks/prd.sh --failifs) → TO CONFIRM (post-commit's `law-changed`); a
+# row with both is reset only; a row new in the after gets neither. Prints
+#   impact reset=<n> reset-passing=<n> reset-kept=<n> confirm=<n> confirm-passing=<n> confirm-kept=<n>
+#   reset <ROW-id,…|->
+#   confirm <ROW-id,…|->
+# "passing" and "kept" are the rows' current states: passing as checks/metrics.sh test-state reads it, kept a latest
+# eligible verdict KEPT (checks/metrics.sh row-state --table); without checks/metrics.sh both read `uncounted`.
+# --detail prints only the sets, `reset<TAB><row>` and `confirm<TAB><row><TAB><changed items>` a line, no states:
+# checks/hooks/post-commit's reading (HEAD~1 as the before, HEAD's committed files as the after), so a question's count
+# and what lands come from this one calculation.
+if [ "${1:-}" = impact ]; then
+  shift; IMB=HEAD; IMP=PRD.md; IMI=INVENTORY.md; IMD=no
+  imusage() { echo 'ViD inventory impact: usage — sh checks/inventory.sh impact [--base <commit>] [--prd <file>] [--inventory <file>] [--detail]' >&2; exit 2; }
+  while [ $# -gt 0 ]; do case "$1" in --base) [ $# -ge 2 ] || imusage; IMB=$2; shift 2 ;; --prd) [ $# -ge 2 ] || imusage; IMP=$2; shift 2 ;; --inventory) [ $# -ge 2 ] || imusage; IMI=$2; shift 2 ;; --detail) IMD=yes; shift ;; *) imusage ;; esac; done
+  git rev-parse -q --verify "$IMB^{commit}" > /dev/null 2>&1 || { echo "ViD inventory impact: --base $IMB names no commit" >&2; exit 2; }
+  IMT=$(mktemp -d); trap 'rm -rf "$IMT"' EXIT
+  git show "$IMB:INVENTORY.md" > "$IMT/inv.old" 2> /dev/null || : > "$IMT/inv.old"
+  git show "$IMB:PRD.md" > "$IMT/prd.old" 2> /dev/null || : > "$IMT/prd.old"
+  if [ -f "$IMI" ]; then cp "$IMI" "$IMT/inv.new"; else : > "$IMT/inv.new"; fi
+  if [ -f "$IMP" ]; then cp "$IMP" "$IMT/prd.new"; else : > "$IMT/prd.new"; fi
+  imblk() { sed -n '/^```vid-inventory/,/^```$/p' "$1" | sed '1d;$d'; }
+  : > "$IMT/sets"
+  case "$(imblk "$IMT/inv.new" | grep -v '^[[:space:]]*$' | head -n 1 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')" in
+    'grammar: 0.9.3')
+      imblk "$IMT/inv.old" | grep -E '^[[:space:]]*ROW-' > "$IMT/old" || true
+      imblk "$IMT/inv.new" | grep -E '^[[:space:]]*ROW-' > "$IMT/new" || true
+      : > "$IMT/reqs"
+      if [ -f checks/prd.sh ]; then
+        sh checks/prd.sh --failifs "$IMT/prd.old" > "$IMT/f.old" 2> /dev/null || : > "$IMT/f.old"
+        sh checks/prd.sh --failifs "$IMT/prd.new" > "$IMT/f.new" 2> /dev/null || : > "$IMT/f.new"
+        awk -F'\t' 'NR == FNR { o[$1] = $2; next } ($1 in o) && o[$1] != $2 { print $1 }' "$IMT/f.old" "$IMT/f.new" > "$IMT/reqs"
+      fi
+      awk -F'|' -v of="$IMT/old" -v rf="$IMT/reqs" '
+        function trim(s) { gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
+        BEGIN { while ((getline l < of) > 0) { split(l, a, "|"); ob[trim(a[1])] = trim(a[6]) } while ((getline l < rf) > 0) chg[l] = 1 }
+        { id = trim($1); if (!(id in ob) || (id in done)) next; done[id] = 1
+          if (ob[id] != trim($6)) { print "reset\t" id; next }
+          it = ""; n = split(trim($7), t, /[ ,]+/); for (k = 1; k <= n; k++) if ((t[k] in chg) && !((id, t[k]) in s)) { s[id, t[k]] = 1; it = it (it == "" ? "" : ",") t[k] }
+          if (it != "") print "confirm\t" id "\t" it }' "$IMT/new" > "$IMT/sets" ;;
+  esac
+  if [ "$IMD" = yes ]; then cat "$IMT/sets"; exit 0; fi
+  NRS=$(awk -F'\t' '$1 == "reset"' "$IMT/sets" | grep -c . || true); NCF=$(awk -F'\t' '$1 == "confirm"' "$IMT/sets" | grep -c . || true)
+  RP=0; RK=0; CP=0; CK=0
+  if [ $((NRS + NCF)) -gt 0 ]; then
+    if [ -f checks/metrics.sh ]; then
+      sh checks/metrics.sh test-state --rows "$(cut -f2 "$IMT/sets" | paste -sd, -)" 2> /dev/null | sed -n 's/^test-state row=\([^ ]*\) .* passing=yes .*$/\1/p' > "$IMT/pass"
+      sh checks/metrics.sh row-state --table 2> /dev/null | awk -F'\t' '$3 == "KEPT" { print $1 }' > "$IMT/kept"
+      set -- $(awk -F'\t' 'FILENAME == ARGV[1] { P[$1] = 1; next } FILENAME == ARGV[2] { K[$1] = 1; next }
+        { if ($2 in P) p[$1]++; if ($2 in K) k[$1]++ } END { print p["reset"] + 0; print k["reset"] + 0; print p["confirm"] + 0; print k["confirm"] + 0 }' "$IMT/pass" "$IMT/kept" "$IMT/sets")
+      RP=$1; RK=$2; CP=$3; CK=$4
+    else RP=uncounted; RK=uncounted; CP=uncounted; CK=uncounted; fi
+  fi
+  echo "impact reset=$NRS reset-passing=$RP reset-kept=$RK confirm=$NCF confirm-passing=$CP confirm-kept=$CK"
+  echo "reset $(awk -F'\t' '$1 == "reset" { o = o (o == "" ? "" : ",") $2 } END { print (o == "" ? "-" : o) }' "$IMT/sets")"
+  echo "confirm $(awk -F'\t' '$1 == "confirm" { o = o (o == "" ? "" : ",") $2 } END { print (o == "" ? "-" : o) }' "$IMT/sets")"
+  exit 0
+fi
 
 # Presence-gated: silent when inactive — courts speak only to reject or report.
 [ -f INVENTORY.md ] || exit 0
@@ -555,10 +618,13 @@ fi
 # v0.9.8 (3.3, R6): authority changes raise a flag, never a wipe — each row whose authority bundle changed since its
 # baseline (checks/brief.sh authority --changed: an arm, an owner answer, a decision's rule), then the count. The next
 # close's test-author pass revisits it: kept (brief.sh authority --kept) or amended. Verdicts, attempts and holds are untouched; nothing here gates.
+# v0.26.10.3 (R3): the listing adds every row to confirm (brief.sh's default listing, R2's rule), `… to-confirm=yes`,
+# whatever its baseline says, and the count names them: `authority: changed=<n> (to confirm: <k>)`.
 if [ "$MODE" = report ] && [ -f checks/brief.sh ] && git rev-parse -q --verify HEAD > /dev/null 2>&1; then
   AUTHC=$(sh checks/brief.sh authority --changed 2>/dev/null | grep '^authority-changed ' || true)
   [ -n "$AUTHC" ] && printf '%s\n' "$AUTHC"
-  echo "authority: changed=$(printf '%s\n' "$AUTHC" | grep -c . || true)"
+  AUTHK=$(printf '%s\n' "$AUTHC" | grep -c ' to-confirm=yes$' || true)
+  echo "authority: changed=$(printf '%s\n' "$AUTHC" | grep -c . || true)$( [ "$AUTHK" -gt 0 ] && echo " (to confirm: $AUTHK)")"
 fi
 
 case "$MODE" in

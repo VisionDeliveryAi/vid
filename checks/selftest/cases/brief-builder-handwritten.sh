@@ -1,7 +1,8 @@
 #!/bin/sh
 # Purpose: selftest case — a hand-written builder brief still passes (v0.9.7.0.7 spec 3.2; §6 B-6).
 # The brief-write fixture with bw_builder. A run already under way has builder briefs written by
-# hand: no stamp, no `skill:` line, sections 1–8 with section 4's laws and no 9–12. Convicts unless
+# hand: no stamp, no `skill:` line, sections 1–8 with section 4's laws and no 9–12, its receives: line the builder
+# row's (v0.26.10.4 R9). Convicts unless
 # checks/brief.sh says ok on one; and, its polarity, refuses the same brief with a row paraphrased.
 # Env: CHECKS.
 set -eu
@@ -10,7 +11,7 @@ T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 fail() { echo "brief-builder-handwritten: $*" >&2; cat "$T/out" >&2 2>/dev/null; exit 1; }
 bw_plugin; bw_repo "$T/repo"; bw_builder
 Q=$(git rev-parse HEAD)
-{ printf 'role: builder    slice: 2    step: S2\nquoted-at: %s\nreceives: 1–8    must not receive: another batch'"'"'s brief or verdicts\n\n' "$Q"
+{ printf 'role: builder    slice: 2    step: S2\nquoted-at: %s\nreceives: 1–3, 5–12    must not receive: another batch'"'"'s brief or verdicts\n\n' "$Q"
   printf '## 1 rows\n\n%s\n\n' "$(grep '^ROW-104 ' INVENTORY.md)"
   printf '## 3 decisions\n\n%s\n\n' "$(grep '^- \*\*D-006\*\*' DECISIONS.md)"
   printf '## 4 laws\n\n- Every import crosses a seam the table declares.\n\n'

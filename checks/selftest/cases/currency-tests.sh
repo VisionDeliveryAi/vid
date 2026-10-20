@@ -18,6 +18,7 @@ T=$(mktemp -d); trap 'set +e; rm -rf "$T" 2>/dev/null' EXIT
 fail() { echo "currency-tests: $*" >&2; exit 1; }
 plan_repo "$T/repo"; rows s1 1 2; rows s2 3 3 journey; commit_all rows
 cp "$CHECKS/hooks/post-commit" checks/hooks/ 2>/dev/null || { mkdir -p checks/hooks; cp "$CHECKS/hooks/post-commit" checks/hooks/; }
+cp "$CHECKS/inventory.sh" checks/   # v0.26.10.3 (R1): the hook's row sets come from inventory.sh impact
 commit_all 'the post-commit hook'
 g config core.hooksPath checks/hooks
 plan 'step S1 | name: first | modules: app/s1 | builds-on: - | rows: ROW-001 ROW-002' \

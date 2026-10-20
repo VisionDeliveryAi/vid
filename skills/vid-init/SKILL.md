@@ -57,6 +57,17 @@ it creates `.vid/`, which is how create-prd, design and test-inventory,
 run inside init, know they are in a ViD project and record their own
 stages. At the hand-back (step 8) record `state=end` in the same form.
 
+**ViD's own defects (v0.26.10.3 R12, R13).** When a ViD check, hook,
+skill or agent role misbehaves — it refuses legitimate work, crashes,
+contradicts itself or its documentation, or gives a wrong count — or when
+you use a workaround around one, append an entry to `.vid/VID-FINDINGS.md`
+in the form of `${CLAUDE_PLUGIN_ROOT}/templates/VID-FINDINGS.md` (the file
+is created from it at the first entry; entries are numbered in the file),
+record `sh checks/event.sh 'vid-finding n=<n> area=check|hook|skill|agent file=<ViD
+path>'`, and tell the owner in one line (before step 6 copies checks/, the plugin's
+`sh "${CLAUDE_PLUGIN_ROOT}/checks/event.sh"`). A defect in the product being
+built is not a ViD finding.
+
 ## 1. Product elicitation — delegated to /vid create-prd (the two-channel split)
 
 Two channels, two owners. **Product elicitation** — what the product is,
