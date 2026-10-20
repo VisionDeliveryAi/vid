@@ -24,7 +24,7 @@
 # together are all named, comma-separated; inventory and census apart),
 # every other refusal its own name at its own exit (protected-paths,
 # law-dirty, law-standalone, purpose-header, decisions-enforced,
-# decisions-promissory, decisions-label (v0.9.7.3), index-copy, red-stamp, prd-grammar, selftest) — and
+# decisions-promissory, decisions-label (v0.9.7.3), hosting-access (v0.26.10.8), index-copy, red-stamp, prd-grammar, selftest) — and
 # the EXIT trap, on a refused exit, appends ` by=<names>` to its hook-times
 # line and writes `refused phase=pre-commit by=<names> attempt=<UTC time
 # plus 4 hex>` to the run's events (checks/event.sh, so at the run's home).
@@ -338,6 +338,27 @@ if [ -n "$DLINES" ]; then
     echo 'Label a decision when you write it: | applies-to: <ROW, RULE or REQ ids, screen codes, DIF ids, module ids> — or | scope: project, only when it bears on many areas.' >&2
     BY=decisions-label; exit 1
   fi
+fi
+
+# 4d. v0.26.10.8 (R4): ARCHITECTURE.md's ```vid-hosting block records access only
+# by its shape, never a credential — `access:` and `dns-access:` take
+# `cli-login <platform>` (the word equal to the block's `platform:`), `env
+# <NAME>` (NAME matching [A-Z_][A-Z0-9_]*) or `none`. Read from the staged
+# ARCHITECTURE.md; silent without the block.
+HBAD=$(git show :ARCHITECTURE.md 2>/dev/null | sed -n '/^```vid-hosting[[:space:]]*$/,/^```[[:space:]]*$/p' | grep -v '^```' | awk '
+  function tr(s) { gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
+  { i = index($0, ":"); if (!i) next; k = tr(substr($0, 1, i - 1)); v = tr(substr($0, i + 1))
+    if (k == "platform") pf = v; else if (k == "access" || k == "dns-access") { K[++n] = k; V[n] = v } }
+  END { for (j = 1; j <= n; j++) { v = V[j]; m = split(v, w, /[ \t]+/)
+      if (v == "none") continue
+      if (m == 2 && w[1] == "env" && w[2] ~ /^[A-Z_][A-Z0-9_]*$/) continue
+      if (m == 2 && w[1] == "cli-login" && w[2] == pf && pf != "") continue
+      print "    " K[j] ": takes cli-login " (pf == "" ? "<platform>" : pf) ", env <NAME> or none — nothing else is recorded" } }')
+if [ -n "$HBAD" ]; then
+  echo "ViD pre-commit: rejected — ARCHITECTURE.md's vid-hosting block records access only by its shape (v0.26.10.8 R4):" >&2
+  printf '%s\n' "$HBAD" >&2
+  echo 'Never a password or a token: name the log-in (cli-login <the platform:>), or the environment variable that holds it (env <NAME>). An answer that held a value is not recorded — ask the owner for the name, and to treat the value as exposed and replace it.' >&2
+  BY=hosting-access; exit 1
 fi
 
 # 5–6. The courts — placement and conformance always; the rest presence-gated,

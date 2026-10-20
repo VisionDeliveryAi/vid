@@ -7,7 +7,7 @@
 #     <project>: given, or the current directory; it must hold PRD.md. --out: else `~/ViD Viewer/<folder name>/`.
 #     --at: one extra snapshot at a commit or a time, marked "requested" in the index (kept for later runs).
 #   sh viewer/view.sh --check <snapshot file>
-#     the data contract's check (viewer/DATA.md, `viewer-data 2`): every required field present and typed, every
+#     the data contract's check (viewer/DATA.md, `viewer-data 4`): every required field present and typed, every
 #     id a part cites present in its part. Exit 0 when it holds; else one line per fault, exit 1.
 # Milestones (3.3), found, never written: the PRD's Ratifications lines (each pause's commit); `stage name=init
 # state=end`; the first `stage name=develop state=start`; `step-closed`; `slice-close`; `checkpoint`; the first
@@ -26,7 +26,14 @@
 # fails. Documents are parsed once per git blob (.cache/blob/). Pages are reassembled from cached data, their
 # neighbours and the page, and written only when they change; delegated marks are applied at assembly, from the
 # full events file. Read only (R2): every git call runs with GIT_OPTIONAL_LOCKS=0, and nothing is written into
-# the project. Counts, never percentages. Nothing pops up.
+# the project. Nothing pops up.
+# Figures (v0.26.10.6 R16, the owner's ruling of 2026-10-20): counts, durations, token counts and dollar estimates
+# labelled "API-equivalent, not your bill" — never a percentage, a ratio or a score; a cache share is two counts.
+# Times are elapsed, never compute time.
+# v0.26.10.6 (R1–R15): two more parts — `execution` (the latest snapshot and the index; null in a past one: agents and
+# Codex jobs with their runs, briefs and hand-backs, needs attention, the test queue, the timeline's bands, rework) and
+# `economics` (every snapshot, only what was recorded by T: usage per agent in four kinds or an older total, the run
+# manager apart, test passes, close batches, cost per accepted outcome, the dated price table viewer/prices.tsv).
 set -u
 IFS='
 '
@@ -35,8 +42,8 @@ VIEWER=$(cd "$(dirname "$0")" && pwd -P); PLUG=$(cd "$VIEWER/.." && pwd -P)
 GIT_OPTIONAL_LOCKS=0; export GIT_OPTIONAL_LOCKS
 unset VID_EVIDENCE_HELD 2>/dev/null || true
 unset $(git rev-parse --local-env-vars 2>/dev/null) 2>/dev/null || true
-DATAV=2
-PAGE="$VIEWER/page/ViD Viewer v3.dc.html"; RUNTIME="$VIEWER/page/support.js"
+DATAV=4
+PAGE="$VIEWER/page/ViD Viewer v4.dc.html"; RUNTIME="$VIEWER/page/support.js"
 LIB="$VIEWER/vendor/react.production.min.js"; LIBDOM="$VIEWER/vendor/react-dom.production.min.js"
 usage() { echo 'ViD view: usage — sh viewer/view.sh [<project>] [--out <dir>] [--at <commit|UTC time>] | --check <snapshot>' >&2; exit 2; }
 die() { echo "ViD view: $*" >&2; exit 1; }
@@ -144,6 +151,399 @@ function arch_part(   l, f, i, j, k, m, n, w, a, x, y, q, d, it, ni, s, tok, pre
   if (!("base" in HAS)) { amiss("stack", "There is no BASELINE.md at this commit."); amiss("mustNeverBreak", "There is no BASELINE.md at this commit.") }
   else { if (!HASSK) amiss("stack", "BASELINE.md has no table under its Stack heading at this commit."); if (!HAST0) amiss("mustNeverBreak", "BASELINE.md has no table under its Tier-0 rows heading at this commit.") }
   printf "],\"missing\":[%s]},\n", AMS }'
+AWKEX='# v0.26.10.6 (R1–R14): the execution part (now only) and the economics part (every snapshot), from the records up to T.
+# -v T (the moment), NOW (1 in the latest snapshot), X (the files’ facts), AGF (agents now, for activity), H (the home).
+# The main input is the events up to T, in their file order. Times are UTC; durations are elapsed seconds.
+function ep(s,   y, m, d, mp) { if (s !~ /^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]Z$/) return -1
+  y = substr(s, 1, 4) + 0; m = substr(s, 6, 2) + 0; d = substr(s, 9, 2) + 0; if (m <= 2) { y--; mp = m + 9 } else mp = m - 3
+  return (365 * y + int(y / 4) - int(y / 100) + int(y / 400) + int((153 * mp + 2) / 5) + d - 1 - 719468) * 86400 + substr(s, 12, 2) * 3600 + substr(s, 15, 2) * 60 + substr(s, 18, 2) }
+function utc(e,   s, z, era, doe, yoe, y, doy, mp, d, m) { if (e !~ /^[0-9]+$/) return ""; e += 0; s = e % 86400; z = int(e / 86400) + 719468; era = int(z / 146097); doe = z - era * 146097
+  yoe = int((doe - int(doe / 1460) + int(doe / 36524) - int(doe / 146096)) / 365); y = yoe + era * 400; doy = doe - (365 * yoe + int(yoe / 4) - int(yoe / 100))
+  mp = int((5 * doy + 2) / 153); d = doy - int((153 * mp + 2) / 5) + 1; m = (mp < 10) ? mp + 3 : mp - 9; if (m <= 2) y++
+  return sprintf("%04d-%02d-%02dT%02d:%02d:%02dZ", y, m, d, int(s / 3600), int(s % 3600 / 60), s % 60) }
+function nv(x) { return (x == "" || x == "-" || x == "unknown" || x !~ /^-?[0-9]+(\.[0-9]+)?$/) ? "null" : x + 0 }
+function sv(x) { return (x == "" || x == "-" || x == "unknown") ? "null" : js(x) }
+function tv(x) { return (x == "") ? "null" : js(x) }
+# a return file’s newness: its modification time, then its acceptance’s time, then its try’s number (one agent may hand
+# back two briefs within one second)
+function rnew(f,   x, n) { x = f; sub(/\.return\.md$/, ".md", x); x = btry(x); n = x; sub(/.*-/, "", n); return sprintf("%012d", RFM[f]) "\t" ((x in ACC) ? ACC[x] : "") "\t" sprintf("%09d", n) }
+# a step’s last close by T, read without creating it
+function cls(s) { return (s in SPC) ? SPC[s] : "" }
+function nk(x) { return (x == "unknown" || x == "-") ? "" : x }
+function add(l, x) { return l (l == "" ? "" : "\036") x }
+function jl(l,   n, a, i, o) { if (l == "") return "[]"; n = split(l, a, "\036"); o = ""; for (i = 1; i <= n; i++) o = o (i > 1 ? "," : "") js(a[i]); return "[" o "]" }
+function cnt(l,   a) { return l == "" ? 0 : split(l, a, "\036") }
+# a brief’s path relative to the home, and its try: .vid/briefs/<slice>/<role>-<n>.md is try <slice>-<role>-<n>
+# an older record’s absolute path: its home prefix removed (the home it was written at, which a copy no longer is)
+function rel(p,   i) { if (H != "" && index(p, H "/") == 1) p = substr(p, length(H) + 2); else if (p ~ /^\// && (i = index(p, "/.vid/")) > 0) p = substr(p, i + 1); sub(/^\.\//, "", p); return p }
+function btry(p,   f) { p = rel(p); if (p !~ /^\.vid\/briefs\/[^\/]+\/[a-z][a-z-]*-[0-9]+\.md$/) return ""; f = p; sub(/^\.vid\/briefs\//, "", f); sub(/\.md$/, "", f); sub(/\//, "-", f); return f }
+function trole(t,   r) { r = t; sub(/^[^-]+-/, "", r); sub(/-[0-9]+$/, "", r); return r }
+function tslice(t,   s) { s = t; sub(/-[a-z][a-z-]*-[0-9]+$/, "", s); return s }
+function tbrief(t) { return ".vid/briefs/" tslice(t) "/" trole(t) "-" substr(t, length(tslice(t) "-" trole(t)) + 2) ".md" }
+function bf(t,   r) { r = trole(t); return r == "builder" || r == "fixer" }
+# a try’s step (R3): its build-cost’s step=, else its brief’s step: header, else its job record’s
+function tstep(t) { if (BCSTEP[t] != "") return BCSTEP[t]; if (BHS[tbrief(t)] != "") return BHS[tbrief(t)]; if (JK[t, "step"] != "" && JK[t, "step"] != "-") return JK[t, "step"]; return "" }
+function stageat(a,   i, s) { s = ""; for (i = 1; i <= NSG; i++) { if (SGT[i] > a) break; s = SGN[i] } return s }
+BEGIN { FS = " "
+  while ((getline l < X) > 0) { n = split(l, ff, "\t")
+    if (ff[1] == "RF") { RFO[++NRF] = ff[2]; RFM[ff[2]] = ff[3] }
+    else if (ff[1] == "RL") { if (ff[3] ~ /^agent:[ \t]*/) { x = ff[3]; sub(/^agent:[ \t]*/, "", x); sub(/[ \t].*$/, "", x); RFA[ff[2]] = x } else if (ff[3] ~ /^[ \t]*ROW-/) RFL[ff[2]] = add(RFL[ff[2]], ff[3]) }
+    else if (ff[1] == "RP") RPT[ff[2]] = 1
+    else if (ff[1] == "BH") BHS[ff[2]] = ff[3]
+    else if (ff[1] == "JR") { if (!((ff[2]) in JOBK)) { JOBK[ff[2]] = 1 } JK[ff[2], ff[3]] = ff[4] }
+    else if (ff[1] == "JE") { JEI[ff[2]] = ff[3]; JEC[ff[2]] = ff[4]; JEW[ff[2]] = ff[5]; JEO[ff[2]] = ff[6] }
+    else if (ff[1] == "RQ") RQ[ff[2], ff[3]] = ff[4]
+    else if (ff[1] == "RS") { RQS[ff[2]] = ff[3]; RQO[++NRQ] = ff[2] }
+    else if (ff[1] == "RA") RQA[ff[2]] = ff[3]
+    else if (ff[1] == "RH") RQH[ff[2]] = ff[3]
+    else if (ff[1] == "RB") RQB[ff[2]] = 1
+    else if (ff[1] == "RR") RUNT[ff[3]] = ff[2]
+    else if (ff[1] == "HB") { NHB++; HBT[NHB] = ff[2]; HBX[NHB] = ff[3] }
+    else if (ff[1] == "OS") OS[ff[2]] = ff[3]
+    else if (ff[1] == "BU") BUD[ff[2]] = ff[3]
+    else if (ff[1] == "WD") WD[ff[2]] = 1
+    else if (ff[1] == "HO") { if (!(ff[2] in HOS)) { HOS[ff[2]] = 1; HOO[++NHO] = ff[2] } HO[ff[2], ff[3]] = ff[4] }
+    else if (ff[1] == "RUN") RUNV = ff[2]
+    else if (ff[1] == "Q") QL[++NQ] = ff[2]
+    else if (ff[1] == "ST") { STN[ff[2]] = ff[3]; STO[++NST] = ff[2] }
+    else if (ff[1] == "PA") PASOF = ff[2]
+    else if (ff[1] == "PS") PSRC = PSRC (PSRC == "" ? "" : " and ") ff[2]
+    else if (ff[1] == "PM") PM[++NPM] = "\"" ff[2] "\":{\"input\":" ff[3] ",\"cacheRead\":" ff[4] ",\"cacheWrite\":" ff[5] ",\"cacheWrite1h\":" ff[6] ",\"output\":" ff[7] "}" }
+}
+{ t = lastat() }
+$1 == "session" && kv("id") != "" { i = kv("id"); if (!(i in SSN)) { SSN[i] = t; SSO[++NSS] = i } SSRC[i] = kv("source"); if (kv("model") != "" && kv("model") != "-") SSM[i] = kv("model"); next }
+$1 == "stage" { i = kv("session"); if (i != "" && i != "-" && !(i in SSN)) { SSN[i] = t; SSO[++NSS] = i }
+  if (kv("state") == "start") { if ((kv("name") == "develop" || kv("name") == "fix") && i != "") SMG[i] = 1; NSG++; SGT[NSG] = t; SGN[NSG] = kv("name"); NB++; BK[NB] = "stage"; BI[NB] = kv("name"); BS[NB] = t; BE[NB] = ""; OPENSG[kv("name")] = OPENSG[kv("name")] " " NB }
+  else if (kv("state") == "end") { n = split(OPENSG[kv("name")], aa, " "); for (k = 1; k <= n; k++) if (aa[k] != "") BE[aa[k]] = t; OPENSG[kv("name")] = "" }
+  next }
+$1 == "slice-open" { NB++; BK[NB] = "slice"; BI[NB] = kv("slice"); BS[NB] = t; BE[NB] = ""; SLO[kv("slice")] = NB; next }
+$1 == "slice-close" { if (kv("slice") in SLO) BE[SLO[kv("slice")]] = t; next }
+$1 == "step-start" && kv("step") != "" { s = kv("step"); if (!(s in SPS)) { SPS[s] = t; SPO[++NSP] = s } next }
+$1 == "step-closed" { x = $0; sub(/^step-closed.* step=/, "", x); sub(/ [a-z][a-z-]*=.*$/, "", x); n = split(x, aa, /[ ,]+/); for (k = 1; k <= n; k++) if (aa[k] ~ /^S/) { SPC[aa[k]] = t; if (!(aa[k] in SPS) && !(aa[k] in SPX)) { SPX[aa[k]] = 1; SPO[++NSP] = aa[k] } } next }
+$1 == "agent-start" || $1 == "agent-stop" { a = kv("agent"); if (a == "" || a == "-") next
+  if (!(a in AG)) { AG[a] = 1; AGO[++NAG] = a }
+  if ($1 == "agent-start") { if (AOP[a]) { AOP[a] = 0 } k = ++ANR[a]; ARS[a, k] = t; ARE[a, k] = ""; ARB[a, k] = ""; AOP[a] = 1; ASE[a] = kv("session"); ATY[a] = kv("type"); AHS[a] = 1 }
+  else { if (!AHS[a]) { ASE[a] = kv("session"); ATY[a] = kv("type") }
+    if (AOP[a]) { k = ANR[a]; ARE[a, k] = t; ARB[a, k] = "stop"; AOP[a] = 0 }
+    else if (!ANR[a]) { k = ++ANR[a]; ARS[a, k] = ""; ARE[a, k] = t; ARB[a, k] = "stop" } }
+  next }
+$1 == "agent-brief" && kv("agent") != "" { a = kv("agent"); b = bkv(H); if (!(a in ABR)) ABR[a] = (b == "unavailable") ? "-" : rel(b); next }
+$1 == "agent-returned" { x = kv("try"); if (x != "" && x != "-" && !(x in ACC)) ACC[x] = t; a = kv("agent"); if (a != "" && AOP[a]) { k = ANR[a]; ARE[a, k] = t; ARB[a, k] = "hand-back"; AOP[a] = 0 } next }
+$1 == "build-cost" { b = rel(bkv(H)); x = btry(b); a = kv("agent"); if (a != "" && AOP[a]) { k = ANR[a]; ARE[a, k] = t; ARB[a, k] = "cost"; AOP[a] = 0 }
+  if (x != "" && !(x in ACC)) ACC[x] = t; if (x != "" && kv("step") != "" && kv("step") != "-") BCSTEP[x] = kv("step")
+  NBC++; BCB[NBC] = b; BCT[NBC] = x; BCA[NBC] = a; BCAT[NBC] = t; BCR[NBC] = kv("role"); BCSL[NBC] = kv("slice"); BCP[NBC] = kv("peak"); BCTO[NBC] = kv("total"); BCSRC[NBC] = kv("source")
+  y = kv("before-change"); BCBC[NBC] = y; BCSH[NBC] = (index($0, " before-change=" y " shell") > 0); BCTL[NBC] = kv("tool"); BCM[NBC] = kv("model"); BCE[NBC] = kv("effort"); BCBB[NBC] = kv("brief-bytes"); BCST[NBC] = kv("step")
+  if (x != "") TRYS[x] = 1; next }
+$1 == "continuation-superseded" && kv("try") != "" { SUP[kv("try")] = t; next }
+$1 == "job-start" && kv("try") != "" { j = kv("try"); if (!(j in JS)) { JS[j] = t; JO[++NJ] = j; TRYS[j] = 1; if (kv("step") != "" && kv("step") != "-" && JK[j, "step"] == "") JK[j, "step"] = kv("step") } next }
+$1 == "job-exit" && kv("try") != "" { j = kv("try"); if (!(j in JEND)) { JEND[j] = t; JEB[j] = "job-exit" } JX[j] = kv("exit"); JRS[j] = kv("reason"); JXT[j] = t; next }
+$1 == "job-stop" && kv("try") != "" { j = kv("try"); if (!(j in JEND)) { JEND[j] = t; JEB[j] = "job-stop" } if (kv("saved") == "yes") JREC[j] = ""; next }
+$1 == "job-recovery-required" && kv("try") != "" { j = kv("try"); JREC[j] = t; NAT++; ATK[NAT] = "needs-recovery"; ATA[NAT] = t; ATJ[NAT] = j; next }
+$1 == "job-cleaned" && kv("try") != "" { JREC[kv("try")] = ""; next }
+$1 == "verdict" && kv("row") != "" && kv("result") != "" { r = kv("row"); NV++; VR[NV] = r; VIX[r] = VIX[r] " " NV; VRES[NV] = kv("result"); VT[NV] = t; VB[NV] = rel(bkv(H)); next }
+$1 == "died" { NAT++; ATK[NAT] = "run-died"; ATA[NAT] = t; x = "the run\047s session stopped (" kv("reason") ")"; if (qv("details") != "" && qv("details") != kv("details")) x = x ": " qv("details"); ATX[NAT] = x; LASTDIED = NAT; next }
+$1 == "run" { RUNT_ = t; if (LASTDIED) DIEDOK[LASTDIED] = 1; next }
+$1 == "agent-death" { NAT++; ATK[NAT] = "agent-died"; ATA[NAT] = t; x = $0; sub(/^agent-death[ \t]*/, "", x); sub(/[ \t]*at=[^ ]*[ \t]*$/, "", x); ATX[NAT] = x; next }
+$1 == "stall" { NAT++; ATK[NAT] = "stuck"; ATA[NAT] = t; ATX[NAT] = "an operation ran past its time limit (" kv("op") ", " kv("elapsed") " s of " kv("envelope") " s)"; ATO[NAT] = kv("op"); next }
+$1 == "teardown-failed" { NAT++; ATK[NAT] = "environment-left"; ATA[NAT] = t; ATX[NAT] = "a test environment was left taken: its teardown failed (" kv("project") ")"; ATP[NAT] = kv("project"); ATT[NAT] = kv("request"); next }
+$1 == "teardown" { r = kv("report"); if (r != "" && r != "none") { TDN[r]++; TDS[r] = kv("seconds") } next }
+$1 == "invalidated" { r = kv("report"); if (r != "" && r != "none") VOID[r] = 1; next }
+$1 == "close-batch" { NCB++; CBI[NCB] = kv("id"); CBC[NCB] = kv("chunks"); CBW[NCB] = kv("wall"); CBR[NCB] = kv("retried"); next }
+$1 == "manager-cost" { NMC++; MCA[NMC] = t; MCS[NMC] = kv("since"); MCC[NMC] = kv("calls"); MCI[NMC] = kv("input"); next }
+$1 == "usage" && kv("agent") != "" { a = kv("agent")
+  if (a == "manager") { NMU++; MUA[NMU] = t; x = kv("scope"); sub(/^since:/, "", x); MUS[NMU] = x; MUL[NMU] = $0; next }
+  UL[a] = $0; UAT[a] = t; next }
+$1 == "ledger-run" { NLR++; LRL[NLR] = $0; LRT[NLR] = t; tk = kv("request"); sub(/\/.*/, "", tk); if (tk != "") PASSED[tk] = 1; next }
+END {
+  # --- prices (R13) ---
+  pm = ""; for (i = 1; i <= NPM; i++) pm = pm (i > 1 ? "," : "") PM[i]
+  PRICES = "{\"asOf\":" tv(PASOF) ",\"source\":" tv(PSRC) ",\"placeholder\":false,\"models\":{" pm "}}"
+  # --- hand-backs (R4): a return file; in a past snapshot only once its acceptance is recorded by T ---
+  for (i = 1; i <= NRF; i++) { f = RFO[i]; b = f; sub(/\.return\.md$/, ".md", b); x = btry(b); if (x == "") continue
+    acc = (x in ACC); if (!NOW && !acc) continue
+    if ((x in RET) && RFM[RET[x]] > RFM[f]) continue
+    RET[x] = f; TRYS[x] = 1
+    if (RFA[f] != "") { a = RFA[f]; if (!(a in RAG) || rnew(f) > rnew(RAG[a])) RAG[a] = f } }
+  # each hand-back’s lines, rows and JSON
+  for (x in RET) { f = RET[x]; n = split(RFL[f], L, "\036"); o = ""; rows = ""; pr = ""
+    for (k = 1; k <= n; k++) { m = split(L[k], c, "|"); r = c[1]; gsub(/^[ \t]+|[ \t]+$/, "", r); res = c[2]; gsub(/^[ \t]+|[ \t]+$/, "", res); rc = c[3]; gsub(/^[ \t]+|[ \t]+$/, "", rc)
+      rs = ""; if (m >= 4) { rs = L[k]; for (q = 1; q <= 3; q++) sub(/^[^|]*\|/, "", rs); gsub(/^[ \t]+|[ \t]+$/, "", rs) }
+      if (rc == "none") rc = ""
+      o = o (o == "" ? "" : ",") "{\"row\":" tv(r) ",\"result\":" tv(res) ",\"receipt\":" tv(rc) ",\"reason\":" tv(rs) "}"
+      rows = add(rows, r); if (res == "pass") pr = add(pr, r) }
+    RROWS[x] = rows; RPASS[x] = pr; RLN[x] = n
+    HBJ[x] = "{\"file\":" js(f) ",\"accepted\":" jb(x in ACC) ",\"refusedAt\":null,\"lines\":[" o "],\"report\":" jb((f in RPT)) "}" }
+  # --- links (R3): agent-brief, a return’s agent: line, a Codex job’s record ---
+  for (i = 1; i <= NAG; i++) { a = AGO[i]; b = ""
+    if ((a in ABR) && ABR[a] != "-") b = ABR[a]; else if (a in RAG) { b = RAG[a]; sub(/\.return\.md$/, ".md", b) }
+    ALB[a] = b; x = btry(b); ALT[a] = x; if (x != "") { LINKN[x]++; LINKA[x] = a } }
+  for (i = 1; i <= NJ; i++) { j = JO[i]; LINKN[j]++; LINKA[j] = "codex:" j }
+  # --- usage (R10): one entry per agent ---
+  nu = 0
+  for (i = 1; i <= NAG; i++) { a = AGO[i]; if (a in UL) { UE[++nu] = a; UK[a] = "kinds" } }
+  for (i = 1; i <= NJ; i++) { j = JO[i]; a = "codex:" j; if (a in UL) { UE[++nu] = a; UK[a] = "kinds" } else if ((j in JXT) && (j in JEI)) { UE[++nu] = a; UK[a] = "events" } }
+  for (a in UL) if (!(a in UK)) { UE[++nu] = a; UK[a] = "kinds"; ORPH[a] = 1 }
+  # each build-cost is at most one entry: its agent=, else the single agent linked to its brief, else none named; none
+  # when its agent has four kinds; an agent’s newer build-cost replaces its older
+  for (i = 1; i <= NBC; i++) { a = BCA[i]; if (a == "" && BCT[i] != "" && LINKN[BCT[i]] == 1) a = LINKA[BCT[i]]
+    if (a == "") { a = "\001" i; UE[++nu] = a; UK[a] = "total"; BCOF[a] = i; continue }
+    if (UK[a] == "kinds" || UK[a] == "events") { BCOF[a] = i; continue }
+    if (UK[a] != "total") UE[++nu] = a; UK[a] = "total"; BCOF[a] = i }
+  printf "%s", "\"economics\":{\"usage\":[" > XOF
+  for (k = 1; k <= nu; k++) { a = UE[k]; kd = UK[a]; ag = (index(a, "\001") == 1) ? "" : a; bi = BCOF[a]
+    x = ""; if (ag ~ /^codex:/) x = substr(ag, 7); else if (ag != "" && ALT[ag] != "") x = ALT[ag]; else if (bi) x = BCT[bi]
+    tool = (ag ~ /^codex:/) ? "codex" : ((bi && BCTL[bi] != "") ? BCTL[bi] : "claude")
+    ro = ""; if (x != "") ro = trole(x); else if (ag != "" && ATY[ag] ~ /^vid:/) { ro = ATY[ag]; sub(/^vid:/, "", ro) } else if (bi) ro = BCR[bi]
+    sl = (x != "") ? tslice(x) : (bi ? BCSL[bi] : ""); st = (x != "") ? tstep(x) : ""
+    md = ""; ef = ""; at = ""; i1 = ""; cr = ""; cw = ""; c1 = ""; ou = ""; tot = ""; ca = ""
+    if (kd == "kinds") { $0 = UL[ag]; md = kv("model"); ef = kv("effort"); at = UAT[ag]; i1 = kv("input"); cr = kv("cache-read"); cw = kv("cache-write"); c1 = kv("cache-write-1h"); ou = kv("output"); ca = kv("calls"); if (kv("tool") != "") tool = kv("tool") }
+    else if (kd == "events") { j = substr(ag, 7); md = JK[j, "model"]; ef = JK[j, "effort"]; at = JXT[j]; i1 = JEI[j] - JEC[j]; if (i1 < 0) i1 = 0; cr = JEC[j]; cw = JEW[j]; c1 = 0; ou = JEO[j]; kd = "kinds" }
+    else { md = BCM[bi]; ef = BCE[bi]; at = BCAT[bi]; tot = BCTO[bi]; if (BCSRC[bi] == "agent-tool") kd = "reported" }
+    if (md == "unknown" || md == "-") md = ""; if (ef == "unknown" || ef == "-") ef = ""
+    if (ag != "") { UMOD[ag] = md; UEFF[ag] = ef }
+    # survived (R10)
+    sv_ = "null"; why = ""
+    if (x != "" && (x in SUP)) { sv_ = "false"; why = "superseded by a later try" }
+    else if (x != "" && bf(x) && !(x in RET) && UK[a] == "kinds" && !AOP[ag]) { sv_ = "false"; why = "ended with no hand-back" }
+    else if (x != "" && (x in RET) && (x in ACC)) { ha = ACC[x]; np = split(RPASS[x], pp, "\036"); anyk = 0; allb = (np > 0)
+      for (q = 1; q <= np; q++) { lk = ""; nvx = split(VIX[pp[q]], vx, " "); for (v = 1; v <= nvx; v++) if (VT[vx[v]] > ha) lk = VRES[vx[v]]
+        if (lk == "KEPT") anyk = 1; if (lk != "BREACHED") allb = 0 }
+      s2 = tstep(x); if (allb) { sv_ = "false"; why = "every row it passed was later broken on review" } else if (anyk || (s2 != "" && cls(s2) > ha)) sv_ = "true" }
+    SURV[a] = sv_
+    lc = bi ? BCP[bi] : ""; bc = bi ? BCBC[bi] : ""; bb = bi ? BCBB[bi] : ""
+    printf "%s%s", (k > 1 ? ",\n" : ""), "{\"agent\":" tv(ag) ",\"try\":" tv(x) ",\"tool\":" js(tool) ",\"role\":" tv(ro) ",\"step\":" tv(st) ",\"slice\":" tv(sl) ",\"stage\":" tv(stageat(at)) ",\"model\":" tv(md) ",\"effort\":" tv(ef) ",\"at\":" tv(at) ",\"kind\":" js(kd) \
+      ",\"input\":" nv(i1) ",\"cacheRead\":" nv(cr) ",\"cacheWrite\":" nv(cw) ",\"cacheWrite1h\":" nv(c1) ",\"output\":" nv(ou) ",\"total\":" nv(tot) ",\"largestCall\":" nv(lc) ",\"beforeChange\":" nv(bc) ",\"beforeChangeShell\":" jb(bi && BCSH[bi]) ",\"briefBytes\":" nv(bb) ",\"calls\":" nv(ca) ",\"survived\":" sv_ ",\"why\":" tv(why) "}" > XOF
+    if (x != "") { USEDTRY[x] = 1 } }
+  # the run manager (R10): one entry per window — its usage record, else its manager-cost
+  me = ""; nme = 0
+  for (i = 1; i <= NMC; i++) { s = MCS[i]; if (s == "") s = "-"; u = 0; for (k = 1; k <= NMU; k++) if (!MUD[k] && MUS[k] == s) { u = k; break }
+    if (u) { MUD[u] = 1; $0 = MUL[u]; md = kv("model"); if (md == "unknown") md = ""
+      me = me (me == "" ? "" : ",") "{\"at\":" js(MCA[i]) ",\"since\":" sv(s) ",\"calls\":" nv(kv("calls")) ",\"total\":null,\"model\":" tv(md) ",\"input\":" nv(kv("input")) ",\"cacheRead\":" nv(kv("cache-read")) ",\"cacheWrite\":" nv(kv("cache-write")) ",\"cacheWrite1h\":" nv(kv("cache-write-1h")) ",\"output\":" nv(kv("output")) "}" }
+    else me = me (me == "" ? "" : ",") "{\"at\":" js(MCA[i]) ",\"since\":" sv(s) ",\"calls\":" nv(MCC[i]) ",\"total\":" nv(MCI[i]) ",\"model\":null,\"input\":null,\"cacheRead\":null,\"cacheWrite\":null,\"cacheWrite1h\":null,\"output\":null}"
+    nme++ }
+  for (k = 1; k <= NMU; k++) if (!MUD[k]) { $0 = MUL[k]; md = kv("model"); if (md == "unknown") md = ""
+    me = me (me == "" ? "" : ",") "{\"at\":" js(MUA[k]) ",\"since\":" sv(MUS[k]) ",\"calls\":" nv(kv("calls")) ",\"total\":null,\"model\":" tv(md) ",\"input\":" nv(kv("input")) ",\"cacheRead\":" nv(kv("cache-read")) ",\"cacheWrite\":" nv(kv("cache-write")) ",\"cacheWrite1h\":" nv(kv("cache-write-1h")) ",\"output\":" nv(kv("output")) "}"; nme++ }
+  # --- tests (R11): one entry per pass ---
+  printf "%s", "],\n\"manager\":[" me "],\n\"tests\":[" > XOF; nte = 0; nown = 0
+  for (i = 1; i <= NLR; i++) { $0 = LRL[i]; tk = kv("request"); pt = tk; sub(/\/.*/, "", pt); x = kv("try"); if (x == "-") x = ""
+    st = (x != "") ? tstep(x) : ""; if (st == "" && pt != "") { s2 = RQ[pt, "steps"]; if (s2 != "" && s2 !~ /[ ,]/ && s2 != "-") st = s2 }
+    se = kv("seconds") + 0; en = LRT[i]; sa = (ep(en) >= 0) ? utc(ep(en) - se) : ""
+    ru = kv("run"); w = kv("waited"); if (ru != "" && (ru in RUNSEEN)) w = (w == "" ? "" : 0); RUNSEEN[ru] = 1
+    oh = kv("overhead"); ran = (oh == "") ? "" : ((se - oh < 0) ? 0 : se - oh)
+    rp = kv("report"); cl = ""; if (rp != "" && rp != "none" && TDN[rp] == 1) cl = TDS[rp]
+    oc = "failed"; if (kv("cancelled") == "yes") oc = "cancelled"; else if (kv("capped") == "yes") oc = "limit"; else if (index(kv("stopped"), "service:") == 1) oc = "service-stopped"; else if (rp in VOID) oc = "void"; else if (kv("status") == "0" && rp != "" && rp != "none") oc = "passed"
+    ty = kv("type"); if (ty == "") ty = kv("kind"); att = "null"; if (x != "") att = ++ATTN[x, ty]
+    rw = kv("rows"); if (x != "") TSEC[x] += (ran == "" ? 0 : ran)
+    if (x == "" && st == "" && (rw == "" || rw == "0")) nown++
+    printf "%s%s", (nte++ ? ",\n" : ""), "{\"ticket\":" tv(tk) ",\"batch\":" sv(kv("batch")) ",\"type\":" tv(ty) ",\"role\":" sv(kv("role")) ",\"try\":" tv(x) ",\"step\":" tv(st) ",\"rows\":" nv(rw) ",\"asked\":" tv(utc(RQ[pt, "created"])) ",\"started\":" tv(sa) ",\"ended\":" tv(en) ",\"waited\":" nv(w) ",\"ran\":" nv(ran) ",\"startup\":" nv(oh) ",\"cleanup\":" nv(cl) ",\"outcome\":" js(oc) ",\"proof\":" jb(kv("purpose") == "proof") ",\"attempt\":" att "}" > XOF }
+  if (NOW) for (i = 1; i <= NRQ; i++) { tk = RQO[i]; if (tk in PASSED) continue; s = RQS[tk]; oc = ""
+    if (tk in RQB) oc = "build-failed"; else if (s == "failed-to-start") oc = "failed-to-start"; else if (s == "cancelled") oc = "cancelled"; else if (s == "running") oc = "running"; else if (s == "queued") oc = "waiting"
+    if (oc == "") continue; x = RQ[tk, "try"]; if (x == "-") x = ""; st = (x != "") ? tstep(x) : ""; if (st == "") { s2 = RQ[tk, "steps"]; if (s2 != "" && s2 !~ /[ ,]/ && s2 != "-") st = s2 }
+    ro = RQ[tk, "runrole"]; if (ro == "") ro = RQ[tk, "role"]; sa = ""; if (oc == "running") sa = utc(RQA[tk])
+    if (x == "" && st == "" && (RQ[tk, "rows"] == "" || RQ[tk, "rows"] == "0")) nown++
+    printf "%s%s", (nte++ ? ",\n" : ""), "{\"ticket\":" js(tk) ",\"batch\":null,\"type\":" sv(RQ[tk, "type"]) ",\"role\":" sv(ro) ",\"try\":" tv(x) ",\"step\":" tv(st) ",\"rows\":" nv(RQ[tk, "rows"]) ",\"asked\":" tv(utc(RQ[tk, "created"])) ",\"started\":" tv(sa) ",\"ended\":null,\"waited\":null,\"ran\":null,\"startup\":null,\"cleanup\":null,\"outcome\":" js(oc) ",\"proof\":false,\"attempt\":null}" > XOF }
+  be = ""; for (i = 1; i <= NCB; i++) be = be (i > 1 ? "," : "") "{\"ticket\":" tv(CBI[i]) ",\"parts\":" nv(CBC[i]) ",\"elapsed\":" nv(CBW[i]) ",\"retried\":" nv(CBR[i]) "}"
+  # --- rework (R8) and outcomes (R12): the builders’ and fixers’ tries ---
+  for (x in TRYS) if (bf(x)) { s = tstep(x); if (s == "") continue; if (!(s in RWS)) RWO[++NRW] = s; RWS[s] = add(RWS[s], x); RWN[s]++; if (x in ACC) RWR[s]++ }
+  for (x in RET) if (bf(x)) { n = split(RROWS[x], rr, "\036"); split("", seen); for (k = 1; k <= n; k++) { r = rr[k]; if (r == "" || (r in seen)) continue; seen[r] = 1; if (!(r in RWT)) RWRO[++NRWR] = r; RWT[r] = add(RWT[r], x); RWTN[r]++ } }
+  for (v = 1; v <= NV; v++) { r = VR[v]; VLAST[r] = VRES[v]; VLT[r] = VT[v]; if (VRES[v] == "BREACHED" && !((r, VB[v]) in BRB)) { BRB[r, VB[v]] = 1; BRN[r]++ } if (!(r in RWT) && !(r in VSEEN)) { VSEEN[r] = 1; VRO[++NVRO] = r } }
+  rws = ""; for (i = 1; i <= NRW; i++) { s = RWO[i]; rws = rws (i > 1 ? "," : "") "{\"step\":" js(s) ",\"briefs\":" RWN[s] ",\"returned\":" (RWR[s] + 0) ",\"closed\":" tv(cls(s)) ",\"tries\":" jl(RWS[s]) "}" }
+  rwr = ""; nrr = 0
+  for (i = 1; i <= NRWR + NVRO; i++) { r = (i <= NRWR) ? RWRO[i] : VRO[i - NRWR]; if (RWTN[r] < 2 && !BRN[r]) continue
+    rwr = rwr (nrr++ ? "," : "") "{\"row\":" js(r) ",\"briefs\":" (RWTN[r] + 0) ",\"broken\":" (BRN[r] + 0) ",\"keptLast\":" jb(VLAST[r] == "KEPT") ",\"tries\":" jl(RWT[r]) "}" }
+  na_ = ""; nna_ = 0; for (x in RET) if (!(x in ACC)) { NOACC[++nna_] = x }
+  for (i = 1; i <= nna_; i++) { x = NOACC[i]; na_ = na_ (i > 1 ? "," : "") "{\"try\":" js(x) ",\"file\":" js(RET[x]) ",\"refusedAt\":null}" }
+  os_ = ""; for (i = 1; i <= NSP; i++) { s = SPO[i]; if (!(s in SPC)) continue; ts = 0; n = split(RWS[s], tt, "\036"); for (k = 1; k <= n; k++) ts += TSEC[tt[k]]
+    os_ = os_ (os_ == "" ? "" : ",") "{\"step\":" js(s) ",\"closed\":" js(SPC[s]) ",\"tries\":" jl(RWS[s]) ",\"testSeconds\":" ts "}" }
+  orw = ""; for (i = 1; i <= NRWR + NVRO; i++) { r = (i <= NRWR) ? RWRO[i] : VRO[i - NRWR]; if (VLAST[r] != "KEPT") continue; n = split(RWT[r], tt, "\036"); o = ""
+    for (k = 1; k <= n; k++) o = o (k > 1 ? "," : "") "{\"try\":" js(tt[k]) ",\"rows\":" (RLN[tt[k]] + 0) "}"
+    orw = orw (orw == "" ? "" : ",") "{\"row\":" js(r) ",\"kept\":" js(VLT[r]) ",\"tries\":[" o "]}" }
+  printf "],\n\"batches\":[%s],\n\"outcomes\":{\"steps\":[%s],\"rows\":[%s],\"shared\":{\"managerRecords\":%d,\"testsOwnedByNone\":%d}},\n\"prices\":%s},\n", be, os_, orw, nme, nown, PRICES > XOF
+  RWJ = "{\"steps\":[" rws "],\"rows\":[" rwr "],\"noAcceptance\":[" na_ "]}"
+  if (!NOW) { printf "\"execution\":null,\n" > XOF; exit 0 }
+  exec_part() }
+
+function exec_part(   i, k, a, x, j, n, o, r, b, s, e, st, sec, bad, op, ro, oc, ag, cur, w0, w1, ky, kd, nq, q, at, E, A1, A2, ord, tmp, l, f, sel, txt, wk, nj, jo) {
+  # sessions
+  o = ""; for (i = 1; i <= NSS; i++) { s = SSO[i]; o = o (i > 1 ? "," : "") "{\"id\":" js(s) ",\"started\":" js(SSN[s]) ",\"source\":" sv(SSRC[s]) ",\"model\":" sv(SSM[s]) ",\"manager\":" jb(s in SMG) "}" }
+  SESSJ = o
+  # attention (R5)
+  for (i = 1; i <= NQ; i++) { q = QL[i]; NAT++; ATK[NAT] = "question"; ATX[NAT] = q; ATQ[NAT] = q; sub(/[ \t].*$/, "", ATQ[NAT]); at = ""
+    # its asked time as written (a minute-only time gains its :00)
+    if (match(q, /asked [^ \t]+/)) { at = substr(q, RSTART + 6, RLENGTH - 6); if (at ~ /^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]Z$/) at = substr(at, 1, 16) ":00Z" }
+    ATA[NAT] = at; ATC[NAT] = 1 }
+  for (i = 1; i <= NHB; i++) { x = HBX[i]; if (index(x, "observe: notice — ") != 1) continue; x = substr(x, length("observe: notice — ") + 1)
+    if (x ~ /^Vi?D progress/ || x ~ /^VID progress/) continue
+    NAT++; ATK[NAT] = (index(x, "has gone quiet") || index(x, "has had no new step")) ? "quiet" : "notice"; ATA[NAT] = HBT[i]; ATX[NAT] = x; HBN[i] = NAT
+    ATQK[NAT] = index(x, "has had no new step") ? "agentq" : (index(x, "has gone quiet") ? "quiet" : "notice") }
+  # current notices: each standing key’s tick, from its epoch to the next tick (the run-activity lines mark the ticks)
+  for (ky in OS) { if (index(ky, "notified.") != 1 || OS[ky] == "") continue; k = substr(ky, 10); E = OS[ky]; sub(/ .*/, "", E); if (E !~ /^[0-9]+$/) continue
+    if (k ~ /^progress\./ || k ~ /^q\./ || k ~ /^qbatch\./) continue
+    kd = (k ~ /^agentq\./) ? "agentq" : ((k ~ /^quiet\./) ? "quiet" : "notice"); w0 = utc(E); A1 = ""; A2 = ""
+    for (i = 1; i <= NHB; i++) if (index(HBX[i], "observe: run activity") == 1 && HBT[i] >= w0) { if (A1 == "") A1 = HBT[i]; else if (HBT[i] > A1) { A2 = HBT[i]; break } }
+    TKK[E, kd]++; if (kd == "agentq") { a = k; sub(/^agentq\./, "", a); sub(/\..*$/, "", a); TKA[E] = a }
+    for (i = 1; i <= NHB; i++) if ((i in HBN) && HBT[i] >= w0 && (A2 == "" || HBT[i] < A2) && ATQK[HBN[i]] == kd) { ATC[HBN[i]] = 1; if (kd == "agentq") { TKL[E] = add(TKL[E], HBN[i]); TKE[HBN[i]] = E } } }
+  for (E in TKL) { n = split(TKL[E], ll, "\036"); split("", fq); o = 0; for (i = 1; i <= n; i++) if (!(ll[i] in fq)) { fq[ll[i]] = 1; o++; x = ll[i] } if (o == 1 && TKK[E, "agentq"] == 1 && (TKA[E] in AG)) ATG[x] = TKA[E] }
+  for (i = 1; i <= NAT; i++) { if (ATK[i] == "run-died") ATC[i] = !(i in DIEDOK)
+    else if (ATK[i] == "stuck") ATC[i] = (ATO[i] in WD)
+    else if (ATK[i] == "needs-recovery") { j = ATJ[i]; ATC[i] = (JREC[j] != ""); ATX[i] = "a Codex job needs recovery: it could not be confirmed stopped (" j ")"; ATY_[i] = j; ATG[i] = "codex:" j }
+    else if (ATK[i] == "environment-left") { for (k = 1; k <= NHO; k++) if (HO[HOO[k], "project"] == ATP[i]) { ATC[i] = 1; ATS[i] = HO[HOO[k], "slot"] } } }
+  for (k = 1; k <= nna_; k++) { x = NOACC[k]; NAT++; ATK[NAT] = "no-acceptance"; ATA[NAT] = ""; ATX[NAT] = "a hand-back with no acceptance recorded (" RET[x] ")"; ATY_[NAT] = x; s = tstep(x); ATC[NAT] = (s != "" && !(s in SPC)); if (LINKN[x] == 1) ATG[NAT] = LINKA[x] }
+  if (RUNV ~ /^(waiting|stopped)/) { NAT++; ATK[NAT] = "run-state"; ATA[NAT] = RUNT_; ATX[NAT] = "run: " RUNV; ATC[NAT] = 1 }
+  # newest first by at, nulls last (stable)
+  for (i = 1; i <= NAT; i++) { ord[i] = i } for (i = 2; i <= NAT; i++) { tmp = ord[i]; for (k = i - 1; k >= 1 && ATA[ord[k]] < ATA[tmp]; k--) ord[k + 1] = ord[k]; ord[k + 1] = tmp }
+  o = ""; for (i = 1; i <= NAT; i++) { k = ord[i]; if (ATC[k] && ATG[k] != "") CURAG[ATG[k]] = 1
+    o = o (i > 1 ? ",\n" : "") "{\"kind\":" js(ATK[k]) ",\"at\":" tv(ATA[k]) ",\"current\":" jb(ATC[k]) ",\"text\":" js(ATX[k]) ",\"ids\":{\"agent\":" tv(ATG[k]) ",\"try\":" tv(ATY_[k]) ",\"question\":" tv(ATQ[k]) ",\"ticket\":" sv(ATT[k]) ",\"slot\":" sv(ATS[k]) ",\"row\":null}}" }
+  ATJS = o
+  # agents (R1–R4) and Codex jobs (R2)
+  OBS = ep(T); nj = 0
+  for (i = 1; i <= NAG; i++) { a = AGO[i]; o = ""; sec = 0; bad = 0; st = ""
+    for (k = 1; k <= ANR[a]; k++) { s = ARS[a, k]; e = ARE[a, k]; if (st == "" && s != "") st = s
+      o = o (k > 1 ? "," : "") "{\"started\":" tv(s) ",\"ended\":" tv(e) ",\"endedBy\":" tv(ARB[a, k]) "}"
+      if (s == "") bad = 1; else if (e != "") sec += ep(e) - ep(s); else if (k == ANR[a] && AOP[a]) sec += OBS - ep(s); else bad = 1 }
+    AST[a] = st; ARJ[a] = o; ASEC[a] = bad ? "null" : sec
+    x = ALT[a]; if (AOP[a]) s = "working"; else if (x != "" && (x in ACC)) s = "returned"; else if (x != "" && (x in RET)) s = "unaccepted"; else s = "ended"; ASTA[a] = s }
+  for (i = 1; i <= NJ; i++) { j = JO[i]; a = "codex:" j; e = JEND[j]; AST[a] = JS[j]
+    ARJ[a] = "{\"started\":" js(JS[j]) ",\"ended\":" tv(e) ",\"endedBy\":" tv(JEB[j]) "}"; ASEC[a] = (e != "") ? ep(e) - ep(JS[j]) : OBS - ep(JS[j])
+    if (JREC[j] != "") s = "needs-recovery"; else if (e == "") s = "working"; else if (JRS[j] == "exit" && JX[j] != "0" && !(j in RET)) s = "died"; else if (j in ACC) s = "returned"; else if (j in RET) s = "unaccepted"; else s = "ended"
+    ASTA[a] = s; ADET[a] = (s == "ended" && JRS[j] == "codex-limit") ? "stopped at Codex\047s limit" : ((s == "ended" && JRS[j] == "stopped") ? "stopped" : "") }
+  # the brief’s text: agents working, agents a current attention item names, and the 10 latest by start
+  for (i = 1; i <= NAG; i++) { a = AGO[i]; LO[i] = a } for (i = 1; i <= NJ; i++) LO[NAG + i] = "codex:" JO[i]; n = NAG + NJ
+  for (i = 2; i <= n; i++) { tmp = LO[i]; for (k = i - 1; k >= 1 && AST[LO[k]] < AST[tmp]; k--) LO[k + 1] = LO[k]; LO[k + 1] = tmp }
+  for (i = 1; i <= n && i <= 10; i++) if (AST[LO[i]] != "") SEL[LO[i]] = 1
+  for (i = 1; i <= n; i++) { a = LO[i]; if (ASTA[a] == "working" || (a in CURAG)) SEL[a] = 1 }
+  w0 = OS["tick"]; sub(/ .*/, "", w0)
+  printf "\"execution\":{\"observedAt\":%s,\"watcher\":{\"lastTick\":%s},\"sessions\":[%s],\n\"agents\":[", js(T), tv(utc(w0)), SESSJ > XOF
+  for (i = 1; i <= NAG + NJ; i++) { if (i <= NAG) { a = AGO[i]; x = ALT[a]; b = ALB[a] } else { j = JO[i - NAG]; a = "codex:" j; x = j; b = rel(JK[j, "brief"]); if (b == "") b = tbrief(j) }
+    if (x != "") ro = trole(x); else if (ATY[a] ~ /^vid:/) { ro = ATY[a]; sub(/^vid:/, "", ro) } else ro = ""
+    txt = "null"; if ((a in SEL) && b != "") { f = H "/" b; txt = ""; wk = 0; while ((getline l < f) > 0) { txt = txt l "\n"; wk = 1 } close(f); txt = wk ? js(txt) : "null" }
+    printf "%s%s", (i > 1 ? ",\n" : ""), "{\"id\":" js(a) ",\"tool\":" js(i <= NAG ? "claude" : "codex") ",\"session\":" (i <= NAG ? sv(ASE[a]) : "null") ",\"type\":" (i <= NAG ? sv(ATY[a]) : "null") ",\"started\":" tv(AST[a]) \
+      ",\"role\":" tv(ro) ",\"try\":" tv(x) ",\"step\":" tv(x != "" ? tstep(x) : "") ",\"slice\":" tv(x != "" ? tslice(x) : "") ",\"brief\":" tv(x != "" ? b : "") ",\"rows\":" ((x in RET) ? jl(RROWS[x]) : "null") \
+      ",\"model\":" tv(UMOD[a] != "" || i <= NAG ? UMOD[a] : nk(JK[j, "model"])) ",\"effort\":" tv(UEFF[a] != "" || i <= NAG ? UEFF[a] : nk(JK[j, "effort"])) ",\"linked\":" jb(x != "") ",\"runs\":[" ARJ[a] "],\"seconds\":" ASEC[a] ",\"state\":" js(ASTA[a]) ",\"stateDetail\":" tv(ADET[a]) \
+      ",\"handBack\":" ((x in RET) ? HBJ[x] : "null") ",\"briefText\":" txt "}" > XOF
+    # R9: agents now, for the Delivery page
+    if (ASTA[a] == "working" || (i > NAG && ASTA[a] == "needs-recovery")) {
+      if (i <= NAG) printf "AG\t%s %s (since %s)\t%s\n", (ro == "" ? (ATY[a] == "" ? "agent" : ATY[a]) : ro), substr(a, 1, 8), ARS[a, ANR[a]], (x != "" ? "its hand-back for " b : "") > AGF
+      else printf "AG\tCodex builder %s%s (since %s)\tits hand-back: the job record .vid/jobs/%s\n", j, (tstep(j) != "" ? " · " tstep(j) : ""), JS[j], j > AGF } }
+  # queue (R6)
+  o = ""; for (k = 1; k <= NHO; k++) { r = HOO[k]; if (HO[r, "slot"] == "") continue; w0 = HO[r, "worktree"]; sub(/\/+$/, "", w0); sub(/.*\//, "", w0)
+    o = o (o == "" ? "" : ",") "{\"slot\":" nv(HO[r, "slot"]) ",\"ticket\":" tv(RUNT[r]) ",\"since\":" tv(utc(HO[r, "start"])) ",\"workingCopy\":" tv(w0) "}" }
+  QT = o; QR = ""; QW = ""
+  for (i = 1; i <= NRQ; i++) { k = RQO[i]; s = RQS[k]; if (s != "running" && s != "queued") continue
+    ro = RQ[k, "runrole"]; if (ro == "") ro = RQ[k, "role"]; x = RQ[k, "try"]; if (x == "-") x = ""
+    e = (s == "running" && RQA[k] != "") ? utc(RQA[k]) : utc(RQ[k, "created"])
+    l = ""; if ((k, "silence") in RQ || (k, "limit") in RQ) { split("silence startup limit", fq, " "); for (q = 1; q <= 3; q++) if ((k, fq[q]) in RQ) l = l (l == "" ? "" : ",") "\"" fq[q] "\":" nv(RQ[k, fq[q]]) }
+    else if ((k, "cap") in RQ) l = "\"cap\":" nv(RQ[k, "cap"])
+    r = "{\"ticket\":" js(k) ",\"type\":" sv(RQ[k, "type"]) ",\"role\":" sv(ro) ",\"try\":" tv(x) ",\"rows\":" nv(RQ[k, "rows"]) ",\"since\":" tv(e) ",\"limits\":{" l "}"
+    if (s == "running") QR = QR (QR == "" ? "" : ",") r "}"; else { w1 = "null"; if (k in RQH) { w0 = RQH[k]; gsub(/\002/, "\n", w0); w1 = js(w0) } QW = QW (QW == "" ? "" : ",") r ",\"why\":" w1 "}" } }
+  # bands (R7)
+  o = ""; for (i = 1; i <= NB; i++) o = o (o == "" ? "" : ",") "{\"kind\":" js(BK[i]) ",\"id\":" js(BI[i]) ",\"name\":" (BK[i] == "stage" ? js(BI[i]) : "null") ",\"start\":" js(BS[i]) ",\"end\":" tv(BE[i]) "}"
+  for (i = 1; i <= NSP; i++) { s = SPO[i]; if (!(s in SPS)) continue; o = o (o == "" ? "" : ",") "{\"kind\":\"step\",\"id\":" js(s) ",\"name\":" tv(STN[s]) ",\"start\":" js(SPS[s]) ",\"end\":" tv(cls(s)) "}" }
+  BJ = o
+  printf "],\n\"attention\":[%s],\n\"queue\":{\"environments\":%s,\"taken\":[%s],\"running\":[%s],\"waiting\":[%s]},\n\"bands\":[%s],\n\"rework\":%s},\n", ATJS, nv(BUD["stacks"]), QT, QR, QW, BJ, RWJ > XOF }'
+# v0.26.10.6 (R1–R14): exin <home> <out> <prices>: the files' facts the execution and economics parts read, once a run —
+#   <out>.all (every snapshot: hand-backs, brief headers, Codex jobs, the requests' own keys, the prices) and <out>.now (the
+#   latest snapshot only: the requests' states, the watcher, the environments, the holders, the operations past their time,
+#   RUN-STATE's run: and open questions). A past snapshot's reader keeps only what a dated record says was final by T.
+exin() {
+  _h=$1; _o=$2
+  {
+    # hand-backs: every return file, its modification time, its agent: and row lines; a report beside it
+    find "$_h/.vid/briefs" -name '*.return.md' -type f 2>/dev/null | LC_ALL=C sort > "$_o.rf"
+    if [ -s "$_o.rf" ]; then
+      tr '\n' '\0' < "$_o.rf" | xargs -0 perl -e 'for (@ARGV) { printf "%d\t%s\n", (stat)[9], $_ }' | awk -F'\t' -v h="$_h/" '{ p = $2; if (index(p, h) == 1) p = substr(p, length(h) + 1); print "RF\t" p "\t" $1 }'
+      tr '\n' '\0' < "$_o.rf" | xargs -0 awk -v h="$_h/" 'FNR == 1 { p = FILENAME; if (index(p, h) == 1) p = substr(p, length(h) + 1) }
+        /^agent:/ || /^[ \t]*ROW-/ { l = $0; gsub(/\t/, " ", l); print "RL\t" p "\t" l }'
+      while IFS= read -r _f; do _r=${_f%.return.md}.report.md; [ -f "$_r" ] && printf 'RP\t%s\n' "${_f#$_h/}"; done < "$_o.rf"
+    fi
+    # each brief's step: header
+    find "$_h/.vid/briefs" -name '*.md' ! -name '*.return.md' ! -name '*.report.md' -type f 2>/dev/null | LC_ALL=C sort | tr '\n' '\0' | xargs -0 awk -v h="$_h/" 'FNR == 1 { p = FILENAME; if (index(p, h) == 1) p = substr(p, length(h) + 1); if (match($0, /(^|[ \t])step:[ \t]*[^ \t]+/)) { s = substr($0, RSTART, RLENGTH); sub(/.*step:[ \t]*/, "", s); print "BH\t" p "\t" s } }' 2>/dev/null
+    # Codex jobs: each record's keys; each events file's turn.completed usage summed
+    for _j in "$_h"/.vid/jobs/*; do
+      [ -f "$_j" ] || continue; _n=${_j##*/}; case "$_n" in *.*) continue ;; esac
+      awk -v j="$_n" '{ p = index($0, "="); if (p > 1) print "JR\t" j "\t" substr($0, 1, p - 1) "\t" substr($0, p + 1) }' "$_j"
+      [ -f "$_j.events" ] && awk -v j="$_n" 'function num(s, k,   p, t) { p = index(s, "\"" k "\":"); if (!p) return 0; t = substr(s, p + length(k) + 3); match(t, /^[0-9]+/); return (RLENGTH > 0) ? substr(t, 1, RLENGTH) + 0 : 0 }
+        index($0, "\"turn.completed\"") && (u = index($0, "\"usage\":{")) { s = substr($0, u); i += num(s, "input_tokens"); c += num(s, "cached_input_tokens"); w += num(s, "cache_write_input_tokens"); o += num(s, "output_tokens"); any = 1 }
+        END { if (any) printf "JE\t%s\t%d\t%d\t%d\t%d\n", j, i, c, w, o }' "$_j.events"
+    done
+    # test requests: the request's keys (every snapshot); its state, start, holders, build failure and run (the latest only)
+    if [ -d "$_h/.vid/requests" ]; then
+      find "$_h/.vid/requests" -mindepth 2 -maxdepth 2 -name request -type f 2>/dev/null | tr '\n' '\0' | xargs -0 awk '{ t = FILENAME; sub(/\/request$/, "", t); sub(/.*\//, "", t); p = index($0, "="); if (p > 1) { k = substr($0, 1, p - 1); if (!((t, k) in S)) { S[t, k] = 1; print "RQ\t" t "\t" k "\t" substr($0, p + 1) } } }' 2>/dev/null
+    fi
+    awk -F'\t' '/^#/ || NF == 0 { next } /^as-of / { print "PA\t" substr($0, 7); next } /^source / { print "PS\t" substr($0, 8); next } NF >= 6 && $2 ~ /^[0-9.]+$/ { print "PM\t" $1 "\t" $2 "\t" $3 "\t" $4 "\t" $5 "\t" $6 }' "$3" 2>/dev/null
+  } > "$_o.all"
+  {
+    if [ -d "$_h/.vid/requests" ]; then
+      find "$_h/.vid/requests" -mindepth 2 -maxdepth 2 -type f \( -name state -o -name running-at -o -name holders -o -name run \) 2>/dev/null | tr '\n' '\0' | xargs -0 awk '
+          FNR == 1 { if (o != "") print o; o = ""; f = FILENAME; n = f; sub(/.*\//, "", n); t = f; sub(/\/[^\/]*$/, "", t); sub(/.*\//, "", t) }
+          { l = $0; gsub(/\t/, " ", l)
+            if (n == "state") { if (FNR == 1) { split(l, w, " "); o = "RS\t" t "\t" w[1] } }
+            else if (n == "running-at") { if (FNR == 1) o = "RA\t" t "\t" l }
+            else if (n == "run") { if (FNR == 1) { sub(/\/+$/, "", l); sub(/.*\//, "", l); o = "RR\t" t "\t" l } }
+            else o = (FNR == 1 ? "RH\t" t "\t" : o "\002") l }
+          END { if (o != "") print o }' 2>/dev/null
+      find "$_h/.vid/requests" -mindepth 2 -maxdepth 2 -name build-failed 2>/dev/null | awk '{ t = $0; sub(/\/build-failed$/, "", t); sub(/.*\//, "", t); print "RB\t" t }'
+    fi
+    # the watcher: its notice and run-activity lines, its state; the environments, live holders, operations past their time
+    awk '/^- [0-9TZ:-]+ \| observe: (notice|run activity)/ { l = $0; gsub(/[\t\r]/, " ", l); t = substr(l, 3); sub(/ .*/, "", t); x = l; sub(/^- [^|]*\| /, "", x); print "HB\t" t "\t" x }' "$_h/.vid/HEARTBEAT.md" 2>/dev/null
+    awk '{ k = $1; v = $0; sub(/^[^ ]*[ ]?/, "", v); print "OS\t" k "\t" v }' "$_h/.vid/observer.state" 2>/dev/null
+    awk 'index($0, "stacks=") == 1 { v = substr($0, 8) } END { if (v != "") print "BU\tstacks\t" v }' "$_h/.vid/budget" 2>/dev/null
+    for _w in "$_h"/.vid/watchdog/*; do [ -e "$_w" ] && printf 'WD\t%s\n' "${_w##*/}"; done
+    for _r in "$_h"/.vid/runs/*/holder; do [ -f "$_r" ] || continue; _ri=${_r%/holder}; _ri=${_ri##*/}
+      awk -v r="$_ri" '{ p = index($0, "="); if (p > 1) print "HO\t" r "\t" substr($0, 1, p - 1) "\t" substr($0, p + 1) }' "$_r"; done
+    awk '/^run:/ { v = $0; sub(/^run:[ \t]*/, "", v); print "RUN\t" v; exit }' "$_h/.vid/RUN-STATE.md" 2>/dev/null
+    awk '/^## Open product questions/ { on = 1; next } on && /^## / { exit } on && /^- Q[0-9]+/ { l = $0; sub(/^- /, "", l); gsub(/\t/, " ", l); print "Q\t" l }' "$_h/.vid/RUN-STATE.md" 2>/dev/null
+  } > "$_o.now"
+  rm -f "$_o.rf"
+}
+# v0.26.10.8 (R11): the stages part (`stages`, every snapshot) — STAGES.md and DEPLOYMENT.md at C, the events by T (in
+#   time order), the vid/stage-N[.k] tags made by T; RUN-STATE is never read (a past snapshot's is generated). A stage's
+#   state: closed (`stage-closed n=N … ready` by T), held (closed, its newest stage-hold by T `on`), building (the lowest
+#   stage not closed, unless one is held or the run is complete), else not started. staging: the newest gate-2 pass (its
+#   start's candidate, its end's time), its stage (the close or tag at that commit), ahead and base from the newest
+#   `deploy-check target=staging` for that commit, by from the `stage-deploy … staging=yes` after it (null when not
+#   recorded); lastFailure: a later gate-2 fail or `stage-deploy … staging=failed` — its candidate the attempt's, or the
+#   failed stage's close sha when no gate-2 attempt was started, why from its why= (null when not recorded). With no
+#   pass staging is null. production: the deploy log's newest row (Commit, Date as written), its stage the same way.
+AWKSTG='function same(a, b,   t) { a = tolower(a); b = tolower(b); if (a !~ /^[0-9a-f]+$/ || b !~ /^[0-9a-f]+$/) return 0
+  if (length(a) > length(b)) { t = a; a = b; b = t } return length(a) >= 7 && index(b, a) == 1 }
+function stage_of(c,   i, k, b) { b = -1; if (c == "") return "null"
+  for (i = 1; i <= NCL; i++) { k = CLO[i]; if (same(c, CSHA[k]) && k > b) b = k }
+  for (i = 1; i <= NTG; i++) if ((TGN[i] in CAT) && same(c, TGC[i]) && TGN[i] > b) b = TGN[i]
+  return b < 0 ? "null" : b }
+BEGIN { on = 0
+  while ((getline l < SF) > 0) { if (l ~ /^```vid-stages$/) { on = 1; continue } if (on && l ~ /^```$/) { on = 0; continue }
+    if (on && l ~ /^[ \t]*STAGE-[0-9]+[ \t]*\|/) { split(l, f, "|"); id = f[1]; gsub(/^[ \t]+|[ \t]+$/, "", id); sub(/^STAGE-/, "", id); id += 0
+      nm = f[2]; gsub(/^[ \t]+|[ \t]+$/, "", nm); if (!(id in NM)) { SN[++ns] = id; NM[id] = nm } } }
+  for (i = 2; i <= ns; i++) { x = SN[i]; for (j = i - 1; j >= 1 && SN[j] > x; j--) SN[j + 1] = SN[j]; SN[j + 1] = x }
+  while ((getline l < DF) > 0) { if (l ~ /^## /) { dl = (l ~ /^## Deploy log/); continue }
+    if (dl && l ~ /^\|/) { if (l ~ /^\|[ \t:|-]*$/) continue; split(l, f, "|"); c = f[4]; gsub(/^[ \t`]+|[ \t`]+$/, "", c); if (c == "Commit" || c == "" || c ~ /^\{\{/) continue
+      PC = c; PD = f[3]; gsub(/^[ \t`]+|[ \t`]+$/, "", PD) } }
+  while ((getline l < TF) > 0) { split(l, f, "\t"); if (f[1] !~ /^vid\/stage-[0-9]+(\.[0-9]+)?$/ || f[4] == "" || f[4] > T) continue
+    k = f[1]; sub(/^vid\/stage-/, "", k); sub(/\..*$/, "", k); TGN[++NTG] = k + 0; TGC[NTG] = (f[3] != "") ? f[3] : f[2] } }
+{ t = lastat() }
+$1 == "stage-closed" && / ready( |$)/ && kv("n") ~ /^[0-9]+$/ { k = kv("n") + 0; if (!(k in CAT)) { CAT[k] = t; CSHA[k] = kv("sha"); CLO[++NCL] = k } }
+$1 == "stage-hold" && kv("n") ~ /^[0-9]+$/ { HS[kv("n") + 0] = kv("state") }
+$1 == "run" && kv("state") == "complete" { DONE = 1 }
+$1 == "deploy-check" && kv("target") == "staging" && kv("sha") != "" { DCS[++NDC] = kv("sha"); DCA[NDC] = kv("ahead"); DCB[NDC] = kv("base") }
+$1 == "deploy-gate" && kv("gate") == "2" {
+  if (kv("state") == "start") { AC = kv("candidate"); ATC = AC }
+  else if (kv("state") == "end") { if (kv("result") == "pass" && AC != "") { SC = AC; SAT = t; SBY = ""; BYD = 0; LF = 0 }
+    else if (kv("result") == "fail") { LF = 1; LFAT = t; LFC = AC; LFW = "" } AC = "" } }
+$1 == "stage-deploy" { if (kv("staging") == "failed") { LF = 1; LFAT = t; LFC = (ATC != "") ? ATC : CSHA[kv("n") + 0]; LFW = qv("why") }
+  else if (kv("staging") == "yes" && SC != "" && !BYD) { SBY = kv("by"); BYD = 1 } ATC = "" }
+END { held = 0; for (i = 1; i <= ns; i++) { k = SN[i]; if ((k in CAT) && HS[k] == "on") held = 1 }
+  bld = (held || DONE) ? "none" : ""
+  printf "%s", "\"stages\":{\"list\":[" > XOF
+  for (i = 1; i <= ns; i++) { k = SN[i]
+    if (k in CAT) s = (HS[k] == "on") ? "held" : "closed"; else if (bld == "") { s = "building"; bld = "set" } else s = "not started"
+    printf "%s\n{\"n\":%d,\"name\":%s,\"technical\":%s,\"state\":%s,\"closedAt\":%s,\"commit\":%s}", (i > 1 ? "," : ""), k, js(NM[k]), jb(k == 0), js(s), jn(CAT[k]), jn(CSHA[k]) > XOF }
+  if (SC == "") stg = "null"
+  else { a = ""; b = ""; for (i = 1; i <= NDC; i++) if (same(SC, DCS[i])) { a = DCA[i]; b = DCB[i] }
+    lf = LF ? "{\"at\":" js(LFAT) ",\"candidate\":" jn(LFC) ",\"why\":" jn(LFW) "}" : "null"
+    stg = "{\"commit\":" js(SC) ",\"at\":" js(SAT) ",\"stage\":" stage_of(SC) ",\"ahead\":" (a ~ /^[0-9]+$/ ? a + 0 : "null") ",\"base\":" jn(b) ",\"by\":" jn(SBY) ",\"lastFailure\":" lf "}" }
+  prd = (PC == "") ? "null" : "{\"commit\":" js(PC) ",\"at\":" jn(PD) ",\"stage\":" stage_of(PC) "}"
+  printf "],\n\"staging\":%s,\n\"production\":%s},\n", stg, prd > XOF }'
 utc_of() { TZ=UTC0 git -C "$P" log -1 --date=format-local:%Y-%m-%dT%H:%M:%SZ --format=%cd "$1" 2>/dev/null; }
 hashof() { git hash-object --stdin; }
 
@@ -187,7 +587,7 @@ check_page() {
   awk -F'\t' '
     BEGIN {
       # required fields: <path pattern> <type[|type]>; [] stands for every element
-      n = split(".viewer-data number|.meta object|.meta.project string|.meta.moment object|.meta.moment.commit string|.meta.moment.time string|.meta.milestones array|.meta.madeAt string|.meta.vid string|.meta.records number,null|.meta.evidenceRule string|.meta.replayed boolean|.meta.requested boolean|.meta.mode string|.meta.fingerprint string|.meta.previous object,null|.meta.next object,null|.meta.snapshots array|.meta.snapshots[].label string|.meta.snapshots[].moment object|.meta.snapshots[].milestones array|.meta.snapshots[].file string|.meta.snapshots[].replayed boolean|.meta.snapshots[].requested boolean|.meta.nowOnly boolean|.meta.notRecorded array|.goals array|.goals[].id string|.goals[].name string|.goals[].text string|.capabilities array|.capabilities[].id string|.capabilities[].goal string,null|.capabilities[].name string|.users array|.users[].name string|.journeys array|.journeys[].promise string|.journeys[].text string|.requirements array|.requirements[].id string|.requirements[].type string|.requirements[].tier string|.requirements[].plain string|.requirements[].statement string|.requirements[].failsIf string,null|.requirements[].capability string,null|.requirements[].phase string|.nonGoals array|.nonGoals[].id string|.nonGoals[].plain string|.screens array|.screens[].screen string|.screens[].state string|.screens[].requirements array|.screens[].canvas string,null|.promises array|.promises[].id string|.promises[].kind string|.promises[].text string|.promises[].requirements array|.promises[].capabilities array|.promises[].screenState string,null|.promises[].test string|.promises[].step string,null|.promises[].state string|.promises[].stateDetail string|.promises[].resultFile string,null|.promises[].resultCommit string,null|.promises[].built boolean|.promises[].judgments array|.promises[].judgments[].at string|.promises[].judgments[].result string|.promises[].judgments[].class string|.promises[].judgments[].prose string,null|.steps array|.steps[].id string|.steps[].name string|.steps[].kind string|.steps[].buildsOn array|.steps[].promises array|.steps[].started string,null|.steps[].closed string,null|.decisions object|.decisions.answers array|.decisions.answers[].id string|.decisions.answers[].tier string|.decisions.answers[].date string|.decisions.answers[].q string|.decisions.answers[].a string|.decisions.answers[].settles array|.decisions.answers[].delegated boolean|.decisions.answers[].amended boolean|.decisions.technical array|.decisions.technical[].id string|.decisions.technical[].what string|.decisions.technical[].why string|.decisions.technical[].enforced string,null|.decisions.technical[].added object,null|.decisions.technical[].added.commit string|.decisions.technical[].added.time string|.decisions.technical[].stage string,null|.architecture object|.architecture.modules array|.architecture.modules[].id string|.architecture.modules[].responsibility string,null|.architecture.modules[].ownedData string,null|.architecture.modules[].surface string,null|.architecture.modules[].dependents string,null|.architecture.modules[].openToAll boolean|.architecture.modules[].mayBeUsedBy array|.architecture.modules[].otherNames array|.architecture.modules[].mayUse array|.architecture.modules[].steps array|.architecture.modules[].files array|.architecture.modules[].placement string|.architecture.modules[].level number,null|.architecture.modules[].decisions array|.architecture.modules[].decisions[].id string|.architecture.modules[].decisions[].by string|.architecture.modules[].decisions[].match string,null|.architecture.modules[].surfaceHistory array,null|.architecture.modules[].surfaceHistory[].commit string|.architecture.modules[].surfaceHistory[].time string|.architecture.modules[].surfaceHistory[].from string,null|.architecture.modules[].surfaceHistory[].to string,null|.architecture.planOnly array|.architecture.planOnly[].name string|.architecture.planOnly[].steps array|.architecture.services array|.architecture.services[].id string|.architecture.services[].service string|.architecture.services[].purpose string|.architecture.services[].chosen string,null|.architecture.services[].credentials string,null|.architecture.services[].probe string,null|.architecture.services[].evidence string,null|.architecture.services[].quirks string,null|.architecture.services[].module string,null|.architecture.stack array|.architecture.stack[].layer string,null|.architecture.stack[].choice string,null|.architecture.stack[].ruledOut string,null|.architecture.mustNeverBreak array|.architecture.mustNeverBreak[].rule string,null|.architecture.mustNeverBreak[].meaning string,null|.architecture.missing array|.architecture.missing[].part string|.architecture.missing[].why string|.needsYou object|.needsYou.questions array|.needsYou.held array|.needsYou.delegated array|.needsYou.answered array|.activity object|.activity.agentsOpen array|.activity.recentCommits array|.activity.planChanges array|.counts object|.counts.promises number|.counts.built number|.counts.tested number|.counts.reviewed number|.counts.reviewedKept number|.counts.reviewedBroken number|.counts.byState object|.counts.steps object|.changes array|.changes[].kind string|.changes[].ids array|.changes[].capabilities array|.changes[].window string", R, "|")
+      n = split(".viewer-data number|.meta object|.meta.project string|.meta.moment object|.meta.moment.commit string|.meta.moment.time string|.meta.milestones array|.meta.madeAt string|.meta.vid string|.meta.records number,null|.meta.evidenceRule string|.meta.replayed boolean|.meta.requested boolean|.meta.mode string|.meta.fingerprint string|.meta.previous object,null|.meta.next object,null|.meta.snapshots array|.meta.snapshots[].label string|.meta.snapshots[].moment object|.meta.snapshots[].milestones array|.meta.snapshots[].file string|.meta.snapshots[].replayed boolean|.meta.snapshots[].requested boolean|.meta.nowOnly boolean|.meta.notRecorded array|.goals array|.goals[].id string|.goals[].name string|.goals[].text string|.capabilities array|.capabilities[].id string|.capabilities[].goal string,null|.capabilities[].name string|.users array|.users[].name string|.journeys array|.journeys[].promise string|.journeys[].text string|.requirements array|.requirements[].id string|.requirements[].type string|.requirements[].tier string|.requirements[].plain string|.requirements[].statement string|.requirements[].failsIf string,null|.requirements[].capability string,null|.requirements[].phase string|.nonGoals array|.nonGoals[].id string|.nonGoals[].plain string|.screens array|.screens[].screen string|.screens[].state string|.screens[].requirements array|.screens[].canvas string,null|.promises array|.promises[].id string|.promises[].kind string|.promises[].text string|.promises[].requirements array|.promises[].capabilities array|.promises[].screenState string,null|.promises[].test string|.promises[].step string,null|.promises[].state string|.promises[].stateDetail string|.promises[].resultFile string,null|.promises[].resultCommit string,null|.promises[].built boolean|.promises[].judgments array|.promises[].judgments[].at string|.promises[].judgments[].result string|.promises[].judgments[].class string|.promises[].judgments[].prose string,null|.steps array|.steps[].id string|.steps[].name string|.steps[].kind string|.steps[].buildsOn array|.steps[].promises array|.steps[].started string,null|.steps[].closed string,null|.decisions object|.decisions.answers array|.decisions.answers[].id string|.decisions.answers[].tier string|.decisions.answers[].date string|.decisions.answers[].q string|.decisions.answers[].a string|.decisions.answers[].settles array|.decisions.answers[].delegated boolean|.decisions.answers[].amended boolean|.decisions.technical array|.decisions.technical[].id string|.decisions.technical[].what string|.decisions.technical[].why string|.decisions.technical[].enforced string,null|.decisions.technical[].added object,null|.decisions.technical[].added.commit string|.decisions.technical[].added.time string|.decisions.technical[].stage string,null|.architecture object|.architecture.modules array|.architecture.modules[].id string|.architecture.modules[].responsibility string,null|.architecture.modules[].ownedData string,null|.architecture.modules[].surface string,null|.architecture.modules[].dependents string,null|.architecture.modules[].openToAll boolean|.architecture.modules[].mayBeUsedBy array|.architecture.modules[].otherNames array|.architecture.modules[].mayUse array|.architecture.modules[].steps array|.architecture.modules[].files array|.architecture.modules[].placement string|.architecture.modules[].level number,null|.architecture.modules[].decisions array|.architecture.modules[].decisions[].id string|.architecture.modules[].decisions[].by string|.architecture.modules[].decisions[].match string,null|.architecture.modules[].surfaceHistory array,null|.architecture.modules[].surfaceHistory[].commit string|.architecture.modules[].surfaceHistory[].time string|.architecture.modules[].surfaceHistory[].from string,null|.architecture.modules[].surfaceHistory[].to string,null|.architecture.planOnly array|.architecture.planOnly[].name string|.architecture.planOnly[].steps array|.architecture.services array|.architecture.services[].id string|.architecture.services[].service string|.architecture.services[].purpose string|.architecture.services[].chosen string,null|.architecture.services[].credentials string,null|.architecture.services[].probe string,null|.architecture.services[].evidence string,null|.architecture.services[].quirks string,null|.architecture.services[].module string,null|.architecture.stack array|.architecture.stack[].layer string,null|.architecture.stack[].choice string,null|.architecture.stack[].ruledOut string,null|.architecture.mustNeverBreak array|.architecture.mustNeverBreak[].rule string,null|.architecture.mustNeverBreak[].meaning string,null|.architecture.missing array|.architecture.missing[].part string|.architecture.missing[].why string|.needsYou object|.needsYou.questions array|.needsYou.held array|.needsYou.delegated array|.needsYou.answered array|.activity object|.activity.agentsOpen array|.activity.recentCommits array|.activity.planChanges array|.counts object|.counts.promises number|.counts.built number|.counts.tested number|.counts.reviewed number|.counts.reviewedKept number|.counts.reviewedBroken number|.counts.byState object|.counts.steps object|.execution object,null|.execution.observedAt string|.execution.watcher object|.execution.watcher.lastTick string,null|.execution.sessions array|.execution.sessions[].id string|.execution.sessions[].started string|.execution.sessions[].source string,null|.execution.sessions[].model string,null|.execution.sessions[].manager boolean|.execution.agents array|.execution.agents[].id string|.execution.agents[].tool string|.execution.agents[].session string,null|.execution.agents[].type string,null|.execution.agents[].started string,null|.execution.agents[].role string,null|.execution.agents[].try string,null|.execution.agents[].step string,null|.execution.agents[].slice string,null|.execution.agents[].brief string,null|.execution.agents[].rows array,null|.execution.agents[].model string,null|.execution.agents[].effort string,null|.execution.agents[].linked boolean|.execution.agents[].runs array|.execution.agents[].runs[].started string,null|.execution.agents[].runs[].ended string,null|.execution.agents[].runs[].endedBy string,null|.execution.agents[].seconds number,null|.execution.agents[].state string|.execution.agents[].stateDetail string,null|.execution.agents[].handBack object,null|.execution.agents[].handBack.file string|.execution.agents[].handBack.accepted boolean|.execution.agents[].handBack.refusedAt string,null|.execution.agents[].handBack.lines array|.execution.agents[].handBack.lines[].row string,null|.execution.agents[].handBack.lines[].result string,null|.execution.agents[].handBack.lines[].receipt string,null|.execution.agents[].handBack.lines[].reason string,null|.execution.agents[].handBack.report boolean|.execution.agents[].briefText string,null|.execution.attention array|.execution.attention[].kind string|.execution.attention[].at string,null|.execution.attention[].current boolean|.execution.attention[].text string|.execution.attention[].ids object|.execution.attention[].ids.agent string,null|.execution.attention[].ids.try string,null|.execution.attention[].ids.question string,null|.execution.attention[].ids.ticket string,null|.execution.attention[].ids.slot string,null|.execution.attention[].ids.row string,null|.execution.queue object|.execution.queue.environments number,null|.execution.queue.taken array|.execution.queue.taken[].slot number,null|.execution.queue.taken[].ticket string,null|.execution.queue.taken[].since string,null|.execution.queue.taken[].workingCopy string,null|.execution.queue.running array|.execution.queue.running[].ticket string|.execution.queue.running[].type string,null|.execution.queue.running[].role string,null|.execution.queue.running[].try string,null|.execution.queue.running[].rows number,null|.execution.queue.running[].since string,null|.execution.queue.running[].limits object|.execution.queue.waiting array|.execution.queue.waiting[].ticket string|.execution.queue.waiting[].type string,null|.execution.queue.waiting[].role string,null|.execution.queue.waiting[].try string,null|.execution.queue.waiting[].rows number,null|.execution.queue.waiting[].since string,null|.execution.queue.waiting[].limits object|.execution.queue.waiting[].why string,null|.execution.bands array|.execution.bands[].kind string|.execution.bands[].id string|.execution.bands[].name string,null|.execution.bands[].start string|.execution.bands[].end string,null|.execution.rework object|.execution.rework.steps array|.execution.rework.steps[].step string|.execution.rework.steps[].briefs number|.execution.rework.steps[].returned number|.execution.rework.steps[].closed string,null|.execution.rework.steps[].tries array|.execution.rework.rows array|.execution.rework.rows[].row string|.execution.rework.rows[].briefs number|.execution.rework.rows[].broken number|.execution.rework.rows[].keptLast boolean|.execution.rework.rows[].tries array|.execution.rework.noAcceptance array|.execution.rework.noAcceptance[].try string|.execution.rework.noAcceptance[].file string|.execution.rework.noAcceptance[].refusedAt string,null|.economics object|.economics.usage array|.economics.usage[].agent string,null|.economics.usage[].try string,null|.economics.usage[].tool string|.economics.usage[].role string,null|.economics.usage[].step string,null|.economics.usage[].slice string,null|.economics.usage[].stage string,null|.economics.usage[].model string,null|.economics.usage[].effort string,null|.economics.usage[].at string,null|.economics.usage[].kind string|.economics.usage[].input number,null|.economics.usage[].cacheRead number,null|.economics.usage[].cacheWrite number,null|.economics.usage[].cacheWrite1h number,null|.economics.usage[].output number,null|.economics.usage[].total number,null|.economics.usage[].largestCall number,null|.economics.usage[].beforeChange number,null|.economics.usage[].beforeChangeShell boolean|.economics.usage[].briefBytes number,null|.economics.usage[].calls number,null|.economics.usage[].survived boolean,null|.economics.usage[].why string,null|.economics.manager array|.economics.manager[].at string|.economics.manager[].since string,null|.economics.manager[].calls number,null|.economics.manager[].total number,null|.economics.manager[].model string,null|.economics.manager[].input number,null|.economics.manager[].cacheRead number,null|.economics.manager[].cacheWrite number,null|.economics.manager[].output number,null|.economics.tests array|.economics.tests[].ticket string,null|.economics.tests[].batch string,null|.economics.tests[].type string,null|.economics.tests[].role string,null|.economics.tests[].try string,null|.economics.tests[].step string,null|.economics.tests[].rows number,null|.economics.tests[].asked string,null|.economics.tests[].started string,null|.economics.tests[].ended string,null|.economics.tests[].waited number,null|.economics.tests[].ran number,null|.economics.tests[].startup number,null|.economics.tests[].cleanup number,null|.economics.tests[].outcome string|.economics.tests[].proof boolean|.economics.tests[].attempt number,null|.economics.batches array|.economics.batches[].ticket string,null|.economics.batches[].parts number,null|.economics.batches[].elapsed number,null|.economics.batches[].retried number,null|.economics.outcomes object|.economics.outcomes.steps array|.economics.outcomes.steps[].step string|.economics.outcomes.steps[].closed string|.economics.outcomes.steps[].tries array|.economics.outcomes.steps[].testSeconds number|.economics.outcomes.rows array|.economics.outcomes.rows[].row string|.economics.outcomes.rows[].kept string|.economics.outcomes.rows[].tries array|.economics.outcomes.rows[].tries[].try string|.economics.outcomes.rows[].tries[].rows number|.economics.outcomes.shared object|.economics.outcomes.shared.managerRecords number|.economics.outcomes.shared.testsOwnedByNone number|.economics.prices object|.economics.prices.asOf string,null|.economics.prices.source string,null|.economics.prices.placeholder boolean|.economics.prices.models object|.changes array|.changes[].kind string|.changes[].ids array|.changes[].capabilities array|.changes[].window string|.stages object|.stages.list array|.stages.list[].n number|.stages.list[].name string|.stages.list[].technical boolean|.stages.list[].state string|.stages.list[].closedAt string,null|.stages.list[].commit string,null|.stages.staging object,null|.stages.staging.commit string|.stages.staging.at string|.stages.staging.stage number,null|.stages.staging.ahead number,null|.stages.staging.base string,null|.stages.staging.by string,null|.stages.staging.lastFailure object,null|.stages.staging.lastFailure.at string|.stages.staging.lastFailure.candidate string,null|.stages.staging.lastFailure.why string,null|.stages.production object,null|.stages.production.commit string|.stages.production.at string,null|.stages.production.stage number,null", R, "|")
       for (i = 1; i <= n; i++) { split(R[i], a, " "); RP[i] = a[1]; RT[i] = a[2] } nr = n }
     $1 == "T" { k = $2; gsub(/\[[0-9]+\]/, "[]", k); TY[k] = TY[k] "," $3; HAS[k] = 1; if (k ~ /\[\]$/) { el[k]++; ELEM[$2] = k } FLD[$2] = 1; PT[$2] = $3; if ($3 == "object") OBJ[k] = 1; next }
     $1 == "V" { VAL[$2] = $3; next }
@@ -196,7 +596,8 @@ check_page() {
         # an element field is required only when its array has elements
         par = pth; if (index(par, "[]")) { sub(/\[\][^[]*$/, "[]", par); if (!(par in el)) continue }
         # v0.26.10.2: a field of an object that may be null is required only where the object is there
-        up = pth; sub(/\.[^.[]*$/, "", up); if (up != pth && up != "" && (up in HAS) && !(up in OBJ)) continue
+        #   v0.26.10.6: at any depth — every field under a null part (a past snapshot’s execution) is not required
+        up = pth; sk = 0; while (sub(/\.[^.[]*$/, "", up) && up != "") if ((up in HAS) && !(up in OBJ)) { sk = 1; break } if (sk) continue
         if (!(pth in HAS)) { print "ViD view check: " pth " is missing"; bad++; continue }
         nt = split(substr(TY[pth], 2), got, ","); for (j = 1; j <= nt; j++) { f = 0; for (q = 1; q <= m; q++) if (got[j] == ok[q]) f = 1; if (!f) { print "ViD view check: " pth " is " got[j] ", not " RT[i]; bad++; break } } }
       # every element of an array carries the fields required of its elements
@@ -212,7 +613,10 @@ check_page() {
         else if (pth ~ /^\.steps\[[0-9]+\]\.id$/) STP[VAL[pth]] = 1
         else if (pth ~ /^\.decisions\.answers\[[0-9]+\]\.id$/) ANS[VAL[pth]] = 1
         else if (pth ~ /^\.decisions\.technical\[[0-9]+\]\.id$/) TEC[VAL[pth]] = 1
-        else if (pth ~ /^\.architecture\.modules\[[0-9]+\]\.id$/) MOD[VAL[pth]] = 1 }
+        else if (pth ~ /^\.architecture\.modules\[[0-9]+\]\.id$/) MOD[VAL[pth]] = 1
+        # v0.26.10.6 (R15): the agents, and the tries the usage entries, the agents and the hand-backs with no acceptance name
+        else if (pth ~ /^\.execution\.agents\[[0-9]+\]\.id$/) AGT[VAL[pth]] = 1
+        else if (pth ~ /^\.(economics\.usage|execution\.agents|execution\.rework\.noAcceptance)\[[0-9]+\]\.try$/) TRY[VAL[pth]] = 1 }
       for (pth in VAL) { v = VAL[pth]; w = ""
         if (pth ~ /^\.promises\[[0-9]+\]\.requirements\[[0-9]+\]$/ && !(v in REQ)) w = "requirement"
         else if (pth ~ /^\.promises\[[0-9]+\]\.capabilities\[[0-9]+\]$/ && !(v in CAP)) w = "capability"
@@ -229,6 +633,12 @@ check_page() {
         else if (pth ~ /^\.architecture\.modules\[[0-9]+\]\.(mayUse|mayBeUsedBy)\[[0-9]+\]$/ && !(v in MOD)) w = "module"
         else if (pth ~ /^\.architecture\.(modules|planOnly)\[[0-9]+\]\.steps\[[0-9]+\]$/ && !(v in STP)) w = "step"
         else if (pth ~ /^\.architecture\.modules\[[0-9]+\]\.decisions\[[0-9]+\]\.id$/ && !(v in TEC)) w = "technical decision"
+        # v0.26.10.6 (R15): the execution and economics parts cite agents, steps, rows and tries that exist
+        else if (pth ~ /^\.execution\.attention\[[0-9]+\]\.ids\.agent$/ && !(v in AGT)) w = "agent"
+        else if (pth ~ /^\.(execution\.agents|execution\.rework\.steps|economics\.usage|economics\.tests|economics\.outcomes\.steps)\[[0-9]+\]\.step$/ && !(v in STP)) w = "step"
+        else if (pth ~ /^\.execution\.bands\[[0-9]+\]\.id$/ && VAL[substr(pth, 1, length(pth) - 3) ".kind"] == "step" && !(v in STP)) w = "step"
+        else if (pth ~ /^\.(execution\.agents\[[0-9]+\]\.rows\[[0-9]+\]|execution\.agents\[[0-9]+\]\.handBack\.lines\[[0-9]+\]\.row|execution\.rework\.rows\[[0-9]+\]\.row|economics\.outcomes\.rows\[[0-9]+\]\.row)$/ && !(v in PRO)) w = "promise"
+        else if (pth ~ /^\.(execution\.rework\.(steps|rows)\[[0-9]+\]\.tries\[[0-9]+\]|economics\.outcomes\.steps\[[0-9]+\]\.tries\[[0-9]+\]|economics\.outcomes\.rows\[[0-9]+\]\.tries\[[0-9]+\]\.try)$/ && !(v in TRY)) w = "try"
         if (w != "") { print "ViD view check: " pth " cites " v ", which is no " w " of this snapshot"; bad++ } }
       exit bad ? 1 : 0 }' "$CW/t"
   _rc=$?; rm -rf "$CW"; return $_rc
@@ -269,7 +679,7 @@ STARTED=$(date +%s)
 VIDV=$(sed -n 's/.*"version":[[:space:]]*"\([^"]*\)".*/\1/p' "$PLUG/.claude-plugin/plugin.json" 2>/dev/null | head -n 1); VIDV=${VIDV:-unknown}
 RECV=$(git -C "$P" show HEAD:checks/records-version 2>/dev/null | sed -n 's/^records:[[:space:]]*//p' | head -n 1)
 case "$RECV" in ''|*[!0-9]*) RECV='' ;; esac
-CODEH=$( { cat "$VIEWER/view.sh"; find "$PLUG/checks" -type f ! -path '*/selftest/*' | LC_ALL=C sort | while IFS= read -r f; do printf '%s\n' "$f" | sed "s#^$PLUG/##"; cat "$f"; done; } | hashof)
+CODEH=$( { cat "$VIEWER/view.sh" "$VIEWER/prices.tsv" 2>/dev/null; find "$PLUG/checks" -type f ! -path '*/selftest/*' | LC_ALL=C sort | while IFS= read -r f; do printf '%s\n' "$f" | sed "s#^$PLUG/##"; cat "$f"; done; } | hashof)
 NOWT=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
 
 # --- milestones (R5) ---------------------------------------------------------------------------------------
@@ -320,11 +730,20 @@ printf '%s\t%s\tnow\tNow\tnow.html\t0\n' "$NOWT" "$HEAD" >> "$W/snaps"
 NSNAP=$(grep -c . "$W/snaps")
 
 # --- fingerprints and the cache (R6) -------------------------------------------------------------------------
+# v0.26.10.8 (R11): the stage tags, read once (the stages part's commit of a close it cannot find in the events)
+TZ=UTC0 git -C "$P" for-each-ref --format='%(refname:short)%09%(objectname)%09%(*objectname)%09%(creatordate:format-local:%Y-%m-%dT%H:%M:%SZ)' refs/tags/vid/ > "$W/vtags" 2>/dev/null || : > "$W/vtags"
 # now's records: every file now's data reads
-RECH=$( { cat "$EVF"; cat "$P/.vid/RUN-STATE.md" 2>/dev/null; ls -1 "$P/.vid/ledger-results" 2>/dev/null; ls -1 "$P/.vid/plans" 2>/dev/null
+RECH=$( { cat "$EVF"; cat "$W/vtags"; cat "$P/.vid/RUN-STATE.md" 2>/dev/null; ls -1 "$P/.vid/ledger-results" 2>/dev/null; ls -1 "$P/.vid/plans" 2>/dev/null
   find "$P/.vid/verdicts" -type f 2>/dev/null | LC_ALL=C sort | while IFS= read -r f; do printf '%s\n' "${f##*/}"; cat "$f"; done
   find "$P/.vid/briefs" -name '*.return.md' -type f 2>/dev/null | LC_ALL=C sort | while IFS= read -r f; do printf '%s\n' "${f#$P/}"; cat "$f"; done
-  find "$P/.vid/jobs" -maxdepth 1 -type f 2>/dev/null | LC_ALL=C sort | while IFS= read -r f; do printf '%s\n' "${f##*/}"; cat "$f"; done; } | hashof)
+  find "$P/.vid/jobs" -maxdepth 1 -type f 2>/dev/null | LC_ALL=C sort | while IFS= read -r f; do printf '%s\n' "${f##*/}"; cat "$f"; done
+  # v0.26.10.6 (R14): every file execution and now's economics read — the watcher's, the budget, the operations past their
+  #   time, the live holders, each request's request, state, holders, running-at and build-failed, the reports, the briefs
+  { cat "$P/.vid/HEARTBEAT.md" "$P/.vid/observer.state" "$P/.vid/budget" 2>/dev/null; ls -1 "$P/.vid/watchdog" 2>/dev/null
+    find "$P/.vid/runs" -name holder -type f 2>/dev/null; find "$P/.vid/requests" -mindepth 2 -maxdepth 2 -type f \( -name request -o -name state -o -name holders -o -name running-at -o -name build-failed \) 2>/dev/null
+    find "$P/.vid/runs" -name holder -type f 2>/dev/null | LC_ALL=C sort | tr '\n' '\0' | xargs -0 cat 2>/dev/null
+    find "$P/.vid/requests" -mindepth 2 -maxdepth 2 -type f \( -name request -o -name state -o -name holders -o -name running-at \) 2>/dev/null | LC_ALL=C sort | tr '\n' '\0' | xargs -0 cat 2>/dev/null
+    find "$P/.vid/briefs" -type f \( -name '*.report.md' -o -name '*.md' \) ! -name '*.return.md' 2>/dev/null | LC_ALL=C sort | tr '\n' '\0' | xargs -0 cat 2>/dev/null; } | LC_ALL=C sort | hashof; } | hashof)
 awk -F'\t' -v d="$DATAV" -v code="$CODEH" -v rech="$RECH" '{ if ($3 == "now") print "now\t" d "\t" $2 "\t" code "\t" rech; else print "past\t" d "\t" $2 "\t" $1 "\t" code }' "$W/snaps" | while IFS= read -r l; do printf '%s' "$l" | hashof; done > "$W/fps"
 paste "$W/snaps" "$W/fps" > "$W/snapfp"
 # a damaged or malformed entry is deleted and recomputed, and the run says so
@@ -565,22 +984,19 @@ snapdata() {
       awk -v row="$(basename "$f" .md)" 'function flush() { if (h != "") { gsub(/\t/, " ", body); gsub(/\n/, "\002", body); print "X\t" row "\t" h "\t" body } }
         /^## / { flush(); h = $0; sub(/^## /, "", h); body = ""; next } h != "" { body = body (body == "" ? "" : "\n") $0 } END { flush() }' "$f" >> "$S/now"
     done
-    awk -v h="$P" "$AWKAT"' { t = lastat() }
-      $1 == "agent-start" && kv("agent") != "" { a = kv("agent"); if (!(a in OP)) OO[++no] = a; OP[a] = 1; TY[a] = kv("type"); AT[a] = t }
-      $1 == "agent-stop" && kv("agent") != "" { delete OP[kv("agent")] }
-      $1 == "job-start" && kv("try") != "" { j = kv("try"); if (!(j in JO)) JL[++nj] = j; JO[j] = 1; JT[j] = t; JS[j] = kv("step") }
-      ($1 == "job-exit" || $1 == "job-stop") && kv("try") != "" { delete JO[kv("try")] }
-      $1 == "job-recovery-required" && kv("try") != "" { JO[kv("try")] = 1 }
-      $1 == "brief-written" && kv("path") != "" { b = kv("path"); if (index(b, h "/") == 1) b = substr(b, length(h) + 2); BW[++nb] = b; BR[b] = kv("role"); BT[b] = t }
-      $1 == "build-cost" && bkv(h) != "" { DONE[bkv(h)] = 1 }
-      END { for (i = 1; i <= no; i++) { a = OO[i]; if (!(a in OP)) continue; ty = TY[a]; ro = ty; sub(/^vid:/, "", ro); hb = ""
-          for (k = nb; k >= 1; k--) { b = BW[k]; if (BR[b] == ro && !(b in DONE) && !(b in USED) && BT[b] <= AT[a]) { hb = b; USED[b] = 1; break } }
-          print "AG\t" ro " " substr(a, 1, 8) " (since " AT[a] ")\t" (hb == "" ? "" : "its hand-back for " hb) }
-        for (i = 1; i <= nj; i++) { j = JL[i]; if (j in JO) print "AG\tCodex builder " j (JS[j] != "" ? " · " JS[j] : "") " (since " JT[j] ")\tits hand-back: the job record .vid/jobs/" j } }' "$EVF" >> "$S/now"
+    # v0.26.10.6 (R9): agents now, from the agents' runs and the records that link a brief (below), never paired by time
     TZ=UTC0 git -C "$P" log --first-parent -n 12 --date=format-local:%Y-%m-%dT%H:%M:%SZ --format='RC%x09%h%x09%cd%x09%s' "$_C" >> "$S/now" 2>/dev/null
     awk "$AWKAT"' $1 == "plan-change" { L[++n] = "PC\t" kv("what") "\t" lastat() "\t" qv("why") } END { for (i = (n > 10 ? n - 9 : 1); i <= n; i++) print L[i] }' "$EVF" >> "$S/now"
   fi
-  # the data body (viewer-data 2, less meta and changes) and the facts the change log compares
+  # v0.26.10.6 (R1–R14): the execution part (now) and the economics part (every snapshot) — the events up to T in time
+  #   order (a line with no at= kept, first; the view root's own develop line left out), the files' facts of this run, the
+  #   plan's steps at T
+  awk "$AWKAT"' { t = lastat() } t == "" || t <= T { print t "\t" $0 }' T="$_T" "$EVF" | LC_ALL=C sort -s -t "$(printf '\t')" -k1,1 | cut -f2- > "$S/xev"
+  { cat "$W/xin.all"; [ "$_K" = now ] && cat "$W/xin.now"; awk -F'\t' '$1 == "step" { print "ST\t" $2 "\t" $3 }' "$S/parsed"; } > "$S/xin"
+  : > "$S/xparts"; : > "$S/ag"
+  LC_ALL=C awk -v T="$_T" -v NOW="$([ "$_K" = now ] && echo 1 || echo 0)" -v X="$S/xin" -v AGF="$S/ag" -v XOF="$S/xparts" -v H="$P" "$AWKAT$AWKJS$AWKEX" "$S/xev" || return 1
+  [ "$_K" = now ] && cat "$S/ag" >> "$S/now"
+  # the data body (viewer-data 4, less meta and changes) and the facts the change log compares
   LC_ALL=C awk -F'\t' -v S="$S" -v K="$_K" -v ci="$_ci" -v ds="$_ds" -v fpl="$W/fpl" -v hdec="$HDEC" -v harch="$HARCH" "$AWKJS""$AWKARCH"'
     function caps_of(list,   n, a, i, o, s, c) { n = split(list, a, /[ ,]+/); o = ""; split("", s)
       for (i = 1; i <= n; i++) { c = ""; if (a[i] in RCAP) c = RCAP[a[i]]; else if (a[i] in PCAPS) c = PCAPS[a[i]]
@@ -667,6 +1083,11 @@ snapdata() {
       o = ""; for (k in by) o = o (o == "" ? "" : ",") js(k) ":" by[k]
       printf "\"counts\":{\"promises\":%d,\"built\":%d,\"tested\":%d,\"reviewed\":%d,\"reviewedKept\":%d,\"reviewedBroken\":%d,\"byState\":{%s},\"steps\":{\"closed\":%d,\"underway\":%d,\"notStarted\":%d}},\n", np, nb, nt, nrv, nk, nbk, o, cl, un, ns0
     }' /dev/null > "$S/body" || return 1
+  cat "$S/xparts" >> "$S/body"
+  git -C "$P" show "$_C:STAGES.md" > "$S/stg.md" 2>/dev/null || : > "$S/stg.md"
+  git -C "$P" show "$_C:DEPLOYMENT.md" > "$S/dep.md" 2>/dev/null || : > "$S/dep.md"
+  LC_ALL=C awk -v T="$_T" -v SF="$S/stg.md" -v DF="$S/dep.md" -v TF="$W/vtags" -v XOF="$S/body.stg" "$AWKAT$AWKJS$AWKSTG" "$S/xev" || return 1
+  cat "$S/body.stg" >> "$S/body"
   [ -f "$S/facts" ] || : > "$S/facts"
   _secs=$(( $(date +%s) - _t0 ))
   printf 'T=%s\nC=%s\nkind=%s\nmadeAt=%s\nseconds=%s\n' "$_T" "$_C" "$_K" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$_secs" > "$S/meta"
@@ -678,6 +1099,8 @@ snapdata() {
   printf '%s\n' "$_secs"
 }
 
+# v0.26.10.6 (R1–R14): the files' facts the execution and economics parts read, once a run
+[ "$NTODO" -gt 0 ] && exin "$P" "$W/xin" "$VIEWER/prices.tsv"
 NMADE=0; SECS=0
 while IFS='	' read -r _t _c _k _l _f _r _fp; do
   _kk=past; [ "$_k" = now ] && _kk=now

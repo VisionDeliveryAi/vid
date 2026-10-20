@@ -63,7 +63,12 @@
 # vid-fix both write records=23 and stop below 23. v0.26.10.4 (R14): checks/ is 24 and RECORDS.md says so; develop and
 # vid-fix both write records=24 and stop below 24. v0.26.10.5 (R17): checks/ is 25 and RECORDS.md says so; develop and
 # vid-fix both write records=25 and still stop below 24 (a project without STAGES.md is unchanged); a project holding
-# STAGES.md stops below 25.
+# STAGES.md stops below 25. v0.26.10.6 (R17): checks/ is 26 and RECORDS.md says so; develop and vid-fix both write
+# records=26; no floor rises. v0.26.10.7 (R17, R18): checks/ is 27 and RECORDS.md says so; develop and vid-fix both
+# write records=27 with their floors unchanged; vid-deploy writes records=27 and stops below 27 before either deploy.
+# v0.26.10.8 (R13, R14): checks/ is 28 and RECORDS.md says so; develop and vid-fix write records=28, their floors
+# unchanged but for a project whose STAGES.md holds STAGE-0, which stops develop below 28; vid-deploy and vid-stage
+# write records=28, and vid-deploy stops below 28.
 # In a project neither file exists and the case proves
 # nothing. Env: CHECKS.
 set -eu
@@ -86,15 +91,20 @@ if [ -f "$D" ]; then
   has 'first run `sh "${CLAUDE_PLUGIN_ROOT}/checks/local-changes.sh"` from the project'"'"'s top level and show the owner its list' || fail "develop's refresh does not list the local changes first"
   has 'commit it alone with `VID_ROLE=fix`, its subject `Refresh checks/ to VID <version>`' || fail "develop's refresh commit does not keep its subject"
   has 'Record the stop as `run: stopped checks/ needs the refresh`' || fail 'develop does not record the refresh stop'
-  grep -q 'name=develop state=start session=$CLAUDE_CODE_SESSION_ID records=25"`' "$D" || fail 'develop does not write records=25'
+  grep -q 'name=develop state=start session=$CLAUDE_CODE_SESSION_ID records=28"`' "$D" || fail 'develop does not write records=28'
+  has 'and one whose STAGES.md holds STAGE-0 with checks/ below 28' || fail 'develop does not stop a project with stage 0 on a checks/ older than records: 28'
   has '**The harness upgrade (v0.9.7.0.10 3.6, R13; v0.9.7.0.11 3.2, R2).** Right after the version check, run `sh checks/harness.sh rules`.' || fail "develop does not run harness.sh rules right after the version check"
-  grep -q 'name=fix state=start session=$CLAUDE_CODE_SESSION_ID records=25"`' "$FX" || fail 'vid-fix does not write records=25'
+  grep -q 'name=fix state=start session=$CLAUDE_CODE_SESSION_ID records=28"`' "$FX" || fail 'vid-fix does not write records=28'
+  DP="$CHECKS/../skills/vid-deploy/SKILL.md"
+  grep -q 'name=deploy state=start session=$CLAUDE_CODE_SESSION_ID records=28"`' "$DP" || fail 'vid-deploy does not write records=28'
+  grep -q 'name=stage state=start session=$CLAUDE_CODE_SESSION_ID records=28"`' "$CHECKS/../skills/vid-stage/SKILL.md" || fail 'vid-stage does not write records=28'
+  tr '\n' ' ' < "$DP" | tr -s ' ' | grep -qF 'Read `checks/records-version` first. If it is absent or below 28, the project'"'"'s checks/ predates this plugin: tell the owner it needs the refresh and stop before either deploy.' || fail 'vid-deploy does not stop on a checks/ older than records: 28'
   tr '\n' ' ' < "$FX" | tr -s ' ' | grep -qF 'Read `checks/records-version` first. If it is absent or below 24, the project'"'"'s checks/ predates this plugin' || fail 'vid-fix does not stop on a checks/ older than records: 24'
   tr '\n' ' ' < "$FX" | tr -s ' ' | grep -qF 'so too a project holding STAGES.md whose checks/ is below 25' || fail 'vid-fix does not stop a staged project on a checks/ older than records: 25'
   # the per-version degradations are gone: no rule for an older checks/ remains
   printf '%s' "$F" | grep -qE 'If it says `records: [0-9]+`|`records: [0-9]+` or later' && fail 'develop still carries a rule for an older checks/'
   printf '%s' "$F" | grep -qF 'until the refresh' && fail 'develop still builds on an older checks/ until the refresh'
-  [ "$(sed -n 's/^records: //p' "$CHECKS/records-version")" = 25 ] || fail 'checks/records-version is not 25'
-  [ "$(sed -n 's/^records: //p' "$CHECKS/../RECORDS.md")" = 25 ] || fail 'RECORDS.md does not say records: 25'
+  [ "$(sed -n 's/^records: //p' "$CHECKS/records-version")" = 28 ] || fail 'checks/records-version is not 28'
+  [ "$(sed -n 's/^records: //p' "$CHECKS/../RECORDS.md")" = 28 ] || fail 'RECORDS.md does not say records: 28'
 fi
 exit 0

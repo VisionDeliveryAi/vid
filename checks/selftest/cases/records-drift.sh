@@ -26,7 +26,9 @@
 # deferred-resolved. v0.9.7.3 (3.10, R10): so must the two records-18
 # events, decision-labels and court-refused. v0.9.7.4 (3.11, R12): so must
 # the records-19 event, delegated. v0.9.8 (R14; amendment 3): so must two records-20 events —
-# test-proven, authority-kept. Env: CHECKS.
+# test-proven, authority-kept. v0.26.10.6 (R17): so must the records-26 event, usage. v0.26.10.7 (R18): so must the
+# records-27 events, deploy-check and stage-hold. v0.26.10.8 (R14): so must the records-28 event, staging-auth.
+# Env: CHECKS.
 set -eu
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 ROOT=$(cd "$CHECKS/.." && pwd)
@@ -85,6 +87,18 @@ if [ -f "$ROOT/RECORDS.md" ]; then
   for t in selftest-retried agent-brief; do   # v0.9.8.1 (R24)
     grep -qxF "$t" "$T/written" || { echo "records-drift: no writer of the records-21 event $t was found" >&2; exit 1; }
     grep -qxF "$t" "$T/listed" || { echo "records-drift: RECORDS.md does not list the records-21 event $t" >&2; exit 1; }
+  done
+  for t in usage; do   # v0.26.10.6 (R17)
+    grep -qxF "$t" "$T/written" || { echo "records-drift: no writer of the records-26 event $t was found" >&2; exit 1; }
+    grep -qxF "$t" "$T/listed" || { echo "records-drift: RECORDS.md does not list the records-26 event $t" >&2; exit 1; }
+  done
+  for t in deploy-check stage-hold; do   # v0.26.10.7 (R18)
+    grep -qxF "$t" "$T/written" || { echo "records-drift: no writer of the records-27 event $t was found" >&2; exit 1; }
+    grep -qxF "$t" "$T/listed" || { echo "records-drift: RECORDS.md does not list the records-27 event $t" >&2; exit 1; }
+  done
+  for t in staging-auth; do   # v0.26.10.8 (R14)
+    grep -qxF "$t" "$T/written" || { echo "records-drift: no writer of the records-28 event $t was found" >&2; exit 1; }
+    grep -qxF "$t" "$T/listed" || { echo "records-drift: RECORDS.md does not list the records-28 event $t" >&2; exit 1; }
   done
   for t in decision-labels court-refused; do
     grep -qxF "$t" "$T/written" || { echo "records-drift: no writer of the records-18 event $t was found" >&2; exit 1; }

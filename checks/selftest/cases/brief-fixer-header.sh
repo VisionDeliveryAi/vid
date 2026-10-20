@@ -4,7 +4,8 @@
 # the header template develop carries (`role: builder|fixer|grader|test-author …`, whose `|`-split second field is
 # `fixer`), and its grader row a `"<reason>"` cell. `write --role fixer` writes the fixer row's cells, never the
 # template's, and `brief.sh <brief>` says ok; the same brief with the template's garbled cells is refused, naming the
-# fixer row; a grader brief, whose row holds `"<reason>"`, passes. Env: CHECKS.
+# fixer row; a grader brief, whose row holds `"<reason>"`, passes. v0.26.10.7 (R6, F-58): the fixer brief's header
+# names its first act, `first act: sh checks/plan.sh home --brief <the brief's absolute path>`. Env: CHECKS.
 set -eu
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 . "$CHECKS/selftest/fixtures/brief-write.sh"
@@ -36,6 +37,8 @@ WANT="receives: 1–8 (7 carries the counterexample)    must not receive: anothe
 bw_write --role fixer --slice 2 --step S2 --rows ROW-104 || fail 'the writer refused the fixer brief'
 F=$(bw_out); grep -qxF -- "$WANT" "$F" || fail "the fixer brief's receives: line is not the fixer row: $(grep '^receives:' "$F")"
 sh checks/brief.sh "$F" > "$T/wout" 2>&1 || fail 'the written fixer brief was refused'
+# v0.26.10.7 (R6, F-58): the fixer's first act, in its header — the project as its home
+grep -qxF "first act: sh checks/plan.sh home --brief $(pwd -P)/$F" "$F" || fail "the fixer brief's header does not name its first act: $(grep '^first act:' "$F")"
 sed "s/^receives: .*/receives: grader    must not receive: test-author    slice: <N>    step: <id>   (builder, fixer)/" "$F" > "$T/garbled.md"
 if sh checks/brief.sh "$T/garbled.md" > "$T/wout" 2>&1; then fail 'a fixer brief with the template'"'"'s cells was accepted'; fi
 grep -qF "the receives: line is not the fixer row of develop's role table" "$T/wout" || fail 'the refusal does not name the fixer row'

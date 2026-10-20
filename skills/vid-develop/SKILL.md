@@ -14,7 +14,7 @@ narrated.
 ## Before any work
 
 **The stage event (v0.9.5 3.11, R11).** First of all, record
-`sh checks/event.sh "stage name=develop state=start session=$CLAUDE_CODE_SESSION_ID records=25"`
+`sh checks/event.sh "stage name=develop state=start session=$CLAUDE_CODE_SESSION_ID records=28"`
 — and again whenever a session takes over the run (Resume, below); the
 completion report records the `end` (`state=end`, the same form without
 `records=`). Every event this skill names is written with
@@ -41,7 +41,9 @@ observer and the death record cover it. **Version skew:** Read
 project's checks/ predates this plugin: tell the owner it needs the
 refresh and stop before building; so too a project holding STAGES.md
 whose checks/ is below 25 (v0.26.10.5: the stage court and the stage
-close are 25's). The refresh (v0.9.8.1 R5): first run
+close are 25's), and one whose STAGES.md holds STAGE-0 with checks/ below
+28 (v0.26.10.8: stage 0, the setup hold and the standing staging
+authorization are 28's). The refresh (v0.9.8.1 R5): first run
 `sh "${CLAUDE_PLUGIN_ROOT}/checks/local-changes.sh"` from the project's top
 level and show the owner its list — the project's commits under `checks/`
 since the last refresh, and its uncommitted changes there — since the copy
@@ -396,7 +398,13 @@ built is not a ViD finding.
 > tells the owner that the build went quiet.
 
 The owner's controls: "pause" → write `run: stopped owner asked to pause`
-(and its event) after the current step, then stop; "continue", an answer,
+(and its event) after the current step, then stop; "hold after this stage"
+→ record it and build on to the stage's close (Stages, "Holding the next
+stage"; v0.26.10.7); "you may set up the test site and put each finished
+stage on it on your own", or its withdrawal ("stop deploying to staging on
+your own"), at any time → record it at once, `sh checks/stages.sh
+staging-auth on|off --words "<the owner's words, verbatim>"` (Stages,
+"Staging at each close"; v0.26.10.8); "continue", an answer,
 a takeover or a return after a death → write `run: active` first, before
 any other work, even when it already reads `active`. Every write of `run:`
 is recorded as `sh checks/event.sh 'run state=<value>'` — the history, and
@@ -949,13 +957,22 @@ accordingly.
 
 Without `STAGES.md` this section does nothing; the run is as before.
 
+With a technical stage 0 (`STAGE-0 | <name> | technical`, v0.26.10.8 R2),
+"stages 1 to N" below reads "stages 0 to N": the close's conditions,
+coverage's scope, deploy's debt and the production check.
+
 **The current stage (R6).** At develop's start, when RUN-STATE carries no
-`stage:` line, write `stage: 1` under `plan:`. Plan the current stage
+`stage:` line, write the lowest stage under `plan:` — `stage: 0` with
+STAGE-0 (v0.26.10.8 R3), else `stage: 1`; `sh checks/stages.sh current`
+prints it. Plan the current stage
 only: `sh checks/plan.sh start` and `admit` refuse a step holding a row
 outside stages 1 to N (`sh checks/stages.sh scope` lists them), with no
 exception. Depth first or breadth first applies within the stage, and its
-hardening steps belong to it. Stage 1 builds its walking skeleton first —
-the thin journey its card names in STAGES.md.
+hardening steps belong to it. The first stage builds its walking skeleton first: stage 0 when there is one —
+the thin journey its card names in STAGES.md. Stage 0's steps are the
+skeleton: its rows, placed by `row:` lines, through the main modules and
+the database; the database, its migrations and the app's configuration
+are technical minimums the pull-forward rule allows.
 
 **The pull-forward rule (R7).** You may bring forward the minimum
 technical work needed to deliver the current stage, if it keeps the
@@ -986,7 +1003,11 @@ confirm, their hostility probes and rule cases passing, the census clean,
 `coverage.sh --strict --rows` clean for them, their hardening done and no
 open question gating them; rows owed to a deploy gate are listed as
 deploy debt, never required. Work every `unmet` line as you work any red.
-The final stage's close is today's completion, unchanged.
+Stage 0 closes like any stage, `--stage 0`. The final stage (the highest
+number) closes like the others too (v0.26.10.8 R9): its `--record` records
+`stage-closed n=k`, tags `vid/stage-k` and sets no next stage; after the
+staging step below, run `sh checks/metrics.sh completion --record` as
+today.
 
 **At a ready close (R9).**
 1. `sh checks/metrics.sh stage-close --stage N --record` — it records
@@ -996,17 +1017,122 @@ The final stage's close is today's completion, unchanged.
    `.vid/SLICE-REPORTS.md` (counts: what the stage holds, the full run for
    stages 1 to N, the deploy debt with what each owed row needs, the
    pull-forwards, open questions, what the next stage holds) and sets
-   `stage: N+1`.
-2. Tell the owner in one line: the section, and "`/vid deploy` takes this
-   stage to staging, and to production if you confirm; pause the build
-   first".
+   `stage: N+1` (the final stage: no next stage).
+2. **The staging step (v0.26.10.8 R8, R10).** With the standing staging
+   authorization on, develop's own staging deploy, right now ("Staging at
+   each close", below). Without it, nothing changes: tell the owner in one
+   line, the section, and "`/vid deploy staging` takes this stage to
+   staging; say \"deploy to production\" when staging looks good; pause
+   the build first" (v0.26.10.7).
 3. Plan stage N+1 and carry on. Never wait for the owner's deploy decision.
+   The exceptions are a hold (below): then the close's `held:` line is
+   what you tell the owner, and you plan nothing; and the final stage,
+   whose close is followed by completion.
 
 **A closed stage corrected later (R10).** A commit that changes the code,
 tests or law of stages 1 to N after their close never touches the tag. It
 ships with the next stage's close, which re-checks stages 1 to N; `sh
 checks/metrics.sh` lists such commits under "since stage N's close", and
-deploy names them as missing from the live candidate.
+deploy names them as missing from the live candidate. A held stage is the
+exception (below).
+
+**Holding the next stage (v0.26.10.7 R12, R14).** The owner may say "hold
+after this stage" at any time during stage N. Record it at once: `sh
+checks/stages.sh hold --after N --words "<the owner's words, verbatim>"`
+(the event `stage-hold n=N state=asked`), and build on. At stage N's ready
+close, `metrics.sh stage-close --stage N --record` records the close and
+the tag as always, then, seeing the asked hold, records `stage-hold n=N
+state=on`, sets `stage: N+1` and writes `run: stopped owner asked to hold
+after stage N` — the close's `held:` line; record that write of `run:` as
+any other (`sh checks/event.sh 'run state=stopped owner asked to hold after
+stage N'`). Do not plan stage N+1. Tell the
+owner in one line: stage N is closed and held; corrections to it now
+reach staging on their own; say "continue" to start stage N+1. Nothing
+else holds: a "pause" after the close is today's pause, and a correction
+then ships with stage N+1's close.
+
+While held, corrections come through `/vid fix` on this line; `/vid
+deploy staging` takes HEAD, and a production deploy tags `vid/stage-N.k`
+(`vid/stage-N` never moves). **"Continue" ends the hold:** after `run:
+active` (as for any "continue"), run `sh checks/stages.sh hold --off` — it
+records `stage-hold n=N state=off` and prints one `continue:` line. When
+it counts commits staging runs past stage N's newest candidate that no
+production deploy covers, your one-line reply says so first: how many,
+and that the next staging deploy goes back to that candidate, and
+production with it, until stage N+1 closes (deploying to production
+before "continue" keeps them). Then plan stage N+1 and build on. From then
+a correction to stages 1 to N reaches staging with stage N+1's close, as
+above.
+
+**The setup hold (v0.26.10.8 R3).** While no staging deploy has passed gate
+2 (no `deploy-gate gate=2 … result=pass` in the events), the stage being
+built waits for staging: ask .7's hold for it, `sh checks/stages.sh hold
+--after N --words "staging setup"` — at the stage's start, or when the
+authorization is given during it, and for stage 0 always (not for the
+final stage: the script refuses a hold there). Its ready close then holds
+as above, with the run line `run: stopped staging setup after stage N`
+(record that write of `run:` as any other). While held, the staging
+candidate is HEAD, so the setup can deploy its own platform fixes, and a
+`/vid fix` correction, before staging works. At the held close:
+- **authorization on:** the setup runs — develop's own staging deploy
+  (below), which sets the test site up through `vid-staging-setup`. When
+  it passes gate 2, release the hold yourself, as a "continue" would: `sh
+  checks/stages.sh hold --off --setup` (`stage-hold n=N state=off`), `run:
+  active` with its `run state=active` event, and your own stage start
+  again (`stage name=develop state=start …`), so the gate is on before you
+  plan the next stage. When the owner also asked to hold after this stage,
+  the script records nothing and prints `held: staging is set up; stage N
+  stays held, as the owner asked`; say that in one line, and the owner's
+  "continue" ends the hold as above. When the setup stops, tell the owner
+  in one line what it needs from the owner's hands, or the correction it
+  needs, then "say 'continue' when it's done". A missing `vid-hosting`
+  answer the stop named is asked with `vid-staging-setup` Part 1, for those
+  keys only;
+- **authorization off:** tell the owner in one line: "say 'deploy to
+  staging', then 'continue'".
+
+**"Continue" while the setup hold is on** (the held stage's hold is the
+setup's and no staging deploy has passed gate 2): with the authorization
+on, run the setup again first, then go on as above. With it off, it is .7's
+"continue": `hold --off`, and the next stage starts; when staging still
+isn't set up, say so in one line ("staging isn't set up, so stages won't
+reach it on their own"). Going on without staging is the owner's
+withdrawal of the authorization, then "continue".
+
+**Staging at each close (v0.26.10.8 R6, R8).** The owner's standing staging
+authorization is asked once, in the stage sitting (vid-stage), and may be
+given or withdrawn at any time (`sh checks/stages.sh staging-auth on|off
+--words "<the owner's words>"`; the newest `staging-auth` event stands).
+While it is on, at a ready stage close — right after `stage-close
+--record`, before you stop for a hold or plan the next stage — run
+vid-deploy's staging deploy yourself, in this session, loading
+`vid-deploy`: `sh checks/stages.sh deploy --target staging --by develop`,
+then its staging check and gate 2 as it has them, every command with `--by
+develop` where vid-deploy names it.
+- **The candidate:** the newest close's tag, the final stage's included;
+  ready from its record. During the setup (the setup hold on), HEAD,
+  checked as any staging candidate.
+- `stage-close --record` may already have written a hold's stopped run
+  line; the deploy still runs.
+- **It never asks or waits.** During the setup, it stops when it can't
+  finish without the owner's hands, a product correction, or the platform
+  being down — the only automatic deploy that stops the build, under the
+  setup hold. After the setup, whatever would need the owner ends the
+  deploy, recorded as failed with its reason, and you carry on.
+- **Recorded:** `stage-deploy n=N staging=yes|failed production=no
+  by=develop [why="<one line>"]`, gate 2's records, the `## deploy`
+  section.
+- **Your gate after it.** vid-deploy records its own `stage name=deploy`
+  start and end, so when it hands back, pass or fail, record `sh
+  checks/event.sh "stage name=develop state=start session=$CLAUDE_CODE_SESSION_ID records=28"`
+  again, as on Resume. A hold's or completion's run line stays as written.
+- **Tell the owner in one line,** then carry on (or stop for a hold):
+  "stage N is on staging (<commit>); say 'deploy to production' to go
+  live, after pausing the build"; or "stage N closed; the staging attempt
+  failed: <why>. Staging may now run <commit>, unverified; it was last
+  verified at <commit>."
+- Develop carries on while the owner decides on going live; a production
+  deploy is the owner's, with the build paused for its length.
 
 ## Done — evidence, then the adversarial grade
 

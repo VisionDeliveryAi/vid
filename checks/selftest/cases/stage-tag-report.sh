@@ -4,8 +4,9 @@
 # `stage-close --stage 1 --record` writes `stage-closed n=1 sha=<HEAD> ready rows=2 debt=0 stages-blob=<HEAD's
 # STAGES.md blob>`, tags vid/stage-1 (annotated) at HEAD, appends a `## stage 1 <UTC>` section to SLICE-REPORTS with
 # its counts, the pull-forward and what stage 2 holds, and sets RUN-STATE's `stage: 2`. Recording again is refused
-# (the tag never moves), and so is recording the final stage (its close is completion). A commit after the tag is
-# listed by metrics.sh under "since stage 1's close". Unmet, --record writes nothing. Env: CHECKS.
+# (the tag never moves). v0.26.10.8 (R9): the final stage's close is recorded and tagged too, setting no next stage
+# (stage-close-final has the rest). A commit after the newest tag is listed by metrics.sh under "since stage 2's
+# close". Unmet, --record writes nothing. Env: CHECKS.
 set -eu
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 . "$CHECKS/selftest/fixtures/stages.sh"
@@ -34,9 +35,9 @@ grep -q 'not recorded — the tag vid/stage-1 already exists' "$T/out" || fail '
 [ "$(grep -c '^stage-closed ' .vid/metrics-events)" -eq 1 ] || fail 'a second stage-closed was written'
 st_rcpt; st_keep ROW-003 ROW-004 ROW-006
 sh checks/metrics.sh stage-close --stage 2 --record > "$T/out" 2>&1 || true
-grep -q '^stage-close 2 ready' "$T/out" && grep -q 'not recorded — stage 2 is the final stage: its close is today.s completion' "$T/out" || fail 'the final stage was not left to completion'
-git rev-parse -q --verify refs/tags/vid/stage-2 > /dev/null && fail 'the final stage was tagged by stage-close'
-printf '# Purpose: toy app — REQ-001 REQ-002 REQ-003 REQ-004 REQ-005 — corrected\n' > app/main.py; g commit -qam 'a correction to stage 1'
+grep -q '^stage-close 2 ready' "$T/out" && grep -q '^recorded: stage-closed n=2 .*no next stage — the final stage' "$T/out" || fail 'the final stage was not recorded (R9)'
+git rev-parse -q --verify refs/tags/vid/stage-2 > /dev/null || fail 'the final stage was not tagged (R9)'
+printf '# Purpose: toy app — REQ-001 REQ-002 REQ-003 REQ-004 REQ-005 — corrected\n' > app/main.py; g commit -qam 'a correction after the final close'
 sh checks/metrics.sh > "$T/out" 2>&1 || true
-grep -qx "since stage 1's close: 1 commits" "$T/out" && grep -q 'a correction to stage 1' "$T/out" || fail 'the commit since the tag is not listed'
+grep -qx "since stage 2's close: 1 commits" "$T/out" && grep -q 'a correction after the final close' "$T/out" || fail 'the commit since the tag is not listed'
 exit 0

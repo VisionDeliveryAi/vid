@@ -4,7 +4,8 @@
 # stage 1 closed (`stage-closed`, the tag vid/stage-1) and a correction committed after it: refused while a develop
 # run is active; paused, the claim reads the record, the candidate is the tag's commit, not HEAD, and the extracted
 # tree is the tag's (the correction absent); `since:` names the correction; a deploy log whose production row is a
-# newer commit refuses the candidate. First deploy (a fake deploy log and events): no production row, no gate-3
+# newer commit refuses the candidate (v0.26.10.7 R11: production's commit is no ancestor of it). A bare deploy is
+# staging's (v0.26.10.7 R1, R2): its output here is unchanged. First deploy (a fake deploy log and events): no production row, no gate-3
 # start and --platform none allows gate 1's skip; a production row, a gate-3 start with no row, or a platform
 # showing production does not. Env: CHECKS.
 set -eu
@@ -44,5 +45,5 @@ sh checks/stages.sh deploy --platform none > "$T/out" 2>&1 || fail 'a production
 grep -q "^first-deploy: no (the deploy log holds a production row: $TAGC)" "$T/out" || fail 'a production row allowed the skip'
 printf '| v0.2 | 2026-10-20 | %s | no | - | - |\n' "$(git rev-parse --short=12 HEAD)" >> DEPLOYMENT.md
 if sh checks/stages.sh deploy --platform none > "$T/out" 2>&1; then fail 'a candidate older than production was not refused'; fi
-grep -q '^candidate: refused — production runs .*, newer than stage 1' "$T/out" || fail 'the refusal does not say production is newer'
+grep -q '^candidate: refused — production runs .*, and the candidate .* does not descend from it; production only moves forward' "$T/out" || fail 'the refusal does not say production only moves forward (v0.26.10.7 R11)'
 exit 0

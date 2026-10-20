@@ -8,7 +8,8 @@
 # pending-append: — as enriched rows, and again as legacy `### REQ-`
 # blocks; lists in section 6 the role's request form with its rows filled
 # in; and the check says ok. The same legacy blocks without the
-# pending-append: listing (an unstamped copy) are refused. Env: CHECKS.
+# pending-append: listing (an unstamped copy) are refused. v0.26.10.7 (R6, F-58): the header names the
+# test author's first act, `first act: sh checks/plan.sh home --brief <the brief's absolute path>`. Env: CHECKS.
 set -eu
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 . "$CHECKS/selftest/fixtures/brief-write.sh"
@@ -43,6 +44,7 @@ A=$(bw_out)
 grep -qx 'pending-birth: ROW-109' "$A" || fail 'the row born after HEAD is not listed pending-birth:'
 grep -qxF -- "$(grep '^ROW-109 ' INVENTORY.md)" "$A" || fail 'the row born after HEAD is not quoted from the working tree'
 grep -qx 'pending-append: REQ-002 REQ-030' "$A" || fail 'the new and the amended item are not listed pending-append:'
+grep -qxF "first act: sh checks/plan.sh home --brief $(pwd -P)/$A" "$A" || fail "the test-author brief's header does not name its first act (v0.26.10.7 R6)"
 for r in REQ-002 REQ-030; do grep -qxF -- "$(eff $r)" "$A" || fail "item $r is not quoted from the working tree's effective set"; done
 sed -n '/^## 7/,/^## 8/p' "$A" > "$T/s7"
 grep -qF 'the test never looks for a stored file' "$T/s7" || fail 'section 7 lacks the latest class=test block'

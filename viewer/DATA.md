@@ -1,4 +1,4 @@
-# The viewer's data contract — `viewer-data 2`
+# The viewer's data contract — `viewer-data 4`
 
 One JSON object per snapshot, embedded in its page as `window.VID_DATA`
 (v0.9.7.4 spec §3.6, R7). It is the shape the page reads (`viewer/page/`,
@@ -23,7 +23,10 @@ it.
 
 **Never included:** transcripts, source code, credentials. Test file paths
 and reviewers' prose are included; they name code files and lines.
-**Figures:** counts only, never a percentage or a score.
+**Figures:** *(v0.26.10.6 R16, the owner's ruling of 2026-10-20)* counts,
+durations, token counts and dollar estimates labelled "API-equivalent, not
+your bill" — never a percentage, a ratio or a score; a cache share is two
+counts side by side. Times are elapsed, never compute time.
 
 ## The parts
 
@@ -31,8 +34,11 @@ Types: `s` string, `n` number, `b` boolean, `a` array, `o` object; `|null`
 where a value may be absent. A field marked *now* is filled in the latest
 snapshot only (a past snapshot carries it empty).
 
-### `viewer-data` (n) — `2`
+### `viewer-data` (n) — `4`
 
+*(v0.26.10.8)* `4` adds the `stages` part and loses nothing.
+*(v0.26.10.6)* `3` adds the `execution` and `economics` parts and loses
+nothing; `activity.agentsOpen` reads agents the same way as `execution`.
 *(v0.26.10.2)* `2` adds the `architecture` part, three fields of each
 technical decision and the `architecture` change kind. `1` was v0.9.7.4 to
 v0.9.8.1.
@@ -170,10 +176,11 @@ page; one is counted under every module its step names.
   inferred.
 
 ### `activity` (o) — *now*
-- `agentsOpen` (a of o): `name`, `handBack` — agents started and not
-  stopped, and Codex builder jobs started and not ended (a job needing
-  recovery counts open; 0.9.7.2's rule); an agent's hand-back is the oldest
-  brief of its role written before it started and not yet handed back.
+- `agentsOpen` (a of o): `name`, `handBack` — *(v0.26.10.6 R9)* the agents
+  whose latest run is open and the Codex jobs open or needing recovery,
+  read as `execution.agents` reads them; a hand-back is named only when a
+  record links the agent's brief (`execution.agents[].brief`), never paired
+  by time.
 - `recentCommits` (a of o): `commit`, `time`, `subject` — the latest 12 on
   the first-parent history.
 - `planChanges` (a of o): `what`, `why`, `at` — the latest 10.
@@ -205,6 +212,149 @@ A promise's capabilities come through its requirements; a decision's
 through what it settles or applies to; a plan change's through the ids its
 reason names. The delegated mark is never a change.
 
+### `execution` (o\|null) — *(v0.26.10.6)* *now*, as observed at its time
+Filled in the latest snapshot and the index; null in a past snapshot (the
+page shows its one line). Every reading is of the records up to T and of
+files at the project's home; a value the records don't hold is null.
+- `observedAt` (s): T. `watcher` (o): `lastTick` (s\|null, the watcher's
+  state's `tick`, as UTC).
+- `sessions` (a of o): `id`, `started` (its first record), `source`
+  (s\|null, as written), `model` (s\|null), `manager` (b: named by a
+  `stage name=develop|fix state=start`).
+- `agents` (a of o), one per agent id in `agent-start` or `agent-stop`, and
+  one per Codex job (`codex:<try>`): `id`, `tool` (`claude`, `codex`),
+  `session`, `type` (as written; null for a job), `started` (its first
+  recorded run start), `role`, `try`, `step`, `slice`, `brief`, `rows`
+  (a\|null: its hand-back's row ids), `model`, `effort` (its usage entry's;
+  a job's record's), `linked` (b), `runs` (a of o: `started`, `ended`,
+  `endedBy` — `stop`, `hand-back`, `cost`, `job-exit`, `job-stop` — each
+  s\|null), `seconds` (n\|null: the runs' elapsed time, an open run's to
+  `observedAt`; null when a start, or an end before the latest run, is not
+  recorded), `state` (`working`, `returned`, `unaccepted` — handed back, no
+  acceptance recorded —, `ended`, `died` (a job only), `needs-recovery`),
+  `stateDetail` (s\|null), `handBack` (o\|null: `file`, `accepted` (b),
+  `refusedAt` (always null: a refusal writes no record), `lines` (a of o:
+  `row`, `result`, `receipt`, `reason`, as written), `report` (b)),
+  `briefText` (s\|null: for agents working, agents a current attention item
+  names and the 10 latest by start).
+  - **Runs:** each `agent-start` opens one; it ends at the first, after it
+    and before the next start, of `agent-stop` (`stop`), `agent-returned
+    agent=` (`hand-back`) or `build-cost agent=` (`cost`). A run followed by
+    the next start with none of them has its end not recorded, never open;
+    only the latest run can be open. A stop with no start before it is a run
+    with `started` null. Events are read in time order.
+  - **Links, only from a record naming both,** in order: `agent-brief`
+    (`unavailable` links nothing); a return file whose `agent:` line names
+    the id (the newest; of equal times, the later accepted, then the higher try number); a Codex job's record. A linked agent's `try`,
+    `role`, `slice` and `brief` come from the brief's path
+    (`.vid/briefs/<slice>/<role>-<n>.md`, try `<slice>-<role>-<n>`); an
+    unlinked agent's role is its `vid:<role>` type's. A try's step: its
+    `build-cost`'s `step=`, else its brief's `step:` header, else its job
+    record's.
+  - **Acceptance** is recorded by `agent-returned try=` or `build-cost
+    brief=`; the `agent:` line is not acceptance.
+- `attention` (a of o), newest first by `at`, nulls last: `kind`
+  (`question`, `run-died`, `agent-died`, `quiet`, `notice`, `stuck`,
+  `needs-recovery`, `environment-left`, `no-acceptance`, `run-state`), `at`
+  (s\|null), `current` (b), `text` (as written, or ViD's fixed words),
+  `ids` (o: `agent`, `try`, `question`, `ticket`, `slot`, `row`, each
+  s\|null). A watcher's notice is current while its `notified.<key>` stands
+  in `.vid/observer.state`: its tick runs from the key's epoch to the next
+  tick (the heartbeat's `observe: run activity` lines mark the ticks), and
+  that tick's notice lines of the key's kind are current; a line names its
+  agent only when the tick holds one quiet-agent key and one such line.
+  Progress notices and question keys are left out.
+- `queue` (o): `environments` (n\|null: `.vid/budget` `stacks=`), `taken`
+  (a of o: `slot`, `ticket`, `since`, `workingCopy` — the folder's name),
+  `running` and `waiting` (a of o: `ticket`, `type`, `role`, `try`, `rows`,
+  `since` (running-at, else created), `limits` (o, seconds: `cap` as
+  written, or `silence`, `startup`, `limit` when `silence=` or `limit=` is
+  present), and for waiting `why` (s\|null: the `holders` file's lines)).
+- `bands` (a of o): `kind` (`stage`, `slice`, `step`), `id`, `name`
+  (s\|null), `start`, `end` (s\|null) — a stage to the next end of its
+  name, a slice from `slice-open` to `slice-close`, a step from its first
+  `step-start` to its last `step-closed` (one naming several steps closes
+  each), named from the plan.
+- `rework` (o): `steps` (a of o: `step`, `briefs`, `returned`, `closed`
+  (s\|null), `tries`), `rows` (a of o: `row`, `briefs`, `broken` (the
+  distinct grader briefs that broke it), `keptLast` (b), `tries`) — a row
+  named by two or more builder or fixer returns or broken at least once —
+  and `noAcceptance` (a of o: `try`, `file`, `refusedAt`).
+
+### `economics` (o) — *(v0.26.10.6)* in every snapshot, from what was recorded by T
+A past snapshot reads a return file only once its acceptance is recorded by
+T, a Codex events file only once its `job-exit` is, and no request's present
+state.
+- `usage` (a of o), one per agent, never two: `agent`, `try`, `tool`,
+  `role`, `step`, `slice`, `stage` (the newest stage started at or before
+  `at`), `model`, `effort`, `at`, `kind` (`kinds`, `total`, `reported`),
+  `input`, `cacheRead`, `cacheWrite`, `cacheWrite1h` (the part of
+  `cacheWrite` written for one hour), `output`, `total` (n\|null each),
+  `largestCall`, `beforeChange`, `beforeChangeShell` (b), `briefBytes`,
+  `calls`, `survived` (b\|null), `why` (s\|null). In order: the agent's
+  newest `usage` record (records 26); else a Codex job's events file once
+  it has exited (fresh input is `input_tokens` less `cached_input_tokens`);
+  else a `build-cost` (`total`, input and cache together, output not
+  recorded; `reported` for `source=agent-tool`), given to its `agent=`,
+  else to the single agent linked to its brief, else to none. An agent with
+  kinds has no build-cost entry. `survived`: false when superseded, when
+  every row its hand-back passed was later broken and none later kept, or
+  when a builder or fixer with kinds ended with no hand-back; true when a
+  row it passed was later kept or its step closed after its hand-back;
+  else null (not yet known).
+- `manager` (a of o), the run manager apart, one per window: `at`, `since`,
+  `calls`, `total` (its older mixed total), `model`, and the four kinds
+  (`input`, `cacheRead`, `cacheWrite`, `cacheWrite1h`, `output`) when a
+  `usage agent=manager` covers the window — then no total.
+- `tests` (a of o), one per pass (`ledger-run`): `ticket`, `batch`, `type`,
+  `role`, `try`, `step`, `rows`, `asked`, `started`, `ended`, `waited` (on a
+  run's first pass only), `ran`, `startup` (both from `overhead=`, else
+  null), `cleanup` (the one teardown naming the pass's receipt), `outcome`
+  (`passed`, `failed`, `limit`, `service-stopped`, `void`, `cancelled`;
+  in the latest snapshot also `build-failed`, `failed-to-start`, `running`,
+  `waiting` for requests with no pass), `proof` (b), `attempt`.
+- `batches` (a of o): `ticket`, `parts`, `elapsed`, `retried`, one per
+  `close-batch`; a batch's parts are never added to its own time.
+- `outcomes` (o): `steps` (a of o: `step`, `closed`, `tries`,
+  `testSeconds`), `rows` (a of o: `row`, `kept`, `tries` (a of o: `try`,
+  `rows` — its return's line count)), `shared` (o: `managerRecords`,
+  `testsOwnedByNone`, two counts). Nothing is shared out: a try is listed
+  whole under every row it names.
+- `prices` (o): `asOf`, `source`, `placeholder` (false), `models` (o, by
+  model name: `input`, `cacheRead`, `cacheWrite`, `cacheWrite1h`, `output`,
+  US dollars per million tokens) — `viewer/prices.tsv`, dated. A model not
+  there, `unknown`, `default` or `mixed` is "model not priced"; an older
+  total is never priced.
+
+### `stages` (o) — *(v0.26.10.8)* in every snapshot, from the events by T and the files at C
+
+RUN-STATE is not read: a past snapshot's RUN-STATE is generated.
+- `list` (a of o), empty without `STAGES.md` at C, in stage order: `n`,
+  `name`, `technical` (b, true for STAGE-0, the walking skeleton, never
+  released), `state`, `closedAt` (s\|null), `commit` (s\|null, the close's
+  sha). `state`: `closed` (a `stage-closed n=<n> … ready` by T); `held`
+  (closed, its newest `stage-hold` by T `on`); `building` (the lowest stage
+  not closed by T, unless a stage is held or a `run state=complete` is
+  recorded by T); `not started` (any other).
+- `staging` (o\|null): what staging was last verified at — the newest gate-2
+  pass by T (its start's candidate, its end's time); null with none.
+  `commit`, `at`; `stage` (n\|null): the closed stage whose close (or tag
+  made by T) is that commit; `ahead`, `base` (n\|null, s\|null): from the
+  newest `deploy-check target=staging` record for that commit; `by`
+  (`owner`, `develop`, or null when not recorded): the `stage-deploy …
+  staging=yes` after the pass; `lastFailure` (o\|null): a later gate-2 fail
+  or `stage-deploy … staging=failed`, the newer — `at`, `candidate` (the
+  attempt's gate-2 candidate, or the failed stage's close sha when no gate-2
+  attempt started), `why` (its `why=`, null when not recorded).
+- `production` (o\|null): the newest row of DEPLOYMENT.md's deploy log at C,
+  the row `checks/stages.sh deploy` reads: `commit`, `at` (its Date as
+  written, s\|null), `stage` (n\|null, as for staging).
+
+**The joins `--check` adds (R15):** every agent an attention item names is
+in `agents`; every step the two parts name is in `steps`; every row is in
+`promises`; every try in `rework` and `outcomes` is a usage entry's, an
+agent's or one in `rework.noAcceptance`.
+
 ## Differences from the design's sample data
 
 The sample (in the release's design notes, kept in the repository's docs/, not shipped) was written before the data side
@@ -219,3 +369,8 @@ was built. Each difference, and why:
 - `meta.note` is gone: a real snapshot is not a sample.
 - A change's `window`; the `new` and `removed` states in `promise state`
   changes.
+- *(v0.26.10.6)* The execution and economics sample (the release's brief)
+  carried five fields the page never reads, left out: `watcher.notice`,
+  `watcher.noticeAt`, a request's `estimate`, a pass's `stop` and
+  `prices.currency`. New beside it: `cacheWrite1h` and the state
+  `unaccepted`.

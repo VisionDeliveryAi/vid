@@ -145,6 +145,17 @@ Always ask the two optional hint questions, verbatim:
    framework equivalents spent 798 lines per requirement against 219 with
    framework leverage. Say so when recommending.
 
+**Where it runs (v0.26.10.8 R4).** With hint 2, for every project, invoke
+the `vid-staging-setup` skill's Part 1 (the Skill tool): where the product
+runs, the staging and production addresses, the sending address, the
+spend cap, how ViD gets access (a log-in or a variable's name, never a
+value), the outside services' accounts and which go live on staging, and
+the downtime tolerance; it checks the platform against BASELINE and writes
+its DECISIONS entry. Its answers go only into ARCHITECTURE.md's
+```vid-hosting block and DECISIONS, never verbatim into BASELINE's Owner
+hints — a hosting answer given inside hint 2 goes there, not into the
+hints. They are recorded when ARCHITECTURE.md is generated (step 2).
+
 **Scale warning (state it when it applies, never refuse).** Only for a PRD
 under a grammar before 0.9.4, whose pause 2 did not size it: past ~2 grader
 batches (~60 demand items — the court's `demand=` count), say plainly that
@@ -196,7 +207,10 @@ Fill every template; no placeholder survives. Specifics that matter:
   comma-separated allow list. This table is executed — checks/imports.sh
   reads it at every commit — so an entry point per module, never one barrel
   for the world. Keep `Import court: enforce` (greenfield projects start
-  enforced; report-only is for retrofits).
+  enforced; report-only is for retrofits). The ```vid-hosting block
+  (`vid-staging-setup` Part 1's answers, above) goes in its "Where it runs"
+  section — never a credential; the pre-commit hook refuses any access
+  shape but `cli-login <platform>`, `env <NAME>` or `none`.
 - **CLAUDE.md** — from `templates/CLAUDE.project.md`: 3-line project summary,
   placement prose ("new X goes in Y") plus a `vid-placement` block that
   matches the scaffold exactly.

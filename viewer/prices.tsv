@@ -1,0 +1,15 @@
+# The viewer's price table (v0.26.10.6 spec R13), for dollar estimates only — every figure the viewer prices is
+# labelled "API-equivalent, not your bill". US dollars per million tokens, from the providers' published API prices
+# on the as-of date, read from the source pages below; updated only by a release. One line per model, as transcripts
+# and job records name it: <model> <input> <cacheRead> <cacheWrite (5-minute)> <cacheWrite1h> <output>, tab-separated.
+# A model not here, `unknown`, `default` or `mixed` is "model not priced". Left out on purpose, so they read "model
+# not priced": a model whose published price depends on the request's length (claude-haiku-5-5 above 100,000
+# prompt tokens; the OpenAI models ViD runs, whose prices change at 272,000 input tokens), since a usage record sums many requests and no one
+# rate is true of the sum. Lines starting # are notes.
+as-of 2026-10-20
+source https://platform.claude.com/docs/en/about-claude/pricing
+source https://developers.openai.com/api/docs/pricing
+claude-fable-5-1	10	0.25	12.50	20	50
+claude-opus-5-5	4	0.20	5	8	20
+claude-opus-4-8	5	0.50	6.25	10	25
+claude-sonnet-5-5	2	0.10	2.50	4	10

@@ -70,7 +70,7 @@ The three commands in the Install section above.
 An install is checked the way ViD checks anything: the judges prove they
 convict, and one real init completes. Three steps, in order:
 
-1. **Version.** Say `vid help`. It must report **0.26.10.5**.
+1. **Version.** Say `vid help`. It must report **0.26.10.8**.
 2. **Court self-test.** Ask Claude: *"Run ViD's court self-test suite —
    `checks/selftest/run.sh` under the installed plugin root — and report
    the verdict line."* Expected: `selftest: 548/548 courts convict`.
@@ -126,8 +126,9 @@ the project; **help** prints the installed version and the verb list.
 
 - **vid-init**: once, in an empty directory. Runs **vid-create-prd** inline
   (or adopts a PRD it already ratified), asks the technical-foundation
-  questions, and writes BASELINE.md, DECISIONS.md, ARCHITECTURE.md and the
-  CLAUDE.md law file. Runs the design chain when the product has a face,
+  questions — where the product runs and how ViD gets access among them,
+  recorded by name, never a credential — and writes BASELINE.md,
+  DECISIONS.md, ARCHITECTURE.md and the CLAUDE.md law file. Runs the design chain when the product has a face,
   and **vid-test-inventory** to derive the Test Inventory, which you ratify
   and which is materialised as failing tests. It scaffolds the stack so the
   repo is the architecture, installs the commit-hook courts and the
@@ -156,7 +157,10 @@ the project; **help** prints the installed version and the verb list.
   of it, shown as one ladder with counts; you pick a rung in one sitting,
   adjust it, or keep a single stage. The cut
   is `STAGES.md`, a law file; develop builds one stage at a time, closes
-  and tags each, and deploy can ship a closed stage.
+  and tags each, and deploy can ship a closed stage. At init it also
+  offers a technical stage 0, a thin working skeleton put on staging for
+  real and never released, and asks once whether ViD may set up the test
+  site and put each finished stage on it on its own.
 - **vid-design**: turns an owner-approved design into the visual half of
   the spec. It derives the screen-and-state brief from the PRD; you design
   from it in Claude Design or any tool (one canvas per screen for new
@@ -197,12 +201,19 @@ the project; **help** prints the installed version and the verb list.
   project, now and at each milestone, with a change log across them, read
   from git and ViD's records. Progress, your open and answered questions,
   decisions and the design. Read-only; it opens offline.
-- **vid-deploy**: ship through three gates: a local rehearsal on a
-  restored production backup, a staging deploy with one real action
-  through each live provider, and a production cutover you confirm every
-  time. You authenticate and hold every secret value; the agent operates
+- **vid-deploy**: ship in two targets. **Deploy to staging** (a bare
+  deploy) is fast and repeatable: the rows changed since the last full
+  pass run on a scoped run of the exact commit, then one real action
+  through each live provider. **Deploy to production** takes the commit
+  staging runs: the full run, a re-grade of every row changed since the
+  last full pass, a local rehearsal on a restored production backup, and
+  a production cutover you confirm every time. In a staged project you can
+  say "hold after this stage": corrections to it then reach staging and
+  production on their own until you say "continue". You authenticate and hold every secret value; the agent operates
   through the already-authenticated CLI and never sees one. Never invoked
-  by anything but you.
+  by anything but you, except a staging deploy at a stage close, or at
+  "continue" while staging is being set up, under your standing staging
+  authorization.
 - **vid-help**: the installed version, read live from the plugin, and the
   verb list.
 
@@ -215,7 +226,7 @@ adversarially.
 
 ```
 skills/     the verbs, and the internal skills develop uses (build,
-            verify, test manager, test writing)
+            verify, test manager, test writing, staging setup)
 agents/     the agent roles ViD's verbs spawn: builder, fixer, grader,
             test author, test analyst
 templates/  PRD, BASELINE, DECISIONS, ARCHITECTURE, DEPLOYMENT,

@@ -158,3 +158,8 @@ ARCH
 # vmod <snapshot file> <module id>: that module's line
 varch() { vdata "$1" | awk '/^"architecture":/ { on = 1 } on { print } on && /"missing":/ { exit }'; }
 vmod() { varch "$1" | grep -F "{\"id\":\"$2\",\"responsibility\""; }
+# v0.26.10.6: vev <HH:MM[:SS]> <event…>: an event at that fixture time, appended to the records;
+# vel <snapshot file> <text>: the lines of the snapshot's data holding <text> — the execution and economics parts
+# write one agent, attention item, usage entry or test pass a line
+vev() { _t=$1; shift; case "$_t" in *:*:*) ;; *) _t="$_t:00" ;; esac; printf '%s at=2026-01-01T%sZ\n' "$*" "$_t" >> .vid/metrics-events; }
+vel() { vdata "$1" | grep -F -- "$2"; }

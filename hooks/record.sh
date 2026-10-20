@@ -29,11 +29,35 @@
 #      <it without .jsonl>/subagents/agent-<agent_id>.jsonl. A resumed
 #      agent writes a new agent-start under the same id. The agent's prompt
 #      is not in these inputs: brief, role and step are joined at export.
+#   3. v0.26.10.6 (R17a): at SubagentStop, after agent-stop, the agent's usage
+#      in four kinds from its own transcript (agent_transcript_path), once:
+#        usage agent=<agent_id> session=<session_id> tool=claude model=<m|mixed|unknown> effort=<e|unknown> calls=<n> input=<n> cache-read=<n> cache-write=<n> cache-write-1h=<n> output=<n> scope=agent at=<UTC>
+#      every API call of the whole transcript once, by its message id, its
+#      last entry's usage (a streamed message's earlier entries hold partial
+#      output); `<synthetic>` entries skipped; `mixed` when the calls name
+#      more than one model. A call's 1-hour part is never more than its
+#      cache write (a transcript once held a call whose totals were 0 and
+#      whose 1-hour part was not). Cumulative: a resumed agent's later record covers
+#      its earlier runs. A transcript not found writes no record.
 # Input without a session_id, an agent event without an agent_id, and input
 # that does not parse write nothing. The input is read by hooks/json.sh.
 IN=$(cat 2>/dev/null) || exit 0
 HD=$(dirname "$0"); [ -f "$HD/json.sh" ] && [ -f "$HD/home.sh" ] || exit 0
 . "$HD/json.sh"; . "$HD/home.sh"
+# v0.26.10.6 (R17a): a Claude transcript's usage in four kinds — the last usage object of each assistant line (the
+# message's own; a tool's input holds its quotes escaped), bounded by its braces; each message id's last entry wins
+USAGE='function num(s, k,   p, t) { p = index(s, "\"" k "\":"); if (!p) return 0; t = substr(s, p + length(k) + 3); match(t, /^[0-9]+/); return (RLENGTH > 0) ? substr(t, 1, RLENGTH) + 0 : 0 }
+  index($0, "\"effort\":\"") && match($0, /"effort":"[^"]*"/) { ef = substr($0, RSTART + 10, RLENGTH - 11) }
+  index($0, "\"usage\":{\"input_tokens\":") && !index($0, "\"type\":\"progress\"") {
+    s = $0; u = 0; while ((i = index(s, "\"usage\":{\"input_tokens\":")) > 0) { u += i; s = substr(s, i + 1) }
+    s = substr($0, u + 8); d = 0; for (i = 1; i <= length(s); i++) { c = substr(s, i, 1); if (c == "{") d++; else if (c == "}" && --d == 0) break } s = substr(s, 1, i)
+    m = ""; if (match($0, /"model":"[^"]*"/)) m = substr($0, RSTART + 9, RLENGTH - 10); if (m == "<synthetic>") next
+    id = ""; if (match($0, /"id":"msg_[^"]*"/)) id = substr($0, RSTART, RLENGTH); if (id == "") id = "line" NR
+    if (!(id in IN)) ID[++n] = id; IN[id] = num(s, "input_tokens"); CR[id] = num(s, "cache_read_input_tokens"); CW[id] = num(s, "cache_creation_input_tokens")
+    C1[id] = num(s, "ephemeral_1h_input_tokens"); if (C1[id] > CW[id]) C1[id] = CW[id]; OU[id] = num(s, "output_tokens"); MO[id] = m }
+  END { for (k = 1; k <= n; k++) { x = ID[k]; a += IN[x]; b += CR[x]; c += CW[x]; e += C1[x]; o += OU[x]; if (MO[x] != "" && !(MO[x] in MS)) { MS[MO[x]] = 1; nm++; md = MO[x] } }
+    if (nm > 1) md = "mixed"; if (md == "") md = "unknown"; if (ef == "") ef = "unknown"
+    printf "model=%s effort=%s calls=%d input=%d cache-read=%d cache-write=%d cache-write-1h=%d output=%d\n", md, ef, n, a, b, c, e, o }'
 # v <value>: one event token — `-` when empty, double-quoted when it carries a space
 v() { case "$1" in '') printf '%s' - ;; *[[:space:]]*) printf '"%s"' "$(printf '%s' "$1" | tr '"\t' "' ")" ;; *) printf '%s' "$1" ;; esac; }
 main() {
@@ -60,7 +84,13 @@ main() {
     SubagentStart)
       printf 'agent-start session=%s agent=%s type=%s transcript=%s at=%s\n' "$(v "$SID")" "$(v "$(jget agent_id)")" "$(v "$(jget agent_type)")" "$(v "$(jget transcript_path)")" "$AT" >> "$EV" ;;
     SubagentStop)
-      printf 'agent-stop session=%s agent=%s type=%s transcript=%s at=%s\n' "$(v "$SID")" "$(v "$(jget agent_id)")" "$(v "$(jget agent_type)")" "$(v "$(jget agent_transcript_path)")" "$AT" >> "$EV" ;;
+      printf 'agent-stop session=%s agent=%s type=%s transcript=%s at=%s\n' "$(v "$SID")" "$(v "$(jget agent_id)")" "$(v "$(jget agent_type)")" "$(v "$(jget agent_transcript_path)")" "$AT" >> "$EV"
+      # 3. v0.26.10.6 (R17a): the agent's usage, after agent-stop
+      TR=$(jget agent_transcript_path)
+      if [ -n "$TR" ] && [ -f "$TR" ] && [ -r "$TR" ]; then
+        UK=$(awk "$USAGE" "$TR") && [ -n "$UK" ] && \
+          printf 'usage agent=%s session=%s tool=claude %s scope=agent at=%s\n' "$(v "$(jget agent_id)")" "$(v "$SID")" "$UK" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >> "$EV"
+      fi ;;
   esac
 }
 main 2>/dev/null

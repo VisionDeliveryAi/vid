@@ -3,8 +3,10 @@
 # --check` passes every snapshot and the index, and fails, naming the fault, each of: a promise without its id, a
 # field of the wrong type, a promise citing a step no snapshot part holds, a page with no data, and data that is not
 # JSON; and (v0.26.10.2 R10, with view_arch) a module missing its placement, a mayUse name that is no module, a
-# module step no snapshot part holds and a module decision that is no technical decision. And unless viewer/DATA.md
-# names every part the check requires. Env: CHECKS.
+# module step no snapshot part holds and a module decision that is no technical decision; and (v0.26.10.6 R15, with a
+# hand-back of agent K, linked, not accepted) an attention item citing no agent, a usage entry citing no step, a rework
+# row that is no promise, an outcome's try that no usage entry, agent or hand-back names, and economics missing a
+# field. And unless viewer/DATA.md names every part the check requires. Env: CHECKS.
 set -eu
 [ -f "$CHECKS/../viewer/view.sh" ] || exit 0   # the viewer ships in the plugin, not in a project's checks/
 T=$(mktemp -d); trap 'set +e; rm -rf "$T" 2>/dev/null' EXIT
@@ -13,6 +15,8 @@ T=$(mktemp -d); trap 'set +e; rm -rf "$T" 2>/dev/null' EXIT
 . "$CHECKS/selftest/fixtures/viewer.sh"
 fail() { echo "view-contract: $*" >&2; exit 1; }
 view_project "$T/repo"; view_arch 11:40
+mkdir -p .vid/briefs/1; printf 'brief: .vid/briefs/1/fixer-1.md\nROW-004 | pass | r2\n' > .vid/briefs/1/fixer-1.return.md
+vev 11:00 'agent-start session=S1 agent=K type=vid:fixer'; vev 11:00:10 'agent-brief agent=K brief=.vid/briefs/1/fixer-1.md'; vev 11:05 'agent-stop session=S1 agent=K type=vid:fixer transcript=-'
 vview . --out "$T/out" > "$T/r" 2>&1 || fail "the run failed: $(cat "$T/r")"
 for f in "$T"/out/*.html; do sh "$VIEWER_SH" --check "$f" > "$T/c" 2>&1 || fail "$(basename "$f") fails the check: $(cat "$T/c")"; done
 bad() { # <what> <sed expression> <expected message>
@@ -28,6 +32,11 @@ bad 'a module without its placement' 's/"placement":"level","level":0,//' 'place
 bad 'a may-use name that is no module' 's/"mayUse":\["app\/s3"\]/"mayUse":["app\/s9"]/' 'cites app/s9, which is no module'
 bad 'a module step that is no step' 's/"steps":\["S2"\],"placement"/"steps":["S7"],"placement"/' 'cites S7, which is no step'
 bad 'a module decision that is no technical decision' 's/"decisions":\[{"id":"D-001","by":"label"/"decisions":[{"id":"D-077","by":"label"/' 'cites D-077, which is no technical decision'
-for part in meta goals capabilities users journeys requirements nonGoals screens promises steps decisions architecture needsYou activity counts changes; do
+bad 'an attention item citing no agent' 's/"ids":{"agent":"K"/"ids":{"agent":"Z9"/' 'cites Z9, which is no agent'
+bad 'a usage entry citing no step' 's/"try":"1-builder-1","tool":"claude","role":"builder","step":"S1"/"try":"1-builder-1","tool":"claude","role":"builder","step":"S8"/' 'cites S8, which is no step'
+bad 'a rework row that is no promise' 's/{"row":"ROW-002","briefs":/{"row":"ROW-099","briefs":/' 'cites ROW-099, which is no promise'
+bad 'an outcome try no record names' 's/"tries":\["1-builder-1"\],"testSeconds"/"tries":["9-builder-9"],"testSeconds"/' 'cites 9-builder-9, which is no try'
+bad 'economics missing a field' 's/"placeholder":false,//' 'economics\.prices\.placeholder is missing'
+for part in meta goals capabilities users journeys requirements nonGoals screens promises steps decisions architecture needsYou activity counts changes execution economics; do
   grep -q "^### \`$part\`" "$CHECKS/../viewer/DATA.md" || fail "viewer/DATA.md does not name the part $part"; done
 exit 0

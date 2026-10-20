@@ -27,7 +27,8 @@ w $SL | grep -q '"kind":"review","ids":\["ROW-002"\],"at":"2026-01-01T10:45:00Z"
 w $CP | grep -q '"kind":"question","ids":\["Q1"\],"at":"2026-01-01T10:55:00Z","what":"asked"' || fail "the checkpoint's window lacks question 1 asked"
 w 20260101T092000Z-prd-ratified.html | grep -q '"kind":"decision","ids":\["A-001"\]' || fail "the final ratification's window lacks A-001 amended"
 w $CP | grep -q '"ids":\["ROW-005"\],"at":null,"from":"never","to":"pass","capabilities":\["FEAT-02","FEAT-01"\]' || fail "ROW-005's change does not name both its capabilities"
-if grep '{"kind":"' "$T/i" | grep -v '"window":"' | grep -q .; then fail 'a change without its window'; fi
+# v0.26.10.6: the change log only — the execution part's bands and attention items carry a kind too
+if awk '/^"changes":\[/ { on = 1 } on' "$T/i" | grep '{"kind":"' | grep -v '"window":"' | grep -q .; then fail 'a change without its window'; fi
 if grep '"kind":"decision"' "$T/i" | grep -q 'A-002'; then fail 'the delegated mark became a change'; fi
 if vdata "$T/out/$SL" | grep '{"kind":"' | grep -v "\"window\":\"$SL\"" | grep -q .; then fail 'a snapshot carries another window'"'"'s changes'; fi
 exit 0

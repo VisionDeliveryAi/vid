@@ -132,3 +132,71 @@ Changes outside the module page, made on review:
 - The "Named in the plan, with no module row" box is removed from the System tab.
 - A Module pages list is added below the system picture.
 
+
+
+## Execution
+A new top-level section after Delivery (`#execution`). It reads `execution` only. **Shown in the latest snapshot only**: in a past snapshot (`execution` is null) the section is one line, "Execution is shown in the latest snapshot only", with a link to the latest. Everything in it carries **"as observed at <execution.observedAt>"**: a band at the top says so, with "The records say what was started and what ended. They don't prove a process is alive now." and the watcher's last check.
+
+**Parts.** Four cards (agents by state, needs attention now, test queue, rework), then five tabs, each with its own address:
+- **Needs attention** (`#execution`, default). Current items first, newest first; past items below in one collapsed group, dated, with a count per kind. Each item: its kind as a badge, "Recorded <time>" (or "Time recorded: not recorded"), "as observed at <time>", the text as written (long text folds at 240 characters), links to the agent, question (`#delivery/needs`), test request or row it names, and **Copy a prompt**. **Quiet** (dashed outline, "Quiet · no activity seen") and **Stuck** (filled warning, "Stuck · past its time limit") are different badges, and the line above the list defines both. A death the records describe only in words has no agent to open; it shows as written, and says no prompt form fits.
+- **Roster** (`#execution/roster`). Every agent and Codex job, grouped by session: the run manager's sessions first (tagged), then the others, then "No session recorded" (Codex jobs). Each row: role and try (or "No role recorded" and its agent type), tool, id, "brief linked" / "brief not recorded", step, state (working rows add "as observed at <time>"), start, running time (runs added; "N runs" when resumed), tokens, Copy a prompt. Filters: search by id or try, session, role, step (selects); tool and state (chips). Sort: start, running time, tokens. 20 rows per session, then "Show 50 more". The state counts in the first card also set the state filter.
+- **Agent page** (`#execution/agent/<id>`, from any row, lane or link). State, running time (elapsed), step and slice, model and effort, session. **Runs**: each run's start, end (or "open, as observed at"), how it ended, elapsed, and a bar of the runs (open runs striped). **Its brief**: only when a record names both (`linked`): path, size (from the usage entry's `briefBytes`), the rows it names (each opens its criterion), its text when carried, else "The brief's text is not carried in this snapshot. Its path is above." Unlinked: "Brief not recorded" and its agent type; the link is never guessed. **Its hand-back**: file, then "Acceptance recorded", "Refused on <date>", or "No acceptance recorded, as observed at <time>" with "Not necessarily refused: the check may not have run yet, or it refused it. Older records don't say which, or when."; line count and "not" count; report beside it or not; one line per row (row, pass/not, receipt, reason, each "not recorded" when null). **Test runs it asked for** (passes naming its try). **Its usage**: four kinds or the older total with its words, the estimate or its reason, largest call, context at first change (with "possibly earlier, through a shell command"), survived. No usage entry reads "tokens not recorded".
+- **Timeline** (`#execution/timeline`). Starts on the last 24 hours. Presets 6 hours / 24 hours / 3 days / Whole run, ← → to move by half a window, + − to zoom. Bands on top: stages, slices, steps (packed into rows; open bands have a dashed end; extra overlapping rows are counted, not drawn). Pointing at a band shades its span behind every lane; a step band opens the step. One lane per agent with a recorded start, coloured by state, each run drawn; an open run is striped to the observed line. Agents with no recorded start are counted ("…in the roster but not drawn"). Test passes: waiting dotted, running solid by outcome. Each close batch is its own group: "<ticket> · N parts side by side · the batch took <elapsed>", one sub-lane per part. "Times are elapsed time, never compute time" is said once. 40 agent lanes and 30 test lanes at a time.
+- **Test queue** (`#execution/queue`). Environments as slots (taken: request, since, elapsed, working copy; or free) with "every one taken" when so. Running: request, kind, who asked (role and try), rows, since and elapsed (marked "open in the records past its cap" when the elapsed time passes the cap), time limits. Waiting: the same plus **why it is waiting, as recorded**, and Copy a prompt.
+- **Rework** (`#execution/rework`). Attempts per step (briefs, came back, closed); attempts per row (briefs, times broken, latest review), filtered to "Broken more than once" first, those rows tinted; hand-backs with no acceptance recorded (or "Refused on <date>"). Every briefs count opens the tries behind it, each linking to its agent where a record names one (dashed when none does).
+
+**Copy a prompt, as built.** A button on every attention item, roster row, agent page and waiting request. It opens a dialog showing the exact message, then Copy → "Copied". Filled only with ids, times and state words; every form ends "Check the current state before you act on this." <T> is `observedAt` as "20 Oct 2026, 07:10 UTC".
+- agent: "As of <T>, the ViD viewer showed <role> <try> (agent <id>) as <state> for <duration>. Please tell me what it is doing or what happened." With no role or try: "…showed agent <id> as…". State words: working, returned, ended without a hand-back, died, needing recovery.
+- question, hand-back, test request, notice (also used for quiet), session stopped, run stopped/waiting, stuck, Codex job, environment: the brief's forms, verbatim. An environment with no slot recorded reads "test environment (slot not recorded)".
+- refused hand-back: the agent form with the state word "refused". Agent lost: the agent form when the record names the agent; otherwise no button (the item says why).
+
+## Economics
+After Execution (`#economics`). Shown in every snapshot, up to its moment. A note at the top explains the two kinds of token record. Four cards: four-kind sum (with its estimate), older-total sum, **the run manager shown apart** (records, calls, its mixed total), test passes. Then the prices line: "API-equivalent, not your bill", the prices' date ("date not recorded" here), and that this sample's prices are placeholders. Five tabs:
+- **Where the tokens went** (default). Group by role, agent, step, slice, stage, or model and effort. Columns: agents, four kinds (or "not recorded in kinds"), older total (header: "input and cache together; output not recorded"), estimate. A group holding both kinds shows both sums side by side, tagged "two sums: kinds and older totals". Never added together; no dollar figure on an older total ("older record, no estimate"); unpriced kinds say "model not priced".
+- **Inside the calls.** Cache read and fresh input as two counts side by side (plus cache write and output), over the agents recorded in kinds; never a share. Context size per agent: largest call, context at first change ("possibly earlier, through a shell command"), brief bytes, tokens. Largest first.
+- **Test time.** By outcome (all ten outcome words), and by request kind, role or step: passes, outcomes, running, waiting, start-up, clean-up, repeated attempts. Times are added only for passes outside close batches; batch parts count as passes, and each close batch shows its own elapsed time with its parts listed, never added. Proof runs: "none recorded" here; the rule is stated.
+- **Rework cost.** One card per kind: builder or fixer that died or ended with no hand-back; hand-back refused (where recorded); rows all broken on review later; set aside for a fresh one; any other recorded reason as written; test run stopped at a limit, cancelled or void (test time). Each shows its count, its sums (two kinds apart) and "Tokens not recorded: N attempts", and opens its items. **Not yet known** (no acceptance recorded) is a dashed card apart.
+- **Cost per outcome.** Steps closed: closed date, briefs, tokens behind it (two sums, plus "tokens not recorded"), test time; each opens its tries. Rows kept: each brief behind it, "shared with N other rows; tokens not divided". Shared work apart: the run manager's records and total, and test passes owned by no try, step or row.
+
+## How a reader moves
+Execution card or chip → roster filtered by state → agent page → its step (`#S…`), rows (`#ROW-…`), test runs, Economics. Attention item → agent / question in Delivery / request in the queue. Timeline lane → agent; step band → step. Rework count → tries → agent. Economics agent rows and rework items → agent page (latest snapshot). Step and row ids everywhere open their existing pages.
+
+## States (Tweak `execSample`)
+- *as recorded*: the sample. In it: working (incl. two open since 9 Oct), returned, ended without a hand-back; linked and "brief not recorded"; a hand-back with no acceptance recorded and with "not" lines; resumed agents (3-fixer-175, 6 runs); current and past attention items; an open question; quiet notices and stuck operations; requests waiting with their reason; every environment taken; rows broken 3 to 6 times; builders mixing four-kind and older totals; a Codex job with an estimate and Claude agents with "older record, no estimate"; tokens not recorded; steps closed with shared work apart.
+- *edge states* adds, each marked "design-state example": an agent that died (and its attention item), a Codex job needing recovery, 3-fixer-36's hand-back refused on 19 Oct, the run waiting, a Claude builder in four kinds on a priced model (estimate) and a fixer on an unpriced model ("model not priced").
+- *past snapshot*: Execution shows its one line; Economics is cut to 16 Oct 2026, 09:07 UTC (the previous snapshot) with a Replayed note. The existing `replayed` tweak also hides Execution.
+- `dataset: empty`: "No agents yet" and "Nothing used yet".
+- Dark mode: theme variables only.
+
+## Changes to existing lines (v4)
+Everything is new lines inserted between v3's lines: the template blocks before the "Nothing called…" block, constants before the class, one routing line in `onHash`, one navigation line after the Architecture one, one render line after `archV`, and new methods at the end of the class. One existing line changed: the `data-props` on the script tag gains the `execSample` tweak. `viewer-data.js` is the brief's file, used as supplied (not changed). `support.js` is unchanged.
+
+Screenshots (taken at a narrow preview width; the page reflows wider):
+- exec-01, 02: the section top and Needs attention (current). 03: past items opened.
+- 04: roster. 05: roster filtered to Codex.
+- 06, 07: a working agent that ran six times: runs, brief linked, hand-back with a "not" line.
+- 08: "brief not recorded". 09: a hand-back with no acceptance recorded, tokens not recorded.
+- 10: timeline, 24 hours. 11: the whole run.
+- 12: queue (every environment taken, running). 13: waiting with its reason.
+- 14: rework per step. 15: rows broken more than once, one opened.
+- 16, 17: copy a prompt, before and after "Copied".
+- 18, 19: edge states (died, needs recovery, run waiting). 20: an agent that died. 21: a Codex job needing recovery. 22: a hand-back refused on a date.
+- 23: past snapshot. 24: no agents yet. 25 to 27: dark mode.
+- econ-01: the cards. 02: by role (two sums, an estimate, older records). 03: by agent.
+- 04: cache read and fresh input. 05: context per agent.
+- 06: test time by outcome. 07: by request kind. 08: close batches opened.
+- 09, 10: rework cost (tokens not recorded; not yet known).
+- 11: a step closed with its cost and shared work apart. 12: rows kept, briefs shared.
+- 13, 14: edge states by model (Claude estimate, model not priced).
+- 15: past snapshot. 16: nothing used yet. 17, 18: dark mode.
+
+## Own review fixes
+- A test request named by a past attention item links to the queue only while it is still there; otherwise it reads "no longer in the queue".
+- Economics rows and rework items link to the agent by its try when the usage entry names no agent id.
+- Past-snapshot cut keeps the 10 test passes with no asked time (cut by their start).
+- Run manager card: four-kind records, if any, are shown apart from its older total, never relabelled.
+- Rework cost in a past snapshot says why the agent-state kinds are absent.
+- Badge text on red badges uses the theme background, for contrast in dark mode.
+
+## Files returned (Execution and Economics)
+- `VID Viewer v4.dc.html`, `NOTE.md`, `screenshots/exec-01`–`27`, `econ-01`–`18`. `viewer-data.js` and `support.js` are not changed.

@@ -75,6 +75,8 @@
 #        sh checks/metrics.sh test-state [--rows <ROW-id,…>]   (v0.9.8: written, passing, proven per row — derived)
 #        sh checks/metrics.sh to-confirm [--rows <ROW-id,…>]   (v0.26.10.3: the rows whose law changed and no resolution covers — R2)
 #        sh checks/metrics.sh stage-close --stage N [--record]   (v0.26.10.5: stages 1 to N ready — R8, R9)
+#        sh checks/metrics.sh change-set --base <sha>   (v0.26.10.7 R4: the rows changed since the last full pass)
+#        sh checks/metrics.sh deploy-check [--target staging|production] [--by develop] [--record]   (v0.26.10.7 R3, R5, R8, R13; v0.26.10.8 R8: --by develop reads develop's own staging candidate)
 #        sh checks/metrics.sh proof --row <id> --brief <grader brief> --fault <patch> --target <case> --control <case> --clean <receipt|none> --red <receipt|none>   (v0.9.8)
 # Always exits 0 — a reporter, not a gate; the blocking lives in the
 # courts that own each number.
@@ -533,12 +535,21 @@ fi
 #   debt=<n>` or `stage-close N unmet=<n>`. Later stages' rows are read by nothing.
 #   --record, when ready (R9 steps 1, 2, 3, 5; develop tells the owner, step 4): the event `stage-closed n=N
 #   sha=<HEAD, 12> ready rows=<n> debt=<n> stages-blob=<HEAD:STAGES.md blob>`, the annotated tag vid/stage-N at HEAD,
-#   a `## stage N <UTC>` section in .vid/SLICE-REPORTS.md (counts), and RUN-STATE's `stage:` set to N+1. Refused for
-#   the final stage (its close is `completion --record`, unchanged) and when vid/stage-N already exists.
+#   a `## stage N <UTC>` section in .vid/SLICE-REPORTS.md (counts), and RUN-STATE's `stage:` set to N+1. Refused
+#   when vid/stage-N already exists. v0.26.10.8 (R9): the final stage — the highest number, never the count of lines —
+#   closes like the others (record, tag, section) and sets no next stage; develop then runs `completion --record`.
+#   v0.26.10.8 (R2): `--stage 0` is accepted when STAGES.md holds STAGE-0; stages then run 0 to N.
+#   v0.26.10.7 (R12): when the newest `stage-hold n=N` is `state=asked`, --record then writes `stage-hold n=N state=on`
+#   and RUN-STATE's `run: stopped owner asked to hold after stage N`, and says so in one line. v0.26.10.8 (R3): when
+#   the hold's cycle holds the setup hold (`words="staging setup"`), the run line is `run: stopped staging setup after
+#   stage N`.
 if [ "${1:-}" = stage-close ]; then
   shift; SCN=''; SCR=no
   while [ $# -gt 0 ]; do case "$1" in --stage) SCN=${2:-}; shift 2 ;; --record) SCR=yes; shift ;; *) echo 'metrics stage-close: usage — sh checks/metrics.sh stage-close --stage N [--record]' >&2; exit 2 ;; esac; done
-  case "$SCN" in ''|*[!0-9]*|0) echo 'metrics stage-close: --stage takes a stage number (1 or more)' >&2; exit 2 ;; esac
+  # v0.26.10.8 (R2): stage 0 when STAGES.md holds STAGE-0 (the technical stage)
+  SLO=1; sed -n '/^```vid-stages$/,/^```$/p' STAGES.md 2>/dev/null | grep -qE '^[[:space:]]*STAGE-0+[[:space:]]*\|' && SLO=0
+  case "$SCN" in ''|*[!0-9]*) echo 'metrics stage-close: --stage takes a stage number (1 or more; 0 when STAGES.md holds STAGE-0)' >&2; exit 2 ;; esac
+  [ "$SCN" -ge "$SLO" ] || { echo 'metrics stage-close: --stage takes a stage number (1 or more; 0 when STAGES.md holds STAGE-0)' >&2; exit 2; }
   [ "$IG93" = yes ] || { echo 'metrics stage-close: the inventory block does not open with grammar: 0.9.3 — the close reads the 0.9.3 row engine; nothing computed'; exit 0; }
   [ -f checks/stages.sh ] || { echo 'metrics stage-close: no checks/stages.sh — nothing computed'; exit 0; }
   tmp93
@@ -581,7 +592,7 @@ if [ "${1:-}" = stage-close ]; then
   fi
   # coverage, every join scoped
   if [ -f checks/coverage.sh ]; then
-    VID_COURT_EVENT=off sh checks/coverage.sh --strict --rows "$TMP93/scope" > "$TMP93/cov.out" 2>&1 || echo "coverage: not clean for stages 1 to $SCN ($(grep '^REQs: ' "$TMP93/cov.out" | tail -n 1); sh checks/coverage.sh --strict --rows <scope>)" >> "$TMP93/unmet"
+    VID_COURT_EVENT=off sh checks/coverage.sh --strict --rows "$TMP93/scope" > "$TMP93/cov.out" 2>&1 || echo "coverage: not clean for stages $SLO to $SCN ($(grep '^REQs: ' "$TMP93/cov.out" | tail -n 1); sh checks/coverage.sh --strict --rows <scope>)" >> "$TMP93/unmet"
   else echo 'coverage: no checks/coverage.sh' >> "$TMP93/unmet"; fi
   # hardening: a breadth-first develop run's hardening steps holding a scoped row
   if [ -f checks/plan.sh ] && sh checks/plan.sh gate >/dev/null 2>&1 && [ "$(sed -n 's/^strategy:[[:space:]]*//p' .vid/RUN-STATE.md 2>/dev/null | head -n 1 | sed 's/[[:space:]]*$//')" = breadth-first ]; then
@@ -605,8 +616,9 @@ if [ "${1:-}" = stage-close ]; then
   if [ "$NU" -gt 0 ]; then echo "stage-close $SCN unmet=$NU"; exit 0; fi
   echo "stage-close $SCN ready rows=$NR debt=$ND"
   [ "$SCR" = yes ] || exit 0
-  NST=$(sed -n '/^```vid-stages$/,/^```$/p' STAGES.md 2>/dev/null | grep -cE '^[[:space:]]*STAGE-[0-9]+[[:space:]]*\|' || true)
-  if [ "$SCN" -ge "${NST:-0}" ]; then echo "metrics stage-close: not recorded — stage $SCN is the final stage: its close is today's completion (sh checks/metrics.sh completion --record)"; exit 0; fi
+  # v0.26.10.8 (R9): the final stage is the highest number; it closes like the others and sets no next stage
+  NST=$(sed -n '/^```vid-stages$/,/^```$/p' STAGES.md 2>/dev/null | sed -n 's/^[[:space:]]*STAGE-\([0-9][0-9]*\)[[:space:]]*|.*/\1/p' | sort -n | tail -n 1)
+  FIN=no; [ "$SCN" -ge "${NST:-0}" ] && FIN=yes
   if git rev-parse -q --verify "refs/tags/vid/stage-$SCN" >/dev/null 2>&1; then echo "metrics stage-close: not recorded — the tag vid/stage-$SCN already exists; a closed stage's tag never moves (corrections ship with the next stage's close)"; exit 0; fi
   HS=$(git rev-parse --short=12 HEAD); SB=$(git rev-parse -q --verify HEAD:STAGES.md 2>/dev/null || echo none); NOW=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
   git tag -a "vid/stage-$SCN" -m "ViD stage $SCN closed: rows=$NR debt=$ND receipt=${RECEIPT##*/}" HEAD || { echo "metrics stage-close: not recorded — the tag vid/stage-$SCN could not be made"; exit 0; }
@@ -626,23 +638,229 @@ if [ "${1:-}" = stage-close ]; then
   NXN=$(sed -n '/^```vid-stages$/,/^```$/p' STAGES.md | awk -F'|' -v n="STAGE-$NX" '{ id = $1; gsub(/^[ \t]+|[ \t]+$/, "", id) } id == n { x = $2; gsub(/^[ \t]+|[ \t]+$/, "", x); print x; exit }')
   { printf '\n## stage %s %s\n\n' "$SCN" "$NOW"
     printf -- '- holds (stage %s): %s requirements, %s rows, %s hostility probes, %s rule rows\n' "$SCN" "$(cnt "$TMP93/scope0" REQ "$TMP93/scope")" "$(cnt "$TMP93/scope0" ROW "$TMP93/scope")" "$(cnt "$TMP93/scope0" HOS "$TMP93/scope")" "$(cnt "$TMP93/scope0" RULE "$TMP93/scope")"
-    printf -- '- the full run, stages 1 to %s: %s at %s — %s; %s rows kept\n' "$SCN" "${RECEIPT##*/}" "$HS" "${RC:-no cases}" "$((NR - ND))"
+    printf -- '- the full run, stages %s to %s: %s at %s — %s; %s rows kept\n' "$SLO" "$SCN" "${RECEIPT##*/}" "$HS" "${RC:-no cases}" "$((NR - ND))"
     printf -- '- deploy debt: %s\n' "$ND"; sed 's/^/  - /' "$TMP93/debt"
     printf -- '- pull-forwards: %s\n' "$(printf '%s\n' "$PF" | grep -c . || true)"; printf '%s\n' "$PF" | grep -v '^$' | sed 's/^/  - /'
     printf -- '- open questions: %s\n' "$NQ"
-    printf -- '- next: stage %s, %s — %s requirements, %s rows\n' "$NX" "${NXN:-?}" "$(cnt "$TMP93/scope" REQ "$TMP93/scope2")" "$(cnt "$TMP93/scope" ROW "$TMP93/scope2")"
+    if [ "$FIN" = yes ]; then printf -- '- next: none — stage %s is the final stage; completion follows\n' "$SCN"
+    else printf -- '- next: stage %s, %s — %s requirements, %s rows\n' "$NX" "${NXN:-?}" "$(cnt "$TMP93/scope" REQ "$TMP93/scope2")" "$(cnt "$TMP93/scope" ROW "$TMP93/scope2")"; fi
   } >> .vid/SLICE-REPORTS.md
+  if [ "$FIN" = yes ]; then   # v0.26.10.8 (R9): no next stage; develop runs completion --record
+    echo "recorded: stage-closed n=$SCN sha=$HS; tag vid/stage-$SCN; ## stage $SCN in .vid/SLICE-REPORTS.md; no next stage — the final stage (sh checks/metrics.sh completion --record follows)"
+    exit 0
+  fi
   if [ -f .vid/RUN-STATE.md ]; then
     if grep -q '^stage:' .vid/RUN-STATE.md; then sed "s/^stage:.*/stage: $NX/" .vid/RUN-STATE.md > "$TMP93/rs"
     else awk -v n="$NX" '{ print } /^plan:/ && !d { print "stage: " n; d = 1 }' .vid/RUN-STATE.md > "$TMP93/rs"; grep -q '^stage:' "$TMP93/rs" || printf 'stage: %s\n' "$NX" >> "$TMP93/rs"; fi
     cat "$TMP93/rs" > .vid/RUN-STATE.md
   fi
   echo "recorded: stage-closed n=$SCN sha=$HS; tag vid/stage-$SCN; ## stage $SCN in .vid/SLICE-REPORTS.md; stage: $NX"
+  # v0.26.10.7 (R12): the owner asked to hold after this stage (`stage-hold n=N state=asked`, the newest for N) — the hold
+  # turns on, and the run stops; develop plans nothing more until "continue"
+  # v0.26.10.8 (R3): a cycle holding the setup hold (words="staging setup", since the stage's last off) stops for it
+  HKS=$(awk -v n="$SCN" 'function kv(k,  i) { for (i = 2; i <= NF; i++) if (index($i, k "=") == 1) return substr($i, length(k) + 2); return "" } $1 == "stage-hold" && kv("n") == n { s = kv("state"); if (s == "off") su = 0; else if (s == "asked" && $0 ~ / words="staging setup"( |$)/) su = 1 } END { print s (su ? " setup" : "") }' "$EV")
+  if [ "${HKS%% *}" = asked ]; then
+    printf 'stage-hold n=%s state=on at=%s\n' "$SCN" "$NOW" >> "$EV"
+    HWHY="owner asked to hold"; [ "${HKS#* }" = setup ] && HWHY="staging setup"
+    if [ -f .vid/RUN-STATE.md ]; then sed "s/^run:.*/run: stopped $HWHY after stage $SCN/" .vid/RUN-STATE.md > "$TMP93/rs" && cat "$TMP93/rs" > .vid/RUN-STATE.md; fi
+    if [ "$HWHY" = "staging setup" ]; then echo "held: stage $SCN is closed and held for the staging setup — its deploy takes HEAD, so the setup's own fixes reach staging; once staging works develop releases the hold (stage-hold n=$SCN state=on; run: stopped staging setup after stage $SCN)"
+    else echo "held: stage $SCN is closed and held — corrections to it now reach staging on their own; say \"continue\" to start stage $NX (stage-hold n=$SCN state=on; run: stopped owner asked to hold after stage $SCN)"; fi
+  fi
   exit 0
 fi
 
+# --- v0.26.10.7 (R4, R8): fix-population's citation join, as functions — fix-population, change-set and the
+# production check's per-commit "touched" read the same join
+# radius93 <changed files>: the changed modules plus their declared dependents (ARCHITECTURE.md's seam table, 3.13)
+radius93() {
+  _mods=''
+  if [ -f ARCHITECTURE.md ]; then
+    _mods=$(grep -E '^\|' ARCHITECTURE.md | grep -vE '^\|[[:space:]:-]*\|' | awk -F'|' '{
+      m=$2; gsub(/[ \t`]/,"",m); if (m=="Module" || m=="" || m ~ /^\{\{/) next
+      if (m !~ /\// && m ~ /\./) gsub(/\./,"/",m)
+      d=$6; gsub(/`/,"",d); gsub(/^[ \t]+|[ \t]+$/,"",d); gsub(/[ \t]*,[ \t]*/,",",d); print m "\t" d }' || true)
+  fi
+  printf '%s\n' "$_mods" | awk -F'\t' -v chf="$1" '
+    BEGIN { while ((getline f < chf) > 0) { g=f; gsub(/\/src\//,"/",g); sub(/^src\//,"",g); ch[++nc]=g } }
+    $1!="" { m[++nm]=$1; dep[$1]=$2 }
+    END {
+      for (i=1;i<=nm;i++) for (j=1;j<=nc;j++) if (ch[j]==m[i] || index(ch[j], m[i] "/")==1) { hit[m[i]]=1; break }
+      for (x in hit) { r[x]=1; d=dep[x]
+        if (d=="all") { for (i=1;i<=nm;i++) r[m[i]]=1 }
+        else if (d!="none" && d!="") { n=split(d, a, ","); for (k=1;k<=n;k++) if (a[k]!="") r[a[k]]=1 } }
+      for (x in r) if (x !~ /^(tests|checks|design)(\/|$)/) print x }' | sort -u
+}
+# cited93 <radius, one module per line> <out>: every REQ id and module path the radius's files cite, at HEAD
+cited93() {
+  : > "$2"
+  [ -n "$1" ] || return 0
+  tmp93
+  git ls-files | awk -v rad="$(printf '%s\n' "$1" | tr '\n' ' ')" 'BEGIN { n=split(rad, R, " ") }
+    { f=$0; if (f ~ /\.md$/ || f ~ /^(tests|checks|design)\//) next; g=f; gsub(/\/src\//,"/",g); sub(/^src\//,"",g)
+      for (i=1;i<=n;i++) if (R[i]!="" && (g==R[i] || index(g, R[i] "/")==1)) { print f; break } }' > "$TMP93/radfiles"
+  while IFS= read -r _f; do [ -f "$_f" ] && grep -hoE '(REQ-[0-9]+|[A-Za-z0-9_-]+/[A-Za-z0-9_-]+)' "$_f" 2>/dev/null || true; done < "$TMP93/radfiles" | sort -u > "$2"
+}
+
+# pop93 <base> <any> → $TMP93/pop (`regrade row=<id> why=<…>` lines, then `regrade rows=<n>`) and RADIUS: fix-population's
+# population since <base>; v0.26.10.7 (R4): <any>=yes drops its "latest verdict is not KEPT" filter (the change set)
+pop93() {
+  git diff --name-only "$1" HEAD > "$TMP93/changed"
+  # the seam table: module path, dependents (3.13 — the changed modules plus their declared dependents)
+  RADIUS=$(radius93 "$TMP93/changed")
+  cited93 "$RADIUS" "$TMP93/cited"
+  BLOCKB=$(git show "$1:INVENTORY.md" 2>/dev/null | sed -n '/^```vid-inventory/,/^```$/p' | sed '1d;$d' | grep -E '^[[:space:]]*ROW-' || true)
+  printf '%s\n' "$BLOCKB" > "$TMP93/baserows"
+  HARN=no; grep -qE '^(tests/invariants/harness\.|docker-compose\.test\.yml$)' "$TMP93/changed" && HARN=yes
+  printf '%s\n' "$IBLOCK" | grep -E '^[[:space:]]*ROW-' | awk -F'|' -v tf="$TMP93/table" -v cf="$TMP93/cited" -v chf="$TMP93/changed" -v bf="$TMP93/baserows" -v harn="$HARN" -v anyv="$2" '
+    function trim(s) { gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
+    BEGIN {
+      while ((getline l < tf) > 0) { split(l, a, "\t"); L[a[1]]=a[3]; H[a[1]]=a[5]; HC[a[1]]=a[4] }
+      while ((getline l < cf) > 0) cited[l]=1
+      while ((getline l < chf) > 0) ch[l]=1
+      while ((getline l < bf) > 0) { split(l, a, "|"); bt[trim(a[1])]=trim(a[8]) }
+    }
+    { id=trim($1); t=trim($8); der=trim($7); why=""
+      if (t !~ /^tests\//) next
+      p=t; sub(/ .*/, "", p)
+      if (!(id in bt) || bt[id] !~ /^tests\//) { if (id in bt && bt[id] ~ /^owed:[ \t]*reverted/) why=why ",re-paid"; else why=why ",materialised" }
+      if (anyv=="yes" || L[id]!="KEPT") { n=split(der, tk, /[ ,]+/); for (k=1;k<=n;k++) if (tk[k]!="" && (tk[k] in cited)) { why=why ",cited-in-radius"; break } }
+      if (p in ch) why=why ",test-changed"
+      if (harn=="yes" && (H[id]=="harness" || ((H[id]=="scope" || H[id]=="rounds") && HC[id]=="harness"))) why=why ",harness-held"
+      if (why!="") { sub(/^,/, "", why); print "regrade row=" id " why=" why; N++ } }
+    END { printf "regrade rows=%d\n", N+0 }' > "$TMP93/pop"
+}
+# --- v0.26.10.7 (R3–R5, R8, R13): the change set and the two deploy checks -----------------------------------------
+# invrows93 <inventory block> <out>: one line per obligation of any class — id, class, its line (whitespace
+# normalised), its cited test or -, its test field, derived-from (a ROW) or protects (a HOS) or -, kind, actor
+invrows93() {
+  awk -F'|' 'function tr(s) { gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
+    function cit(t,  c) { c = t; sub(/ .*/, "", c); return (c ~ /^tests\//) ? c : "-" }
+    { c1 = tr($1); ln = $0; gsub(/[ \t]+/, " ", ln); ln = tr(ln) }
+    c1 ~ /^ROW-/ { t = tr($8); printf "%s\tROW\t%s\t%s\t%s\t%s\t%s\t%s\n", c1, ln, cit(t), t, tr($7), tr($2), tr($4); next }
+    c1 == "rule" || c1 == "difference" || c1 == "exception" || c1 == "suppression" { id = tr($2); if (id !~ /^(RULE|DIF|EXC|SUP)-[0-9]+$/) next; t = "-"
+      if (c1 == "rule") { n = NF; while (n > 3 && $n ~ /^[ \t]*(origin|proved-red|paid-at):/) n--; t = tr($n) }
+      printf "%s\t%s\t%s\t%s\t%s\t-\t-\t-\n", id, substr(id, 1, index(id, "-") - 1), ln, cit(t), t; next }
+    c1 == "hostility" { id = tr($2); if (id !~ /^HOS-[0-9]+$/) next; t = "-"; pr = "-"
+      for (i = 3; i <= NF; i++) { x = tr($i); if (x ~ /^(tests\/|owed:)/) t = x; else if (x ~ /^protects:/) { sub(/^protects:[ \t]*/, "", x); sub(/[ \t].*$/, "", x); pr = x } }
+      printf "%s\tHOS\t%s\t%s\t%s\t%s\t-\t-\n", id, ln, cit(t), t, pr; next }' "$1" > "$2"
+}
+# blockat93 <commit> <out>: the vid-inventory block of INVENTORY.md at <commit> (empty when none)
+blockat93() { git show "$1:INVENTORY.md" 2>/dev/null | sed -n '/^```vid-inventory/,/^```$/p' | sed '1d;$d' > "$2" || : > "$2"; }
+# heldn93: the stage held now — the newest `stage-hold … state=on` with no `state=off` for it after (R12, R13)
+heldn93() { [ -f "$EV" ] || return 0; awk 'function kv(k,  i) { for (i = 2; i <= NF; i++) if (index($i, k "=") == 1) return substr($i, length(k) + 2); return "" }
+  $1 == "stage-hold" { n = kv("n"); s = kv("state"); if (s == "on") { H[n] = 1; last = n } else if (s == "off") delete H[n] } END { if (last != "" && (last in H)) print last }' "$EV"; }
+# cstage93: the stage the candidate holds — every stage without STAGES.md or once complete; else the held stage, else
+# the newest closed stage, else the current one
+cstage93() {
+  if [ -f STAGES.md ] && ! grep -q '^run:[[:space:]]*complete' .vid/RUN-STATE.md 2>/dev/null; then
+    _cn=$(heldn93)
+    [ -n "$_cn" ] || _cn=$( [ -f "$EV" ] && awk '$1 == "stage-closed" && / ready( |$)/ { for (i = 2; i <= NF; i++) if (index($i, "n=") == 1) n = substr($i, 3) } END { print n }' "$EV" || true)
+    [ -n "$_cn" ] || _cn=$(sh checks/stages.sh current 2>/dev/null || echo 1)
+    echo "$_cn"
+  else echo 999999; fi
+}
+# cset93 <base> <out>: the change set since <base> (R4), one id per line in the inventory's order — fix-population's
+# rows with its KEPT filter dropped; every row of any class whose inventory line or cited test changed since <base>
+# (a row born since is changed); the HOS rows protecting a ROW of it (protects: the ROW, or an item it derives from);
+# no later-phase row, and in a staged project no row of a stage after the candidate's (stages.sh scope). Exit 1 when the
+# scope cannot be read.
+cset93() {
+  pop93 "$1" yes
+  sed -n 's/^regrade row=\([^ ]*\) .*/\1/p' "$TMP93/pop" > "$TMP93/cs.a"
+  printf '%s\n' "$IBLOCK" > "$TMP93/inv.cur"; invrows93 "$TMP93/inv.cur" "$TMP93/ir.cur"
+  blockat93 "$1" "$TMP93/inv.base"; invrows93 "$TMP93/inv.base" "$TMP93/ir.base"
+  sh checks/stages.sh scope --upto "$(cstage93)" > "$TMP93/cs.scope" 2> "$TMP93/cs.err" || return 1
+  awk -F'\t' -v af="$TMP93/cs.a" -v bf="$TMP93/ir.base" -v chf="$TMP93/changed" -v sf="$TMP93/cs.scope" '
+    BEGIN { while ((getline l < af) > 0) IN[l] = 1; while ((getline l < chf) > 0) CH[l] = 1; while ((getline l < sf) > 0) SC[l] = 1
+      while ((getline l < bf) > 0) { split(l, a, "\t"); B[a[1]] = a[3] } }
+    { id[NR] = $1; cl[NR] = $2; pr[NR] = $6; n = NR
+      if (!($1 in B) || B[$1] != $3 || ($4 != "-" && ($4 in CH))) IN[$1] = 1
+      if ($2 == "ROW") { m = split($6, d, /[ ,]+/); for (k = 1; k <= m; k++) if (d[k] != "") DER[$1, d[k]] = 1 } }
+    END {
+      for (i = 1; i <= n; i++) if (cl[i] == "ROW" && (id[i] in IN)) R[id[i]] = 1
+      for (i = 1; i <= n; i++) if (cl[i] == "HOS" && pr[i] != "-") {
+        if (pr[i] in R) { IN[id[i]] = 1; continue }
+        for (r in R) if ((r, pr[i]) in DER) { IN[id[i]] = 1; break } }
+      for (i = 1; i <= n; i++) if ((id[i] in IN) && (id[i] in SC)) print id[i] }' "$TMP93/ir.cur" > "$2"
+}
+# base93 <candidate commit>: BASE93 (12) and BASEW, the last full pass (R3) — the newest commit, the candidate or an
+# ancestor of it, recorded by `deploy-check target=production … result=ready`, `deploy-check target=staging tests=full
+# … result=ready` or `stage-closed n=N … ready`; BASE93 empty when none
+base93() {
+  BASE93=''; BASEW=''; _bn=''
+  [ -f "$EV" ] || return 0
+  awk 'function kv(k,  i) { for (i = 2; i <= NF; i++) if (index($i, k "=") == 1) return substr($i, length(k) + 2); return "" }
+    $1 == "deploy-check" && / result=ready/ { if (kv("target") == "production") print kv("sha") "\tdeploy-check target=production"; else if (kv("target") == "staging" && kv("tests") == "full") print kv("sha") "\tdeploy-check target=staging tests=full" }
+    $1 == "stage-closed" && / ready( |$)/ { print kv("sha") "\tstage-closed n=" kv("n") }' "$EV" > "$TMP93/bases"
+  while IFS='	' read -r _s _w; do
+    _c=$(git rev-parse -q --verify "$_s^{commit}" 2>/dev/null) || continue
+    git merge-base --is-ancestor "$_c" "$1" 2>/dev/null || continue
+    _n=$(git rev-list --count "$_c..$1" 2>/dev/null || echo 999999)
+    if [ -z "$_bn" ] || [ "$_n" -le "$_bn" ]; then _bn=$_n; BASE93=$(git rev-parse --short=12 "$_c"); BASEW=$_w; fi
+  done < "$TMP93/bases"
+}
+# srcpt93 <candidate commit>: SRCPT, the newest `staging` request's receipt current for the candidate (its commit's
+# tree differs from the candidate's only under .vid/; never invalidated), and SDREP, its deployed twin (the same
+# request's report with .deployed.), or ''
+srcpt93() {
+  SRCPT=''; SDREP=''; _bn=''
+  [ -f "$EV" ] || return 0
+  awk 'function kv(k,  i) { for (i = 2; i <= NF; i++) if (index($i, k "=") == 1) return substr($i, length(k) + 2); return "" }
+    $1 == "invalidated" { X[kv("report")] = 1 }
+    $1 == "ledger-run" && / type=staging / { r = kv("report"); if (r != "" && r != "none" && !index(r, ".deployed.")) { R[++n] = r; Q[n] = kv("request") } }
+    END { for (i = 1; i <= n; i++) if (!(R[i] in X)) print R[i] "\t" Q[i] }' "$EV" > "$TMP93/srs"
+  while IFS='	' read -r _r _q; do
+    [ -f ".vid/ledger-results/$_r" ] || continue
+    _s=${_r%%.*}; _c=$(git rev-parse -q --verify "$_s^{commit}" 2>/dev/null) || continue
+    [ -z "$(git diff --name-only "$_c" "$1" -- . ':(exclude).vid' 2>/dev/null)" ] || continue
+    _n=$(git rev-list --count "$_c..$1" 2>/dev/null || echo 999999)
+    if [ -z "$_bn" ] || [ "$_n" -le "$_bn" ]; then _bn=$_n; SRCPT=$_r
+      SDREP=$(awk -v q="$_q" 'function kv(k,  i) { for (i = 2; i <= NF; i++) if (index($i, k "=") == 1) return substr($i, length(k) + 2); return "" }
+        $1 == "ledger-run" && q != "" && kv("request") == q && index(kv("report"), ".deployed.") { r = kv("report") } END { print r }' "$EV"); fi
+  done < "$TMP93/srs"
+}
+# rcases93 <report name> <out>: its `case <id> <status>` lines (its .cases beside it, else the results reader)
+rcases93() { if [ -f ".vid/ledger-results/$1.cases" ]; then cat ".vid/ledger-results/$1.cases" > "$2"; else read_report ".vid/ledger-results/$1" > "$2"; fi; }
+# judge93 <cases> <id> <cited path> <derived-from>: GREEN, ABSENT or `not green: …` — every collected case of the
+# cited file naming the id (else, for a ROW, an item of its derived-from) passed
+judge93() {
+  awk -v p="$3::" -v id="$2" -v der="$4" 'BEGIN { m = split(id " " der, T, /[ ,]+/) }
+    $1 == "case" && index($2, p) == 1 { C[++n] = $2; S[n] = $3 }
+    END { for (k = 1; k <= m; k++) { if (T[k] == "" || T[k] == "-") continue; a = T[k]; gsub(/-/, "_", a); bad = ""; f = 0
+        for (i = 1; i <= n; i++) if (index(C[i], T[k]) || index(C[i], a)) { f++; if (S[i] != "passed") bad = bad C[i] " " S[i] "; " }
+        if (f) { if (bad == "") print "GREEN"; else { sub(/; $/, "", bad); print "not green: " bad } exit } }
+      print "ABSENT" }' "$1"
+}
+# touched93 <base> <candidate> <ids> <out>: `<id><TAB><commit>` — the newest commit since <base> touching each row (R8):
+# its inventory line changed, its cited test changed, or a changed module, or one of its declared dependents, cites
+# its REQ (fix-population's citation join, per commit)
+touched93() {
+  : > "$4"; cp "$3" "$TMP93/tw.want"
+  printf '%s\n' "$IBLOCK" > "$TMP93/tw.inv"; invrows93 "$TMP93/tw.inv" "$TMP93/tw.ir"
+  for _x in $(git rev-list "$1..$2" 2>/dev/null); do
+    [ -s "$TMP93/tw.want" ] || break
+    git diff --name-only "$_x~1" "$_x" > "$TMP93/tw.ch" 2>/dev/null || continue
+    : > "$TMP93/tw.inl"
+    if grep -qx 'INVENTORY.md' "$TMP93/tw.ch"; then
+      blockat93 "$_x~1" "$TMP93/tw.b0"; invrows93 "$TMP93/tw.b0" "$TMP93/tw.r0"
+      blockat93 "$_x" "$TMP93/tw.b1"; invrows93 "$TMP93/tw.b1" "$TMP93/tw.r1"
+      awk -F'\t' 'NR == FNR { B[$1] = $3; next } !($1 in B) || B[$1] != $3 { print $1 }' "$TMP93/tw.r0" "$TMP93/tw.r1" > "$TMP93/tw.inl"
+    fi
+    cited93 "$(radius93 "$TMP93/tw.ch")" "$TMP93/tw.cited"
+    awk -F'\t' -v wf="$TMP93/tw.want" -v chf="$TMP93/tw.ch" -v lf="$TMP93/tw.inl" -v cf="$TMP93/tw.cited" -v x="$_x" '
+      BEGIN { while ((getline l < wf) > 0) W[l] = 1; while ((getline l < chf) > 0) CH[l] = 1; while ((getline l < lf) > 0) IL[l] = 1; while ((getline l < cf) > 0) CI[l] = 1 }
+      ($1 in W) { t = ($1 in IL) || ($4 != "-" && ($4 in CH))
+        if (!t && $2 == "ROW") { m = split($6, d, /[ ,]+/); for (k = 1; k <= m; k++) if (d[k] != "" && (d[k] in CI)) { t = 1; break } }
+        if (t) print $1 "\t" x }' "$TMP93/tw.ir" >> "$4"
+    cut -f1 "$4" | sort -u > "$TMP93/tw.done"
+    grep -vxF -f "$TMP93/tw.done" "$TMP93/tw.want" > "$TMP93/tw.want2" || true; mv "$TMP93/tw.want2" "$TMP93/tw.want"
+  done
+}
+# quoted93 <row id>: the quoted-at of the row's newest verdict event, or nothing
+quoted93() { [ -f "$EV" ] && awk -v id="$1" '$1 == "verdict" { r = ""; q = ""; for (i = 2; i <= NF; i++) { if (index($i, "row=") == 1) r = substr($i, 5); if (index($i, "quoted-at=") == 1) q = substr($i, 11) } if (r == id) l = q } END { print l }' "$EV" || true; }
+
 # --- v0.9.3 early-exit subcommands (3.5, 3.6, 3.10, 3.13) — the engine above ---
-case "${1:-}" in receipt|row-state|closure|completion|fix-population)
+case "${1:-}" in receipt|row-state|closure|completion|fix-population|change-set|deploy-check)
   SUB=$1; shift
   if [ "$IG93" != yes ]; then
     if [ "$SUB" = receipt ]; then   # the 0.9.2 lookup: HEAD's own report, exactly
@@ -759,55 +977,128 @@ case "${1:-}" in receipt|row-state|closure|completion|fix-population)
         fi
       fi
       exit 0 ;;
+    change-set)
+      [ "${1:-}" = --base ] && [ -n "${2:-}" ] || { echo 'metrics change-set: --base <sha> is required (the last full pass: sh checks/metrics.sh deploy-check)' >&2; exit 2; }
+      git rev-parse -q --verify "$2^{commit}" >/dev/null 2>&1 || { echo "metrics change-set: $2 is no commit" >&2; exit 2; }
+      cset93 "$2" "$TMP93/cs" || { echo "metrics change-set: the scope cannot be read — $(head -n 1 "$TMP93/cs.err")"; exit 0; }
+      cat "$TMP93/cs"; echo "change-set rows=$(grep -c . "$TMP93/cs" || true)"
+      exit 0 ;;
+    deploy-check)
+      DTG=''; DREC=no; DBY=''
+      while [ $# -gt 0 ]; do case "$1" in --target) DTG=${2:-}; shift 2 ;; --record) DREC=yes; shift ;; --by) DBY=${2:-}; shift 2 ;; *) echo 'metrics deploy-check: usage — sh checks/metrics.sh deploy-check [--target staging|production] [--by develop] [--record]' >&2; exit 2 ;; esac; done
+      case "$DTG" in ''|staging|production) ;; *) echo "metrics deploy-check: --target takes staging or production, not '$DTG'" >&2; exit 2 ;; esac
+      case "$DBY" in ''|develop) ;; *) echo "metrics deploy-check: --by takes develop, not '$DBY'" >&2; exit 2 ;; esac
+      : > "$TMP93/du"; : > "$TMP93/dg"; : > "$TMP93/do"
+      if [ -n "$DBY" ]; then CLN=$(sh checks/stages.sh candidate --target "${DTG:-staging}" --by "$DBY" 2>/dev/null) && CRC=0 || CRC=1   # IFS is a newline here: two words, two arguments
+      else CLN=$(sh checks/stages.sh candidate --target "${DTG:-staging}" 2>/dev/null) && CRC=0 || CRC=1; fi
+      set -f; set -- $(printf '%s\n' "$CLN" | head -n 1 | tr ' ' '\n' | head -n 5); set +f   # IFS is a newline here
+      if [ "$CRC" = 0 ] && [ "${1:-}" = candidate ]; then DC=$(git rev-parse "$2^{commit}"); DK=$3; DT=$4; DN=$5
+      else DC=$(git rev-parse HEAD 2>/dev/null || echo ''); DK=''; DT=-; DN=-; printf '%s\n' "${CLN:-the candidate cannot be read (sh checks/stages.sh candidate)}" | sed 's/^refused //;s/^none /none — /' > "$TMP93/du"; fi
+      DS=$(git rev-parse --short=12 "$DC" 2>/dev/null || echo -)
+      base93 "$DC"
+      if [ -n "$BASE93" ]; then echo "base: $BASE93 ($BASEW)"; else echo 'base: none'; fi
+      [ -n "$DTG" ] || exit 0
+      AHEAD=0; [ -n "$BASE93" ] && AHEAD=$(git rev-list --count "$BASE93..$DC" 2>/dev/null || echo 0)
+      UPTO=$(cstage93)
+      # the deploy debt of the scope: `owed <row> gate <n>`, a checklist (never required here)
+      sh checks/stages.sh scope --upto "$UPTO" > "$TMP93/dscope" 2>/dev/null || : > "$TMP93/dscope"
+      printf '%s\n' "$IBLOCK" > "$TMP93/inv.d"; invrows93 "$TMP93/inv.d" "$TMP93/ir.d"
+      NROWS=0; TESTS=scoped; RCPTN=-; REGR=0
+      if [ -s "$TMP93/du" ] || [ "$DK" = tag ]; then :   # refused, or a tag: ready from its record (R2)
+      elif [ "$DTG" = staging ] && [ -z "$BASE93" ]; then
+        # R5, with no last full pass: today's preconditions — the full run of the candidate and coverage
+        TESTS=full; NROWS=$(grep -c . "$TMP93/dscope" || true)
+        if [ -z "$RECEIPT" ]; then echo "no full run current for $DS — request one: sh checks/test.sh request --type full --role orchestrator --why \"<one line>\"" >> "$TMP93/du"
+        else RCPTN=${RECEIPT##*/}
+          { read_report "$RECEIPT"; read_report "${DREPORT:-/nonexistent}"; } | awk '$3 != "passed" { n++; if (n <= 5) b = b $2 " " $3 "; " } END { if (n) { sub(/; $/, "", b); print "the full run " r " has " n " failing case(s): " b } }' r="$RCPTN" >> "$TMP93/du"; fi
+        VID_COURT_EVENT=off sh checks/coverage.sh --strict > "$TMP93/cov.out" 2>&1 || echo "coverage: not clean ($(grep '^REQs: ' "$TMP93/cov.out" | tail -n 1); sh checks/coverage.sh --strict)" >> "$TMP93/du"
+      elif [ "$DTG" = staging ]; then
+        # R5, with a last full pass: every ROW, RULE and HOS row of the change set passes in a staging receipt current for
+        # the candidate; DIF, EXC and SUP rows (and RULE's sites) by the census court, clean at the candidate
+        cset93 "$BASE93" "$TMP93/cs" || echo "the change set cannot be read — $(head -n 1 "$TMP93/cs.err")" >> "$TMP93/du"
+        NROWS=$(grep -c . "$TMP93/cs" || true)
+        awk -F'\t' 'NR == FNR { W[$1] = 1; next } ($1 in W)' "$TMP93/cs" "$TMP93/ir.d" > "$TMP93/csr"
+        awk -F'\t' '$2 ~ /^(ROW|RULE|HOS)$/ && $5 ~ /^tests\// { print $1 }' "$TMP93/csr" > "$TMP93/needr"
+        if [ -s "$TMP93/needr" ]; then
+          srcpt93 "$DC"
+          if [ -z "$SRCPT" ]; then echo "no staging receipt current for $DS — request one: sh checks/test.sh request --type staging --role orchestrator --rows-file <the change set> --why \"<one line>\" -- <selection> (sh checks/metrics.sh change-set --base $BASE93)" >> "$TMP93/du"
+          else RCPTN=$SRCPT; rcases93 "$SRCPT" "$TMP93/sc"; : > "$TMP93/sdc"; [ -n "$SDREP" ] && rcases93 "$SDREP" "$TMP93/sdc"; fi
+        fi
+        _dd=no; ddeclared && _dd=yes
+        while IFS='	' read -r _id _cl _ln _ci _t _der _kind _actor; do
+          case "$_t" in
+            'owed: paid by /vid deploy'*) printf '%s gate %s\n' "$_id" "$(printf '%s\n' "$_t" | sed 's/^owed: paid by \/vid deploy gate[[:space:]]*//;s/[^0-9].*$//')" >> "$TMP93/do" ;;
+            owed*) echo "$_id: owed ($_t)" >> "$TMP93/du" ;;
+            tests/*)
+              [ -n "$SRCPT" ] || continue
+              if [ -f ".vid/ledger-results/$SRCPT.rows" ] && ! grep -qxF -- "$_id" ".vid/ledger-results/$SRCPT.rows"; then echo "$_id: not in $SRCPT's rows (its request ran another change set)" >> "$TMP93/du"; continue; fi
+              _cf=$TMP93/sc; _sh=''
+              if [ "$_cl" = ROW ] && [ "$_dd" = yes ] && { [ "$_kind" = journey ] || [ "$_actor" = '(process)' ]; }; then _cf=$TMP93/sdc; _sh=' (its deployed twin)'
+                [ -n "$SDREP" ] || { echo "$_id: read from the deployed report, and $SRCPT has no deployed twin" >> "$TMP93/du"; continue; }; fi
+              _der2=-; [ "$_cl" = ROW ] && _der2=$_der
+              _v=$(judge93 "$_cf" "$_id" "$_ci" "$_der2")
+              case "$_v" in GREEN) ;; ABSENT) echo "$_id: absent from $SRCPT$_sh (no collected case in $_ci names it)" >> "$TMP93/du" ;; *) echo "$_id: $_v$_sh" >> "$TMP93/du" ;; esac ;;
+            *) case "$_cl" in DIF|EXC|SUP) ;; *) echo "$_id: unrecognized test field '$_t'" >> "$TMP93/du" ;; esac ;;
+          esac
+        done < "$TMP93/csr"
+        if grep -qE '^(RULE|DIF|EXC|SUP)-' "$TMP93/cs"; then
+          if [ -f checks/census.sh ]; then sh checks/census.sh > "$TMP93/census.out" 2>&1 || echo "census: not clean at $DS ($(grep -c '^FAIL' "$TMP93/census.out" || true) FAIL lines; sh checks/census.sh)" >> "$TMP93/du"
+          else echo 'census: no checks/census.sh to judge the change set'"'"'s census rows' >> "$TMP93/du"; fi
+        fi
+      else
+        # R8, production at HEAD: the full run (in a held staged project, the stage close's conditions for stages 1 to N),
+        # coverage, and every ROW of the change set since the last full pass re-graded, current for the candidate
+        TESTS=full
+        if [ "$DN" != - ]; then
+          sh checks/metrics.sh stage-close --stage "$DN" > "$TMP93/sclose" 2>&1 || true
+          sed -n 's/^unmet //p' "$TMP93/sclose" >> "$TMP93/du"
+          grep -q '^stage-close ' "$TMP93/sclose" || echo "the close's conditions for stages 1 to $DN cannot be read: $(head -n 1 "$TMP93/sclose")" >> "$TMP93/du"
+        else
+          if [ -z "$RECEIPT" ]; then echo "no full run current for HEAD $(git rev-parse --short=12 HEAD) — request one: sh checks/test.sh request --type full --role orchestrator --why \"<one line>\"" >> "$TMP93/du"
+          else { read_report "$RECEIPT"; read_report "${DREPORT:-/nonexistent}"; } | awk '$3 != "passed" { n++; if (n <= 5) b = b $2 " " $3 "; " } END { if (n) { sub(/; $/, "", b); print "the full run " r " has " n " failing case(s): " b } }' r="${RECEIPT##*/}" >> "$TMP93/du"; fi
+          VID_COURT_EVENT=off sh checks/coverage.sh --strict > "$TMP93/cov.out" 2>&1 || echo "coverage: not clean ($(grep '^REQs: ' "$TMP93/cov.out" | tail -n 1); sh checks/coverage.sh --strict)" >> "$TMP93/du"
+        fi
+        # the re-grade (with no last full pass, every ROW of the scope)
+        if [ -n "$BASE93" ]; then cset93 "$BASE93" "$TMP93/cs" || echo "the change set cannot be read — $(head -n 1 "$TMP93/cs.err")" >> "$TMP93/du"
+        else cp "$TMP93/dscope" "$TMP93/cs"; fi
+        awk -F'\t' 'NR == FNR { W[$1] = 1; next } ($1 in W) && $2 == "ROW" && $5 !~ /^owed: paid by \/vid deploy/ { print $1 }' "$TMP93/cs" "$TMP93/ir.d" > "$TMP93/rg"
+        : > "$TMP93/tw"; [ -n "$BASE93" ] && [ -s "$TMP93/rg" ] && touched93 "$BASE93" "$DC" "$TMP93/rg" "$TMP93/tw"
+        while IFS= read -r _id; do
+          _l=$(awk -F'\t' -v id="$_id" '$1 == id { print $3; exit }' "$TMP93/table")
+          _q=$(quoted93 "$_id"); _qc=''; [ -n "$_q" ] && _qc=$(git rev-parse -q --verify "$_q^{commit}" 2>/dev/null || true)
+          _tc=$(awk -F'\t' -v id="$_id" '$1 == id { print $2; exit }' "$TMP93/tw")
+          if [ "$_l" = KEPT ] && [ -n "$_qc" ] && git merge-base --is-ancestor "$_qc" "$DC" 2>/dev/null && { [ -z "$_tc" ] || git merge-base --is-ancestor "$_tc" "$_qc" 2>/dev/null; }; then REGR=$((REGR + 1))
+          else echo "$_id" >> "$TMP93/dg"; fi
+        done < "$TMP93/rg"
+      fi
+      if [ "$DTG" = production ]; then   # the scope's unpaid deploy-owed rows: a checklist
+        awk -F'\t' 'NR == FNR { S[$1] = 1; next } ($1 in S) && $5 ~ /^owed: paid by \/vid deploy gate/ && $3 !~ /\| ?paid-at:/ { g = $5; sub(/^owed: paid by \/vid deploy gate[ \t]*/, "", g); sub(/[^0-9].*$/, "", g); print $1 " gate " g }' "$TMP93/dscope" "$TMP93/ir.d" > "$TMP93/do"
+      fi
+      sed 's/^/unmet /' "$TMP93/du"; sed 's/^/regrade /' "$TMP93/dg"; sed 's/^/owed /' "$TMP93/do"
+      NU=$(( $(grep -c . "$TMP93/du" || true) + $(grep -c . "$TMP93/dg" || true) ))
+      if [ "$NU" -gt 0 ]; then echo "deploy-check $DTG unmet=$NU"; exit 0; fi
+      if [ "$DTG" = staging ]; then echo "deploy-check staging ready rows=$NROWS ahead=$AHEAD"; else echo 'deploy-check production ready'; fi
+      [ "$DREC" = yes ] || exit 0
+      NOW=$(date -u '+%Y-%m-%dT%H:%M:%SZ'); mkdir -p .vid
+      if [ "$DTG" = staging ]; then
+        printf 'deploy-check target=staging sha=%s tests=%s base=%s ahead=%s rows=%s receipt=%s result=ready at=%s\n' "$DS" "$TESTS" "${BASE93:--}" "$AHEAD" "$NROWS" "$RCPTN" "$NOW" >> "$EV"
+        echo "recorded: deploy-check target=staging sha=$DS tests=$TESTS"; exit 0
+      fi
+      printf 'deploy-check target=production sha=%s tests=full base=%s regraded=%s result=ready at=%s\n' "$DS" "${BASE93:--}" "$REGR" "$NOW" >> "$EV"
+      echo "recorded: deploy-check target=production sha=$DS"
+      # R13: in a held staged project, the supersession of stage N's candidate — vid/stage-N.k at the candidate; vid/stage-N
+      # never moves
+      if [ "$DK" = head ] && [ "$DN" != - ]; then
+        _k=$(git tag -l "vid/stage-$DN.*" | sed "s#^vid/stage-$DN\.##" | grep -E '^[0-9]+$' | sort -n | tail -n 1); _k=$(( ${_k:-0} + 1 ))
+        if git tag -a "vid/stage-$DN.$_k" -m "ViD stage $DN, correction $_k: deploy-check target=production sha=$DS base=${BASE93:--}" "$DC"; then echo "tag: vid/stage-$DN.$_k at $DS — vid/stage-$DN stays"
+        else echo "metrics deploy-check: the tag vid/stage-$DN.$_k could not be made"; fi
+      fi
+      exit 0 ;;
     fix-population)
       [ "${1:-}" = --base ] && [ -n "${2:-}" ] || { echo 'metrics fix-population: --base <sha> is required (the commit before the fix began)' >&2; exit 2; }
       BASE=$2
       git rev-parse -q --verify "$BASE^{commit}" >/dev/null 2>&1 || { echo "metrics fix-population: $BASE is no commit" >&2; exit 2; }
-      git diff --name-only "$BASE" HEAD > "$TMP93/changed"
-      # the seam table: module path, dependents (3.13 — the changed modules plus their declared dependents)
-      MODS=''
-      if [ -f ARCHITECTURE.md ]; then
-        MODS=$(grep -E '^\|' ARCHITECTURE.md | grep -vE '^\|[[:space:]:-]*\|' | awk -F'|' '{
-          m=$2; gsub(/[ \t`]/,"",m); if (m=="Module" || m=="" || m ~ /^\{\{/) next
-          if (m !~ /\// && m ~ /\./) gsub(/\./,"/",m)
-          d=$6; gsub(/`/,"",d); gsub(/^[ \t]+|[ \t]+$/,"",d); gsub(/[ \t]*,[ \t]*/,",",d); print m "\t" d }' || true)
-      fi
-      RADIUS=$(printf '%s\n' "$MODS" | awk -F'\t' -v chf="$TMP93/changed" '
-        BEGIN { while ((getline f < chf) > 0) { g=f; gsub(/\/src\//,"/",g); sub(/^src\//,"",g); ch[++nc]=g } }
-        $1!="" { m[++nm]=$1; dep[$1]=$2 }
-        END {
-          for (i=1;i<=nm;i++) for (j=1;j<=nc;j++) if (ch[j]==m[i] || index(ch[j], m[i] "/")==1) { hit[m[i]]=1; break }
-          for (x in hit) { r[x]=1; d=dep[x]
-            if (d=="all") { for (i=1;i<=nm;i++) r[m[i]]=1 }
-            else if (d!="none" && d!="") { n=split(d, a, ","); for (k=1;k<=n;k++) if (a[k]!="") r[a[k]]=1 } }
-          for (x in r) if (x !~ /^(tests|checks|design)(\/|$)/) print x }' | sort -u)
-      : > "$TMP93/cited"
-      if [ -n "$RADIUS" ]; then
-        git ls-files | awk -v rad="$(printf '%s\n' "$RADIUS" | tr '\n' ' ')" 'BEGIN { n=split(rad, R, " ") }
-          { f=$0; if (f ~ /\.md$/ || f ~ /^(tests|checks|design)\//) next; g=f; gsub(/\/src\//,"/",g); sub(/^src\//,"",g)
-            for (i=1;i<=n;i++) if (R[i]!="" && (g==R[i] || index(g, R[i] "/")==1)) { print f; break } }' > "$TMP93/radfiles"
-        while IFS= read -r _f; do [ -f "$_f" ] && grep -hoE '(REQ-[0-9]+|[A-Za-z0-9_-]+/[A-Za-z0-9_-]+)' "$_f" 2>/dev/null || true; done < "$TMP93/radfiles" | sort -u > "$TMP93/cited"
-      fi
-      BLOCKB=$(git show "$BASE:INVENTORY.md" 2>/dev/null | sed -n '/^```vid-inventory/,/^```$/p' | sed '1d;$d' | grep -E '^[[:space:]]*ROW-' || true)
-      printf '%s\n' "$BLOCKB" > "$TMP93/baserows"
-      HARN=no; grep -qE '^(tests/invariants/harness\.|docker-compose\.test\.yml$)' "$TMP93/changed" && HARN=yes
-      printf '%s\n' "$IBLOCK" | grep -E '^[[:space:]]*ROW-' | awk -F'|' -v tf="$TMP93/table" -v cf="$TMP93/cited" -v chf="$TMP93/changed" -v bf="$TMP93/baserows" -v harn="$HARN" '
-        function trim(s) { gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
-        BEGIN {
-          while ((getline l < tf) > 0) { split(l, a, "\t"); L[a[1]]=a[3]; H[a[1]]=a[5]; HC[a[1]]=a[4] }
-          while ((getline l < cf) > 0) cited[l]=1
-          while ((getline l < chf) > 0) ch[l]=1
-          while ((getline l < bf) > 0) { split(l, a, "|"); bt[trim(a[1])]=trim(a[8]) }
-        }
-        { id=trim($1); t=trim($8); der=trim($7); why=""
-          if (t !~ /^tests\//) next
-          p=t; sub(/ .*/, "", p)
-          if (!(id in bt) || bt[id] !~ /^tests\//) { if (id in bt && bt[id] ~ /^owed:[ \t]*reverted/) why=why ",re-paid"; else why=why ",materialised" }
-          if (L[id]!="KEPT") { n=split(der, tk, /[ ,]+/); for (k=1;k<=n;k++) if (tk[k]!="" && (tk[k] in cited)) { why=why ",cited-in-radius"; break } }
-          if (p in ch) why=why ",test-changed"
-          if (harn=="yes" && (H[id]=="harness" || ((H[id]=="scope" || H[id]=="rounds") && HC[id]=="harness"))) why=why ",harness-held"
-          if (why!="") { sub(/^,/, "", why); print "regrade row=" id " why=" why; N++ } }
-        END { printf "regrade rows=%d\n", N+0 }' > "$TMP93/pop"
+      pop93 "$BASE" no
       sed '$d' "$TMP93/pop"
       echo "$(tail -n 1 "$TMP93/pop") base=$BASE radius=$(printf '%s\n' "$RADIUS" | grep -v '^$' | tr '\n' ' ' | sed 's/ $//;s/^$/none/')"
       exit 0 ;;

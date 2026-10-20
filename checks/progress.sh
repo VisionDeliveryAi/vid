@@ -375,7 +375,8 @@ if [ -f STAGES.md ] && [ -f checks/stages.sh ]; then
   _sb=$(sed -n '/^```vid-stages$/,/^```$/p' STAGES.md | grep -E '^[[:space:]]*STAGE-[0-9]+[[:space:]]*\|' || true)
   _sn=$(printf '%s\n' "$_sb" | awk -F'|' -v n="STAGE-$_cs" '{ id = $1; gsub(/^[ \t]+|[ \t]+$/, "", id) } id == n { x = $2; gsub(/^[ \t]+|[ \t]+$/, "", x); print x; exit }')
   _sc=$(awk '$1 == "stage-closed" && / ready( |$)/ { for (i = 2; i <= NF; i++) if (index($i, "n=") == 1) printf "%s%s", (k++ ? ", " : ""), substr($i, 3) }' "$EV" 2>/dev/null)
-  STGL="$_cs of $(printf '%s\n' "$_sb" | grep -c . || true)${_sn:+, $_sn}${_sc:+ · closed: $_sc}"
+  # v0.26.10.8 (R2): of <the final stage>, the highest number — with STAGE-0 one less than the count of lines
+  STGL="$_cs of $(printf '%s\n' "$_sb" | sed -n 's/^[[:space:]]*STAGE-\([0-9][0-9]*\)[[:space:]]*|.*/\1/p' | sort -n | tail -n 1)${_sn:+, $_sn}${_sc:+ · closed: $_sc}"
 fi
 { printf '%s\n\n| | |\n|---|---|\n' "$HEADL"
   [ -n "$STGL" ] && printf '| Stage | %s |\n' "$STGL"

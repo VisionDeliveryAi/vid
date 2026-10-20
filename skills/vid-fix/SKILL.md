@@ -14,7 +14,7 @@ between the two commands; that is where the human belongs.
 Narrate position between corrections ("2 of 5 applied; next: alert digest") —
 visibility, not approval-seeking.
 
-**Stage events (v0.9.5 3.11, R11; RECORDS.md).** In the project, record `sh checks/event.sh "stage name=fix state=start session=$CLAUDE_CODE_SESSION_ID records=25"` when this verb starts and `sh checks/event.sh "stage name=fix state=end session=$CLAUDE_CODE_SESSION_ID"` when it hands back. Every event this skill names is written the same way, `sh checks/event.sh '<event>'`, which appends it to `.vid/metrics-events` with its time.
+**Stage events (v0.9.5 3.11, R11; RECORDS.md).** In the project, record `sh checks/event.sh "stage name=fix state=start session=$CLAUDE_CODE_SESSION_ID records=28"` when this verb starts and `sh checks/event.sh "stage name=fix state=end session=$CLAUDE_CODE_SESSION_ID"` when it hands back. Every event this skill names is written the same way, `sh checks/event.sh '<event>'`, which appends it to `.vid/metrics-events` with its time.
 
 **Version skew (v0.9.7.0.7 3.8).** Read `checks/records-version` first. If it is absent or below 24, the project's checks/ predates this plugin: tell the owner it needs the refresh and stop before fixing; so too a project holding STAGES.md whose checks/ is below 25 (v0.26.10.5). The refresh (v0.9.8.1 R5): first run `sh "${CLAUDE_PLUGIN_ROOT}/checks/local-changes.sh"` from the project's top level and show the owner its list — the project's commits under `checks/` since the last refresh, and its uncommitted changes there — since the copy overwrites them; each is carried over or dropped on purpose. Then copy `${CLAUDE_PLUGIN_ROOT}/checks/` changes over `./checks/` and commit it alone with `VID_ROLE=fix`, its subject `Refresh checks/ to VID <version>` (the next refresh's list counts from it) — its fixers are briefed with their test selection and hand back through `sh checks/brief.sh return --agent` (v0.9.7.1), which an older checks/ lacks.
 
@@ -32,6 +32,8 @@ When a request's result says `analyst due`, start the test analyst (`vid-test-ma
 
 - The owner typing one or more specific corrections in plain language
   ("save button gives no feedback on the listing page").
+- A correction already in the code, named by the owner with its commit
+  (v0.26.10.7 R16; Recording a correction already made, below).
 - A findings file produced by /vid grade that the owner has adjudicated:
   `/vid fix .vid/grades/2026-08-11-grade.md` — apply exactly the rows marked
   accepted. Disputed rows die. Deferred rows become `VID-QUESTION` markers if
@@ -57,6 +59,25 @@ that feature's stage. A correction to a stage already closed (a
 with the next stage's close, which re-checks stages 1 to N; until then
 `sh checks/stages.sh deploy` names it among the commits the live candidate
 lacks, and `sh checks/metrics.sh` lists it under "since stage N's close".
+**While the owner holds the next stage** (`stage-hold n=N state=on`;
+v0.26.10.7 R13), every commit after the tag is a correction or a deploy
+record, since develop isn't running: work on the develop line as always.
+The staging candidate is then HEAD, so `/vid deploy staging` takes the
+correction to staging on its own; a production deploy of it tags
+`vid/stage-N.k`, and `vid/stage-N` never moves.
+
+**Recording a correction already made (v0.26.10.7 R16).** The owner may
+name a correction already in the code, with its commit (for one made
+during a deploy). Each becomes a PRD append and a ledger test, as any
+correction does, with no fixer: commit them first (`VID_ROLE=fix`). Its
+red is seen with the change undone in the working tree, as a hostility
+probe's red is seen with its protection disabled: `git revert --no-commit
+<commit>`; a `prove-red` request for the new test and its wait; then `git
+revert --abort`, which puts the tree back as HEAD holds it (commit before
+the revert: the abort drops anything staged). The `proved-red:` stamp names
+HEAD, where the red was observed. The re-grade runs as below, with `sh
+checks/metrics.sh fix-population --base <the parent of the earliest named
+commit>`, so the correction's own source changes are in its scope.
 
 **A change to the law, counted first (v0.26.10.3 R3, R5).** A question
 whose recommended answer would change a fail-if or a row's obligation
@@ -301,7 +322,12 @@ attempt record, `.vid/verdicts/<ROW-id>.md`, whole (`vid-verify`). The
 fixer builds by `vid-build`
 (`${CLAUDE_PLUGIN_ROOT}/skills/vid-build/SKILL.md`). Spawn it by its type,
 `vid:fixer` (the Agent tool's subagent type; v0.9.7.1), with the
-repository path and the brief file, and nothing else of this session. The
+repository path and the brief file, and nothing else of this session. Its
+brief's header names its first act, `sh checks/plan.sh home --brief <its
+brief file>`: the fixer records the project as its home before anything
+else, so its requests publish their receipts and events here and its
+hand-back is read here (v0.26.10.7 R6, F-58); a test author this verb
+spawns does the same. The
 attempt count is computed
 (`sh checks/metrics.sh row-state --table`), never restated. After the fix
 lands, append its repair and commit to that file.
@@ -347,7 +373,9 @@ check in a browser the owner does not use (CLAUDE.md law): every claim
 states its evidence class — ledger test, browser-class WebKit/Chromium
 test, coverage join — or says plainly that it is unverified. For anything
 the browser class covers, the browser result IS the claim. Fix commits
-carry the `Model:` trailer, like develop's.
+carry the `Model:` trailer, like develop's. When the project has
+deployed (DEPLOYMENT.md exists), the report's last line is "`/vid deploy
+staging` takes these to staging" (v0.26.10.7 R17).
 
 **The progress record (v0.9.5 3.10).** A fix changes row states with no
 develop slice to close them, so the final report also appends a

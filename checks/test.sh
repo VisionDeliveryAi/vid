@@ -326,6 +326,15 @@
 # v0.26.10.5 (R8): `request --type full --stage N` — the full run of a stage close; `stage=N` in the request. Its
 #   analyst's setup and slow triggers count only the cases of stages 1 to N (checks/stages.sh scope): later stages'
 #   rows are red in that run and are not read. Nothing else in the run changes.
+# v0.26.10.7 (R6, F-58): a request's home whenever `plan.sh home-of` resolves, the gate on or off. Outside the gate its
+#   ticket is at that home, and its run, found with its ticket, takes the gated run's path: the receipts and the events
+#   at the home, frozen from a git tree, the receipt's .tree and .cases, named by run id under the publish lock. Still
+#   develop's alone: the refusal of a direct run, the role requirement, close and checkpoint. A direct run outside the
+#   gate is unchanged. `request --type staging --role orchestrator --rows-file <change set> --why "<one line>" --
+#   <selection> [--deployed-selection <selection>]`: the change set since the last full pass (checks/metrics.sh
+#   change-set), every id of it the receipt's .rows; a scoped run of HEAD's tree, a dirty worktree refused as a full
+#   run's is; --deployed-selection accepted when the harness declares deployed-selector:, as an iterate's is; the
+#   receipt today's scoped one, named by HEAD, `ledger-run kind=scoped … type=staging`.
 # v0.9.7.0.11 (3.1, R1): a request's report credits only the rows the request was frozen with. Before a report is
 #   published its `<report>.rows` (a copy of the ticket's `rows`; a full run has none) is written beside it, and
 #   copied with it to the commit-named copy. A report whose cases reach rows outside them is published and kept all
@@ -398,7 +407,7 @@ SVCPOLL=${VID_SERVICE_POLL:-15}   # v0.9.7.0.11 (3.3, R3): the stack watcher's p
 # --- v0.9.7.0.2 (3.1–3.3): requests, waits and the detached run ----------------------
 TX=$(printf '\t')
 rq_die() { echo "ViD test: refused — $*" >&2; exit 2; }
-rq_usage() { echo 'ViD test: usage — sh checks/test.sh request --type prove-red|iterate|close|checkpoint|full|deployed --role <role> [--try <id>] [--purpose proof] --why "<one line>" [--rows <ROW-id,…> | --rows-file <path>] [--steps <id,…>] [--expect <seconds>] [--stage <N>] [-- <selection> [--deployed-selection <selection>]] | request --type close --role orchestrator --steps <id,…> --batch --phase1 <file> --phase2 <file> --why "<one line>" | wait <ticket> | cancel --try <id>|--ticket <id> [--by <who>] | analyst-due' >&2; exit 2; }
+rq_usage() { echo 'ViD test: usage — sh checks/test.sh request --type prove-red|iterate|close|checkpoint|full|deployed|staging --role <role> [--try <id>] [--purpose proof] --why "<one line>" [--rows <ROW-id,…> | --rows-file <path>] [--steps <id,…>] [--expect <seconds>] [--stage <N>] [-- <selection> [--deployed-selection <selection>]] | request --type close --role orchestrator --steps <id,…> --batch --phase1 <file> --phase2 <file> --why "<one line>" | wait <ticket> | cancel --try <id>|--ticket <id> [--by <who>] | analyst-due' >&2; exit 2; }
 rq_kv() { sed -n "s/^$1=//p" "$2" 2>/dev/null | head -n 1; }
 # v0.9.7.0.9 (3.3, R3): a selection word holding whitespace or a quote, which the harness command can't carry — refused at once
 selword() { case "$1" in *[[:space:]]*|*\'*|*\"*) echo "ViD test: refused — the selection word '$1' holds a space or a quote, which the harness command can't carry; select by test ids, without spaces" >&2; exit 2 ;; esac; }
@@ -986,12 +995,15 @@ case "${1:-}" in
     case "$EXPECT" in *[!0-9]*) rq_die '--expect takes whole seconds.' ;; esac
     # v0.26.10.5 (R8): a full run for a stage close carries --stage N: the analyst's setup and slow triggers count only
     # the cases of stages 1 to N (checks/stages.sh scope at the home); later stages' red cases are not read
-    case "$RSTAGE" in '') ;; *[!0-9]*|0) rq_die "--stage takes a stage number (1 or more), not '$RSTAGE'." ;; *) [ "$TYPE" = full ] || rq_die '--stage belongs to a full run, the whole suite for a stage close.' ;; esac
+    # v0.26.10.8 (R2): --stage 0 when STAGES.md holds STAGE-0 (the technical stage)
+    case "$RSTAGE" in '') ;; *[!0-9]*) rq_die "--stage takes a stage number (1 or more), not '$RSTAGE'." ;;
+      *) if [ "$RSTAGE" -eq 0 ] && ! sed -n '/^```vid-stages$/,/^```$/p' STAGES.md 2>/dev/null | grep -qE '^[[:space:]]*STAGE-0+[[:space:]]*\|'; then rq_die "--stage takes a stage number (1 or more; 0 when STAGES.md holds STAGE-0), not '$RSTAGE'."; fi
+        [ "$TYPE" = full ] || rq_die '--stage belongs to a full run, the whole suite for a stage close.' ;; esac
     # R3: the types and who may ask
     case "$TYPE" in
       prove-red) _who='test-author orchestrator fixer' ;;
       iterate) _who='builder fixer test-author testenv' ;;
-      close|checkpoint|full) _who='orchestrator' ;;
+      close|checkpoint|full|staging) _who='orchestrator' ;;
       deployed) _who='builder fixer' ;;
       *) rq_usage ;;
     esac
@@ -1033,12 +1045,16 @@ case "${1:-}" in
       checkpoint) [ -z "$ROWS$ROWSF$STEPS" ] || rq_usage
         [ -n "$RSEL" ] || rq_die 'a checkpoint names its selection — every built row, every variant, in the runner'"'"'s syntax: -- <selection>.' ;;
       full) [ -z "$ROWS$ROWSF$STEPS" ] && [ "$HASSEL" = no ] || rq_die 'a full request runs the whole ledger: no rows, steps or selection.' ;;
+      staging)   # v0.26.10.7 (R6): the change set since the last full pass, on a scoped run of HEAD's tree
+        [ -z "$STEPS" ] || rq_usage
+        [ "$HASSEL" = yes ] && [ -n "$RSEL" ] || rq_die 'a staging request names its selection, in the runner'"'"'s syntax: -- <selection> (ViD never builds one).'
+        [ "$RHASD" = no ] || [ -n "$RDSEL" ] || rq_die 'a staging request with --deployed-selection names the deployed pass'"'"'s selection, in the runner'"'"'s syntax: --deployed-selection <selection>.' ;;
     esac
     [ "$BATCH" = no ] || [ "$TYPE" = close ] || rq_die '--batch belongs to a close: --type close --steps <id,…> --batch --phase1 <file> --phase2 <file>.'
     [ "$TYPE" = close ] || [ -z "$PH1$PH2" ] || rq_usage
     [ -z "$ROWSF" ] || [ -f "$ROWSF" ] || rq_die "no rows file $ROWSF."
     # v0.9.7.0.11 (3.6, R6): an export-backed request runs a committed tree — a worktree with changes outside .vid/ is refused now
-    case "$TYPE" in close|full|checkpoint)
+    case "$TYPE" in close|full|checkpoint|staging)
       _dy=$(git status --porcelain -- . ':(exclude).vid' 2>/dev/null || true)
       [ -z "$_dy" ] || rq_die "the worktree carries uncommitted changes, and a $TYPE runs HEAD's tree — commit first: $(printf '%s\n' "$_dy" | head -n 5 | cut -c4- | paste -sd ',' - | sed 's/,/, /g')$([ "$(printf '%s\n' "$_dy" | grep -c .)" -gt 5 ] && echo ' …')." ;;
     esac
@@ -1047,6 +1063,8 @@ case "${1:-}" in
       _grc=0; _g=$(sh checks/plan.sh gate 2>/dev/null) || _grc=$?
       [ "$_grc" -eq 3 ] && rq_die "${_g#off } (sh checks/plan.sh gate)."
       case "$_g" in 'on '*) [ -d "${_g#on }/.vid" ] && { RQH=${_g#on }; RQG=yes; } ;; esac
+      # v0.26.10.7 (R6, F-58): outside the gate, the ticket is at the home whenever plan.sh home-of resolves
+      if [ "$RQG" = no ]; then _hh=$(sh checks/plan.sh home-of 2>/dev/null) && [ -d "$_hh/.vid" ] && RQH=$_hh; fi
     fi
     # R5: outside a live develop run a close or a checkpoint has no plan to close against
     if [ "$RQG" = no ]; then case "$TYPE" in close|checkpoint) rq_die "a $TYPE runs only inside a develop run (sh checks/plan.sh gate is off); outside one, request prove-red, iterate, full or deployed." ;; esac; fi
@@ -1076,6 +1094,8 @@ $(sed -n 's/^BAD\t/    /p' "$RQT/groups" | head -n 10)"
         sed -n 's/^required row=\([^ ]*\).*/\1/p' "$RQT/cr" | sort -u > "$RQT/rows"; fi ;;
       checkpoint)   # v0.9.7.0.12 (3.7, R7): the one population — the eligible rows of closed steps and the materialised probes
         sh checks/metrics.sh checkpoint --population 2>/dev/null | grep -E '^(ROW|HOS)-' | sort -u > "$RQT/rows" || true ;;
+      staging)   # v0.26.10.7 (R6): the change set whole — ROW, census and HOS ids — as the receipt's .rows
+        { printf '%s\n' "$ROWS"; [ -n "$ROWSF" ] && cat "$ROWSF"; } | grep -oE '(ROW|RULE|DIF|EXC|SUP|HOS)-[0-9A-Za-z-]*[0-9A-Za-z]' | sort -u > "$RQT/rows" || true ;;
       full)
         { [ -f INVENTORY.md ] && sed -n '/^```vid-inventory/,/^```$/p' INVENTORY.md | awk -F'|' '$1 ~ /^[[:space:]]*ROW-/ { id = $1; gsub(/^[ \t]+|[ \t]+$/, "", id); print id }'; } | sort -u > "$RQT/rows" || true ;;
     esac
@@ -1094,9 +1114,9 @@ $(head -n 10 "$RQT/bad")"
         [ -s "$RQT/bad" ] && rq_die "the groups do not fit their rows' shapes:
 $(head -n 10 "$RQT/bad")"
       fi
-    elif [ "$TYPE" = close ] || [ "$TYPE" = checkpoint ] || [ "$RHASD" = yes ]; then   # a deployed-shape selection when the harness declares one (test.sh would refuse it after taking a slot)
+    elif [ "$TYPE" = close ] || [ "$TYPE" = checkpoint ] || [ "$RHASD" = yes ]; then   # v0.26.10.7 (R6): a staging request's, as an iterate's   # a deployed-shape selection when the harness declares one (test.sh would refuse it after taking a slot)
       _ds=$(awk '/^x-vid-harness:/{inx=1; next} inx && /^[^ #]/{inx=0} inx && $1=="deployed-selector:" { v=$0; sub(/^[^:]*:[ \t]*/,"",v); sub(/[ \t]*#.*$/,"",v); print v; exit }' docker-compose.test.yml 2>/dev/null)
-      if [ "$TYPE" != iterate ] && [ -n "$_ds" ] && { [ "$RHASD" = no ] || [ -z "$RDSEL" ]; }; then rq_die "the harness contract declares deployed-selector:, so a $TYPE names its deployed-shape selection too: --deployed-selection <selection>."; fi
+      if [ "$TYPE" != iterate ] && [ "$TYPE" != staging ] && [ -n "$_ds" ] && { [ "$RHASD" = no ] || [ -z "$RDSEL" ]; }; then rq_die "the harness contract declares deployed-selector:, so a $TYPE names its deployed-shape selection too: --deployed-selection <selection>."; fi
       if [ -z "$_ds" ] && [ "$RHASD" = yes ]; then rq_die 'the harness contract declares no deployed-selector:, so a '"$TYPE"' is one inline pass: no --deployed-selection.'; fi
     fi
     # v0.9.7.0.11 (3.9, R9): a deployed run credits only journey and (process) rows — any other is refused before the ticket
@@ -1108,14 +1128,14 @@ $(head -n 10 "$RQT/bad")"
     # R6: inside a live run, before the ticket — no empty row list; no row of a step not yet started (full and the testenv pass's measurement excepted)
     if [ "$RQG" = yes ]; then
       [ -s "$RQT/rows" ] || rq_die "the request names no row (a $TYPE inside a develop run runs rows: --rows <ROW-id,…>, or a close's steps with required rows)."
-      if [ "$TYPE" != full ] && [ "$RROLE" != testenv ] && sh checks/plan.sh parse > "$RQT/parsed" 2>/dev/null; then
+      if [ "$TYPE" != full ] && [ "$TYPE" != staging ] && [ "$RROLE" != testenv ] && sh checks/plan.sh parse > "$RQT/parsed" 2>/dev/null; then
         { [ -f "$RQH/.vid/metrics-events" ] && awk '$1 == "step-start" { for (i = 2; i <= NF; i++) if (index($i, "step=") == 1) print substr($i, 6) }' "$RQH/.vid/metrics-events"; } | sort -u > "$RQT/started" || true
         awk -F'\t' -v sf="$RQT/started" -v rf="$RQT/rows" 'BEGIN { while ((getline l < sf) > 0) S[l] = 1; while ((getline l < rf) > 0) W[l] = 1 }
           $1 == "row" && ($2 in W) && !($3 in S) { print $2 " (step " $3 ")" }' "$RQT/parsed" > "$RQT/unstarted"
         [ -s "$RQT/unstarted" ] && rq_die "rows of a step not yet started (no step-start): $(head -n 10 "$RQT/unstarted" | paste -sd ',' - | sed 's/,/, /g') — start the step first (sh checks/plan.sh start <id>, or its brief's admission); a row the plan does not hold is never refused."
       fi
     fi
-    SUPN=1; [ "$TYPE" = iterate ] && [ "$RHASD" = yes ] && SUPN=2   # R6: two passes, two start-ups, the cases once
+    SUPN=1; { [ "$TYPE" = iterate ] || [ "$TYPE" = staging ]; } && [ "$RHASD" = yes ] && SUPN=2   # R6: two passes, two start-ups, the cases once
     # v0.9.8.1 (R12, F-11): when the deployed selection repeats an inline selection word (the same file or test id),
     # the deployed pass runs those cases again, so the cases are counted once a pass (CASN=2); --expect is one pass's
     CASN=1
@@ -1340,20 +1360,26 @@ fi
 [ -f docker-compose.test.yml ] || { echo 'ViD test: docker-compose.test.yml missing — failing closed.' >&2; exit 1; }
 
 # --- v0.9.6: the gate (3.6) ------------------------------------------------------
-GATED=no; VHOME=''
+GATED=no; VHOME=''; INGATE=no
 if [ -f checks/plan.sh ]; then
   _grc=0; _g=$(sh checks/plan.sh gate 2>/dev/null) || _grc=$?
-  case "$_g" in 'on '*) VHOME=${_g#on }; [ -d "$VHOME/.vid" ] && GATED=yes ;; esac
+  case "$_g" in 'on '*) VHOME=${_g#on }; [ -d "$VHOME/.vid" ] && { GATED=yes; INGATE=yes; } ;; esac
   # v0.9.7.0.1 (3.1, R2): two or more live runs — never pick one, never run ungated
   if [ "$_grc" -eq 3 ]; then echo "ViD test: refused — ${_g#off } (sh checks/plan.sh gate)." >&2; exit 2; fi
+  # v0.26.10.7 (R6, F-58): a request publishes at its home whenever plan.sh home-of resolves, the gate on or off — its
+  # receipts and events at the home, frozen from a git tree, with .tree and .cases, named by run id under the publish
+  # lock: the gated run's path (GATED), for a run with its ticket. INGATE alone keeps what stays develop's: the refusal of a direct run, the role
+  # requirement, close and checkpoint. A direct run outside the gate is unchanged.
+  if [ "$GATED" = no ] && [ -n "${VID_REQUEST:-}" ] && _hh=$(sh checks/plan.sh home-of 2>/dev/null) && [ -d "$_hh/.vid" ] \
+     && { [ -d "$_hh/.vid/requests/$(rq_sub "$VID_REQUEST")" ] || [ -d ".vid/requests/$(rq_sub "$VID_REQUEST")" ]; }; then VHOME=$_hh; GATED=yes; fi
 fi
 # v0.9.7.0.2 (3.4, R4): inside a develop run nobody runs this script directly — every run is a request
-if [ "$GATED" = yes ] && [ -z "${VID_REQUEST:-}" ]; then
+if [ "$INGATE" = yes ] && [ -z "${VID_REQUEST:-}" ]; then
   echo 'ViD test: refused — inside a develop run nobody runs the test runner directly: make a request to the test manager (skills/vid-test-manager): sh checks/test.sh request --type <type> --role <role> --rows <ROW-id,…> --why "<one line>" -- <selection>, then sh checks/test.sh wait <ticket>.' >&2
   exit 2
 fi
 # v0.9.7.0.1 (3.2, R5): inside a develop run every test run names who runs it — refused before the lock
-if [ "$GATED" = yes ] && [ -z "$ROLE" ]; then
+if [ "$INGATE" = yes ] && [ -z "$ROLE" ]; then
   echo 'ViD test: refused — inside a develop run every test run names its role: --role builder|fixer|test-author|close|checkpoint|grader|testenv.' >&2
   exit 2
 fi
@@ -1367,7 +1393,7 @@ TVOK=no
 if [ -f "$BUDGET" ] && [ -f docker-compose.test.yml ] && grep -qxF "testenv=proved harness=$(cksum < docker-compose.test.yml | cut -d' ' -f1)" "$BUDGET"; then TVOK=yes; fi
 mkdir -p "$RDIR"
 # v0.9.7.0.2 (3.1): a request's run — its ticket folder at the run's home (here outside a run)
-TD=''; RQF=''; RQW=''; CHUNK=no; BEXP=''; CTXD=''; PURPOSE=''
+TD=''; RQF=''; RQW=''; CHUNK=no; BEXP=''; CTXD=''; PURPOSE=''; STAGING=no
 if [ -n "${VID_REQUEST:-}" ]; then
   for _d in "${VHOME:-.}/.vid/requests/$(rq_sub "$VID_REQUEST")" ".vid/requests/$(rq_sub "$VID_REQUEST")"; do [ -d "$_d" ] && { TD=$(cd "$_d" && pwd); break; }; done
   if [ -n "$TD" ]; then   # the request's fields ride its events; a direct call with no ticket (the runner's own tests) records none
@@ -1377,17 +1403,18 @@ if [ -n "${VID_REQUEST:-}" ]; then
     [ -n "$(_rk expect)" ] && RQF="$RQF expect=$(_rk expect)"
     [ "$(_rk no-history)" != 0 ] && RQF="$RQF no-history=$(_rk no-history)"
     PURPOSE=$(_rk purpose); [ -n "$PURPOSE" ] && RQF="$RQF purpose=$PURPOSE"   # v0.9.8 (R15): a proof's receipts, never ordinary
+    [ "$(_rk type)" = staging ] && STAGING=yes   # v0.26.10.7 (R6): HEAD's tree, a dirty worktree refused; its deployed pass too
     RQW=" why=\"$(_rk why)\""
     # v0.9.7.0.12 (3.2, R2): a close batch's chunk runs the batch's export at its frozen tree; its events carry batch=
-    if [ -n "$(_rk batch)" ] && [ "$GATED" = yes ]; then CHUNK=yes; BEXP=$(_rk export); BTREE=$(_rk tree); BBASE=$(_rk base); RQF="$RQF batch=$(_rk batch)"; fi
+    if [ -n "$(_rk batch)" ] && [ "$INGATE" = yes ]; then CHUNK=yes; BEXP=$(_rk export); BTREE=$(_rk tree); BBASE=$(_rk base); RQF="$RQF batch=$(_rk batch)"; fi
   fi
 fi
 HEAD=$(git rev-parse --short=12 HEAD 2>/dev/null || echo nohead)
 # v0.9.6.1 (3.1, 3.8): a selected close or a checkpoint — inside the gate, a selection given
 SELCLOSE=no
-if [ "$GATED" = yes ] && { [ -n "$SEL" ] || [ "$CHUNK" = yes ]; }; then case "$ROLE" in close|checkpoint) SELCLOSE=yes ;; esac; fi
+if [ "$INGATE" = yes ] && { [ -n "$SEL" ] || [ "$CHUNK" = yes ]; }; then case "$ROLE" in close|checkpoint) SELCLOSE=yes ;; esac; fi
 if [ "$ROLE" = checkpoint ] && [ "$SELCLOSE" = no ]; then
-  if [ "$GATED" = no ]; then echo 'ViD test: refused — a checkpoint runs only inside a develop run under a 0.9.6 plan.' >&2
+  if [ "$INGATE" = no ]; then echo 'ViD test: refused — a checkpoint runs only inside a develop run under a 0.9.6 plan.' >&2
   else echo 'ViD test: refused — a checkpoint runs a selection: sh checks/test.sh --role checkpoint -- <selection> (every built row, in the runner'"'"'s syntax).' >&2; fi
   exit 2
 fi
@@ -1395,6 +1422,7 @@ fi
 BOTH=no
 if [ "$HAVEDSX" = yes ] && [ "$SELCLOSE" = no ] && [ -n "$SEL" ] && [ "$DEPLOYED" = no ] && [ -n "$DSELX" ]; then
   case "$ROLE" in builder|fixer|test-author) BOTH=yes ;; esac
+  [ "$STAGING" = yes ] && BOTH=yes   # v0.26.10.7 (R6): a staging request's deployed pass, as an iterate's
 fi
 if [ "$HAVEDSX" = yes ] && [ "$SELCLOSE" = no ] && [ "$BOTH" = no ]; then
   echo 'ViD test: refused — --deployed-selection belongs to a selected close or a checkpoint inside a develop run under a 0.9.6 plan (sh checks/test.sh --role close -- <selection> --deployed-selection <selection>), or to a builder'"'"'s, fixer'"'"'s or test-author'"'"'s scoped run carrying its deployed pass (--role builder -- <selection> --deployed-selection <selection>).' >&2
@@ -1769,7 +1797,7 @@ while :; do
   [ -n "$TD" ] && [ -f "$TD/cancel" ] && { kill -TERM $$; sleep 1; }   # v0.9.7.1 (3.6, R6): cancelled while queued — the signal path, nothing held
   # v0.9.7.0.11 (3.6, R6): an export-backed request waits out a dirty worktree before it takes a slot — each round,
   # up to VID_DIRTY_WAIT (600) s from the first dirty sight, then refused as before; HEAD's tree at serve still runs
-  if [ -n "$TD" ] && [ "$CHUNK" = no ] && { [ -z "$SEL" ] || [ "$SELCLOSE" = yes ]; }; then
+  if [ -n "$TD" ] && [ "$CHUNK" = no ] && { [ -z "$SEL" ] || [ "$SELCLOSE" = yes ] || [ "$STAGING" = yes ]; }; then
     _dy=$(git status --porcelain -- . ':(exclude).vid' 2>/dev/null || true)
     if [ -n "$_dy" ]; then
       [ -n "$DW0" ] || DW0=$(date +%s)

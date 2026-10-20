@@ -15,7 +15,13 @@ re-read your brief and this skill in full before any other work.
 
 ## Your first moves (v0.9.7.1 3.1, 3.3)
 
-1. **Check out your base.** Your first command, in your fresh worktree:
+0. **A fixer records its home first** (v0.26.10.7 R6): `sh checks/plan.sh
+   home --brief <your brief file>`, the command your brief's header names
+   (`first act:`). A fixer spawned by `/vid fix` or `/vid deploy` works
+   outside a develop run; this makes its test runs publish at the project,
+   where its hand-back is read.
+1. **Check out your base.** Your first command in your fresh worktree (a
+   fixer's after step 0):
    `git checkout -b <the brief's branch:> <the brief's quoted-at:>`. It
    never resets a branch that exists. If it fails — the branch exists, the
    commit is missing — make no edit: hand back every row `not | none |

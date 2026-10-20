@@ -112,6 +112,7 @@
 #   by=<rule> attempt=<id> step=<id>` at the home.
 #   v0.26.10.5 (R6): with STAGES.md at the home, admission (start, admit)
 #   first refuses a step holding a row outside stages 1 to the current one
+#   (0 to it with STAGE-0, v0.26.10.8 R2)
 #   (RUN-STATE's `stage:`; checks/stages.sh scope) — started or not, with
 #   no exception for a pull-forward — `refused … by=stage`.
 #   map [--all]        the currency map checks/evidence.sh reads (`<row>
@@ -530,9 +531,10 @@ admit_step() {
   if [ -f "$H/STAGES.md" ] && [ -f "$H/checks/stages.sh" ]; then
     ( cd "$H" && sh checks/stages.sh scope ) > "$TMPD/stscope" 2> "$TMPD/stscope.err" || { echo "ViD plan: refused — the stage scope cannot be read (checks/stages.sh scope): $(head -n 1 "$TMPD/stscope.err")" >&2; refused_ev stage "$_s"; return 1; }
     _cur=$( cd "$H" && sh checks/stages.sh current )
+    _lo=1; sed -n '/^```vid-stages$/,/^```$/p' "$H/STAGES.md" | grep -qE '^[[:space:]]*STAGE-0+[[:space:]]*\|' && _lo=0   # v0.26.10.8 (R2)
     _out=$(awk -F'\t' 'NR == FNR { S[$1] = 1; next } $1 == "row" && $3 == s && !($2 in S) { printf "%s%s", (n++ ? ", " : ""), $2 }' s="$_s" "$TMPD/stscope" "$TMPD/parsed")
     if [ -n "$_out" ]; then
-      echo "ViD plan: refused — $_s holds rows outside stages 1 to $_cur (the current stage): $_out. A later stage's rows are planned when the current stage closes; a pull-forward brings the minimum piece forward and never admits a later row (proven by this stage's rows that use it)." >&2
+      echo "ViD plan: refused — $_s holds rows outside stages $_lo to $_cur (the current stage): $_out. A later stage's rows are planned when the current stage closes; a pull-forward brings the minimum piece forward and never admits a later row (proven by this stage's rows that use it)." >&2
       refused_ev stage "$_s"; return 1
     fi
   fi

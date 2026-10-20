@@ -2,19 +2,25 @@
 
 `viewer/page/` is the owner's design from the release's design pack (kept in the
 repository's docs/, not shipped; Claude Design), used as the page's code: since
-v0.26.10.2 its `VID Viewer v3.dc.html` (2026-10-19), which is v2 (2026-10-13)
-with the Architecture section added. The build changes it only in three
+v0.26.10.6 its `VID Viewer v4.dc.html` (2026-10-20), which is v3 (2026-10-19)
+with the Execution and Economics sections added; v3 was v2 (2026-10-13) with
+the Architecture section added. The build changes it only in three
 kinds (spec §3.10): **1** one offline file, **2** reading the real data, **3**
-copy true of ViD and of the data. Layout, look and navigation never change.
+copy true of ViD and of the data; and, from v0.26.10.8 (its R12, the owner's
+decision 5), **4** a panel added in the page's own look — its markup copied
+from a panel already there, its reader and its place in the view, with no new
+navigation. Layout, look and navigation never change otherwise.
 Every change is one entry below: its kind, where it is and why. The changes
-of kinds 2 and 3 are made in `viewer/page/ViD Viewer v3.dc.html`; each carries
+of kinds 2 and 3 are made in `viewer/page/ViD Viewer v4.dc.html`; each carries
 the design's text and the page's, and the case `view-page-diff` applies them,
 in order, to the design and requires the page byte for byte — any difference
 this file does not list fails it. C-01 to C-58 were written for v2 and apply
-to v3 as they are, each old text found once (v0.26.10.2 §12); C-59 onward are
-v3's own. `NOTE.md` and `screenshots/arch-module-*` are v3's pack's, beside
-v2's screenshots; `support.js` is v2's pack's, since v3's pack returned none
-(its note: unchanged). All are unchanged.
+to v3 as they are, each old text found once (v0.26.10.2 §12); C-59 to C-62
+are v3's own; C-01 to C-62 apply to v4 as they are (v0.26.10.6 §11); C-63
+onward are v4's own. `NOTE.md` is v4's pack's; `screenshots/exec-*` and
+`econ-*` are v4's pack's, beside v3's `arch-module-*` and v2's;
+`support.js` is v2's pack's, since neither v3's nor v4's pack returned one
+(their notes: unchanged). All are unchanged.
 
 ## Kind 1 — one offline file (made when each snapshot is assembled, `viewer/view.sh`)
 
@@ -760,4 +766,153 @@ planOnly:'Plan module names',all:'Architecture'};
 ~~~
 ~~~new
 planOnly:'Plan module names',mustNeverBreak:'Must-never-break rules',all:'Architecture'};
+~~~
+
+## v0.26.10.6 — the Execution and Economics sections (v4's own)
+
+C-01 to C-62 apply to v4 as they are, each old text found once (v0.26.10.6
+§11). The entries below are v4's own, each as small as it can be (spec R18).
+
+### C-63 · kind 2 · the script: the design-only execution previews (v0.26.10.6 R18a)
+
+The design's `execSample` switch (and its `window.VID_EXEC_SAMPLE` and `window.VID_EXEC_DATASET` hooks) builds invented states for the design's own review: "edge states" makes an agent die, a Codex job need recovery and two older totals turn into four kinds (`xEdge`), and "past snapshot" cuts the data at a fixed moment (`xCut`). A snapshot shows only what is recorded, so the switch is held at "as recorded" and both hooks are gone; a past snapshot's own data already holds only what was recorded by its moment.
+
+~~~old
+const ds=window.VID_EXEC_DATASET||this.props.dataset||'full',smp=window.VID_EXEC_SAMPLE||this.props.execSample||'as recorded';
+~~~
+~~~new
+const ds=this.props.dataset||'full',smp='as recorded';
+~~~
+
+### C-64 · kind 2 · the script: `xPrice`, the 1-hour cache write (v0.26.10.6 R18b, R13)
+
+Claude's cache writes are of two lifetimes, priced differently; a usage entry's `cacheWrite1h` is the part of `cacheWrite` written for one hour, priced at the table's 1-hour rate, and the rest at the 5-minute rate.
+
+~~~old
+(u.cacheWrite||0)*p.cacheWrite+
+~~~
+~~~new
+((u.cacheWrite||0)-(u.cacheWrite1h||0))*p.cacheWrite+(u.cacheWrite1h||0)*p.cacheWrite1h+
+~~~
+
+### C-65 · kind 2 · the script: Cost per outcome's shared-work line, the run manager (v0.26.10.6 R18c)
+
+A run manager's window recorded in the four kinds carries no older total; the line names the older records' total only for them, and shows the four-kind sums apart, never a total alone.
+
+~~~old
+mgr:'Run manager: '+PL(O.shared.managerRecords,'record')+', '+TK(mT)+' total (input and cache together; output not recorded).',
+~~~
+~~~new
+mgr:'Run manager: '+PL(O.shared.managerRecords,'record')+(mg.length-mK?', '+PL(mg.length-mK,'older record')+' '+TK(mT)+' total (input and cache together; output not recorded)':'')+(mK?(mg.length-mK?';':',')+' '+PL(mK,'record')+' in four kinds, shown apart: input '+TK(mg.reduce((n,x)=>n+(x.input||0),0))+' · cache read '+TK(mg.reduce((n,x)=>n+(x.cacheRead||0),0))+' · cache write '+TK(mg.reduce((n,x)=>n+(x.cacheWrite||0),0))+' · output '+TK(mg.reduce((n,x)=>n+(x.output||0),0)):'')+'.',
+~~~
+
+### C-66 · kind 2 · the script: a group's lines, the reported total (v0.26.10.6 R18d)
+
+A total the agent reported itself is shown on its own, labelled as such, never inside the older totals or the four kinds.
+
+~~~old
+if(o.nR)out.push({k:'Reported total ('+N(o.nR)+'):',v:TK(o.r)});
+~~~
+~~~new
+if(o.nR)out.push({k:'Reported by the agent ('+N(o.nR)+'):',v:TK(o.r)+' (a total the agent reported itself)'});
+~~~
+
+### C-67 · kind 2 · the script: the older-totals card, the reported total (v0.26.10.6 R18d)
+
+The cards counted a reported total nowhere; its sum is now said on its own, apart from the older totals.
+
+~~~old
+tSub:PL(S.nT,'agent')+' · total (input and cache together; output not recorded). No dollar figure is put on an older total.',
+~~~
+~~~new
+tSub:PL(S.nT,'agent')+' · total (input and cache together; output not recorded). No dollar figure is put on an older total.'+(S.nR?' Reported by the agent, apart: '+TK(S.r)+' ('+PL(S.nR,'agent')+').':''),
+~~~
+
+### C-68 · kind 2 · the script: the grouped table, the reported total (v0.26.10.6 R18d)
+
+A group's reported total is shown under its older total, labelled, never added to it.
+
+~~~old
+hasTN:o.nT>0,tN:PL(o.nT,'agent'),
+~~~
+~~~new
+hasTN:o.nT>0||o.nR>0,tN:(o.nT?PL(o.nT,'agent'):'')+(o.nR?(o.nT?' · ':'')+'reported by the agent: '+TK(o.r)+' ('+PL(o.nR,'agent')+')':''),
+~~~
+
+### C-69 · kind 2 · the script: a try's short usage, the reported total (v0.26.10.6 R18d)
+
+A reported total is not an older total; the short line says which it is.
+
+~~~old
+return {tok:TK(u.total)+' older total (input and cache together; output not recorded)',fg:'var(--ink)'};}
+~~~
+~~~new
+return {tok:TK(u.total)+(u.kind==='reported'?' reported by the agent':' older total (input and cache together; output not recorded)'),fg:'var(--ink)'};}
+~~~
+
+### C-70 · kind 2 · the script: `XST`, the state `unaccepted` (v0.26.10.6 R18e, R1)
+
+An agent with a hand-back and no acceptance recorded is neither returned nor without a hand-back; its state reads "handed back, no acceptance recorded" in the roster, the agent page and the copy-a-prompt state word.
+
+~~~old
+returned:{l:'Returned',w:'returned',c:'var(--c-pass)'},
+~~~
+~~~new
+returned:{l:'Returned',w:'returned',c:'var(--c-pass)'},unaccepted:{l:'Handed back, no acceptance recorded',w:'handed back, no acceptance recorded',c:'var(--c-owed)'},
+~~~
+
+## Kind 4 — a panel added in the page's own look (v0.26.10.8)
+
+### C-71 · kind 4 · the template: Delivery's Stages panel (v0.26.10.8 R12)
+
+The Delivery overview gains a Stages panel under its cards, shown when the data lists a stage or records staging or production (`stages`, viewer-data 4): one line per stage (its number, its name, its state; stage 0 marked "technical, never released"), what staging was last verified at, a later failed attempt, and what production runs. Its look is the "Built, passing and confirmed" panel's: the same section, heading, list and footnote styles; no navigation is added.
+
+~~~old
+{{ c.cta }} →</span></a></sc-for></div>
+~~~
+~~~new
+{{ c.cta }} →</span></a></sc-for></div>
+<sc-if value="{{ dl.hasStages }}">
+<section aria-labelledby="h-stages" style="display:flex;flex-direction:column;gap:12px;padding:20px;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow)">
+<div style="display:flex;flex-direction:column;gap:2px"><h2 id="h-stages" style="margin:0;font-size:17px">Stages</h2><span style="font-size:13px;color:var(--ink2)">The stages the build is cut into, and what staging and production run.</span></div>
+<ol style="margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px">
+<sc-for list="{{ dl.stages }}" as="s">
+<li style="display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline"><strong style="font-size:14px">Stage {{ s.n }}</strong><span style="font-size:14px;flex:1 1 200px;min-width:0;text-wrap:pretty">{{ s.name }}<sc-if value="{{ s.technical }}"><span style="font-size:12px;color:var(--ink2)"> · technical, never released</span></sc-if></span><span style="font-size:12px;color:var(--ink2)">{{ s.state }}</span></li>
+</sc-for>
+</ol>
+<sc-if value="{{ dl.hasStaging }}"><p style="margin:0;padding-top:12px;border-top:1px solid var(--line);font-size:13px;color:var(--ink2);text-wrap:pretty">{{ dl.stgText }}</p></sc-if>
+<sc-if value="{{ dl.hasStgFail }}"><p style="margin:0;font-size:13px;color:var(--ink2);text-wrap:pretty">{{ dl.stgFail }}</p></sc-if>
+<p style="margin:0;font-size:13px;color:var(--ink2);text-wrap:pretty">{{ dl.prText }}</p>
+</section>
+</sc-if>
+~~~
+
+### C-72 · kind 4 · the script: the Stages panel's reader, `stgV` (v0.26.10.8 R12)
+
+The panel's lines, from `stages`: R12's wording, a commit shown by its first seven characters, a part with no record left out. A snapshot without `stages` reads as an empty part.
+
+~~~old
+  actV(D){
+~~~
+~~~new
+  stgV(D){const S=D.stages||{list:[],staging:null,production:null},sg=S.staging,pr=S.production,c7=c=>String(c||'').slice(0,7);
+    const SL={closed:'Closed',held:'Closed and held',building:'Building','not started':'Not started'};
+    const stages=(S.list||[]).map(s=>({n:String(s.n),name:s.name,technical:!!s.technical,state:SL[s.state]||s.state}));
+    const sp=sg?[sg.stage!=null?'stage '+sg.stage:'',sg.ahead!=null?PL(sg.ahead,'commit')+' past the last full pass':''].filter(Boolean).join(', '):'';
+    const f=sg&&sg.lastFailure;const pp=pr?[pr.stage!=null?'stage '+pr.stage:'',pr.at?'since '+fmtT(pr.at):''].filter(Boolean).join(', '):'';
+    return {hasStages:(S.list||[]).length>0||!!sg||!!pr,stages,hasStaging:!!sg,stgText:sg?'Staging last verified at '+c7(sg.commit)+(sp?': '+sp:''):'',
+      hasStgFail:!!f,stgFail:f?'A later attempt failed '+fmtT(f.at)+(f.why?': '+f.why:'')+'; staging may run '+(f.candidate?c7(f.candidate):'a newer commit')+', unverified.':'',
+      prText:pr?'Production runs '+c7(pr.commit)+(pp?': '+pp:''):'Nothing live yet'};}
+  actV(D){
+~~~
+
+### C-73 · kind 4 · the script: the panel in Delivery's view (v0.26.10.8 R12)
+
+The panel's values join Delivery's, beside the delegated rulings' and the answers'.
+
+~~~old
+...this.dgV(D),...this.ansV(D),
+~~~
+~~~new
+...this.dgV(D),...this.ansV(D),...this.stgV(D),
 ~~~

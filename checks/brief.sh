@@ -74,6 +74,8 @@
 # $CLAUDE_PLUGIN_ROOT (else this file's ../). Refused before writing: an
 # unknown row or decision id, a grader brief without --receipt, a fixer
 # brief in a develop run without --step, a CLAUDE.md missing a law section.
+# v0.26.10.7 (R6, F-58): a fixer's and a test-author's header ends with `first act: sh checks/plan.sh home --brief
+# <the brief's absolute path>` — the agent records the project as its home before anything else.
 # No option adds text. The last header line is the stamp, `written:
 # brief.sh write <hash>`, the git hash-object of the file without that
 # line; the check refuses a stamped brief whose hash differs ("changed
@@ -213,6 +215,9 @@
 # effective values, from the transcript or Codex's events) and brief-bytes=. At each `return`, once per return
 # file, `manager-cost calls= input= since=<the previous manager-cost's at>` from the run manager's transcript. A
 # Codex builder's cost is read from .vid/jobs/<try>.events by its own reader.
+# v0.26.10.6 (R17c) — beside each manager-cost, `usage agent=manager session=<id> tool=claude model= effort= calls=
+# input= cache-read= cache-write= cache-write-1h= output= scope=since:<the window's start|->` over the same window,
+# from the same transcript, in four kinds (musage); nothing reads it but the viewer.
 # v0.9.7.1 (3.12, R12) — `plugins` lists the enabled plugins that are not ViD's, from the host's settings files at
 # user, project and local scope (the later scope wins), each with the scope that enables it, then the project
 # setting that turns one off and the note that a local setting or the organisation can override it. A notice.
@@ -491,6 +496,26 @@ mcost() { awk -v since="$2" 'function num(s, k,   p, t) { p = index(s, "\"" k "\
       id = ""; if (match($0, /"id":"msg_[^"]*"/)) id = substr($0, RSTART, RLENGTH); if (id == "") id = "line" NR; if (id in S) next; S[id] = 1
       s = substr($0, u); n++; t += num(s, "input_tokens") + num(s, "cache_read_input_tokens") + num(s, "cache_creation_input_tokens") }
     END { printf "calls=%d input=%d\n", n, t }' "$1"; }
+# v0.26.10.6 (R17c): musage <transcript> <since UTC|empty>: the run manager's usage over the same window as mcost, in
+# four kinds — `model= effort= calls= input= cache-read= cache-write= cache-write-1h= output=`: the entries after
+# <since>, each message id's last entry (a streamed message's earlier entries hold partial output, so not mcost's
+# first), the line's last usage object (the message's own) bounded by its braces, a call's 1-hour part never more than
+# its cache write; `<synthetic>` entries skipped;
+# `mixed` when the calls name more than one model
+musage() { awk -v since="$2" 'function num(s, k,   p, t) { p = index(s, "\"" k "\":"); if (!p) return 0; t = substr(s, p + length(k) + 3); match(t, /^[0-9]+/); return (RLENGTH > 0) ? substr(t, 1, RLENGTH) + 0 : 0 }
+    index($0, "\"effort\":\"") && match($0, /"effort":"[^"]*"/) { ef = substr($0, RSTART + 10, RLENGTH - 11) }
+    index($0, "\"usage\":{\"input_tokens\":") && !index($0, "\"type\":\"progress\"") {
+      ts = ""; if (match($0, /"timestamp":"[^"]*"/)) ts = substr($0, RSTART + 13, 19) "Z"
+      if (since != "" && ts != "" && ts <= since) next
+      s = $0; u = 0; while ((i = index(s, "\"usage\":{\"input_tokens\":")) > 0) { u += i; s = substr(s, i + 1) }
+      s = substr($0, u + 8); d = 0; for (i = 1; i <= length(s); i++) { c = substr(s, i, 1); if (c == "{") d++; else if (c == "}" && --d == 0) break } s = substr(s, 1, i)
+      m = ""; if (match($0, /"model":"[^"]*"/)) m = substr($0, RSTART + 9, RLENGTH - 10); if (m == "<synthetic>") next
+      id = ""; if (match($0, /"id":"msg_[^"]*"/)) id = substr($0, RSTART, RLENGTH); if (id == "") id = "line" NR
+      if (!(id in IN)) ID[++n] = id; IN[id] = num(s, "input_tokens"); CR[id] = num(s, "cache_read_input_tokens"); CW[id] = num(s, "cache_creation_input_tokens")
+      C1[id] = num(s, "ephemeral_1h_input_tokens"); if (C1[id] > CW[id]) C1[id] = CW[id]; OU[id] = num(s, "output_tokens"); MO[id] = m }
+    END { for (k = 1; k <= n; k++) { x = ID[k]; a += IN[x]; b += CR[x]; c += CW[x]; e += C1[x]; o += OU[x]; if (MO[x] != "" && !(MO[x] in MS)) { MS[MO[x]] = 1; nm++; md = MO[x] } }
+      if (nm > 1) md = "mixed"; if (md == "") md = "unknown"; if (ef == "") ef = "unknown"
+      printf "model=%s effort=%s calls=%d input=%d cache-read=%d cache-write=%d cache-write-1h=%d output=%d\n", md, ef, n, a, b, c, e, o }' "$1"; }
 # tcost <agent transcript> <modules>: `peak=<t> total=<t> before-change=<t|unknown>[ shell]` (3.3)
 tcost() {
   awk -v mods="$2" '
@@ -1023,6 +1048,8 @@ if [ "${1:-}" = write ]; then
     if [ -n "$TRY" ]; then printf 'try: %s\nbranch: vid/%s\nreturn: %s/%s\n' "$TRY" "$TRY" "$(pwd -P)" "$D/$WROLE-$N.return.md"; fi
     [ -n "$PB" ] && printf 'pending-birth: %s\n' "$PB"
     [ -n "$PA" ] && printf 'pending-append: %s\n' "$PA"
+    # v0.26.10.7 (R6, F-58): a fixer's and a test-author's first act records the project as its home
+    { [ "$WROLE" = fixer ] || [ "$WROLE" = test-author ]; } && printf 'first act: sh checks/plan.sh home --brief %s/%s\n' "$(pwd -P)" "$OUT"
   } > "$W/head"
   {
     printf '\n'
@@ -1477,6 +1504,9 @@ if [ "${1:-}" = return ]; then
     _mc='calls=unknown input=unknown'
     if [ -n "$_mt" ] && [ -r "$_mt" ]; then _mc=$(mcost "$_mt" "$_since"); fi
     sh checks/event.sh "manager-cost $_mc since=${_since:--} return=$RF" >/dev/null 2>&1 || true
+    # v0.26.10.6 (R17c): the same window in four kinds, beside it; a transcript not found writes none
+    if [ -n "$_mt" ] && [ -r "$_mt" ]; then _ms=$(mgr_session); _mu=$(musage "$_mt" "$_since") && [ -n "$_mu" ] && \
+      sh checks/event.sh "usage agent=manager session=${_ms:--} tool=claude $_mu scope=since:${_since:--}" >/dev/null 2>&1 || true; fi
   fi
   ctx_notice
   # build-cost, once per brief

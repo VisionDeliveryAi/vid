@@ -33,7 +33,7 @@ IFS='
 
 STRICT=0; ROWSF=''
 # v0.26.10.5 (R8): --rows <scope file> — the obligation ids (ROW, RULE, DIF, EXC, SUP, HOS) and the PRD items (REQ,
-# INV) of stages 1 to N, one per line (sh checks/stages.sh scope --upto N --reqs). Every join then reads only them:
+# INV) of stages 1 to N (0 to N with STAGE-0, v0.26.10.8), one per line (sh checks/stages.sh scope --upto N --reqs). Every join then reads only them:
 # the pilot set (REQs not in the file are not judged), the ROW pass, the design markers (a marker counts when a
 # scoped row binds it or no row does), the inventory reader's GAP/OWED/ORPHAN lines (an id outside the file is left
 # out; a line naming no row or item — a route, a seam — counts) and the VID-QUESTION markers (a marker whose ids,

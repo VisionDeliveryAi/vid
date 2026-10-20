@@ -1,6 +1,6 @@
 ---
 name: vid-stage
-description: Cut a ViD project into stages the owner ratifies in one sitting — through four lenses (outcome, technical order, constraints, risk) it builds the finest cut whose every stage is usable, safe to release, buildable, protected and whole, then coarser rungs by merging neighbours, shown as one ladder with counts, the recommended rung's plain-language cards and the open product choices; the ratified cut is STAGES.md, a law file, or no file at all when the owner keeps a single stage. vid-init runs it at its end, after the inventory is materialised and proved red; it also runs on request for a re-cut. Use when the owner says "vid stage", wants the product delivered in stages, or wants the cut changed.
+description: Cut a ViD project into stages the owner ratifies in one sitting — through four lenses (outcome, technical order, constraints, risk) it builds the finest cut whose every stage is usable, safe to release, buildable, protected and whole, then coarser rungs by merging neighbours, shown as one ladder with counts, the recommended rung's plain-language cards and the open product choices; the ratified cut is STAGES.md, a law file, or no file at all when the owner keeps a single stage; at init's cut it also offers a technical stage 0 (the walking skeleton, deployed to staging, never released) and asks once for the standing staging authorization. vid-init runs it at its end, after the inventory is materialised and proved red; it also runs on request for a re-cut. Use when the owner says "vid stage", wants the product delivered in stages, or wants the cut changed.
 ---
 
 # /vid stage
@@ -10,10 +10,11 @@ closed, tagged and can go to staging, and at each close the owner decides
 whether to go live or carry on (vid-develop, vid-deploy). This skill
 proposes the cut and records what the owner ratifies. It changes no
 requirement, no row and no line of the PRD's grammar: `phase: pilot |
-later` keeps its meaning, and stages 1 to N together are the pilot.
+later` keeps its meaning, and stages 1 to N together are the pilot (stage
+0, when there is one, holds rows only: it is technical and never released).
 
 **Stage events (RECORDS.md).** Record `sh checks/event.sh "stage
-name=stage state=start session=$CLAUDE_CODE_SESSION_ID records=25"` when
+name=stage state=start session=$CLAUDE_CODE_SESSION_ID records=28"` when
 this skill starts and `sh checks/event.sh "stage name=stage state=end
 session=$CLAUDE_CODE_SESSION_ID"` when it hands back.
 
@@ -37,9 +38,9 @@ session=$CLAUDE_CODE_SESSION_ID"` when it hands back.
 - `DEPLOYMENT.md`, when present;
 - `.vid/RUN-STATE.md`, on a re-cut (`stage:` is the stage being built).
 
-The stage court is 0.26.10.5's (`checks/records-version` 25): a project
-whose checks/ is older is refreshed first, as develop's version check
-says. `sh checks/prd.sh --effective` gives the effective items; `sh
+The stage court is 0.26.10.5's (`checks/records-version` 25), and stage 0
+is 0.26.10.8's (28): a project whose checks/ is older is refreshed first,
+as develop's version check says. `sh checks/prd.sh --effective` gives the effective items; `sh
 checks/stages.sh scope --upto N --reqs` and `sh checks/stages.sh stage-of
 <id>` read a cut back exactly as every court will.
 
@@ -130,6 +131,51 @@ small to be worth its own close and deploy, and then say so on that card.
 Cards are drawn for the recommended rung only, and again for the rung the
 owner picks.
 
+## Stage 0 — the technical stage (v0.26.10.8 R1, R2)
+
+**At init's cut only,** below the ladder's table, one more line offers a
+**technical stage 0** for the rung the owner picks, with its card; the
+owner says yes or no to it in the same sitting. A re-cut never adds or
+removes it: the court refuses a STAGE-0 line added or removed by any
+commit but the one creating `STAGES.md`.
+- **Recommended** when the product will be deployed and uses an outside
+  service (email, payments, sign-in, storage, a partner feed); the card
+  says why in one line — so the questions a first deploy raises come at
+  the start, not at the end.
+- **Its rows** are yours to choose: the fewest existing ROW rows that make
+  one thin journey through the main modules (ARCHITECTURE.md), including
+  at least one that stores data and reads it back. Each is a row whose
+  whole Fail-if the skeleton can meet. A health page alone is never the
+  skeleton. The rows' requirements keep their own stages; stage 0 holds
+  rows only.
+- **Tried before it is shown,** as every rung is: written into the rung's
+  scratch copy and passed through `sh checks/stages.sh check` and `counts`
+  (`stage 0 requirements=0 rows=<n>`).
+- **With the single-stage rung,** a yes writes `STAGES.md` with STAGE-0
+  and a STAGE-1 holding every feature.
+- **Stage 0's card** says, in plain language: "technical: never released;
+  an exception to 'usable'"; the thin journey it holds, and the rows
+  proving it (counted); what setting staging up will still need from the
+  owner's own hands, from the `vid-hosting` block init recorded
+  (`owner-only:`): the log-in, and the accounts only the owner can create
+  (counted, by name); what proves it done: its rows pass and are graded,
+  then staging runs it; the effort, S/M/L, labelled an estimate. It has
+  no outcome, audience, "what to watch once live" or requirements: it
+  holds none.
+- **With stage 0,** stage 1's card names no walking skeleton; stage 0 is
+  it.
+
+**The standing staging authorization (R6).** In the same sitting, once
+the cut has two or more stages (stage 0 counts), ask once: "May ViD set up
+the test site and put each finished stage on it on its own? Going live
+always waits for you." Record the answer after `STAGES.md` is committed:
+`sh checks/stages.sh staging-auth on|off --words "<the owner's words,
+verbatim>"`. The owner may give or withdraw it at any time afterwards;
+any verb records "stop deploying to staging on your own" as `off`. It
+covers only develop's staging deploy at a ready stage close, and at
+"continue" while staging is being set up — not a fix, a schedule, a re-cut
+or production.
+
 ## The sitting — one, at the end
 
 The owner sees the ladder and the recommended rung's cards and, in one
@@ -150,7 +196,8 @@ rung). The picked rung's cards are drawn and shown. Each card has:
 - counts: requirements, rows, journeys, new outside services.
 
 Stage 1's card names its **walking skeleton**: one thin journey through
-the main modules and services, built first in stage 1.
+the main modules and services, built first in stage 1 — unless the owner
+took stage 0, which is the skeleton (above).
 
 **Plain language.** No ids in what the owner reads unless the owner asks
 — a feature by its name, a requirement by what it lets someone do.
@@ -170,7 +217,8 @@ Counts only; no scores, no percentages.
 3. **Two or more stages:** `STAGES.md` at the root from
    `${CLAUDE_PLUGIN_ROOT}/templates/STAGES.md` — the cards, and the
    ```vid-stages block (one `STAGE-N | <name> | features: FEAT-…` line per
-   stage; `split:` lines for a split feature's requirements; `row:` lines
+   stage; with stage 0, `STAGE-0 | <name> | technical` and a `row: ROW-x ->
+   STAGE-0` line for each of its rows; `split:` lines for a split feature's requirements; `row:` lines
    placing a row whose requirements span stages, or a rule row placed
    later; `needs:` lines, each with its source). No placeholder survives.
    Run `sh checks/stages.sh` and resolve every refusal before committing:
@@ -189,6 +237,7 @@ one stage) is a membership change too.
 
 ## Hand back
 
-One line per stage — its name, its outcome, its counts — and that
-`/vid develop` builds stage 1 first (or, on a re-cut, carries on with
-the current stage).
+One line per stage — its name, its outcome, its counts — whether the
+standing staging authorization is on, and that `/vid develop` builds the
+first stage first, stage 0 when there is one (or, on a re-cut, carries on
+with the current stage).

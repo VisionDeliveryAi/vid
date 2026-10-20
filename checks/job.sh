@@ -22,6 +22,11 @@
 #     make the exit `job-exit reason=codex-limit`: the unfinished work is saved (brief.sh save), the try's tickets
 #     cancelled (test.sh cancel), and builder-tool becomes `paused` with `builder-tool paused reason=codex-limit
 #     reset=<time|unknown>`; no spawn on either tool until the owner's word.
+#     v0.26.10.6 (R17b): beside job-exit, `usage agent=codex:<try> session=- tool=codex model= effort= calls=unknown
+#     input= cache-read= cache-write= cache-write-1h=0 output= scope=agent` from the events file, each turn.completed
+#     usage summed: input is input_tokens less cached_input_tokens (Codex counts its cached input inside its input),
+#     cache-read cached_input_tokens, cache-write cache_write_input_tokens (0 when absent), output output_tokens
+#     (reasoning tokens are within it); model and effort the job record's. No events file, or no usage in it: none.
 #   status [<try>]   the process (alive, by group and start time), the return (present or missing), collected
 #     (an `agent-returned … try=` event) and cleaned; and every ticket carrying the try outside the run's home
 #     `.vid/requests/` — a `coordination fault`, recorded as an incident.
@@ -145,6 +150,12 @@ case "$CMD" in
     fi
     jput "$J" exit "$RC"; [ "$STOPPED" = yes ] && jput "$J" stopped yes; jput "$J" ended "$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
     ev "job-exit try=$TRY exit=$RC reason=$REASON"
+    # v0.26.10.6 (R17b): the job's usage in four kinds, beside job-exit
+    UK=$(awk 'function num(s, k,   p, t) { p = index(s, "\"" k "\":"); if (!p) return 0; t = substr(s, p + length(k) + 3); match(t, /^[0-9]+/); return (RLENGTH > 0) ? substr(t, 1, RLENGTH) + 0 : 0 }
+        index($0, "\"turn.completed\"") && (u = index($0, "\"usage\":{")) { s = substr($0, u); i += num(s, "input_tokens"); c += num(s, "cached_input_tokens"); w += num(s, "cache_write_input_tokens"); o += num(s, "output_tokens"); any = 1 }
+        END { if (any) printf "input=%d cache-read=%d cache-write=%d cache-write-1h=0 output=%d\n", (i - c < 0 ? 0 : i - c), c, w, o }' "$EVF" 2>/dev/null)
+    UM=$(jk model "$J" | tr -d ' '); UE=$(jk effort "$J" | tr -d ' ')
+    [ -n "$UK" ] && ev "usage agent=codex:$TRY session=- tool=codex model=${UM:-unknown} effort=${UE:-unknown} calls=unknown $UK scope=agent"
     if [ "$REASON" = codex-limit ]; then
       sh checks/brief.sh save "$B" --worktree "$WT" > /dev/null 2>&1 || echo "ViD job: the save of $TRY failed — the worktree $WT is kept"
       sh checks/test.sh cancel --try "$TRY" --by job.sh > /dev/null 2>&1 || true

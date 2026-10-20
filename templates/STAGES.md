@@ -24,15 +24,30 @@
      A ROW whose requirements sit in different stages, placed (a census
      rule row is stage 1 unless placed later the same way):
        row: ROW-x -> STAGE-<n>
+     A technical stage 0, the walking skeleton (init's cut only; never
+     released; it holds rows only, each placed by a row: line — its rows'
+     requirements keep their own stages):
+       STAGE-0 | <name> | technical
+       row: ROW-x -> STAGE-0
      An ordering edge, with where it comes from (never to a later stage):
        needs: FEAT-a needs FEAT-b — <source: a requirement, a module or a seam>
      checks/stages.sh judges the block at every commit; `sh checks/stages.sh
-     scope --upto N` lists what stages 1 to N must hold. -->
+     scope --upto N` lists what stages 1 to N (0 to N with stage 0) must hold. -->
 
 ```vid-stages
 STAGE-1 | {{STAGE_NAME}} | features: {{FEAT_IDS}}
 STAGE-2 | {{STAGE_NAME}} | features: {{FEAT_IDS}}
 ```
+
+<!-- With stage 0 only (the owner took it at init's cut); otherwise delete this card. -->
+## Stage 0 — {{STAGE_NAME}} (technical)
+
+- **Technical:** never released; an exception to "usable".
+- **The thin journey:** {{ONE_THIN_JOURNEY_THROUGH_THE_MAIN_MODULES_AND_THE_DATABASE}}
+- **Rows proving it:** {{N}} rows
+- **Setting staging up still needs from you:** {{THE_LOG_IN_AND_THE_ACCOUNTS_ONLY_THE_OWNER_CAN_CREATE_BY_NAME_COUNTED}}
+- **What proves it done:** its rows pass and are graded, then staging runs it
+- **Effort (an estimate):** {{S_M_OR_L}}
 
 ## Stage 1 — {{STAGE_NAME}}
 
@@ -42,7 +57,7 @@ STAGE-2 | {{STAGE_NAME}} | features: {{FEAT_IDS}}
 - **In:** {{WHAT_IS_IN}}
 - **Out:** {{WHAT_WAITS_FOR_A_LATER_STAGE}}
 - **Features:** {{WHOLE_FEATURES; A_SPLIT_FEATURE_SHOWS_ITS_EXACT_REQUIREMENTS}}
-- **Walking skeleton (stage 1 only):** {{ONE_THIN_JOURNEY_THROUGH_THE_MAIN_MODULES_AND_SERVICES_BUILT_FIRST}}
+- **Walking skeleton (stage 1 only, and only without stage 0):** {{ONE_THIN_JOURNEY_THROUGH_THE_MAIN_MODULES_AND_SERVICES_BUILT_FIRST}}
 - **Prerequisites:** {{EACH_WITH_ITS_SOURCE_AND_WHETHER_PRODUCT_OR_TECHNICAL}}
 - **Constraints:** {{DEADLINES_BUDGET_PROVIDERS_WHAT_MUST_NOT_BE_LIVE_EARLY}}
 - **Risks and probes:** {{THE_ASSUMPTION_THAT_HURTS_MOST_IF_WRONG_AND_ITS_SMALLEST_PROBE}}

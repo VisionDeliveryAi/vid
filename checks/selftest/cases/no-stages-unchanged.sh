@@ -3,8 +3,9 @@
 # no-stages-unchanged). The toy product (fixtures/stages.sh) with STAGES.md removed, ROW-004 red: the outputs of
 # `coverage.sh --strict`, `metrics.sh completion` and plan admission (a gated toy run, fixtures/plan-run.sh, with
 # checks/stages.sh present) equal, line for line, what main's 0.26.10.4 readers printed on the same fixture
-# (recorded below, the commit and the plan hash normalised); no `refused … by=stage`; `stages.sh deploy` claims and
-# ships "as today"; metrics.sh's block lists nothing "since stage". Env: CHECKS.
+# (recorded below, the commit and the plan hash normalised); no `refused … by=stage`; `stages.sh deploy` claims "as
+# today"; metrics.sh's block lists nothing "since stage". v0.26.10.7 (R2, R12; §5 no-stages-unchanged): the staging
+# candidate is HEAD, and `stages.sh hold` refuses with one line, recording nothing. Env: CHECKS.
 set -eu
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 . "$CHECKS/selftest/fixtures/stages.sh"
@@ -51,7 +52,12 @@ H=$(git rev-parse --short=12 HEAD)
 { echo '--- coverage'; sh checks/coverage.sh --strict 2>&1 || echo "exit=$?"
   echo '--- completion'; sh checks/metrics.sh completion 2>&1; } | sed "s/$H/SHA/g" > "$T/got"
 sh checks/stages.sh deploy --platform none > "$T/dep" 2>&1 || fail 'stages.sh deploy refused a project without STAGES.md'
-grep -qx 'claim: as today — sh checks/metrics.sh completion' "$T/dep" && grep -qx 'candidate: as today' "$T/dep" || fail "deploy's claim is not today's"
+# v0.26.10.7 (R2, R12): the claim stays today's; the staging candidate is HEAD; hold refuses with one line
+grep -qx 'claim: as today — sh checks/metrics.sh completion' "$T/dep" || fail "deploy's claim is not today's"
+grep -q "^candidate: HEAD $H " "$T/dep" || fail "the staging candidate is not HEAD $H"
+if sh checks/stages.sh hold --after 1 --words 'hold after this stage' > "$T/hold" 2>&1; then fail 'hold was accepted without STAGES.md'; fi
+[ "$(grep -c . "$T/hold")" -eq 1 ] && grep -q '^hold: refused — this project has no STAGES.md' "$T/hold" || fail "hold's refusal is not one line: $(cat "$T/hold")"
+grep -q '^stage-hold ' .vid/metrics-events 2>/dev/null && fail 'a refused hold recorded an event'
 sh checks/metrics.sh 2>&1 | grep -q '^since stage' && fail 'the metrics block lists commits since a stage'
 plan_repo "$T/p" > /dev/null
 cp "$CHECKS/stages.sh" checks/
