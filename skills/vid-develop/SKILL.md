@@ -13,8 +13,13 @@ narrated.
 
 ## Before any work
 
+**Ticket mode refuses develop (v0.26.10.9 R9).** Before anything else,
+read `.vid/RUN-STATE.md`: while it says `mode: tickets`, refuse in one line
+— "this project's plan is published as tickets; /vid replan continues it" —
+and record nothing. One planner per project.
+
 **The stage event (v0.9.5 3.11, R11).** First of all, record
-`sh checks/event.sh "stage name=develop state=start session=$CLAUDE_CODE_SESSION_ID records=28"`
+`sh checks/event.sh "stage name=develop state=start session=$CLAUDE_CODE_SESSION_ID records=29"`
 — and again whenever a session takes over the run (Resume, below); the
 completion report records the `end` (`state=end`, the same form without
 `records=`). Every event this skill names is written with
@@ -53,6 +58,14 @@ with `VID_ROLE=fix`, its subject `Refresh checks/ to VID <version>` (the
 next refresh's list counts from it). Record
 the stop as `run: stopped checks/ needs the refresh` (the four legal
 stops, below).
+**The code skeleton's floor (v0.26.10.9 R5): the version and provenance
+first, then the reader.** With `checks/records-version` below 29, `sh
+checks/plan.sh skeleton` doesn't exist there and is never called: a project
+whose init end (the newest `stage name=init state=end` event) has no
+`made=spec` and whose HEAD holds `docker-compose.test.yml` or a ROW whose
+`test` field is a path takes today's develop path, untouched; any other
+project stops for the refresh to 29, as the other floors do. With 29 or
+later, the code skeleton step below asks `plan.sh skeleton`.
 
 **Delegated marks, once (v0.9.7.4 3.9, R10).** At the first session after
 the refresh (no `delegated` event in `.vid/metrics-events` yet), if the
@@ -161,6 +174,19 @@ Right after the watcher:
   owner turns one off for this project. It never stops the run;
 - run `sh checks/job.sh tool` and say its line (`builders: claude`,
   `codex` or `paused`).
+
+**The code skeleton first (v0.26.10.9 R4, R5).** After the start checks
+above and before the test environments are measured, with checks/ at 29 or
+later, run `sh checks/plan.sh skeleton`. On `done` or `not needed`, go on.
+Otherwise (`not started provenance=…` or `next part <k>`): write RUN-STATE's
+`plan: skeleton` and invoke the `vid-skeleton` skill (the Skill tool) from
+the part the reader names, building it yourself, as init did — `plan.sh
+gate` reads `plan: skeleton` as off, so the skeleton's runs, receipts and
+stamps behave exactly as init's did, outside the gate. At its end write
+`plan: required`, record your own stage start again (`stage name=develop
+state=start …`, above), and go on as today: the test environments, then the
+plan. With stage 0 the skeleton is stage 0's first step; without, stage
+1's. Either way it is not a plan step.
 
 **The test environments.** The test manager measures the environments before the first
 run (`vid-test-manager`, test environments).
@@ -1124,7 +1150,7 @@ develop` where vid-deploy names it.
   section.
 - **Your gate after it.** vid-deploy records its own `stage name=deploy`
   start and end, so when it hands back, pass or fail, record `sh
-  checks/event.sh "stage name=develop state=start session=$CLAUDE_CODE_SESSION_ID records=28"`
+  checks/event.sh "stage name=develop state=start session=$CLAUDE_CODE_SESSION_ID records=29"`
   again, as on Resume. A hold's or completion's run line stays as written.
 - **Tell the owner in one line,** then carry on (or stop for a hold):
   "stage N is on staging (<commit>); say 'deploy to production' to go
@@ -1163,6 +1189,27 @@ domain (~25–30 per grader) and every `later` REQ listed as deferred, never
 ABSENT (v0.9.1 3.6), every graded REQ PASS / PARTIAL / FACADE / ABSENT
 against its own Fail-if with file:line evidence. Your green tests were written by the same
 mind that wrote the bugs; the graders were not.
+
+**After an add, the grade is scoped (v0.26.10.11 R5).** When one or more
+`stage name=add state=start` events in `.vid/metrics-events` come after the
+newest `completion unmet=0 strict-gaps=0` event (whether those adds have
+ended or not), the grade covers, instead of every live `pilot` REQ:
+- the requirements those adds' appends add or amend (the `(/vid add)`
+  sections of `## Appends`); and
+- the requirements of the modules changed since the earliest such add's
+  `base=` (`git diff --name-only <base> HEAD`), plus their declared
+  dependents — vid-fix's per-requirement re-grade scope ("After applying —
+  the blast-radius re-grade"), reused as written.
+
+`later` items are listed as deferred, as always. The scope is read from
+the records, never from which verb is running, so it holds across a
+hand-back, a hold, a stop, a later "continue" and a resume in another
+session; it can be wide when the changed modules have many dependents.
+The owner adjudicates this one findings table: vid-add runs no grade of
+its own. When nothing went to staging at the feature's stage close (no
+STAGES.md, or the standing authorization off), the completion report's last
+line is "rule on the findings table, then say 'deploy to staging'", so
+staging never gets code with accepted but unfixed findings (owner decision D3 (b)).
 
 NEVER auto-apply grader findings — that collapses author and verifier back
 into one. Findings go to the owner for adjudication (fix / dispute / defer);

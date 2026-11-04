@@ -15,7 +15,7 @@ Two uses:
    repository and writes briefs against its commits — the checker's
    convictions and acquittals (case 1).
 2. **The stochastic half of Phase C's cut line** (0.9.1 §3.10's protocol,
-   run by the builder, recorded in V0.9.3-BUILD-NOTES.md): fresh graders,
+   run by the builder, recorded with that release): fresh graders,
    each given only the repository path and a grader brief in the 3.1
    format, return one verdict per row; a control grader is given the
    repository path, the rows by id and the project's whole-reading rule.

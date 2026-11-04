@@ -8,7 +8,7 @@
 # Installed via core.hooksPath.
 # v0.9.5 (3.7-3.9; R7-R9): the hook times what it runs, into its own file,
 # one line per commit attempt (refused ones included) —
-#   hook result=pass|refused|killed seconds=<total> placement=<s> conformance=<s> imports=<s> seams=<s> inventory+census=<s> design-cite=<s> prd=<s|memo|-> harness=<s> selftest=<s|memo|-> redstamp=<s|-> at=<UTC>
+#   hook result=pass|refused|killed seconds=<total> placement=<s> conformance=<s> imports=<s> seams=<s> inventory+census=<s> design-cite=<s> prd=<s|memo|-> harness=<s> selftest=<s|-> redstamp=<s|-> at=<UTC>
 # in .vid/hook-times, every field `-` until its court runs, written by the
 # EXIT trap whatever the exit path, never able to turn a pass into a refusal
 # (`result=pass` is this hook's; commit-msg can still refuse the commit); the
@@ -16,15 +16,14 @@
 # seams) together, then the lanes (inventory then census, design-cite, prd,
 # harness) together — each job's output, status and seconds in its own file,
 # replayed in a fixed order, every failing court named, exactly the commits
-# the serial hook refused refused; and two memos skip work whose inputs are
-# unchanged on disk — the PRD court, and the law commit's run of ViD's
-# shipped self-test cases — only once rule 2a has run (HEAD carries checks/).
+# the serial hook refused refused; and a memo skips the PRD court when its
+# inputs are unchanged on disk — only once rule 2a has run (HEAD carries checks/).
 # v0.9.6.2 (3.4, R4): every refusal is named. Each refusing exit sets BY —
 # the courts that run side by side from the FAILED list (several failing
 # together are all named, comma-separated; inventory and census apart),
 # every other refusal its own name at its own exit (protected-paths,
 # law-dirty, law-standalone, purpose-header, decisions-enforced,
-# decisions-promissory, decisions-label (v0.9.7.3), hosting-access (v0.26.10.8), index-copy, red-stamp, prd-grammar, selftest) — and
+# decisions-promissory, decisions-label (v0.9.7.3), hosting-access (v0.26.10.8), no-plan-step (v0.26.10.24), index-copy, red-stamp, prd-grammar, selftest) — and
 # the EXIT trap, on a refused exit, appends ` by=<names>` to its hook-times
 # line and writes `refused phase=pre-commit by=<names> attempt=<UTC time
 # plus 4 hex>` to the run's events (checks/event.sh, so at the run's home).
@@ -157,7 +156,7 @@ if git rev-parse -q --verify HEAD:checks >/dev/null 2>&1; then
     echo '  - or set them aside with a WIP commit (on a side branch, never a stash) and bring them back after this commit.' >&2
     BY=law-dirty; exit 1
   fi
-  MEMO_OK=yes   # v0.9.5 (3.9): disk equals the index under checks/ from here — the memos may be read and written
+  MEMO_OK=yes   # v0.9.5 (3.9): disk equals the index under checks/ from here — the PRD memo may be read and written
 
   extract() { # $1=git blob ref ($1 may not exist: empty) $2=region name
     C=$(git show "$1" 2>/dev/null || true)
@@ -361,6 +360,13 @@ if [ -n "$HBAD" ]; then
   BY=hosting-access; exit 1
 fi
 
+# 4e. v0.26.10.24 (R3, R4): no product code with no plan step, during an add or before a step of a develop stage —
+# checks/plan.sh guard judges JUDGED and names the refusal; only its exit 1 refuses. Silent without plan.sh.
+if [ -f checks/plan.sh ]; then
+  _gr=0; printf '%s\n' "$JUDGED" | sh checks/plan.sh guard --paths - || _gr=$?
+  if [ "$_gr" -eq 1 ]; then BY=no-plan-step; exit 1; fi
+fi
+
 # 5–6. The courts — placement and conformance always; the rest presence-gated,
 # each on its own rule source (seam table import specifiers, INVENTORY.md,
 # @screen markers, census rows/extractors), so earlier projects refresh
@@ -530,54 +536,12 @@ if git diff --cached --name-only | grep -qxF PRD.md; then
 fi
 
 # 7. Touch the law, prove the judge still convicts (§4.2): a law-change
-# commit re-runs the court self-tests before it may land.
-# v0.9.7.3 (3.6, R6): the memo is a certificate shared by every worktree (below).
-# v0.9.5 (3.9): the memo skips only the cases the plugin ships
-# (checks/selftest/shipped); every other case — a generated extractor's —
-# runs at every law commit. Its key: checks/ as staged, the plugin-root trees
-# and files the cases read where present, the tools and git's version, the
-# locale; with git 2.32 or later only (the cases read no git configuration
-# outside their scratch repositories, which needs GIT_CONFIG_GLOBAL).
+# commit re-runs the project's own self-test cases — every case in
+# checks/selftest/cases/ that checks/selftest/shipped does not list (a
+# generated extractor's). v0.26.10.12.1 (F-108): never ViD's shipped cases;
+# they passed when the release was built, and nothing in a project changes them.
 if [ "$LAWCOMMIT" = yes ] && [ -f checks/selftest/run.sh ]; then
   BY=selftest   # its refusal is set -e's exit, below
-  STKEY=''
-  GV=$(git --version 2>/dev/null | sed -n 's/^git version \([0-9][0-9]*\)\.\([0-9][0-9]*\).*/\1 \2/p')
-  GOK=no
-  if [ -n "$GV" ]; then
-    if [ "${GV% *}" -gt 2 ] || { [ "${GV% *}" -eq 2 ] && [ "${GV#* }" -ge 32 ]; }; then GOK=yes; fi
-  fi
-  # v0.9.7.3 (3.6, R6): the certificate — today's key, its store moved to the
-  # repository's shared git directory, <absolute git common dir>/vid-selftest/<key>,
-  # so every checkout of the repository shares a pass. An entry is a pass only
-  # when it reads `pass <key>`: anything else (corrupt, half-written) is a miss.
-  CERTD=''
-  if [ -n "$MEMOD" ]; then _gcd=$(git rev-parse --git-common-dir 2>/dev/null) && CERTD="$(cd "$_gcd" 2>/dev/null && pwd -P)/vid-selftest" || CERTD=''; fi
-  stkey() {   # every line exits on its own failure, as above; prints the key, or nothing
-    (
-      checks_line || exit 1
-      for _r in skills templates hooks RECORDS.md; do
-        [ -e "$_r" ] || continue
-        for _f in $(find "$_r" -type f | LC_ALL=C sort); do hline "$_f" "$_f" || exit 1; done
-      done
-      echo "env uname $(uname -sr)"; echo "env $(git --version)"
-      for _t in sh awk sed grep sort; do echo "env $_t $(command -v "$_t")"; done
-      echo "env LANG=${LANG:-} LC_ALL=${LC_ALL:-} LC_CTYPE=${LC_CTYPE:-}"
-    ) > "$TD/st.key.lines" 2>/dev/null && keyof "$TD/st.key.lines" || true
-  }
-  if [ -n "$CERTD" ] && [ "$GOK" = yes ] && [ -f checks/selftest/shipped ]; then STKEY=$(stkey); fi
-  if [ -n "$STKEY" ] && [ "$(cat "$CERTD/$STKEY" 2>/dev/null)" = "pass $STKEY" ]; then
-    echo "selftest: ViD's shipped checks unchanged since their last pass — skipped (memo)"
-    VID_SELFTEST_UNLISTED=1 sh checks/selftest/run.sh
-    F_selftest=memo
-  else
-    _s=$(date +%s); VID_SELFTEST_RESCUED="$TD/st.rescued" sh checks/selftest/run.sh; F_selftest=$(( $(date +%s) - _s ))
-    # published only after a complete pass, through a private file renamed into place, and only while the key's
-    # inputs are unchanged and every file under checks/ on disk still equals the index — else the run judged code
-    # that was never staged. v0.9.8.1 (R1): never from a run a retry rescued — the next law commit runs the suite again
-    if [ -f "$TD/st.rescued" ]; then echo 'selftest: rescued by a retry — no certificate published; the next law commit runs the suite again'; fi
-    if [ -n "$STKEY" ] && [ ! -f "$TD/st.rescued" ] && [ "$(stkey)" = "$STKEY" ] && git diff --quiet -- checks 2>/dev/null && [ -z "$(git ls-files --others --exclude-standard -- checks 2>/dev/null)" ]; then
-      { mkdir -p "$CERTD" && _ct=$(mktemp "$CERTD/.cert.XXXXXX") && printf 'pass %s\n' "$STKEY" > "$_ct" && mv "$_ct" "$CERTD/$STKEY"; } 2>/dev/null || true
-    fi
-  fi
+  _s=$(date +%s); VID_SELFTEST_UNLISTED=1 sh checks/selftest/run.sh; F_selftest=$(( $(date +%s) - _s ))
 fi
 exit 0

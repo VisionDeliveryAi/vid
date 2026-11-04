@@ -6,6 +6,12 @@
 # marker must additionally be cited by at least one rule or template — the
 # completion bar checks/coverage.sh --strict shares. Presence-gated: inactive
 # until the design pack carries @screen markers.
+# v0.26.10.9 (R1, found by the trial): on a spec-only tree no code exists yet,
+# so every drawn marker is uncited. While checks/extractors/ holds no census
+# extractor (memory.sh does not count; the skeleton's Part 2 writes them), an
+# uncited marker reports pending — the code is owed to the skeleton — and is
+# no gap; once one exists, today's GAP lines return. --strict (the
+# completion bar) is unchanged.
 # Usage: sh checks/design-cite.sh [--strict]
 set -eu
 IFS='
@@ -95,7 +101,8 @@ for p in $PREFIXES; do
 done
 
 # Part B — every unresolved pack marker cited by at least one rule or template.
-GAPS=0
+GAPS=0; PENDS=0
+CEXT=$(find checks/extractors -type f -name '*.sh' ! -path checks/extractors/memory.sh 2>/dev/null || true)
 for tok in $UNRESOLVED; do
   CITED=no
   for p in $PREFIXES; do
@@ -103,7 +110,10 @@ for tok in $UNRESOLVED; do
     [ -e "$p" ] || continue
     grep -rqF "$tok" --exclude='*.md' "$p" 2>/dev/null && { CITED=yes; break; }
   done
-  if [ "$CITED" = no ]; then
+  if [ "$CITED" = no ] && [ "$STRICT" -eq 0 ] && [ -z "$CEXT" ]; then
+    echo "PEND marker $tok drawn, cited by nothing yet — the code is owed to the skeleton"
+    PENDS=$((PENDS + 1))
+  elif [ "$CITED" = no ]; then
     echo "GAP  marker $tok drawn but cited by no rule or template"
     GAPS=$((GAPS + 1))
   fi
@@ -112,6 +122,7 @@ done
 TOTAL=$(printf '%s\n' "$MARKERS" | grep -c . || true)
 echo ''
 echo "markers: $TOTAL   uncited (unresolved): $GAPS"
+[ "$PENDS" -eq 0 ] || echo "pending (the code is owed to the skeleton): $PENDS"
 if [ "$FAIL" -ne 0 ]; then exit 1; fi
 if [ "$STRICT" -eq 1 ] && [ "$GAPS" -gt 0 ]; then
   echo 'ViD design-cite --strict: not done — every drawn marker is cited, or its manifest row is resolved.' >&2

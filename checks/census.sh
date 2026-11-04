@@ -61,6 +61,13 @@
 # and rule context: execution is deduplicated, not judgement. Output, counters
 # and exit status are the 0.9.7.2 census's (selftest/fixtures/census-0.9.7.2.sh,
 # case census-oracle).
+# v0.26.10.9 (R1, found by the trial): a spec-only tree holds rule rows whose
+# census command is an extractor path while checks/extractors/ holds no
+# extractor yet (the skeleton's Part 2 writes them). While it holds none —
+# memory.sh, the observer's reader, is no census and does not count — such a
+# row whose extractor is missing reports pending ("extractor owed to the
+# skeleton"), counted in pending=, never a failure; once any extractor
+# exists, a missing one is refused as before.
 # Usage: sh checks/census.sh [--report]   (--report always exits 0) | --measure <fixture dir>   (v0.9.8, advisory)
 set -eu
 IFS='
@@ -102,6 +109,7 @@ BLOCK=''
 [ -f INVENTORY.md ] && BLOCK=$(sed -n '/^```vid-inventory/,/^```$/p' INVENTORY.md | sed '1d;$d' || true)
 EXTRACTORS=$(find checks/extractors -type f -name '*.sh' 2>/dev/null | sort || true)
 RULES=$(printf '%s\n' "$BLOCK" | grep -E '^[[:space:]]*rule[[:space:]]*\|' || true)
+CEXT=$(printf '%s\n' "$EXTRACTORS" | grep -vx 'checks/extractors/memory.sh' | grep . || true)
 # v0.9.7.3 (R4): the parsed records live here for the whole invocation
 PD=$(mktemp -d); trap 'rm -rf "$PD"' EXIT
 printf '%s\n' "$BLOCK" > "$PD/block"
@@ -303,6 +311,11 @@ for x in $EXTRACTORS; do
 done
 
 # --- Rule rows --------------------------------------------------------------
+# v0.26.10.9 (R1): a missing extractor while checks/extractors/ holds none
+owedx() { # $1=rule id $2=census command
+  echo "PEND  $1  census command '$2' — extractor owed to the skeleton (checks/extractors/ holds none yet; fail-closed once one exists)"
+  TPEND=$((TPEND + 1))
+}
 # v0.9.7.3 (R4): from the parsed records — the census command may contain
 # pipes (trailing origin:/proved-red: stripped, fields 4..n-2 rejoined)
 while IFS="$US" read -r id cmd test stmt <&3; do
@@ -337,6 +350,7 @@ while IFS="$US" read -r id cmd test stmt <&3; do
       case "$cmd" in
         checks/extractors/*)
           if [ ! -f "$cmd" ]; then
+            if [ -z "$CEXT" ]; then owedx "$id" "$cmd"; continue; fi
             echo "FAIL  $id  census command '$cmd' does not exist — promissory denominators are invalid." >&2
             FAILS=$((FAILS + 1)); continue
           fi
@@ -380,6 +394,7 @@ orphan $site undeclared-state:$tok"; fi ;;
   case "$cmd" in
     checks/extractors/*)
       if [ ! -f "$cmd" ]; then
+        if [ -z "$CEXT" ]; then owedx "$id" "$cmd"; continue; fi
         echo "FAIL  $id  census command '$cmd' does not exist — promissory denominators are invalid." >&2
         FAILS=$((FAILS + 1)); continue
       fi

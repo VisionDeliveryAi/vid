@@ -211,11 +211,55 @@
 #   current rows and graded (metrics.sh step-state) — a split of charged rows
 #   too; a started step is never refused. A refusal names the rows and is
 #   recorded `refused … by=graded`.
-# Usage: sh checks/plan.sh gate | home-of | home --brief <f> | check | change <what> "<why>" [--trigger … --expect … ] [--not-needed-by <ids> "<why>"] | strategy <s> --by owner --words "<…>" | start <id> | admit --brief <f> | map [--all] | charged | base <id> | parse [<file>] | redstamp --staged
+# v0.26.10.9 (R4, R5, R7, R9) — the code skeleton and ticket mode:
+#   skeleton           the code skeleton's state (vid-skeleton, develop mode): `done` (a `skeleton state=end`
+#                      event), `next part <k>` (a `skeleton` start with no end: the first of parts 1–3 with no
+#                      `skeleton state=part-done part=<k>`), or, while no `skeleton` event exists, by provenance:
+#                      `not started provenance=spec-only` when the newest `stage name=init state=end` carries
+#                      made=spec; `not started provenance=adopted` when it doesn't and HEAD holds no
+#                      docker-compose.test.yml and no ROW whose test field is a path (R7, the adoption); else `not
+#                      needed`. Once a `skeleton` event exists only the events decide. Read at the home (home-of),
+#                      else this checkout.
+#   RUN-STATE's `plan: skeleton` (written by develop while it builds the skeleton) reads the gate off, as init's runs
+#   were.
+#   With RUN-STATE's `mode: tickets` (the planner, /vid plan and /vid replan): the gate is on when `plan: required`,
+#   `run:` active or waiting, and the newest stage start is `stage name=plan` or `stage name=replan` with no end of it
+#   after; a develop stage start reads it off. v0.26.10.12.3 (R6): admission (start, admit)
+#   reads, in place of evidence (checks/evidence.sh is never called), the records .vid/tw/handed holds (stand-ins until
+#   their stages): RULE B holds when every step the new step builds on is closed (`closed <step>`) or its rows are owed,
+#   held or known limits (`row <id> <state>`, the newest); RULE A counts the rows of started steps not accepted,
+#   accepted-by-ruling, owed, paid, held or known limits, with the new step's new rows, each once, against budget()
+#   (planner.sh's P12 ceiling). The stage rule admits the next stage once the current one has its candidate
+#   (`candidate <n>`), a seam counting as stage 1; breadth first's step states read closed steps and row states; every
+#   new step meets the open-ticket limit (.vid/tw/settings open-tickets:; refused by=open-tickets): the newest
+#   `sync`'s open tickets in .vid/tw/log, those `published` after it, and the started steps with no ticket published.
+#   `ticket:<n>` evidence resolves against a `published <n>` line of .vid/tw/log.
+# v0.26.10.12.2.2 (R1) — ticket mode's plan block, only widened: under `mode: tickets` the
+#   inventory's ids are every id of every ```vid-inventory line (the first field, or the second on a rule, difference,
+#   exception, suppression, hostility or seam line), a rows: or protected: token may be any of them or a range of one
+#   prefix (RULE-001..RULE-003), a step's lane may be devagent and its kind skeleton. Every block accepted before is
+#   still accepted, in either mode; outside ticket mode nothing changes. checks/planner.sh holds the block to ticket
+#   mode's own rules. v0.26.10.12.3.1 (R2, R10), in ticket mode alone: any lane token is
+#   read as accepted (planner.sh holds it to the setup's lanes), `fakes:` is a known field, and a `needs <rows> |
+#   <steps>` line is read as accepted (planner.sh checks it).
+# v0.26.10.24 (the add guards, R3) — no product code during an add:
+#   guard --paths -    pre-commit rule 4e's one call: stdin holds the judged paths. Product code is a path under a prefix
+#                      of CLAUDE.md's ```vid-placement block, not *.md and not under checks/, tests/ or design/. With
+#                      none, no placement block, `mode: tickets`, or this checkout not the home (home-of names another),
+#                      exit 0. Exit 1, the refusal on stderr, when CLAUDE_CODE_SESSION_ID's newest `stage name=add
+#                      state=start` (events at the home, this checkout's when home-of finds none or more than one, in
+#                      the gate's order) has after it no `stage name=add state=end` and no `stage name=init|develop|fix|
+#                      deploy state=start` of that session. (R4) Also exit 1 when the gate is on at this checkout, the
+#                      home, and no `step-start` or `step-resumed` comes after the gate's newest `stage name=develop
+#                      state=start`, in the gate's order. `start <id>` on a started step records `step-resumed step=<id>
+#                      plan=<hash>`, outside ticket mode; admission is otherwise unchanged.
+#   run-start          (R5) the place, `<at> <line>` tab-separated, of the first develop start after the newest start of
+#                      any other verb and the newest develop end, in the gate's order; exit 1 when none.
+# Usage: sh checks/plan.sh gate | home-of | home --brief <f> | check | change <what> "<why>" [--trigger … --expect … ] [--not-needed-by <ids> "<why>"] | strategy <s> --by owner --words "<…>" | start <id> | admit --brief <f> | map [--all] | charged | base <id> | parse [<file>] | redstamp --staged | skeleton | guard --paths - | run-start
 set -u
 IFS='
 '
-usage() { echo 'ViD plan: usage — sh checks/plan.sh gate | home-of | home --brief <f> | check | change <what> "<why>" --trigger <t>[,<t>…] [--evidence <ref>[,<ref>…]] --expect "<one line>" [--alternatives "<one line>"] [--not-needed-by <id>[,<id>…] "<why>"] | strategy <depth-first|breadth-first> --by owner --words "<the owner'"'"'s words>" | start <id> | admit --brief <f> | map [--all] | charged | base <id> | parse [<file>] | redstamp --staged' >&2; exit 2; }
+usage() { echo 'ViD plan: usage — sh checks/plan.sh gate | home-of | home --brief <f> | check | change <what> "<why>" --trigger <t>[,<t>…] [--evidence <ref>[,<ref>…]] --expect "<one line>" [--alternatives "<one line>"] [--not-needed-by <id>[,<id>…] "<why>"] | strategy <depth-first|breadth-first> --by owner --words "<the owner'"'"'s words>" | start <id> | admit --brief <f> | map [--all] | charged | base <id> | parse [<file>] | redstamp --staged | skeleton | guard --paths - | run-start' >&2; exit 2; }
 top() { git rev-parse --show-toplevel 2>/dev/null || pwd -P; }
 # bound_here <home>: this checkout's branch has a live agent or an unfinished Codex job of the run at <home> bound to it
 # (v0.26.10.3 R8, R10: checks/testenv.sh bound, the one liveness rule; without it, nothing is bound)
@@ -252,18 +296,19 @@ home_of() {
 # (v0.26.10.3 R8: the rest of the rule unchanged) — read only for a checkout a live agent of that run is bound to.
 gate_at() {
   _rs="$1/.vid/RUN-STATE.md"; _ev="$1/.vid/metrics-events"
-  [ "$(sed -n 's/^plan:[[:space:]]*//p' "$_rs" | head -n 1 | sed 's/[[:space:]]*$//')" = required ] || { echo 'no plan: key — a 0.9.5 run, or not develop; rules off'; return 1; }
+  _pk=$(sed -n 's/^plan:[[:space:]]*//p' "$_rs" | head -n 1 | sed 's/[[:space:]]*$//')
+  [ "$_pk" = skeleton ] && { echo 'plan: skeleton — develop is building the code skeleton, outside the gate; rules off'; return 1; }   # v0.26.10.9 (R5)
+  [ "$_pk" = required ] || { echo 'no plan: key — a 0.9.5 run, or not develop; rules off'; return 1; }
+  # v0.26.10.9 (R9): with `mode: tickets` the planner's sessions hold the gate — stage name=plan or replan, in place of develop
+  _vb='develop'; [ "$(sed -n 's/^mode:[[:space:]]*//p' "$_rs" | head -n 1 | sed 's/[[:space:]]*$//')" = tickets ] && _vb='plan replan'
   _run=$(sed -n 's/^run:[[:space:]]*//p' "$_rs" | head -n 1 | awk '{ print $1 }')
   case "$_run" in active|waiting) ;; stopped) [ "${2:-}" = stopped ] || { echo "run: stopped — the gate needs active or waiting"; return 1; } ;; *) echo "run: ${_run:-none} — the gate needs active or waiting"; return 1 ;; esac
   [ -f "$_ev" ] || { echo 'no events — no develop stage has started'; return 1; }
-  _st=$(awk 'function lastat(  i) { for (i = NF; i >= 2; i--) if (index($i, "at=") == 1) { if ($i ~ /^at=[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]Z$/) return substr($i, 4); return "" } return "" }
-    function kv(k,  i) { for (i = 2; i <= NF; i++) if (index($i, k "=") == 1) return substr($i, length(k) + 2); return "" }
-    $1 == "stage" { a = lastat(); if (a == "") a = "0000"; printf "%s\t%09d\t%s\t%s\n", a, NR, kv("name"), kv("state") }' "$_ev" | sort -t "$(printf '\t')" -k1,1 -k2,2n \
-    | awk -F'\t' '$4 == "start" { last = $3; ended = 0; next } $3 == "develop" && $4 == "end" && last == "develop" { ended = 1 } END { if (last != "develop") print "other:" last; else if (ended) print "ended"; else print "develop" }')
+  _st=$(stage_order "$_ev" | awk -F'\t' -v vb=" $_vb " '$3 != "stage" { next } $5 == "start" { last = $4; ended = 0; next } $5 == "end" && $4 == last && index(vb, " " last " ") { ended = 1 } END { if (!index(vb, " " last " ")) print "other:" last; else if (ended) print "ended:" last; else print "on" }')
   case "$_st" in
-    develop) return 0 ;;
-    ended) echo 'the develop stage has ended'; return 1 ;;
-    *) echo "the verb in progress is ${_st#other:} — not develop"; return 1 ;;
+    on) return 0 ;;
+    ended:*) echo "the ${_st#ended:} stage has ended"; return 1 ;;
+    *) if [ "$_vb" = develop ]; then echo "the verb in progress is ${_st#other:} — not develop"; else echo "the verb in progress is ${_st#other:} — not plan or replan (mode: tickets)"; fi; return 1 ;;
   esac
 }
 
@@ -273,6 +318,9 @@ TMPD=''
 tmpd() { [ -n "$TMPD" ] || { TMPD=$(mktemp -d); trap 'rm -rf "$TMPD"' EXIT; }; }
 AWKAT='function lastat(  i) { for (i = NF; i >= 2; i--) if (index($i, "at=") == 1) { if ($i ~ /^at=[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]Z$/) return substr($i, 4); return "" } return "" }
 function kv(k,  i) { for (i = 2; i <= NF; i++) if (index($i, k "=") == 1) return substr($i, length(k) + 2); return "" }'
+# stage_order <events file>: the stage, step-start and step-resumed events in the gate's order (time, then file order),
+# tab-separated `<at> <line> <type> <name> <state> <session>` (v0.26.10.24: the one reader of the gate, guard and run-start)
+stage_order() { awk "$AWKAT"' $1 == "stage" || $1 == "step-start" || $1 == "step-resumed" { a = lastat(); if (a == "") a = "0000"; printf "%s\t%09d\t%s\t%s\t%s\t%s\n", a, NR, $1, kv("name"), kv("state"), kv("session") }' "$1" | sort -t "$(printf '\t')" -k1,1 -k2,2n; }
 h256() { if command -v shasum >/dev/null 2>&1; then shasum -a 256 | cut -c1-12; else sha256sum | cut -c1-12; fi; }
 # block <RUN-STATE>: the vid-plan block's lines, trailing space trimmed
 block() { awk '/^## The plan/ { s = 1; next } s && /^## / { exit } s && /^```vid-plan[ \t]*$/ { b = 1; next } b && /^```[ \t]*$/ { exit } b { print }' "$1" | sed 's/[[:space:]]*$//'; }
@@ -291,10 +339,13 @@ canon() { awk '{ gsub(/[ \t]+/, " "); sub(/^ /, ""); sub(/ $/, "") }
 # events <type>: that type's lines at the home, in time order (file order breaks a tie)
 events() { [ -f "$H/.vid/metrics-events" ] || return 0; awk -v t="$1" "$AWKAT"' $1 == t { a = lastat(); if (a == "") a = "0000"; printf "%s\t%09d\t%s\n", a, NR, $0 }' "$H/.vid/metrics-events" | sort -t "$(printf '\t')" -k1,1 -k2,2n | cut -f3-; }
 evkv() { printf '%s\n' "$1" | awk "$AWKAT"' { print kv("'"$2"'") }'; }
-invids() { [ -f "$H/INVENTORY.md" ] && sed -n '/^```vid-inventory/,/^```$/p' "$H/INVENTORY.md" | sed '1d;$d' | awk -F'|' '$1 ~ /^[[:space:]]*ROW-/ { id = $1; gsub(/^[ \t]+|[ \t]+$/, "", id); print id }'; }
+# tinvids (v0.26.10.12.2.2, R1): ticket mode's inventory ids — every id of every ```vid-inventory line
+tinvids() { [ -f "$H/INVENTORY.md" ] && awk '/^```vid-inventory/ { b = 1; next } /^```/ { b = 0 } b' "$H/INVENTORY.md" | awk -F'|' '{ k = $1; gsub(/^[ \t]+|[ \t]+$/, "", k)
+    if (k ~ /^(rule|difference|exception|suppression|hostility|seam)$/) { k = $2; gsub(/^[ \t]+|[ \t]+$/, "", k) } if (k ~ /^[A-Z]+-[0-9]+$/) print k }'; }
+invids() { if tickets_mode; then tinvids; return; fi; [ -f "$H/INVENTORY.md" ] && sed -n '/^```vid-inventory/,/^```$/p' "$H/INVENTORY.md" | sed '1d;$d' | awk -F'|' '$1 ~ /^[[:space:]]*ROW-/ { id = $1; gsub(/^[ \t]+|[ \t]+$/, "", id); print id }'; }
 # parse_block <block file> <inventory ids file or ''>: normalised lines, or ERR lines (exit 1)
 parse_block() {
-  awk -v invf="$2" -v lanechk="${LANECHK:-}" '
+  awk -v invf="$2" -v lanechk="${LANECHK:-}" -v tk="$( [ -n "${H:-}" ] && tickets_mode && echo 1)" '
     function trim(s) { gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
     function err(m) { print "ERR\tline " NR ": " m; bad = 1 }
     function erre(m) { print "ERR\t" m; bad = 1 }
@@ -302,6 +353,12 @@ parse_block() {
     # toks: a rows: or protected: value — ROW ids and ranges ROW-a..ROW-b
     function toks(rw, s, pr,   m, t, q, tok, ra, rb, da, db, w, lo, hi, v) { m = split(rw, t, /[ \t]+/)
       for (q = 1; q <= m; q++) { tok = t[q]; if (tok == "") continue
+        # v0.26.10.12.2.2 (R1): in ticket mode, any inventory id <PREFIX>-<n>, and a range of one prefix
+        if (tk && tok ~ /^[A-Z]+-[0-9]+\.\.[A-Z]+-[0-9]+$/ && tok !~ /^ROW-[0-9]+\.\.ROW-/) { ra = tok; sub(/\.\..*/, "", ra); rb = tok; sub(/.*\.\./, "", rb); pa = ra; sub(/-[0-9]+$/, "", pa); pb = rb; sub(/-[0-9]+$/, "", pb)
+          da = ra; sub(/^[A-Z]+-/, "", da); db = rb; sub(/^[A-Z]+-/, "", db); w = length(da); lo = da + 0; hi = db + 0
+          if (pa != pb || hi < lo || hi - lo > 20000) { err((pr ? "protected:" : "step " s ":") " the range " tok " is of two prefixes, backwards or too wide"); continue }
+          for (v = lo; v <= hi; v++) put(sprintf("%s-%0" w "d", pa, v), s, pr); continue }
+        if (tk && tok ~ /^[A-Z]+-[0-9]+$/ && tok !~ /^ROW-/) { put(tok, s, pr); continue }
         if (tok ~ /^ROW-[0-9]+\.\.ROW-[0-9]+$/) { ra = tok; sub(/\.\..*/, "", ra); rb = tok; sub(/.*\.\./, "", rb); da = substr(ra, 5); db = substr(rb, 5); w = length(da); lo = da + 0; hi = db + 0
           if (hi < lo || hi - lo > 20000) { err((pr ? "protected:" : "step " s ":") " the range " tok " is backwards or too wide"); continue }
           for (v = lo; v <= hi; v++) put(sprintf("ROW-%0" w "d", v), s, pr) }
@@ -321,6 +378,7 @@ parse_block() {
     line ~ /^[ \t]*protected:/ { v = line; sub(/^[ \t]*protected:[ \t]*/, "", v); v = trim(v)
       if (nprl++) { err("a second protected: line — the plan carries one, which only grows"); next }
       if (v == "") { err("protected: names no row"); next } toks(v, "", 1); next }
+    tk && line ~ /^[ \t]*needs[ \t]/ { next }   # v0.26.10.12.3.1 (R10): a row needs, checked by planner.sh
     line ~ /^[ \t]*step[ \t]/ {
       n = split(line, f, "|"); id = trim(f[1]); sub(/^step[ \t]+/, "", id); id = trim(id)
       if (id == "" || id ~ /[ \t]/) { err("a step line is: step <id> | name: … | modules: … | builds-on: … | rows: … | lane: … [| kind: hardening]"); next }
@@ -334,10 +392,13 @@ parse_block() {
         else if (x ~ /^rows:/) rw = trim(substr(x, 6))
         else if (x ~ /^lane:/) ln = trim(substr(x, 6))
         else if (x ~ /^kind:/) kd = trim(substr(x, 6))
+        else if (tk && x ~ /^fakes:/) { }   # v0.26.10.12.3.1 (R2): a dashed link, checked by planner.sh
         else err("step " id ": unknown field \047" x "\047") }
       if (nm == "") err("step " id " has no name:")
       if (md == "") err("step " id " has no modules:")
       if (rw == "") err("step " id " has no rows:")
+      # v0.26.10.12.2.2 (R1): in ticket mode the lane devagent and the kind skeleton are read as accepted (v0.26.10.12.3.1: any lane)
+      tl = (tk && ln != "" ? ln : ""); tkd = (tk && kd == "skeleton"); if (tl) ln = "builder"; if (tkd) kd = ""
       # v0.9.7.0.9 (3.6, R7): under check and change, a lane is builder, absent (read as builder) or orchestrator (<why>)
       if (lanechk && ln != "" && ln != "-" && ln != "builder") {
         lr = ln; if (lr ~ /^orchestrator[ \t]*\(.*\)$/) { sub(/^orchestrator[ \t]*\(/, "", lr); sub(/\)$/, "", lr); lr = trim(lr) } else lr = ""
@@ -345,6 +406,7 @@ parse_block() {
           else err("step " id ": lane \047" ln "\047 is neither builder nor orchestrator (<why>)") } }
       # v0.9.7.2 (3.2, R2): kind: hardening, or absent (a feature step)
       if (kd != "" && kd != "hardening") err("step " id ": kind is hardening, or absent (a feature step) — not \047" kd "\047")
+      if (tl) ln = tl; if (tkd) kd = "skeleton"
       NAME[id] = nm; MOD[id] = md; BO[id] = (bo == "" ? "-" : bo); LANE[id] = (ln == "" ? "-" : ln); KIND[id] = (kd == "" ? "-" : kd)
       toks(rw, id, 0)
       next }
@@ -446,7 +508,7 @@ breadth_checks() {
   return 0
 }
 # stepstate <ids, comma-separated>: checks/metrics.sh step-state at the home → $TMPD/ss; exit 1 when it cannot be read
-stepstate() { ( cd "$H" && sh checks/metrics.sh step-state "$1" ) > "$TMPD/ss" 2> "$TMPD/ss.err" && grep -q '^step-state ' "$TMPD/ss"; }
+stepstate() { if tickets_mode; then tstepstate "$1"; return $?; fi; ( cd "$H" && sh checks/metrics.sh step-state "$1" ) > "$TMPD/ss" 2> "$TMPD/ss.err" && grep -q '^step-state ' "$TMPD/ss"; }
 # graded_gate <step>: R7 — every step in its builds-on closed at its current rows and graded; a refusal names the rows
 graded_gate() {
   _bo=$(awk -F'\t' -v s="$1" '$1 == "step" && $2 == s { print $5 }' "$TMPD/parsed" | tr ' ' '\n' | grep -v '^-$' | grep -v '^$' | paste -sd, -)
@@ -485,6 +547,52 @@ dep_safeguard() {
   else echo "    Fix it first, or name every such step and why it doesn't need the row: --not-needed-by $(printf '%s\n' "$_need" | cut -f2 | sort -u | paste -sd, -) \"<why>\"." >&2; fi
   return 1
 }
+# --- v0.26.10.12.3 (R6): ticket-mode admission reads the stand-in records of .vid/tw/handed and TW's
+# .vid/tw/log, never evidence or receipts: closed steps (`closed <step>`), row states (`row <id> <state>`, the newest
+# counts), the current stage's candidate (`candidate <n>`) ---
+# tickets_mode: RUN-STATE at the home says `mode: tickets`
+tickets_mode() { [ "$(sed -n 's/^mode:[[:space:]]*//p' "$H/.vid/RUN-STATE.md" 2>/dev/null | head -n 1 | sed 's/[[:space:]]*$//')" = tickets ]; }
+# hand <kind>: the handed lines of that kind, less the kind and the stand-in label; trs: $TMPD/rs, `<row><TAB><state>`
+hand() { [ -f "$H/.vid/tw/handed" ] && sed -n "s/^$1[[:space:]][[:space:]]*//p" "$H/.vid/tw/handed" | sed 's/[[:space:]]*|[[:space:]]*stand-in.*$//'; }
+trs() { tmpd; { hand row || true; } | awk '{ S[$1] = $2 } END { for (r in S) print r "\t" S[r] }' > "$TMPD/rs"; }
+TOK='function ok(x) { return x ~ /^(accepted|accepted-by-ruling|owed|paid|held|known-limit|retired)$/ }'
+# trules <step> <new rows file>: rule B — each step it builds on closed, or its rows owed, held or known limits; rule A —
+# the rows of started steps not accepted, ruled, owed, paid, held or limits, with the step's new rows, each once,
+# within budget() (60 × .vid/budget stacks=, or unverified-rows=: planner.sh's P12 reads the same)
+trules() {
+  _s=$1; _nr=$2; GAP=''; trs
+  for _b in $(awk -F'\t' -v s="$_s" '$1 == "step" && $2 == s { print $5 }' "$TMPD/parsed" | tr ' ' '\n' | grep -v '^-$' | grep -v '^$'); do
+    hand closed | grep -qx "$_b" && continue
+    _o=$(awk -F'\t' -v b="$_b" 'FILENAME == ARGV[1] { S[$1] = $2; next } $1 == "row" && $3 == b && S[$2] !~ /^(owed|held|known-limit)$/ { printf "%s%s", (n++ ? " " : ""), $2 }' "$TMPD/rs" "$TMPD/parsed")
+    [ -z "$_o" ] || GAP="$GAP
+    $_s builds on $_b, which is not closed, and its rows $_o are not owed, held or known limits"
+  done
+  if [ -n "$GAP" ]; then echo "ViD plan: refused — rule B (tickets):$GAP" >&2; refused_ev rule-B "$_s"; return 1; fi
+  _bud=$(budget)
+  _u=$(awk -F'\t' "$TOK"' FILENAME == ARGV[1] { S[$1] = $2; next } FILENAME == ARGV[2] { C[$1] = 1; next } { N[$1] = 1 } END { for (r in C) if (!ok(S[r])) n++; for (r in N) if (!(r in C) && !ok(S[r])) k++; print n + k, k + 0 }' "$TMPD/rs" "$TMPD/charged" "$_nr")
+  _tot=${_u% *}; _new=${_u#* }
+  if [ "$_tot" -gt "$_bud" ]; then
+    echo "ViD plan: refused — rule A (tickets): $_tot open rows would exceed the ceiling of $_bud ($((_tot - _new)) rows of started steps are not accepted, ruled, owed, paid, held or known limits; $_new of $_s's rows are new). Split $_s smaller, or let started rows be accepted." >&2; refused_ev rule-A "$_s"; return 1
+  fi
+  return 0
+}
+# tlimit <step>: the open-ticket limit (.vid/tw/settings open-tickets:) — the newest sync's open tickets, those published
+# after it, and every started step with no ticket published yet, each once; at the limit a new step is refused
+tlimit() {
+  _l=$(sed -n 's/^open-tickets:[[:space:]]*\([0-9][0-9]*\)[[:space:]]*$/\1/p' "$H/.vid/tw/settings" 2>/dev/null | head -n 1); [ -n "$_l" ] || return 0
+  _n=$( { cat "$H/.vid/tw/log" 2>/dev/null || true; } | awk -v sf="$TMPD/started" "$AWKAT"' BEGIN { while ((getline l < sf) > 0) U[l] = 1 }
+    $1 == "sync" { split("", O); n = split(kv("open"), a, ","); for (i = 1; i <= n; i++) if (a[i] ~ /^[0-9]+$/) O[a[i]] = 1 }
+    $1 == "published" { O[$2] = 1; P[kv("step")] = 1 } $1 == "withdrawn" { delete O[$2] }
+    END { for (t in O) { c++; o = o " #" t } for (s in U) if (!(s in P)) { c++; o = o " " s } print c + 0 ":" o }')
+  [ "${_n%%:*}" -lt "$_l" ] && return 0
+  echo "ViD plan: refused — the open-ticket limit: ${_n%%:*} tickets open or owed (${_n#*: }) of open-tickets: $_l; $1 waits until one closes (sh checks/github.sh tw-sync)." >&2; refused_ev open-tickets "$1"; return 1
+}
+# tstepstate <ids, comma-separated>: breadth first's step states in ticket mode → $TMPD/ss, as metrics.sh step-state's
+# lines: a closed step (handed) is closed and graded (its rows' T5 is in their acceptance); a failing row a breach
+tstepstate() { trs; : > "$TMPD/ss"; for _x in $(printf '%s\n' "$1" | tr ',' '\n'); do
+    if hand closed | grep -qx "$_x"; then _c=yes; _w=handed; else _c=no; _w=none; fi
+    printf 'step-state step=%s closed=%s graded=%s close=%s done=%s\n' "$_x" "$_c" "$_c" "$_w" "$_c" >> "$TMPD/ss"; done
+  awk -F'\t' '$2 == "failing" { print "breach row=" $1 }' "$TMPD/rs" >> "$TMPD/ss"; grep -q '^step-state ' "$TMPD/ss"; }
 # rules <step> <tree-ish> <new rows file> [dirty-check yes|no]: rules A and B for a step whose rows are new; prints the refusal, exit 1
 rules() {
   _s=$1; _at=$2; _nr=$3
@@ -494,6 +602,7 @@ rules() {
     _d=$(IFS=' '; git status --porcelain -- $CURP 2>/dev/null | grep -v ' \.vid/' | head -n 5)
     if [ -n "$_d" ]; then echo "ViD plan: refused — $_s: the checking worktree has uncommitted changes on its currency paths (commit or restore them first; an unseen edit to what it builds on can neither pass nor hide):" >&2; printf '%s\n' "$_d" | sed 's/^/    /' >&2; refused_ev dirty-currency "$_s"; return 1; fi
   fi
+  if tickets_mode; then trules "$_s" "$_nr"; return $?; fi
   mkmap "$TMPD/map" || return 1
   states "$_at" || return 1
   GAP=''
@@ -531,6 +640,13 @@ admit_step() {
   if [ -f "$H/STAGES.md" ] && [ -f "$H/checks/stages.sh" ]; then
     ( cd "$H" && sh checks/stages.sh scope ) > "$TMPD/stscope" 2> "$TMPD/stscope.err" || { echo "ViD plan: refused — the stage scope cannot be read (checks/stages.sh scope): $(head -n 1 "$TMPD/stscope.err")" >&2; refused_ev stage "$_s"; return 1; }
     _cur=$( cd "$H" && sh checks/stages.sh current )
+    # v0.26.10.12.3 (R6): in ticket mode the next stage too once the current has its candidate (handed); a seam is stage 1;
+    # each row's stage, a seam's too, is planner.sh rows' where it gives one (its moved: counts), else stages.sh's;
+    # a started step passes, its rows moved since or not (a started step is never refused; review 2)
+    if tickets_mode; then { hand candidate || true; } | grep -qx "$_cur" && _cur=$((_cur + 1)); _pl=$(cd "$(dirname "$0")" && pwd)/planner.sh
+      ( cd "$H" && sh checks/stages.sh scope --upto "$_cur" ) > "$TMPD/st0" 2>/dev/null; ( cd "$H" && sh "$_pl" rows ) > "$TMPD/plr" 2>/dev/null || : > "$TMPD/plr"; [ "$_cur" -lt 1 ] || tinvids | grep '^SEAM-' >> "$TMPD/st0"
+      awk -F'\t' -v c="$_cur" 'FILENAME == ARGV[1] { if ($1 !~ /^#/ && ($5 ~ /^[0-9]+$/ || $5 == "later")) P[$1] = ($5 != "later" && $5 + 0 <= c); next } !($1 in P) || P[$1] { print } END { for (r in P) if (P[r]) print r }' "$TMPD/plr" "$TMPD/st0" > "$TMPD/stscope"
+      started; ! grep -qx "$_s" "$TMPD/started" || cut -f2 "$TMPD/parsed" >> "$TMPD/stscope"; fi
     _lo=1; sed -n '/^```vid-stages$/,/^```$/p' "$H/STAGES.md" | grep -qE '^[[:space:]]*STAGE-0+[[:space:]]*\|' && _lo=0   # v0.26.10.8 (R2)
     _out=$(awk -F'\t' 'NR == FNR { S[$1] = 1; next } $1 == "row" && $3 == s && !($2 in S) { printf "%s%s", (n++ ? ", " : ""), $2 }' s="$_s" "$TMPD/stscope" "$TMPD/parsed")
     if [ -n "$_out" ]; then
@@ -539,10 +655,14 @@ admit_step() {
     fi
   fi
   started
-  if grep -qx "$_s" "$TMPD/started"; then echo "ViD plan: $_s already started — admitted (a started step is never refused again)"; return 0; fi
+  if grep -qx "$_s" "$TMPD/started"; then
+    # v0.26.10.24 (R4): `start` on a started step is recorded, outside ticket mode, for the commit guard
+    if [ "${RESUMING:-}" = yes ] && ! tickets_mode; then printf 'step-resumed step=%s plan=%s at=%s\n' "$_s" "$PLANHASH" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >> "$H/.vid/metrics-events"; fi
+    echo "ViD plan: $_s already started — admitted (a started step is never refused again)"; return 0; fi
   _bf=$(strat)
   # v0.9.7.2 (3.5, R7): the graded gate — every admission of a new step under breadth first, a split of charged rows too
   if [ "$_bf" = breadth-first ]; then graded_gate "$_s" || return 1; fi
+  if tickets_mode; then tlimit "$_s" || return 1; fi   # v0.26.10.12.3 (R6): the open-ticket limit, every new step
   awk -F'\t' -v s="$_s" '$1 == "row" && $3 == s { print $2 }' "$TMPD/parsed" > "$TMPD/steprows"
   awk -F'\t' 'FILENAME == ARGV[1] { C[$1] = 1; next } !($1 in C)' "$TMPD/charged" "$TMPD/steprows" > "$TMPD/newrows"
   # v0.9.7.2 (3.2): a hardening step's admission runs rule A with its parked rows counted as new rows
@@ -619,6 +739,7 @@ ref_ok() {
       done
       return 1 ;;
     commit:*) _c=${1#commit:}; [ -n "$_c" ] && git rev-parse -q --verify "$_c^{commit}" >/dev/null 2>&1 ;;
+    ticket:*) tickets_mode && [ -n "${1#ticket:}" ] && grep -q "^published ${1#ticket:} " "$H/.vid/tw/log" 2>/dev/null ;;   # v0.26.10.12.3 (R9)
     *) return 1 ;;
   esac
 }
@@ -679,6 +800,30 @@ change_body() {
     if [ -n "$NB" ]; then { [ -f "$H/.vid/budget" ] && grep -v '^unverified-rows=' "$H/.vid/budget"; printf 'unverified-rows=%s\n' "$NB"; } > "$H/.vid/budget.tmp"; mv "$H/.vid/budget.tmp" "$H/.vid/budget"; fi
   fi
 }
+# guard: rule 4e's check (v0.26.10.24 R3): reads the judged paths; exit 1, named on stderr, when the commit is refused
+product_paths() { # $1=the placement map: the product paths of stdin
+  while IFS= read -r _gf; do
+    case "$_gf" in ''|*.md|checks/*|tests/*|design/*) continue ;; esac
+    for _gx in $1; do case "$_gf" in "$_gx"*) printf '%s\n' "$_gf"; break ;; esac; done
+  done
+}
+guard() {
+  _gt=$(top); _gm=$(sed -n '/^```vid-placement/,/^```$/p' "$_gt/CLAUDE.md" 2>/dev/null | sed '1d;$d' | sed 's/[[:space:]]*$//' | grep -v '^$')
+  _gp=$(product_paths "$_gm")
+  [ -n "$_gp" ] || return 0
+  H=$(home_of 2>/dev/null); _grc=$?
+  if [ "$_grc" -eq 0 ]; then [ "$(cd "$H" && pwd -P)" = "$(cd "$_gt" && pwd -P)" ] || return 0; else H=$_gt; fi
+  tickets_mode && return 0
+  _ge=$H/.vid/metrics-events; [ -f "$_ge" ] || return 0
+  _g1=$(printf '%s\n' "$_gp" | head -n 1); _gn=$(( $(printf '%s\n' "$_gp" | grep -c .) - 1 ))
+  if [ -n "${CLAUDE_CODE_SESSION_ID:-}" ] && stage_order "$_ge" | awk -F'\t' -v s="$CLAUDE_CODE_SESSION_ID" '$3 == "stage" && $6 == s { if ($4 == "add" && $5 == "start") o = 1; else if (($4 == "add" && $5 == "end") || ($5 == "start" && $4 ~ /^(init|develop|fix|deploy)$/)) o = 0 } END { exit !o }'; then
+    echo "ViD pre-commit: rejected — product code staged during /vid add: $_g1 (and $_gn more): an add writes the spec and its tests; develop builds it as a plan step once the add hands over (vid-add §3)." >&2; return 1
+  fi
+  if [ -f "$H/.vid/RUN-STATE.md" ] && gate_at "$H" > /dev/null 2>&1 && stage_order "$_ge" | awk -F'\t' '$3 == "stage" { if ($4 == "develop" && $5 == "start") { d = 1; g = 0 } next } { g = 1 } END { exit !(d && !g) }'; then
+    echo "ViD pre-commit: rejected — product code staged in a develop run with no step started since its stage start: $_g1 (and $_gn more): run sh checks/plan.sh start <id> for the step you build (a started one included), or hand the work to a builder." >&2; return 1
+  fi
+  return 0
+}
 need_gate() { # $1=what: inside the gate H is set; ambiguous, refused; outside, a note and exit 0
   G=$(sh "$0" gate 2>/dev/null); _grc=$?
   case "$G" in 'on '*) H=${G#on }; return 0 ;; esac
@@ -707,6 +852,14 @@ case "${1:-}" in
       3) printf 'ambiguous — %s live develop runs among this repository'"'"'s checkouts (%s); record this checkout'"'"'s home first: sh checks/plan.sh home --brief <your brief file>\n' "$(printf '%s\n' "$H" | grep -c .)" "$(printf '%s\n' "$H" | paste -sd ',' - | sed 's/,/, /g')"; exit 3 ;;
       *) echo 'no home — neither .vid/RUN-STATE.md nor .vid/home, and no live run among the repository'"'"'s checkouts'; exit 1 ;;
     esac ;;
+  guard)
+    [ "${2:-}" = --paths ] && [ "${3:-}" = - ] || usage
+    guard; exit $? ;;
+  run-start)
+    H=$(home_of 2>/dev/null) && [ "$(printf '%s\n' "$H" | grep -c .)" -eq 1 ] || H=$(top)
+    [ -f "$H/.vid/metrics-events" ] || exit 1
+    stage_order "$H/.vid/metrics-events" | awk -F'\t' '$3 != "stage" { next } $4 != "develop" && $5 == "start" || $4 == "develop" && $5 == "end" { p = ""; next } $4 == "develop" && $5 == "start" && p == "" { p = $1 "\t" $2 } END { if (p == "") exit 1; print p }'
+    exit $? ;;
   home)
     [ "${2:-}" = --brief ] && [ -n "${3:-}" ] || usage
     [ -f "$3" ] || { echo "ViD plan: refused — no brief at $3" >&2; exit 1; }
@@ -795,6 +948,23 @@ case "${1:-}" in
     if [ -n "$BAD" ]; then echo "ViD plan: rejected — a proved-red stamp needs the row's case observed failing on its real check:$BAD" >&2; exit 1; fi
     echo "ViD plan: proved-red stamps joined to their observed red: $(tr '\n' ' ' < "$TMPD/stamped")"
     exit 0 ;;
+  skeleton)
+    # v0.26.10.9 (R4, R7): the code skeleton's state, one reader — its own events first, then provenance
+    H=$(home_of 2>/dev/null) && [ "$(printf '%s\n' "$H" | grep -c .)" -eq 1 ] || H=$(top)
+    EVF="$H/.vid/metrics-events"
+    if [ -f "$EVF" ] && grep -q '^skeleton ' "$EVF"; then
+      if grep -q '^skeleton .*state=end' "$EVF"; then echo done; exit 0; fi
+      for _k in 1 2 3; do grep -Eq "^skeleton .*state=part-done( .*)? part=$_k( |\$)" "$EVF" || { echo "next part $_k"; exit 0; }; done
+      echo 'next part 3'; exit 0   # every part done, no end: Part 3 ends it
+    fi
+    _ie=$( [ -f "$EVF" ] && grep '^stage .*name=init.*state=end' "$EVF" | tail -n 1 )
+    case " $_ie " in *' made=spec '*) echo 'not started provenance=spec-only'; exit 0 ;; esac
+    # the adoption (R7): no made=spec, and HEAD holds no docker-compose.test.yml and no ROW whose test field is a path
+    if ! git -C "$H" cat-file -e HEAD:docker-compose.test.yml 2>/dev/null \
+       && ! git -C "$H" show HEAD:INVENTORY.md 2>/dev/null | sed -n '/^```vid-inventory/,/^```$/p' | awk -F'|' '$1 ~ /^[[:space:]]*ROW-/ { t = $8; gsub(/^[ \t]+|[ \t]+$/, "", t); if (t != "" && t !~ /^[Oo][Ww][Ee][Dd]/) f = 1 } END { exit !f }'; then
+      echo 'not started provenance=adopted'; exit 0
+    fi
+    echo 'not needed'; exit 0 ;;
   charged)
     need_gate 'the charged rows'; started; cat "$TMPD/charged"; exit 0 ;;
   base)
@@ -851,7 +1021,7 @@ case "${1:-}" in
   start)
     [ -n "${2:-}" ] || usage
     need_gate 'admission'
-    admit_step "$2" HEAD; exit $? ;;
+    RESUMING=yes; admit_step "$2" HEAD; exit $? ;;
   admit)
     [ "${2:-}" = --brief ] && [ -f "${3:-}" ] || usage
     need_gate 'admission'

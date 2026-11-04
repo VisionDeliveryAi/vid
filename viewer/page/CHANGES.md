@@ -1,7 +1,6 @@
 # The page's changes
 
-`viewer/page/` is the owner's design from the release's design pack (kept in the
-repository's docs/, not shipped; Claude Design), used as the page's code: since
+`viewer/page/` is the owner's design from the release's design pack (Claude Design), used as the page's code: since
 v0.26.10.6 its `VID Viewer v4.dc.html` (2026-10-20), which is v3 (2026-10-19)
 with the Execution and Economics sections added; v3 was v2 (2026-10-13) with
 the Architecture section added. The build changes it only in three

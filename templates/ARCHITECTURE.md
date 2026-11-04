@@ -65,3 +65,22 @@ dns-access: {{CLI_LOGIN_PLATFORM_OR_ENV_NAME_OR_NONE}}
 owner-only: {{EACH_STEP_LEFT_TO_THE_OWNERS_HANDS_OR_NONE}}
 providers: {{EACH_OUTSIDE_SERVICE_LIVE_RESTRICTED_OR_FAKE_ON_STAGING}}
 ```
+
+## The code repository (ticket mode only)
+
+<!-- v0.26.10.9 (R8): only when the plan goes out as tickets (/vid plan): the
+     code repository on GitHub, by name only — never a credential. repo: and
+     labels-prefix: (empty, or e.g. `vid:`) are written by /vid plan; the
+     test facts by /vid replan once the code skeleton is merged and checked.
+     Committed alone. Delete this section in develop mode. -->
+
+```vid-code
+repo: {{OWNER}}/{{NAME}}
+labels-prefix: {{EMPTY_OR_A_PREFIX}}
+test-framework: {{THE_TEST_FRAMEWORK_THE_SKELETON_SET_UP}}
+test-dir: tests/{{THE_ACCEPTANCE_TEST_FOLDER}}
+run-one: {{THE_COMMAND_THAT_RUNS_NAMED_TESTS}}
+ci-workflow: {{THE_CI_WORKFLOW_NAME}}
+report: vid-junit-<run attempt>
+run-full: {{HOW_THE_FULL_RUN_IS_STARTED}}
+```

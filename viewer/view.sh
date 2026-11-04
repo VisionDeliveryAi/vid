@@ -692,7 +692,7 @@ while IFS='	' read -r _sha _sc; do
   printf '%s\tprd-ratified\tPRD ratified (%s)\t%s\n' "$(utc_of "$_c")" "$_sc" "$_c" >> "$W/ms"
 done < "$W/rats"
 awk "$AWKAT"' { t = lastat(); if (t == "") next }
-  $1 == "stage" && kv("name") == "init" && kv("state") == "end" && !ie { ie = 1; print t "\tsetup-done\tSetup done" }
+  $1 == "stage" && kv("name") == "init" && kv("state") == "end" && !ie { ie = 1; print t "\tsetup-done\t" (kv("made") == "spec" ? "Spec ratified" : "Setup done") }   # v0.26.10.9 (R6): a spec-only init'"'"'s label; the kind stays
   $1 == "stage" && kv("name") == "develop" && kv("state") == "start" && !ds { ds = 1; print t "\tbuilding-started\tBuilding started" }
   $1 == "step-closed" && kv("step") != "" { print t "\tstep-closed\t" kv("step") }
   $1 == "slice-close" { print t "\tslice-closed\tSlice " kv("slice") " closed" }

@@ -11,5 +11,5 @@ rt_case() { mkdir -p "checks/selftest/${1%/*}"
   case "$2" in ok) b='exit 0' ;; fail) b='exit 1' ;; once) b="if [ -f \"$T/once.\$(echo $1 | tr / _)\" ]; then exit 0; fi; : > \"$T/once.\$(echo $1 | tr / _)\"; exit 1" ;; esac
   printf '#!/bin/sh\n# Purpose: a toy case\necho %s >> "%s/ran"\n%s\n' "$1" "$T" "$b" > "checks/selftest/$1"; }
 rt_list() { printf '%s 2026-10-16 a toy reason\n' "$1" >> checks/selftest/flaky; }
-rt_run() { RT=0; VID_SELFTEST_RESCUED="$T/rescued" sh checks/selftest/run.sh > "$T/out" 2>&1 || RT=$?; }
+rt_run() { RT=0; sh checks/selftest/run.sh > "$T/out" 2>&1 || RT=$?; }
 rt_ran() { grep -cxF "$1" "$T/ran" || true; }

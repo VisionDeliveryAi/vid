@@ -1,6 +1,6 @@
 # VID records — the contract a reader relies on
 
-records: 28
+records: 32
 
 This file lists every record a reader outside VID may rely on — a viewer,
 a script, a person — with its path, its writer, when it is written, its
@@ -234,7 +234,7 @@ labelling pass's `.vid/briefs/labels-<n>.md` and
 `.vid/decision-labels.proposed`; a refused commit's
 `.vid/refusals/<attempt>/`; the self-test certificate,
 `<git common dir>/vid-selftest/<key>`, shared by every checkout (it
-replaces `<git dir>/vid-memo/selftest`). New events: `decision-labels`
+replaces `<git dir>/vid-memo/selftest`; not written from 0.26.10.12.1). New events: `decision-labels`
 and `court-refused`; `refused` gains `by=decisions-label`. New lines in a
 request's `result`: `retry: --expect <s>` and `build failed: no test ran —
 …`. The progress table gains a Refused commits row and
@@ -401,6 +401,62 @@ stops below 28. A reader of 27 keeps working: a new event type, new values
 and keys, a new block beside the old. The viewer's contract moves to
 `viewer-data 4` (adds `stages`).
 
+Version 29 (ViD 0.26.10.9, the ticket planner with spec-only init) only adds
+to 28. Init makes the spec only: its end event carries `made=spec`;
+INVENTORY.md's owed class `spec-only` (details `first stage` and `ticket`);
+the code skeleton's `skeleton` events, `checks/plan.sh skeleton` and
+RUN-STATE's `plan: skeleton` (the gate off). Ticket mode: RUN-STATE's `mode:
+tickets`; the stage names `plan` and `replan` (the gate on under them, and
+admission reading ticket grades); ARCHITECTURE.md's ```` ```vid-code ````
+block; ANSWERERS.md; `.vid/code/` (the read-only copy, not a record),
+`.vid/tickets/` (`map`, `state`, `PLAN.md`, `pr-<n>/`, `commit-<sha>/`),
+`.vid/replans/<round>.md`, `.vid/pages/`; CI receipts `<code
+sha>.ci-<run>-<attempt>.xml` with `.cases` and `.rows` (no `.tree`) and
+`ledger-run … type=ci`; the events `ticket`, `milestone`,
+`publish-approved`, `copy-check`, `skeleton`, `red-observed`'s ticket-mode
+form, `question … to=`, `stage-closed … source=ci`; a brief's `ticket:`,
+`base:` and `return: pull request` and its `## 16 ticket`; the `vid-ticket`
+part header and the `vid-return 1` block; the skeleton contract's artifact
+name `vid-junit-<run attempt>`; `metrics.sh stage-close --ci`; outside ViD's
+records, in the stand-in's clone, `.git/vid/` and the `Stand-in:` commit
+trailer. vid-init, vid-develop, vid-plan and vid-replan write `records=29`;
+develop stops below 29 only for a `made=spec` or adopted project (R5); the
+other verbs keep what they write. A reader of 28 keeps working: new event
+types, values, keys, blocks and files beside the old. The viewer's contract
+stays `viewer-data 4` (a spec-only init's milestone reads "Spec ratified",
+its kind `setup-done`).
+
+Version 30 (ViD 0.26.10.11, the /vid add refresh) only adds to 29. vid-add's
+start event carries `base=<HEAD, 12 hex>` and `records=30`; vid-develop's
+completion grade reads it: while one or more `stage name=add state=start`
+events come after the newest `completion unmet=0 strict-gaps=0`, it grades
+the requirements those adds' appends add or amend and those of the modules
+changed since the earliest such add's `base=`, with their declared
+dependents. vid-add writes RUN-STATE's `stage:` when it opens a new final
+stage after the final close. The other verbs keep what they write. A
+reader of 29 keeps working: a new key on an existing event.
+
+Version 31 (ViD 0.26.10.12, ticket-mode CI scope) only adds to 30.
+ARCHITECTURE.md's vid-code block gains `run-full: <how the full run is
+started>`, written by vid-replan from the skeleton's block; the skeleton
+ticket's return block gains `skeleton: run-full:`, required only of a
+skeleton ticket that asks for it. A feature or fix ticket's section 16
+gains `### CI scope` and its return block `ci-scope:`. The event
+`run-full started` (`checks/github.sh run-full`); with `run-full:`, `ticket.sh
+import --main` and `metrics.sh stage-close --ci` read only a run such an
+event names. Without `run-full:` a project keeps
+0.26.10.11's behaviour. The verbs keep what they write. A reader of 30
+keeps working: a new key in a block, a new line in another.
+
+Version 32 (ViD 0.26.10.24, the add guards) only adds to 31. The events
+`step-resumed` and `overrun`; `refused phase=pre-commit by=no-plan-step`,
+from `checks/plan.sh guard --paths -` (pre-commit rule 4e); `checks/plan.sh
+run-start`, the place of the run's start; `checks/observe.sh notices`; two
+`observe: notice — <text>` lines, the hand-back's (key `handback.<cksum>`)
+and the overrun's (key `overrun.<ticket>`); a `| Notices |` first row in the
+progress table. vid-add stops below 32. A reader of 31 keeps working: new
+event types, a new `by=` value, new notice lines, a new table row.
+
 ## The viewer's own files *(19)*
 
 `/vid view` (the plugin's `viewer/view.sh`) reads the project's documents
@@ -444,10 +500,11 @@ reads them, and their shape is the viewer's data contract,
 | `.vid/decision-labels.applied` *(18)* | `checks/decisions.sh apply` | appended at each labelling pass | one line per label written, `D-NNN<TAB><label><TAB>sure` or `…<TAB>widened: <why>` — a label the labeller was unsure of, a malformed proposal, or one naming an item no brief joins on, written `scope: project` instead |
 | `.vid/decision-ids` *(24)* | `checks/decisions.sh next` (an agent with `--try <try>`, a run manager without) | appended at each reservation, under the home's lock `.vid/decision-ids.lock`; at the run's home | one line per D-number reserved, `D-NNN<TAB><try\|manager><TAB><UTC>` — above every D-number in the caller's HEAD, the home's checked-out HEAD and every earlier reservation; a reserved number never used is a gap |
 | `.vid/refusals/<attempt>/` *(18)* | `checks/hooks/pre-commit`, at the run's home (a builder's worktree's refusal too) | one folder per refused commit attempt, before the hook's cleanup; kept | `meta` (`tree=` the index's tree, `head=`, then a `court=<name> rule=<rule\|-> subject=<subject\|->` line per refusing court — rule and subject from census's `FAIL  <rule>  <subject>` and inventory's `GAP  <subject>` lines, else `-`), and each refusing court's `<court>.out` and `.err`; a refusal before the courts keeps only its meta |
-| `<git common dir>/vid-selftest/<key>` *(18)* | `checks/hooks/pre-commit` | after a law commit's complete self-test pass, while the key's inputs and every file under `checks/` still equal what was judged; written privately, then renamed | `pass <key>` — the self-test certificate, shared by every checkout of the repository; the key is 0.9.5's memo key; anything else in the file is a miss |
+| `<git common dir>/vid-selftest/<key>` *(18; not written from 0.26.10.12.1: a project's law commit runs only its own cases, F-108; older ones are left as data and nothing reads them)* | `checks/hooks/pre-commit` | after a law commit's complete self-test pass, while the key's inputs and every file under `checks/` still equal what was judged; written privately, then renamed | `pass <key>` — the self-test certificate, shared by every checkout of the repository; the key is 0.9.5's memo key; anything else in the file is a miss |
 | `.vid/continuations/<step>/<try>/` *(16)* | `sh checks/brief.sh save` (the builder, the run manager, or `checks/job.sh`) | when a builder or fixer stops with unfinished work; published atomically; kept until a later return's commit contains it or `continuation-superseded` | `manifest` (`schema=`, `run=`, `step=`, `try=`, `role=`, `brief=`, `brief-hash=`, `quoted-at=`, `head=`, `landed=<commits past quoted-at>`, `report=`, then `file<TAB><path><TAB><mode><TAB><hash>` per payload), `tracked.patch` (`git diff --binary HEAD`, may be empty), `new/<path>` (each untracked file); read by `sh checks/brief.sh restore` |
 | `.vid/jobs/<try>` *(16)* | `checks/job.sh` | at `start`; `run` appends the launch and the exit; `stop` the intent | `key=value` lines: `run=`, `step=`, `try=`, `brief=`, `brief-hash=`, `quoted-at=`, `worktree=`, `plugin=`, `version=`, `model=`, `effort=`, `return=`, `started=`; then `pgid=`, `pid-start=`, `supervisor=`, `supervisor-start=`, `[task=]`; `stop=<UTC>`; `exit=<n\|recovered\|not-launched>`, `[stopped=yes]`, `ended=`. Beside it `<try>.events` (Codex's `--json` stream), `<try>.final` (its last message), `<try>.err`, `<try>.save`, and the worktree `<try>.wt/` |
 | `design/screens/index.json` *(21)* | the design pack (vid-design rule 6), new packs only | at import, with the pack | `{"layout": "per-screen", "files": [every file], "components": {"<screen>": [its component group files]}}` — under `layout: per-screen` design-join judges one canvas per screen and every listed file present, and briefs name a screen's own file and its components; absent, or another layout, nothing changes; `sh checks/design-join.sh --index` reads it |
+| `.vid/reread-owed.<session_id>` *(9)* | the plugin's `hooks/reentry.sh` (SessionStart `compact`) writes it; `hooks/reread.sh` (PostToolUse Read) appends `cover` lines and removes it when paid | at a compaction in a live run; a cover at each main-session read of a listed path | the session's re-read debt: `since <UTC>`, one `file <path>` per skill file to re-read, one `cover <path> <first> <last> <total>` per read (from v0.26.10.10 a truncated read too, its last line withheld); while it stands every main-session tool but Read is refused. The owner may delete it from another terminal to lift the block; no agent-facing text says so |
 | `.vid/reentry-shown.<session_id>` *(21)* | the plugin's `hooks/reentry.sh` (SessionStart `resume`) | when a resume prints the re-entry page | its UTC time: a resume within 30 minutes of it prints nothing; a resume writes no re-read debt — only a compaction does |
 | `.vid/VID-FINDINGS.md` *(23)* | the run managers of vid-init, vid-develop, vid-fix and vid-add | an entry appended when a ViD check, hook, skill or agent role misbehaves (refuses legitimate work, crashes, contradicts itself or its documentation, gives a wrong count) or is worked around; created from `templates/VID-FINDINGS.md` at the first | ViD's own defect log, one entry each, numbered in the file: `## F-<n> · <title>`, then `- **Seen:** <UTC date> · ViD <version> · records <n> · <verb>, <step>`, `- **Where:** <ViD file>[:<line>]`, `- **What happened:**`, `- **Evidence:** <project paths, never pasted product content>`, `- **Cost:** <counted minutes, re-runs or tokens lost> \| not counted`, `- **Local workaround:** <…>[ (owner answer A-<n>)] \| none`, `- **Ask:**`; each with its `vid-finding` event; the export carries it with the home's `.vid/` |
 | `.vid/agents/<agent id>.brief` *(21)* | the plugin's `hooks/net.sh` (PostToolUse) | made exclusively at an agent's first tool call | an empty marker: that agent's `agent-brief` is recorded, so it is recorded once |
@@ -521,10 +578,84 @@ a 0.9.3-or-later project. Rows:
 - `kind`: `surface` · `journey` · `shell` · `behavior` · `reachability`.
 - `derived-from`: `REQ-NNN` ids and/or design markers (`P03/expired`).
 - `test`: a ledger test path, or `owed: <reason>` (`owed: paid by /vid
-  deploy gate N — …` is paid at deploy).
+  deploy gate N — …` is paid at deploy). *(29)* `owed: spec-only — first
+  stage` on a row ratified at a spec-only init whose test is not written yet
+  (the code skeleton writes it), `owed: spec-only — ticket` on a row appended
+  under ticket mode (its ticket carries it); legitimate on the par line, its
+  count `spec-only=<n>` in the class split after `prerequisite=`. In ticket
+  mode a row's `test` field is a path under `tests/` in ViD's copy — the
+  file at the path it has in the code repository — and never carries a
+  `proved-red:` stamp.
 - `rule`, `seam` and the governance rows sit in the same block; their
   first field is the word `rule` or `seam`. A `seam` row may carry
   `module: <module id>` *(22)*.
+
+### ARCHITECTURE.md's vid-code block *(29)*
+
+Ticket mode only (vid-plan, vid-replan): the code repository on GitHub, by
+name only, one `key: value` line each in a ```` ```vid-code ```` block —
+`repo: <owner>/<name>`, `labels-prefix: <empty, or a prefix>`; once the code
+skeleton is merged and checked, `test-framework:`, `test-dir: tests/<dir>`,
+`run-one: <the command that runs named tests>`, `ci-workflow: <the
+workflow's name>`, `report: vid-junit-<run attempt>`; *(31)* `run-full: <how
+the full run is started>` — the skeleton's CI runs every test only on a
+manual start of main. Committed alone.
+
+### ANSWERERS.md *(29)*
+
+Ticket mode: one line per area in a ```` ```vid-answerers ```` block — `<area:
+feature ids, or all> | <name> | <how reached>`. A question card names the
+answerer of its area.
+
+### Ticket mode's files — .vid/code/, .vid/tickets/, .vid/replans/, .vid/pages/ *(29)*
+
+- `.vid/code/` — the read-only clone of the code repository, refreshed with
+  `git fetch`; not a record. Code commits are read only there.
+- `.vid/tickets/map` — one line per thing created on GitHub, written by
+  `checks/github.sh publish`: `label name=<label>`, `milestone stage=<n>
+  number=<n> hash=<12>`, `step step=<id> number=<n> hash=<12>`, `ticket
+  number=<n> step=<id|-> kind=feature|fix|skeleton brief=<file> parts=<n>
+  hash=<the written: hash>`.
+- `.vid/tickets/state` — `github.sh pull`'s reading: `ticket number=
+  state=OPEN|CLOSED labels=<names|-> taken=yes|no` and `pr number= ticket=
+  state=open|merged|closed draft=true|false head= merge=<sha|->`.
+- `.vid/tickets/pr-<n>/` — a pull request naming a ticket: `meta` (the same
+  fields), `body.md`, `comments/<k>.md`, `runs` (`run id= attempt= sha=
+  workflow=<spaces as %20> event= status= conclusion= repo=`, each run of its
+  commits) and `artifacts/<run>-<attempt>/` (the report downloaded as
+  `vid-junit-<attempt>`; `<run>-<attempt>.none` when that download failed: no
+  report). `.vid/tickets/commit-<sha>/` holds main's runs at a stage's last
+  merge the same way.
+- `.vid/tickets/PLAN.md` (`checks/ticket.sh plan-md`) — the plan page's
+  source; `.vid/tickets/skeleton.md` (`ticket.sh skeleton-body`) — the
+  skeleton ticket, a `kind: skeleton` header, `quoted-at:`, `base:`, a
+  `written: ticket.sh skeleton-body <hash>` stamp.
+- `.vid/replans/<round>.md` — a replan's report; `.vid/pages/<name>.html` —
+  any page `checks/page.sh` rendered from its markdown, which stays the
+  record.
+- **A ticket on GitHub:** parts of at most 60,000 characters, each opening
+  with a ```` ```vid-ticket ```` header — `issue= step= stage=
+  kind=feature|fix|skeleton part=<k>/<n> hash=<the written: hash> base=<code
+  commit> branch=vid/<issue>`, part 1 adding `rows:` and `run:` — and ending
+  `<!-- vid-ticket end part=<k>/<n> -->`; part 1 the issue's body, the rest
+  its comments. **The return block, `vid-return 1`:** one ```` ```vid-return
+  ```` block at the end of a pull request's description: `ticket: #<n>`;
+  `rows:` then one line per ticket row, `<REQ-id>/<ROW-id>
+  pass|fail|not-run ci: <run id> [reason: <one line>]`; `decisions:`,
+  `discovered:` (`early-technical|user-visible|new-work: <line>` or
+  `blocked-by: #<n>`), `law-needed:` (`<ROW-id>: <why>`) and `questions:`,
+  each a list or `- none`; the skeleton ticket's block `rows: none` and one
+  `skeleton: <key>: <value>` line each for test-framework, test-dir,
+  run-one, ci-workflow and report, *(31)* and run-full when its ticket asks
+  for it; *(31)* one `ci-scope: <selector>` line, equal to the ticket's CI
+  scope's selector when it has one. **The skeleton contract's artifact:**
+  every CI run publishes its JUnit XML report as `vid-junit-<run attempt>`,
+  each case `<test path>::<test name>`, the name carrying the ROW id.
+- **Outside ViD's records, in the stand-in's clone:** `.git/vid/` (its
+  fetched tickets, reviews and claims), `.git/vid/sessions` (`verb=
+  session= transcript= at=`, one line per stand-in verb start), and the
+  `Stand-in: worker-<k>` / `Stand-in: approver` commit trailer on the root
+  commit, every claim commit and every approver's merge.
 
 ### DESIGN-BRIEF.md
 
@@ -656,9 +787,11 @@ Keys first, one line each, then the session's own prose:
     receipt: <report name>|none    briefs: <files>|-
     held: <ROW-id> …|-
     plan: required                          (2) written by 0.9.6 develop at its start
+    plan: skeleton                          (29) while develop builds the code skeleton (vid-skeleton): the gate off
+    mode: tickets                           (29) written by /vid plan: the planner's run; develop refuses it
     now: <one line>|-                       (2) the build's own words, `checks/progress.sh --now`
     strategy: depth-first|breadth-first     (17) absent: depth first; written only by `checks/plan.sh strategy … --by owner`
-    stage: <N>                              (25) only with STAGES.md: the stage being built; 1 at develop's start, N+1 written by `metrics.sh stage-close --record`; (28) 0 at develop's start with STAGE-0; the final stage's close sets none
+    stage: <N>                              (25) only with STAGES.md: the stage being built; 1 at develop's start, N+1 written by `metrics.sh stage-close --record`; (28) 0 at develop's start with STAGE-0; the final stage's close sets none; (30) k+1 written by vid-add right after the placement commit that opens STAGE-k+1 after the final close
 
 - `run:` — `active`; `waiting`: everything left depends on an open
   question; `stopped <reason>`: genuinely blocked, or `stopped owner asked
@@ -758,7 +891,8 @@ One line per commit attempt, newest last:
   or any with no live run).
 - A court field is `-` when the court did not run (absent, or the hook
   stopped earlier), `memo` when its memo skipped it; the courts run side by
-  side, so the fields add up to more than `seconds=`.
+  side, so the fields add up to more than `seconds=`. From 0.26.10.12.1
+  `selftest=` times the project's own cases only and is never `memo`.
 
 ### .vid/SUMMARY.md
 
@@ -781,12 +915,33 @@ quote the entries matching their rows (`## 17 lessons`), whole.
 
 ### Briefs — .vid/briefs/<N>/ *(20, the new ones)*
 
+*(29)* A ticket — a builder or fixer brief written with `brief.sh write
+--ticket` — carries `ticket: pending` (the issue's number is kept in
+`.vid/tickets/map`), `base: <the code repository's commit>` and `return:
+pull request`, no `first act:`, the plan's `shared:` line in section 10, and
+a `## 16 ticket` section: `stage: <n>    step: <id> — <name>`, `modules:`,
+`shared:`, `base:`, then `### Acceptance tests` (each file whole under
+`#### <path>`, fenced), `### Design screens`, `### Instructions` and `### The
+return block (vid-return 1)`. *(31)* Once the vid-code block names
+`run-full:`, a `### CI scope` before the instructions: `selector: <the
+--selection>`, then one `<ROW-id> <test path> ticket|alarm` line per row —
+the ticket's rows citing a test, and the journeys, shell and reachability
+rows of merged tickets — and the return block's `ci-scope: <the selector>`. A ticket's hand-back is
+`<role>-<n>.return.md`, written by `ticket.sh import` from the block.
+
 A grader brief's patches,
 one per row in proof scope, in `grader-<n>.faults/<ROW-id>.patch`, and its
 return's `fault: ROW-<id> | target=<case> | control=<case> | patch=<path>`
 lines.
 
 ### Receipts — .vid/ledger-results/
+
+*(29)* A CI receipt, ticket mode: `<code sha, 12>.ci-<run>-<attempt>.xml` —
+the dev team's JUnit XML report, imported by `checks/ticket.sh import` —
+with `.cases` (`case <test path>::<name> <status> <seconds>`) and `.rows`
+(the rows it was imported for) and no `.tree`; its `ledger-run … type=ci`
+event names the run. Readers take its cases from `.cases`; a grader brief
+credits its `.rows`; no reader resolves its commit in ViD's repository.
 
 The runner's own per-case results report, renamed by `checks/test.sh` only
 when the run ran to its end: `<sha>.full.xml` (the whole ledger on an
@@ -888,7 +1043,7 @@ fails when code or a skill writes one that is not.
 | `analyst-due` | *(7)* `request=<ticket> reason=cap\|setup\|slow [rows=<ROW-id,…>] [cases=<case id,…>] [group="<first message>"]` — `rows=`/`cases=` the slow cases, by row when the evidence join credits one, else by case id; *(15)* a close batch's chunk as `request=<ticket>/<n>`; *(21)* `group="<message> (<n> case[s]); …"` — the groups of the red cases over 60 s that tripped the setup trigger, each with its count | `checks/test.sh` | a request's completion, after `result` and before the final `state`, once per trigger that fired: capped (*(21)* not when the host slept during the run; *(24)* on any of the watcher's three reasons, the event adding `stop=silent\|startup\|limit last-output=<UTC>` after `reason=cap`); 5 or more red cases each over 60 s; a case over 240 s |
 | `agent-start` | *(4)* `session=<session id> agent=<agent id> type=<agent type>`; *(9)* `transcript=<the parent session's transcript, as the hook receives it>` before `at=` — the agent's own is `<it without .jsonl>/subagents/agent-<agent id>.jsonl` | the plugin's `hooks/record.sh` (Claude Code's SubagentStart) | an agent starts; a resumed agent starts again under the same id; its brief, role and step are joined at export, never here |
 | `agent-stop` | *(4)* `session=<session id> agent=<agent id> type=<agent type> transcript=<the agent's transcript path>` | the plugin's `hooks/record.sh` (SubagentStop) | an agent stops; no "accepted" status is recorded |
-| `build-cost` | *(10)* `role=<builder\|fixer> slice=<N> step=<id\|-> brief=<path> rows=<n> rows-passed=<k> peak=<t> total=<t> before-change=<t\|unknown>[ shell]` — tokens of the agent's own transcript: per API call input + cache read + cache creation, the largest and the sum; before-change the call that made the first product mutation under the step's modules, ` shell` when only a shell call could have (possible, not proven); `unknown` when the transcript is not found *(16)* then `tool=claude\|codex model=<m\|unknown> effort=<e\|unknown> brief-bytes=<n>` — the effective model and effort from the agent's transcript (Codex: its job record); for a Codex builder the tokens are read from its events file by their own reader (`turn.completed` usage, summed per turn), `peak=unknown` (an exec is one turn, so no call's context is readable), `before-change=unknown`; for a grader, test-author or analyst (`sh checks/brief.sh cost <brief> --agent <id>`) `step=-`, `rows-passed=-`; *(21)* `brief=` relative to the home (an older record's absolute path is still read, up to the next ` key=`, its home prefix removed); *(21)* for a cost with no transcript found, `cost … --tokens <n> --source agent-tool` records `total=<n>` and `source=agent-tool` after `before-change=` — the caller's own total, reported, never `unknown`; *(21)* `agent=<the agent's id>` last before `at=` — an agent whose `build-cost` or `agent-returned` carries its id after its latest `agent-start` is finished (resume and the watcher never call it quiet); older records without it stay as they are | `checks/brief.sh return` | a hand-back passes the check, once per brief |
+| `build-cost` | *(10)* `role=<builder\|fixer> slice=<N> step=<id\|-> brief=<path> rows=<n> rows-passed=<k> peak=<t> total=<t> before-change=<t\|unknown>[ shell]` — tokens of the agent's own transcript: per API call input + cache read + cache creation, the largest and the sum; before-change the call that made the first product mutation under the step's modules, ` shell` when only a shell call could have (possible, not proven); `unknown` when the transcript is not found *(16)* then `tool=claude\|codex model=<m\|unknown> effort=<e\|unknown> brief-bytes=<n>` — the effective model and effort from the agent's transcript (Codex: its job record); for a Codex builder the tokens are read from its events file by their own reader (`turn.completed` usage, summed per turn), `peak=unknown` (an exec is one turn, so no call's context is readable), `before-change=unknown`; for a grader, test-author or analyst (`sh checks/brief.sh cost <brief> --agent <id>`) `step=-`, `rows-passed=-`; *(21)* `brief=` relative to the home (an older record's absolute path is still read, up to the next ` key=`, its home prefix removed); *(21)* for a cost with no transcript found, `cost … --tokens <n> --source agent-tool` records `total=<n>` and `source=agent-tool` after `before-change=` — the caller's own total, reported, never `unknown`; *(21)* `agent=<the agent's id>` last before `at=` — an agent whose `build-cost` or `agent-returned` carries its id after its latest `agent-start` is finished (resume and the watcher never call it quiet); older records without it stay as they are | `checks/brief.sh return` | a hand-back passes the check, once per brief *(29)* a ticket's hand-back (`brief.sh return … --agent pr:<n>`): `tool=ticket model=unknown effort=unknown`, the token fields `unknown`, `agent=pr:<n>` |
 | `amended` | `row=<ROW-id> sha=<commit>` *(20)* `by=obligation\|fail-if` — the row's own obligation changed, or an item it derives from changed its fail-if; only `obligation` clears its authority flag | `checks/hooks/post-commit` | after a commit that changed the row's obligation or its item's effective fail-if; wipes the row's verdicts; *(2)* inside a 0.9.6 develop run, written at the run's home; *(23)* written only `by=obligation` (a changed fail-if writes `law-changed`); one written `by=fail-if` before 23 still wipes |
 | `law-changed` | *(23)* `row=<ROW-id> sha=<12 hex> item=<REQ-id,…>` — the items it derives from whose effective fail-if changed | `checks/hooks/post-commit` (the row sets of `sh checks/inventory.sh impact --detail`) | after a commit that changed an effective fail-if, for each row present at both commits whose own obligation did not change and that derives from such an item (a row new at the commit gets none); no wipe — the row is to confirm (Readings); inside a develop run, written at the run's home |
 | `attempts` | `row=<ROW-id> n=<k>` | (legacy, 0.9.2) | no longer written; read as 0.9.2 read it |
@@ -908,14 +1063,15 @@ fails when code or a skill writes one that is not.
 | `harness-upgrade` | *(13)* `state=due\|dispatched\|asked\|applied\|declined harness=<cksum of docker-compose.test.yml as it was, the original harness>`; *(14)* `target=<the rules version the step brings the harness to>` — none reads as 1; states are keyed by hash and target, so a target-1 decline leaves target 2 due | vid-develop (`sh checks/event.sh`) | the upgrade step for a harness with no `rules:` line (`sh checks/harness.sh rules`, at develop's start): `due` once, `dispatched` with the first admitted step's upgrade pass, `asked` with the owner's law question, then `applied` (after the law commit) or `declined`; the latest state for the hash is where a resumed run goes on; events only — a declined hash is due again once the harness file changes |
 | `incident` | `slice=<N> <what>` (free text; `harness row=<ROW-id> …` for a harness breach) *(16)* `slice=- coordination-fault try=<try> ticket=<id> ledger=<path>` (`checks/job.sh status`: a job's ticket outside the run's home) | vid-develop | an incident |
 | `invalidated` | `slice=<N> <why>`; *(2)* `slice=<N> report=<receipt> <why>` names the void receipt | vid-develop | the close run invalidated; *(2)* any run found void — its receipt is then no current result |
-| `ledger-run` | `seconds=<s> kind=full\|deployed\|scoped report=<name>\|none status=<n> [role=builder\|fixer\|close\|grader]`; *(5)* `role=` always present — also `test-author` and `testenv` (a scoped run, like a builder's), and `-` for a run outside a develop run that names no role; *(6)* `role=orchestrator` (the orchestrator's own `prove-red`); a request's run adds `request=<ticket> type=prove-red\|iterate\|close\|checkpoint\|full\|deployed rows=<n> estimate=<s> cap=<s> (*(24)* `silence=<s> startup=<s> limit=<s>` in its place; an older event's `cap=` is still read) [expect=<s>] [no-history=<n>]` (*(15)* a close batch's chunk: `request=<ticket>/<n>` and, after those, `batch=<ticket>`), then `[outside=<n>]` on a pass kept out of the evidence (`report=none`; *(14)* on a kept pass whose cases reached `<n>` rows outside its frozen rows, none credited) and `capped=yes` on a run stopped at its cap (`report=none status=130`; *(24)* `capped=yes stop=silent\|startup\|limit` — its watcher's reason) — *(14)* or `stopped=service:<name>` in its place on a run stopped by a service's death, and `why="<line>"` last before `at=`; a plain run outside a develop run adds `form=legacy` after `role=`; *(2)* inside a 0.9.6 develop run also `tree=<sha> run=<run-id> [waited=<s>] [teardown=failed]`, and `report=` names the kept receipt; *(13)* inside a develop run a pass is published before its teardown, so `seconds=` holds no teardown and `teardown=failed` rides only a capped run's event — a failed teardown is its own `teardown-failed` event; *(13)* each pass published inside a develop run adds `overhead=<s>` after the request's fields (before `why=`): its seconds minus the sum of its cases' seconds in its `.cases`, never below 0 — the image build, the services, installs and the runner's start; a run outside a develop run keeps no `.cases` and writes none; *(3)* `kind=close` for a selected close's inline pass and `kind=checkpoint` for a checkpoint's (their deployed passes are `kind=deployed`), with `role=checkpoint` *(16)* `try=<try>` after the request's fields when its ticket carries one; a cancelled run `report=none status=130 … cancelled=yes` | `checks/test.sh` | every ledger run; *(2)* written at the run's home *(20)* `purpose=proof` on a proof request's run, its receipt named `.proof.`: cost and export read it; nothing that credits, claims, briefs, estimates or triggers does. *(27)* `type=staging` on a staging request's run (`kind=scoped`, its receipt today's scoped one); a request's run is written at its home whenever `checks/plan.sh home-of` resolves, the gate on or off, with `tree=` and `run=` |
+| `ledger-run` | `seconds=<s> kind=full\|deployed\|scoped report=<name>\|none status=<n> [role=builder\|fixer\|close\|grader]`; *(5)* `role=` always present — also `test-author` and `testenv` (a scoped run, like a builder's), and `-` for a run outside a develop run that names no role; *(6)* `role=orchestrator` (the orchestrator's own `prove-red`); a request's run adds `request=<ticket> type=prove-red\|iterate\|close\|checkpoint\|full\|deployed rows=<n> estimate=<s> cap=<s> (*(24)* `silence=<s> startup=<s> limit=<s>` in its place; an older event's `cap=` is still read) [expect=<s>] [no-history=<n>]` (*(15)* a close batch's chunk: `request=<ticket>/<n>` and, after those, `batch=<ticket>`), then `[outside=<n>]` on a pass kept out of the evidence (`report=none`; *(14)* on a kept pass whose cases reached `<n>` rows outside its frozen rows, none credited) and `capped=yes` on a run stopped at its cap (`report=none status=130`; *(24)* `capped=yes stop=silent\|startup\|limit` — its watcher's reason) — *(14)* or `stopped=service:<name>` in its place on a run stopped by a service's death, and `why="<line>"` last before `at=`; a plain run outside a develop run adds `form=legacy` after `role=`; *(2)* inside a 0.9.6 develop run also `tree=<sha> run=<run-id> [waited=<s>] [teardown=failed]`, and `report=` names the kept receipt; *(13)* inside a develop run a pass is published before its teardown, so `seconds=` holds no teardown and `teardown=failed` rides only a capped run's event — a failed teardown is its own `teardown-failed` event; *(13)* each pass published inside a develop run adds `overhead=<s>` after the request's fields (before `why=`): its seconds minus the sum of its cases' seconds in its `.cases`, never below 0 — the image build, the services, installs and the runner's start; a run outside a develop run keeps no `.cases` and writes none; *(3)* `kind=close` for a selected close's inline pass and `kind=checkpoint` for a checkpoint's (their deployed passes are `kind=deployed`), with `role=checkpoint` *(16)* `try=<try>` after the request's fields when its ticket carries one; a cancelled run `report=none status=130 … cancelled=yes` | `checks/test.sh` | every ledger run; *(2)* written at the run's home *(20)* `purpose=proof` on a proof request's run, its receipt named `.proof.`: cost and export read it; nothing that credits, claims, briefs, estimates or triggers does. *(27)* `type=staging` on a staging request's run (`kind=scoped`, its receipt today's scoped one); a request's run is written at its home whenever `checks/plan.sh home-of` resolves, the gate on or off, with `tree=` and `run=` *(29)* a CI receipt's: `type=ci report=<code sha>.ci-<run>-<attempt>.xml repo=<owner/name> workflow=<name, spaces as %20> run=<id> attempt=<n> commit=<code sha, 12> pr=<n|-> [stage=<n>] status=0` (`checks/ticket.sh import`) |
 | `owed-close` | `slice=<N> n=<k>` | vid-develop | owed rows at slice close |
+| `overrun` | *(32)* `ticket=<ticket> estimate=<s> awake=<s>` | `checks/test.sh` (the request's watcher) | once per request, the first tick its awake seconds pass twice its estimate; it stops nothing |
 | `paid` | `row=<ROW-id> via=ledger\|browser\|census\|deploy` | vid-develop | a row paid, and by which channel |
 | `plan-change` | *(2)* `what=create\|add\|drop\|split\|merge\|reorder\|lanes\|rows\|other hash=<12 hex> why="<one line>"`; *(4)* `decision=<id>` before `why=`; *(17)* `what=edge` (rows moved into a hardening step), `not-needed-by=<step ids>` before `why=` when given | `checks/plan.sh change` | every accepted change to the plan block, with its reason; the block is kept in `.vid/plans/<hash>.plan`; *(4)* its decision record in `.vid/plans/decisions/<id>.why`. A refused change writes no event, only its record |
 | `progress` | *(2)* `trigger=hourly\|plan-change\|session by=observer\|session rows-passing=<n> rows-left=<n> estimate=<lo>-<hi>\|none` | `checks/progress.sh --record` | a progress update; `by=observer` lines are never session activity |
 | `pull-forward` | *(25)* `step=<id> decision=<D-id>` | vid-develop | a minimum technical piece of a later stage brought forward into the current one (its plan change and decision recorded with it) |
-| `question` | `n=<n> state=asked gates=<ROW-ids and paths, comma-separated, or all>`; `n=<n> state=answered` | vid-develop | a develop question asked (after its `Q<n>` line is written), and answered (after the PRD append) |
-| `red-observed` | *(2)* `row=<ROW-id> report=<receipt> case=<case id> assertion="<the failing assertion>"` | vid-develop | a new row's test observed failing on its real check, before its `proved-red:` stamp |
+| `question` | `n=<n> state=asked gates=<ROW-ids and paths, comma-separated, or all>`; `n=<n> state=answered` | vid-develop | a develop question asked (after its `Q<n>` line is written), and answered (after the PRD append) *(29)* in ticket mode `to=<answerer>` on `state=asked` (ANSWERERS.md), written by vid-replan |
+| `red-observed` | *(2)* `row=<ROW-id> report=<receipt> case=<case id> assertion="<the failing assertion>"` | vid-develop | a new row's test observed failing on its real check, before its `proved-red:` stamp *(29)* ticket mode: `row=<ROW-id> pr=<n> commit=<code sha, 12>` — the row's cases failing in the dev team's CI report for the tests-first commit (`checks/ticket.sh import`); no receipt, no stamp |
 | `re-verdict` | `slice=<N> round=<r> breached=<k>` | vid-develop | a re-verdict round |
 | `regressions` | `slice=<N> n=<k>` | vid-develop | at slice close |
 | `refused` | *(4)* `phase=pre-commit\|commit-msg\|admission by=<court or rule> attempt=<the UTC time plus 4 hex> [step=<id>]` | `checks/hooks/pre-commit` (`by=` the courts that refused, comma-separated, or `protected-paths`, `law-dirty`, `law-standalone`, `purpose-header`, `decisions-enforced`, `decisions-promissory`, *(18)* `decisions-label`, `index-copy`, `red-stamp`, `prd-grammar`, `selftest`; *(25)* `stages` among the courts); `checks/hooks/commit-msg` (`decisions`, `tests-by`, *(25)* `stages`); `checks/plan.sh` (`rule-A`, `rule-B`, `dirty-currency`, `unrecorded-plan`, `no-step`, `rows-not-of-step`, *(17)* `graded`, *(25)* `stage`, with `step=`) | every refusal of a commit or an admission, at the run's home |
@@ -928,15 +1084,16 @@ fails when code or a skill writes one that is not.
 | `slice-modules` | `slice=<N> <path> …` | vid-develop | a slice opens: the modules it touches |
 | `slice-open` | `slice=<N> sha=<commit>` | vid-develop | a slice opens |
 | `slot-reclaimed` | *(11)* `slot=<k> project=<the holder's compose project> holder-pid=<pid> age=<s>` | `checks/test.sh` | a run that found no free test environment freed a host slot left by a run that died: its holder pid gone, Docker answering, no container, running or stopped, of that compose project left; written at the run's home, once per slot freed |
-| `stage` | `name=<verb> state=start\|end\|pause-1\|pause-2\|pause-3 session=<id> [records=<n>]`; *(4)* `run=<the run id>` on every `state=start`, before `at=` | every verb but vid-grade, in a VID project | a verb starts or ends; vid-create-prd also at each pause commit; `records=` is the version the verb writes (vid-develop 8, vid-fix 8, vid-deploy 4, the others 1) *(20)* vid-develop and vid-fix write `records=20`. |
-| `stage-closed` | *(25)* `n=<N> sha=<12 hex> ready rows=<n> debt=<n> stages-blob=<HEAD:STAGES.md blob\|none>` | `checks/metrics.sh stage-close --record` | a ready stage close, with the tag vid/stage-N at sha; what vid-deploy reads, never recomputing a past commit |
+| `stage` | `name=<verb> state=start\|end\|pause-1\|pause-2\|pause-3 session=<id> [records=<n>]`; *(4)* `run=<the run id>` on every `state=start`, before `at=` | every verb but vid-grade, in a VID project | a verb starts or ends; vid-create-prd also at each pause commit; `records=` is the version the verb writes (vid-develop 8, vid-fix 8, vid-deploy 4, the others 1) *(20)* vid-develop and vid-fix write `records=20`. *(29)* the stage names `plan` and `replan` (vid-plan, vid-replan, `records=29`); vid-init's end carries `made=spec` for a spec-only init (an older init wrote no `made=`); vid-init and vid-develop write `records=29` *(30)* vid-add writes `records=30` and `base=<HEAD when it starts, 12 hex>` on its `state=start`, read by vid-develop's completion grade (the adds since the newest `completion unmet=0 strict-gaps=0`, from the earliest one's `base=`) |
+| `stage-closed` | *(25)* `n=<N> sha=<12 hex> ready rows=<n> debt=<n> stages-blob=<HEAD:STAGES.md blob\|none>` | `checks/metrics.sh stage-close --record` | a ready stage close, with the tag vid/stage-N at sha; what vid-deploy reads, never recomputing a past commit *(29)* ticket mode: `n=<N> sha=<the code commit, 12> source=ci run=<id> rows=<n> debt=<n>` (`metrics.sh stage-close --ci --record`) — no `ready` token, so no reader of a close's ViD sha reads it; no tag |
 | `stage-cut` | *(25)* `n=<stages> answer=<A-id> [blob=<HEAD:STAGES.md blob>]` | vid-stage | the owner ratified a cut (n=1: one stage, no STAGES.md), at init or a re-cut |
 | `stage-deploy` | *(25)* `n=<N> staging=yes production=yes\|no`; *(28)* `staging=failed`, `[by=develop]`, `[why="<one line>"]` | vid-deploy | a stage deployed to staging and the owner's gate-3 answer; *(27)* written by each target — `production=no` by a staging deploy, `production=yes` by a production cutover; *(28)* `by=develop` for develop's own staging deploy under the standing authorization, `staging=failed` with its reason when that deploy ended without gate 2's pass |
-| `stage-hold` | *(27)* `n=<N> state=asked words="<the owner's words>"`; `n=<N> state=on`; `n=<N> state=off` | `checks/stages.sh hold --after N` (asked), `checks/metrics.sh stage-close --record` (on), `checks/stages.sh hold --off` (off) | the owner's "hold after this stage"; stage N's ready close under it; the owner's "continue"; *(28)* `words="staging setup"` is the setup hold, asked by vid-develop while no staging deploy has passed gate 2 (its close writes `run: stopped staging setup after stage N`), released by `checks/stages.sh hold --off --setup` once staging works — which, when the owner also asked to hold, records nothing and rewrites the run line to the owner's hold |
+| `stage-hold` | *(27)* `n=<N> state=asked words="<the owner's words>"`; `n=<N> state=on`; `n=<N> state=off` | `checks/stages.sh hold --after N` (asked), `checks/metrics.sh stage-close --record` (on), `checks/stages.sh hold --off` (off); *(30)* vid-add (off, for an asked hold the owner's yes to an add withdraws before the build) | the owner's "hold after this stage"; stage N's ready close under it; the owner's "continue"; *(28)* `words="staging setup"` is the setup hold, asked by vid-develop while no staging deploy has passed gate 2 (its close writes `run: stopped staging setup after stage N`), released by `checks/stages.sh hold --off --setup` once staging works — which, when the owner also asked to hold, records nothing and rewrites the run line to the owner's hold |
 | `staging-auth` | *(28)* `state=on\|off words="<the owner's words>"` | `checks/stages.sh staging-auth on\|off --words` (vid-stage's sitting; any verb, at the owner's word) | the standing staging authorization: develop may set staging up and deploy each closed stage to it on its own; the newest stands |
 | `stall` | `op=<op> elapsed=<s> envelope=<s>` | `checks/watchdog.sh` | a session's check of an operation past its envelope |
 | `step-closed` | *(3)* `step=<id> report=<the kept receipt the claim read>`; *(15)* `batch=<ticket>` from a claim by batch, `report=` its newest constituent | `checks/metrics.sh claim --steps` | a claim on a selected close, or on the final full run, succeeded; the step's rows are then eligible at every later close |
 | `step-done` | *(17)* `step=<id>` | `checks/metrics.sh step-state` | the first time a step is computed done; a stamp for measurement, never read back as done |
+| `step-resumed` | *(32)* `step=<id> plan=<hash>` | `checks/plan.sh start <id>` | outside ticket mode, on a step already started; with `step-start`, it lets product code past the commit guard after a develop start |
 | `step-rows-passing` | *(17)* `step=<id> tree=<12 hex> receipts=<names, comma-separated>` | `checks/metrics.sh step-state` (read at `brief.sh return` and by `progress.sh`) | once per feature step, the first time every row of it passes (or is owed, held or later) on receipts of one tree: the time it was seen |
 | `step-start` | *(2)* `step=<id> plan=<hash>`; *(3)* `base=<commit>`, HEAD at admission (absent on a step started before 0.9.6.1) | `checks/plan.sh` (a builder or fixer brief checked ok, or `plan.sh start <id>`) | a plan step's first admission |
 | `strategy` | *(17)* `set=depth-first\|breadth-first by=owner decision=<id>` | `checks/plan.sh strategy` | the owner sets the run's strategy; the words are in `.vid/plans/decisions/<id>.why` |
@@ -946,6 +1103,12 @@ fails when code or a skill writes one that is not.
 | `tokens` | `slice=<N> phase=build\|verdict\|fix\|re-verdict\|review n=<k>` | vid-develop; the append doors and reviews (`phase=review`, `slice=0` before the first slice) | tokens spent |
 | `verdict` | per row: `slice=<N\|fix-<date>> row=<ROW-id> result=KEPT\|BREACHED class=product\|test\|harness [transition=k/n]` *(8)* `[scope="<the grader's question>"]` `brief=<path> quoted-at=<sha>` — `scope=` on a BREACHED holds the row `reason=scope`; per slice: `slice=<N> claimed=<k> breached=<k>` | vid-develop; vid-fix's re-grade | a grader's verdict; the slice's tally *(20)* A failed fault proof writes `verdict … result=BREACHED class=test proof=<the faulted receipt> brief=<the grader brief> quoted-at=<sha>` (`checks/metrics.sh proof`). |
 | `wall-clock` | `slice=<N> seconds=<s>` | vid-develop | at slice close |
+| `ticket` | *(29)* `issue=<n> step=<id\|-> kind=feature\|fix\|skeleton state=published\|rewritten\|commented\|taken\|returned\|merged\|graded\|fix\|done\|blocked\|unblocked [pr=<n>] [resolved-by=<issues>] [why=<word>]` | `checks/github.sh` (published, rewritten, commented; taken, returned, merged as `pull` first sees them); vid-replan (graded, fix, done, blocked, unblocked) | a ticket's state changes; `state=done` is what admission under tickets reads (the original completed by its fix carries `resolved-by=`) |
+| `milestone` | *(29)* `stage=<n> number=<n> state=created\|edited\|closed [commit=<code sha>]` | `checks/github.sh publish`, `close --milestone` | a stage's milestone made, its title or card changed, or closed naming the commit that passed the stage |
+| `publish-approved` | *(29)* `words="<the owner's words>"` | vid-plan | the owner's yes to the plan page; nothing goes to GitHub before it |
+| `run-full` | *(31)* `started run=<id> attempt=<n> sha=<the run's head commit, 12>` | `checks/github.sh run-full` | ViD started the skeleton's manual run of every test on main (ticket mode, the vid-code block naming `run-full:`); the run's commit descends from every merge of the stage's tickets. `ticket.sh import --main` and `metrics.sh stage-close --ci` read only a run one of these names |
+| `copy-check` | *(29)* `pr=<n> files=<n> changed=<n> missing=<n>` | `checks/ticket.sh import` | ViD's copy check of a merged pull request: its ticket's test files at the merge commit against ViD's copy; `brief.sh return` reads the newest for the pull request |
+| `skeleton` | *(29)* `state=start provenance=spec-only\|adopted`; `state=part-done part=<1\|2\|3>`; `state=end sha=<HEAD> materialised=<n> red=<n> spec-only=<n> prerequisite=<n>` | vid-skeleton (develop's first step) | the code skeleton's parts; `checks/plan.sh skeleton` reads them |
 | `test-proven` | *(20)* `row=<ROW-id> result=proven\|inconclusive why=<-\|unappliable\|no-baseline\|no-fault-run\|shape\|baseline-tree\|fault-tree\|missing-case\|baseline-failed\|control-<status>\|target-<status>> fault=<patch> clean=<receipt\|none> red=<receipt\|none> target=<case> control=<case> commit=<12 hex> file=<test path> blob=<blob> helpers=- obligation=<cksum> authority=<digest> brief=<grader brief>` | `checks/metrics.sh proof` | a fault proof judged; a conclusive failure is a `verdict … class=test proof=<receipt>` instead |
 | `authority-kept` | *(20)* `row=<ROW-id> sha=<HEAD>` | `checks/brief.sh authority --kept` | a test-author pass kept the row as it is under its changed authority; its flag clears until the bundle changes again |
 | `selftest-retried` | *(21)* `case=<path from checks/selftest/> result=convicts\|failed` | `checks/selftest/run.sh` | a case listed in `checks/selftest/flaky` failed in the suite and ran once more, alone, where a `.vid/` is present; a run a retry rescued publishes no self-test certificate and is never evidence |

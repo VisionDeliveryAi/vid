@@ -1,6 +1,6 @@
 ---
 name: vid-add
-description: Add a feature to an existing ViD project — mini-interview, PRD appends with new REQs and Fail-ifs, develop scoped to the delta, then fix scoped to the delta. Use when the owner says "vid add", "add a feature", or describes new behavior for an already-built project.
+description: Add a feature to an existing ViD project — mini-interview, PRD appends with new REQs and Fail-ifs, the inventory delta, then a hand-over to develop, which builds it and grades it once, scoped to the add. Use when the owner says "vid add", "add a feature", or describes new behavior for an already-built project.
 ---
 
 # /vid add
@@ -8,7 +8,16 @@ description: Add a feature to an existing ViD project — mini-interview, PRD ap
 The same loop, smaller. Requires an existing ViD project (CLAUDE.md law file
 with a ```vid-placement block) — otherwise point the owner at /vid init.
 
-**Stage events (v0.9.5 3.11, R11; RECORDS.md).** In the project, record `sh checks/event.sh "stage name=add state=start session=$CLAUDE_CODE_SESSION_ID records=1"` when this verb starts and `sh checks/event.sh "stage name=add state=end session=$CLAUDE_CODE_SESSION_ID"` when it hands back; develop, which this verb runs scoped to the delta, writes its own. Every event this skill names is written the same way, `sh checks/event.sh '<event>'`, which appends it to `.vid/metrics-events` with its time.
+**The start (v0.26.10.24 R1).** Outside ticket mode, read `checks/records-version` first: absent or below 32, tell the owner the project's checks/ needs the refresh and stop before any work; the refresh is vid-develop's ("Version skew"), run before the add is asked again. **Stage events (v0.9.5 3.11, R11; v0.26.10.11 R6; RECORDS.md).** In the project, record `sh checks/event.sh "stage name=add state=start session=$CLAUDE_CODE_SESSION_ID records=30 base=$(git rev-parse --short=12 HEAD)"` when this verb starts — `base=` is HEAD before the add's first commit, which develop's completion grade reads; outside ticket mode, whenever a session takes the add over, record it again with its first `base=` — and `sh checks/event.sh "stage name=add state=end session=$CLAUDE_CODE_SESSION_ID"` when it hands back or hands over (§3); develop writes its own. Every event this skill names is written the same way, `sh checks/event.sh '<event>'`, which appends it to `.vid/metrics-events` with its time.
+
+**Ticket mode (v0.26.10.11 R8).** While `.vid/RUN-STATE.md` says `mode:
+tickets`, run §1, §2 (the placement included) and §2b — append mode stops
+after the ratification, the new rows written `owed: spec-only — ticket` —
+then hand back (§5) naming /vid replan: its `new-work:` row takes the
+add's rows into the plan, and their tests and tickets follow its §6. No §3
+or §4: grading stays per ticket, and staging stays the dev team's. The
+hand-back's last line is "say '/vid replan' to put it in the plan as
+tickets".
 
 ## 1. Mini-interview
 
@@ -55,27 +64,74 @@ the `A:` texts they cite.
   `${CLAUDE_PLUGIN_ROOT}/skills/vid-create-prd/passes/wording-lens.md`
   before the append is ratified, under the same `arms:` accounting
   (v0.9.1 3.5c): one line per rewording, ruled at recognition speed.
-- After the append commit and before §2b: spawn
+- **A new feature's stage (v0.26.10.5 R5; v0.26.10.11 R1, R3), when
+  STAGES.md exists.** The owner puts the add's pilot work in a stage in
+  the same sitting as its append: recommend, ask, and record the answer
+  as a row of the append's answers block — the answer row the placement
+  commit cites.
+  - **Every stage closed** (`.vid/metrics-events` holds `stage-closed
+    n=<k>`, k the final stage: STAGES.md's highest `STAGE-` number) and
+    the add brings pilot items: one answer, a new final stage —
+    `STAGE-<k+1> | <name> | features: <the add's new pilot features>`,
+    plus a `split: <REQ…> -> STAGE-<k+1>` line for each new pilot
+    requirement of an existing feature (`features: -` when the add brings
+    no new pilot feature), with its plain-language card. A closed stage's
+    tag never moves: the new stage's close is what tags it, re-checks
+    stages 1 to k+1 and takes the feature to staging.
+  - **Otherwise:** the current stage or a later one. A new requirement in
+    an existing feature takes that feature's stage; there is nothing to
+    place.
+  - `later` items go in no stage. An add that brings no pilot item places
+    nothing and builds nothing: no hand-over, and the hand-back
+    says there is nothing to build.
+  - **A hold, on or asked for (v0.26.10.11 R7).** When a stage is held (a
+    `stage-hold n=N state=on` with no `state=off` for N after it), or the
+    owner has asked to hold after a stage still open (`stage-hold n=N
+    state=asked`, its words not "staging setup", no `state=off` after
+    it), the placement question also says that building now ends the
+    hold, as "continue" does — and, for a hold that is on, that staging
+    goes back to the held stage's build until the feature's stage closes.
+    On yes:
+    - a hold that is on: develop (§3) starts through its "continue" path
+      — `run: active`, `sh checks/stages.sh hold --off`, its `continue:`
+      line said first; for the setup hold, develop's rules for "continue"
+      while the setup hold is on;
+    - an asked hold: withdrawn before the build starts with the record
+      "continue" writes, `sh checks/event.sh 'stage-hold n=N state=off'`
+      (`hold --off` refuses while no stage is held); when stage N's
+      cycle also holds the setup hold's ask, ask it again at once, `sh
+      checks/stages.sh hold --after N --words "staging setup"`, so only
+      the owner's hold is withdrawn.
+
+    On no, stop after §2b: no hand-over, and the hand-back's last line is
+    "say 'continue' to build it with stage <its stage>". Develop's scoped
+    grade holds until that build's completion. (Owner decision D2 (a).)
+
+  The placement is its own law commit, right after the append commit and
+  before the whole-set review: the feature joins a `STAGE-` line of
+  STAGES.md's ```vid-stages block (or a `split:` line places its
+  requirements), the message citing the answer (`Stages: A-NNN`) —
+  commit-msg refuses a membership change without one. Until it lands,
+  `checks/stages.sh` refuses every other commit (the feature is in no
+  stage). An amendment that adds a pilot feature gets its own placement
+  commit right after it. **The current stage (v0.26.10.11 R2):** right
+  after the placement commit that opens STAGE-<k+1>, write RUN-STATE's
+  `stage:` line as `stage: <k+1>` (replace it; with none, add it after
+  `plan:`). `sh checks/stages.sh current`, admission, the close of
+  STAGE-<k+1> (the final stage: tagged `vid/stage-<k+1>`, no next stage)
+  and develop's staging step at that close then read it unchanged.
+- After the append commit (and its placement, above) and before §2b: spawn
   `${CLAUDE_PLUGIN_ROOT}/skills/vid-create-prd/passes/whole-set-review.md`
-  in `mode: delta` on the append against the effective set (v0.9.1 3.2).
-  Its findings are ruled now, one line each: a `fix_from_record` finding
-  is an amendment in a further dated append, a question goes back to the
-  mini-interview (v0.9.8.1 R29: every finding that narrows or withdraws a
-  fail-if arm, one question for the review, listing each row, its arm and
-  the answer it follows; the answer settles every row it names); the run records `sh checks/event.sh 'tokens slice=0 phase=review n=T'`.
+  in `mode: delta` on the append against the effective set (v0.9.1 3.2),
+  once per add (v0.26.10.24 R1). Its findings are ruled now, one line
+  each: a `fix_from_record` finding is an amendment in the same append, a
+  question goes back to the mini-interview (v0.9.8.1 R29: every finding
+  that narrows or withdraws a fail-if arm, one question for the review,
+  listing each row, its arm and the answer it follows; the answer settles
+  every row it names), and what the rulings land is not reviewed again, as
+  in vid-fix and vid-test-inventory; the run records `sh checks/event.sh 'tokens slice=0 phase=review n=T'`.
 - BASELINE/ARCHITECTURE changes only if the feature genuinely adds a seam,
   stack element, or Tier-0 row — rare; prefer existing seams.
-- **A new feature's stage (v0.26.10.5 R5), when STAGES.md exists.** The
-  owner puts a new feature in a stage in the same sitting as its append:
-  recommend one — the current stage or a later one (a closed stage's tag
-  never moves) — ask, and record the answer as a row of the append's
-  answers block. After the append commit, the placement is its own law
-  commit: the feature joins a `STAGE-` line of STAGES.md's ```vid-stages
-  block (or a `split:` line places its requirements), the message citing
-  the answer (`Stages: A-NNN`) — commit-msg refuses a membership change
-  without one. Until it lands, `checks/stages.sh` refuses every other
-  commit (the feature is in no stage). A new requirement in an existing
-  feature takes that feature's stage; there is nothing to place.
 
 ## 2b. The inventory delta — delegated to /vid test-inventory (append mode)
 
@@ -108,32 +164,35 @@ write is deferred only by the closed vocabulary (`owed: <class> —
 needs that this sitting did not derive are develop's per-route additions,
 as always — never silent, never a substitute for the sitting.
 
-## 3. Develop, scoped to the delta
+## 3. Hand over to develop (v0.26.10.24 R1)
 
-Run the /vid develop loop (see the vid-develop skill — same laws: two-channel
-questions, ledger green at every commit, commit template, narrated position)
-restricted to the delta: only the new REQs, only the seams they live in.
+Once §2b has ratified the rows and written them red, tell the owner in one
+line the delta's row-set counts and that develop now runs as it always
+does. Record the add's end, `sh checks/event.sh "stage name=add state=end
+session=$CLAUDE_CODE_SESSION_ID"`; then **invoke the vid-develop skill (the
+Skill tool)** and go on from its "Before any work", whose stage event turns
+the gate on. Inside develop the add's rows join the plan through `sh
+checks/plan.sh change add "<why>" --trigger scope-change --evidence
+commit:<the append commit> --expect "<one line>"`, as develop's plan rule
+says, and its completion grade is this add's one grade (the vid-develop
+skill, "After an add, the grade is scoped"). An add that brings no pilot
+item (§2) hands nothing over: there is nothing to build. When the owner's
+yes ends a hold (§2), develop starts through its "continue" path.
 
 Write-scope discipline is the point of this verb: needing to touch files
 outside the feature's seams means the seam map is wrong — stop, fix
 ARCHITECTURE.md in the same commit, or reconsider the approach. It is never
 "just this once".
 
-## 4. Grade, adjudicate, fix — scoped to the delta
+## 4. Throughout the add
 
-Run /vid grade (see the vid-grade skill) with focus restricted to the
-new/amended REQs plus every seam the delta touched. Present the findings
-table; the owner adjudicates; apply the accepted rows via the /vid fix
-protocol — same dual-write, same scoped internal re-grade.
+These two hold from §1 to the hand-over, before develop's text is in force.
 
 **A change to the law, counted first (v0.26.10.3 R3, R5).** A question
 whose recommended answer would change a fail-if or a row's obligation
 quotes `sh checks/inventory.sh impact` on a scratch draft of the change,
 and a bulk approval asks once before landing when any row would be reset
-(vid-develop's two-channel rule). Before the re-grade, the test-author
-pass judges every row the sitting's amendments flag (`sh checks/brief.sh
-authority --changed`, rows to confirm included): kept with `authority
---kept`, or its obligation amended.
+(vid-develop's two-channel rule).
 
 **ViD's own defects (v0.26.10.3 R12, R13).** When a ViD check, hook,
 skill or agent role misbehaves — it refuses legitimate work, crashes,
@@ -147,8 +206,17 @@ built is not a ViD finding.
 
 ## 5. Hand back
 
+Only three adds end here: ticket mode, no pilot item, a hold kept (§2).
+
 The first line is the rows headline (v0.9.2 3.11: `sh checks/metrics.sh`'s
 `rows: kept K · unverdicted U · breached B · red R · owed O · deploy-owed
 D (unmet …)` — over the whole inventory, the delta's rows named), then
 the delta's row-set diff counts, the deploy-owed rows and `later` items
 as their own two counts, and the open questions; counts never scores.
+
+The last lines: "nothing to build: the add brings no pilot item" (§2),
+"say 'continue' to build it with stage <its stage>" (a hold kept, §2), and
+ticket mode's (above). A kept hold's hand-back adds: when the owner then
+says "continue", invoke the vid-develop skill (the Skill tool) and go on
+from its "Before any work", whose stage event turns the gate on, then its
+"continue" path.

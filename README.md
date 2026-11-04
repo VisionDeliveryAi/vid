@@ -70,11 +70,11 @@ The three commands in the Install section above.
 An install is checked the way ViD checks anything: the judges prove they
 convict, and one real init completes. Three steps, in order:
 
-1. **Version.** Say `vid help`. It must report **0.26.10.8**.
+1. **Version.** Say `vid help`. It must report **0.26.10.24**.
 2. **Court self-test.** Ask Claude: *"Run ViD's court self-test suite —
    `checks/selftest/run.sh` under the installed plugin root — and report
-   the verdict line."* Expected: `selftest: 548/548 courts convict`.
-   One of the 548, view-page-diff, checks only in ViD's own repository
+   the verdict line."* Expected: `selftest: 646/646 courts convict`.
+   One of the 646, view-page-diff, checks only in ViD's own repository
    (it needs the design pack, which is not shipped); elsewhere it passes
    without checking. A line ending "rescued by a
    retry" is not a clean pass. A court that fails to convict its
@@ -83,9 +83,10 @@ convict, and one real init completes. Three steps, in order:
 3. **Toy init.** In a NEW empty directory, say `vid init` and describe a
    deliberately tiny product (a page or two of behavior; accept default
    answers freely). Expected: the interview completes, the Test
-   Inventory is ratified and materialised as FAILING ledger tests, init
-   reports its own court self-test green on your machine, and the
-   initial commit exists.
+   Inventory is ratified (its tests not written yet), init reports its
+   own court self-test green on your machine, the spec commit exists, and
+   init's last words say there is no code yet — /vid develop builds the
+   code skeleton as its first step.
 
 Self-test green and toy init complete: your install works. If either
 fails, please report it.
@@ -122,19 +123,24 @@ face) → **develop** (build) → **grade** (look, any time) → **fix** (apply
 specific corrections) → **deploy** (ship: the only verb that touches
 anything real). **stage** cuts the product into stages (inside init, or
 on request); **add** re-enters the loop for a new feature; **view** shows
-the project; **help** prints the installed version and the verb list.
+the project; **help** prints the installed version and the verb list. In
+ticket mode **plan** and **replan** take develop's place while a dev team
+builds. A *stage* is a slice of the product; *staging* is the test site.
 
 - **vid-init**: once, in an empty directory. Runs **vid-create-prd** inline
   (or adopts a PRD it already ratified), asks the technical-foundation
   questions — where the product runs and how ViD gets access among them,
   recorded by name, never a credential — and writes BASELINE.md,
   DECISIONS.md, ARCHITECTURE.md and the CLAUDE.md law file. Runs the design chain when the product has a face,
-  and **vid-test-inventory** to derive the Test Inventory, which you ratify
-  and which is materialised as failing tests. It scaffolds the stack so the
-  repo is the architecture, installs the commit-hook courts and the
-  Docker-only test harness, generates the census extractors from the real
-  scaffold, proves the courts convict, and gates on red: a new test that
-  passes against no implementation fails init by name.
+  and **vid-test-inventory** to derive the Test Inventory, which you ratify.
+  It installs the commit-hook courts, proves they convict, and makes the
+  spec commit — **the spec only**, and it says so at its end: there is no
+  code, no test harness and no written test yet. **vid-develop** builds the
+  code skeleton as its first step (the stack so the repo is the
+  architecture, the Docker-only test harness, the census extractors from the
+  real scaffold, every ratified row written as a failing test, gated on red:
+  a new test that passes against no implementation fails by name); or
+  **vid-plan** sends the skeleton to a dev team as their first ticket.
 - **vid-create-prd**: authors the PRD. One interview batch where each
   question must matter downstream, a content contract you ratify, typed
   requirements each carrying a Fail-if (a condition a wrong implementation
@@ -214,6 +220,28 @@ the project; **help** prints the installed version and the verb list.
   by anything but you, except a staging deploy at a stage close, or at
   "continue" while staging is being set up, under your standing staging
   authorization.
+- **vid-plan**: ticket mode, for a dev team with its own pipeline. ViD's
+  repository keeps the spec, the plan and ViD's records; the code
+  repository on GitHub gets only issues, milestones, labels and comments.
+  It publishes the whole plan — a milestone per stage, an issue per step,
+  tickets for the ready steps, the code skeleton first — after you approve
+  the plan page. Each ticket carries its own instructions and its
+  acceptance tests; nothing in the dev team's pipeline changes. ViD never
+  pushes, merges or deploys.
+- **vid-replan**: ticket mode, run when you ask (daily, or for a blocked
+  ticket). It reads what came back — merged pull requests, their return
+  blocks and the dev team's CI results per test, drafts holding questions —
+  checks ViD's tests are present and unchanged, grades the merged work
+  against each requirement's Fail-if, sends questions to the people you
+  named for each area, changes the plan, closes a stage when the dev team's
+  CI run on main passes it and every row is graded, and publishes the next
+  tickets. A readable report page each round.
+- **vid-ticket-implement** and **vid-ticket-approve**: for a trial of
+  ticket mode, the dev side's stand-ins, each in its own conversation and
+  its own clone of the code repository — a worker that claims tickets and
+  builds each with a fresh agent given only the ticket, and a reviewer that
+  checks each pull request and merges it at the reviewed head or sends it
+  back. They never touch ViD's repository.
 - **vid-help**: the installed version, read live from the plugin, and the
   verb list.
 
@@ -226,19 +254,23 @@ adversarially.
 
 ```
 skills/     the verbs, and the internal skills develop uses (build,
-            verify, test manager, test writing, staging setup)
+            verify, test manager, test writing, staging setup, the code
+            skeleton)
 agents/     the agent roles ViD's verbs spawn: builder, fixer, grader,
             test author, test analyst
 templates/  PRD, BASELINE, DECISIONS, ARCHITECTURE, DEPLOYMENT,
-            INVENTORY, GRADING-CHECKLIST, RUN-STATE, SUMMARY, the
-            CLAUDE.md law file, the go-live note, the test-harness
-            skeleton
+            INVENTORY, GRADING-CHECKLIST, RUN-STATE, SUMMARY, ANSWERERS
+            (ticket mode), the CLAUDE.md law file, the go-live note, the
+            test-harness skeleton
 checks/     the courts and tools: commit hooks, the PRD, inventory,
             design, import and census courts, the test manager
             (test.sh) and test environments, the plan and brief records,
             Codex jobs, evidence, metrics and progress, the observer and
-            watchdog, the deploy gates, and selftest/ (a known-bad fixture
-            per court, the judge proven to convict)
+            watchdog, the deploy gates, ticket mode's GitHub adapter
+            (github.sh, the one file that calls gh), the ticket grammar and
+            report reader (ticket.sh) and the page renderer (page.sh), and
+            selftest/ (a known-bad fixture per court, the judge proven to
+            convict)
 hooks/      plugin hooks: the session and agent record, the death
             record, the re-entry page and compulsory re-read after a
             compaction, the builders' context limit, bounded waits,

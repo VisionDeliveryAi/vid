@@ -105,6 +105,7 @@
 #   --wait <seconds>: a full lease retries every 10 s until a slot is free
 #   or the bound passes (then refused as before, naming the holders); a
 #   signal while waiting leaves nothing held; `waited=<s>` rides the event.
+#   v0.26.10.12 (H3): a queued request whose ticket folder is gone ends.
 # v0.9.6.1 (3.1, 3.8; R1, R8) — inside the gate only:
 #   --role close -- <selection> [--deployed-selection <selection>]
 #                                     a SELECTED CLOSE: export-backed like the
@@ -544,6 +545,7 @@ rq_size() { if [ -f "$1" ]; then wc -c < "$1" | tr -d ' '; else echo 0; fi; }
 # service's line. Each tick writes `watch` (awake= silent= pass= phase= at=). It stops the run — `cap-hit` with
 # reason= and last-output=, then TERM through the signal path — when the silence reaches the silence limit, a
 # watched pass's start-up (the services watcher started for it) reaches the start-up limit, or the awake time the run limit.
+# v0.26.10.24 (R6): the first tick past twice the estimate records `overrun` once, at the home; it stops nothing.
 rq_watch() {
   while :; do
     case "$(cat "$1/state" 2>/dev/null)" in running) break ;; queued) ;; *) return 0 ;; esac
@@ -553,7 +555,7 @@ rq_watch() {
   _sil=$(rq_kv silence "$1/request"); _sul=$(rq_kv startup "$1/request"); _lim=$(rq_kv limit "$1/request")
   _p0=inline; { [ "$(rq_kv type "$1/request")" = deployed ] || { [ -z "$(rq_kv sel "$1/request")" ] && [ "$(rq_kv hasdsel "$1/request")" = yes ]; }; } && _p0=deployed
   _aw=0; _si=0; _su=0; _pa=''; _last=$(date -u '+%Y-%m-%dT%H:%M:%SZ'); _ls=$(rq_size "$1/log"); _ws=0; _sv=''; _ph=''
-  _why=''
+  _why=''; _ov=no; _es=$(rq_kv estimate "$1/request")
   while [ -z "$_why" ]; do
     sleep 5
     [ "$(cat "$1/state" 2>/dev/null)" = running ] && [ ! -f "$1/result" ] || return 0
@@ -572,6 +574,8 @@ rq_watch() {
     if [ "$_o" = yes ]; then _si=0; _last=$(date -u '+%Y-%m-%dT%H:%M:%SZ'); else _si=$((_si + 5)); fi
     [ "$_f" = startup ] && _su=$((_su + 5))
     rq_put "$1/watch" "awake=$_aw silent=$_si pass=$_p phase=$_f at=$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+    if [ "$_ov" = no ] && [ "${_es:-0}" -gt 0 ] && [ "$_aw" -gt $((_es * 2)) ]; then _ov=yes; _oi=$(rq_kv id "$1/request")
+      ( cd "${1%/.vid/requests/*}" && sh checks/event.sh "overrun ticket=${_oi:-${1##*/}} estimate=$_es awake=$_aw" ) > /dev/null 2>&1 || true; fi
     if [ "$_si" -ge "${_sil:-1200}" ]; then _why=silent
     elif [ "$_f" = startup ] && [ -f "$1/svcout.$_p" ] && [ "$_su" -ge "${_sul:-3600}" ]; then _why=startup
     elif [ "$_aw" -ge "${_lim:-86400}" ]; then _why=limit; fi
@@ -1795,6 +1799,9 @@ dirty_refuse() {
 W0=$(date +%s); DW0=''
 while :; do
   [ -n "$TD" ] && [ -f "$TD/cancel" ] && { kill -TERM $$; sleep 1; }   # v0.9.7.1 (3.6, R6): cancelled while queued — the signal path, nothing held
+  # v0.26.10.12 (H3): a queued request whose ticket folder is gone ends — no one can read its result, and a removed
+  # scratch takes the host lease's folder with it, so the queue could only wait out its hours
+  [ -n "$TD" ] && [ ! -d "$TD" ] && { echo "ViD test: the request's ticket folder is gone ($TD); the queued run ends." >&2; exit 1; }
   # v0.9.7.0.11 (3.6, R6): an export-backed request waits out a dirty worktree before it takes a slot — each round,
   # up to VID_DIRTY_WAIT (600) s from the first dirty sight, then refused as before; HEAD's tree at serve still runs
   if [ -n "$TD" ] && [ "$CHUNK" = no ] && { [ -z "$SEL" ] || [ "$SELCLOSE" = yes ] || [ "$STAGING" = yes ]; }; then

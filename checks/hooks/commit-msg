@@ -15,6 +15,12 @@
 # the run's events (checks/event.sh, so at the run's home). Nothing new is
 # enforced.
 # v0.26.10.5 (R4): a third refusal, by=stages — a stage membership change citing no owner answer.
+# v0.26.10.9 (R1, found by the trial): the spec commit (HEAD carries no
+# checks/, as pre-commit tells it) writes no test; a golden set its staged
+# INVENTORY.md names in a `golden:` field is the ratified spec's fixture
+# (vid-test-inventory §4.6), which the inventory court needs at that commit,
+# and needs no Tests-by:. Every other file it adds under tests/invariants/,
+# and every later commit, is judged as before.
 set -eu
 
 MSG_FILE="$1"
@@ -54,6 +60,10 @@ fi
 
 # Tests-by: required when the commit adds a ledger file (v0.9.2 3.1c).
 ADDED=$(git diff --cached --name-only --diff-filter=A 2>/dev/null | grep '^tests/invariants/' || true)
+if [ -n "$ADDED" ] && ! git rev-parse -q --verify HEAD:checks >/dev/null 2>&1; then
+  GS=$(git show :INVENTORY.md 2>/dev/null | sed -n 's/.*|[[:space:]]*golden:[[:space:]]*\([^|[:space:]]*\).*/\1/p' || true)
+  ADDED=$(printf '%s\n' "$ADDED" | GS="$GS" awk 'BEGIN { n = split(ENVIRON["GS"], a, "\n"); for (i = 1; i <= n; i++) G[a[i]] = 1 } NF && !($0 in G)')
+fi
 if [ -n "$ADDED" ]; then
   TB=$(grep -v '^#' "$MSG_FILE" | sed -n 's/^Tests-by:[[:space:]]*//p' | head -n 1 | sed 's/[[:space:]]*$//')
   if ! printf '%s\n' "$TB" | grep -qE '^test-author [0-9]{4}-[0-9]{2}-[0-9]{2} [^[:space:]]+'; then

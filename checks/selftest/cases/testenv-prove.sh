@@ -12,7 +12,8 @@
 # R6; §6 B-3): the measure run and both proof runs are recorded
 # role=testenv. v0.9.8.1 (R2): the live project's race fix (its 916db80) — measure waits for its hold's
 # timer, and the cleanup never decides the verdict — and the first plain run is awaited at its own stub, not
-# at slot 1, which the measure's run still holds through its final teardown after its result. Env: CHECKS.
+# at slot 1, which the measure's run still holds through its final teardown after its result. v0.26.10.12 (H2): the
+# testenv event is read as the last `testenv` line, since a proof run's late `teardown` event may follow it. Env: CHECKS.
 set -eu
 # cleanup never decides the verdict: a detached stub teardown may still be writing under $T when the case ends
 T=$(mktemp -d); trap 'set +e; rm -f "$T/hold"; rm -rf "$T" 2>/dev/null' EXIT
@@ -53,7 +54,9 @@ grep -q "^testenv prove ok id=$ID receipts=" "$T/prove.out" || fail 'the proof d
 [ "$(grep '^ledger-run ' .vid/metrics-events | tail -n 2 | grep -c ' role=testenv ')" -eq 2 ] || fail 'the two proof runs are not recorded role=testenv'
 TE record || fail 'record'
 for kv in stacks=3 unverified-rows=180 env-mb=512 "testenv=proved harness=$(cksum < docker-compose.test.yml | cut -d' ' -f1)"; do grep -qx "$kv" .vid/budget || fail "the budget lacks $kv"; done
-tail -n 1 .vid/metrics-events | grep -qE '^testenv stacks=3 env-mb=512 docker-mb=8192 other-mb=0 case-seconds=0.1 compose=2.29.1 resets=yes at=' || { tail -n 1 .vid/metrics-events >&2; fail 'no testenv event'; }
+# v0.26.10.12 (H2): the last testenv event, not the file's last line — a proof run's detached final teardown may append
+# its `teardown` event after record's (found under load: 1 of 20 parallel runs, the teardown 4 s after its run)
+grep '^testenv ' .vid/metrics-events | tail -n 1 | grep -qE '^testenv stacks=3 env-mb=512 docker-mb=8192 other-mb=0 case-seconds=0.1 compose=2.29.1 resets=yes at=' || { tail -n 3 .vid/metrics-events >&2; fail 'no testenv event'; }
 # results that differ: the proof fails, stacks stays 1
 rm -f .vid/budget
 measure || fail 'the second measure'; TE pick

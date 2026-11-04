@@ -302,8 +302,9 @@ tests and assertions is free and never silent; changing what the law admits
 is a standalone, owner-visible act whose Decisions: trailer states what it
 admits and why. The ordering follows: law first (row, seam, rule), then the
 code that needs it, in its own commit. Every law-change commit re-runs the
-court self-tests (checks/selftest/run.sh) — touch the law, prove the judge
-still convicts; a court whose known-bad fixture passes is a build failure.
+project's own self-test cases (its extractors'; ViD's shipped cases passed
+at its release and never run here) — touch the law, prove the judge still
+convicts; a court whose known-bad fixture passes is a build failure.
 A change to checks/ additionally requires `VID_ROLE=fix` tracing to owner
 law — a PRD append, an owner answer, or an owner-accepted correction, named
 in the commit message; the grading engine flags any court edit without one,

@@ -5,7 +5,8 @@
 # hooks/reentry.sh for SessionStart with the matcher `compact|resume`;
 # `source=compact` in a run that is `active` prints the page — the header
 # line, the re-read list (develop's skill, vid-test-manager's,
-# vid-verify's and, from v0.9.7.0.7 3.1, vid-build's, by absolute path), the watcher's line and the `resume`
+# vid-verify's and, from v0.9.7.0.7 3.1, vid-build's, by absolute path), the windows sentence and no word of
+# deleting (v0.26.10.10 R3), the watcher's line and the `resume`
 # lines — and writes the session's debt with one `file` line per path;
 # `resume` prints it too (v0.9.8.1 R31: writing no debt), and with fix the open verb it lists vid-fix's
 # skill; `startup`, `clear`, `run: stopped` and no .vid/ print nothing; it
@@ -24,7 +25,9 @@ grep -qxF 'Re-read these in full now, with the Read tool:' "$T/page.out" || fail
 for f in "$DV" "$TM" "$VV" "$VB"; do grep -qxF -- "- $f" "$T/page.out" || fail "the page does not list $f"; done
 grep -q "^watcher: " "$T/page.out" || fail "the page has no watcher line"
 grep -q '^resume: run: active' "$T/page.out" && grep -q '^resume: claims: ROW-1 ROW-2' "$T/page.out" || fail 'the page has no resume lines'
-grep -qF "$H/.vid/reread-owed.S1 from another terminal" "$T/page.out" || fail 'the page does not name the debt file'
+# v0.26.10.10 (R3): no word of deleting; the windows sentence after the list
+grep -qF 'delete' "$T/page.out" && fail 'the page tells of deleting'
+grep -qF 'Read long files in windows with offset and limit, at most 400 lines a call (for example offset 1 limit 400, then offset 400 limit 400). Each window counts; the block lifts when every line is covered.' "$T/page.out" || fail 'the page has no windows sentence'
 [ "$(sed -n 's/^file //p' "$H/.vid/reread-owed.S1")" = "$DV
 $TM
 $VV

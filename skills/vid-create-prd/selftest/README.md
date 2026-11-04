@@ -8,8 +8,7 @@ does the work, a checker or a reader judges), never part of
 
 A `seed.md` (and an `import.md`) the full chain runs on, with an
 `expected.md` in prose naming what the produced PRD.md must show. Judged
-by reading; the acceptance record in the release's build notes (kept in the
-repository's docs/, not shipped) carries the runs.
+by reading; the release's acceptance record carries the runs.
 
 ## Calibration fixtures (v0.9.1 3.10, 3.2, 3.5) — the reviewers and the wording lens, defective AND acceptable
 
@@ -36,7 +35,7 @@ assumed.
 The passes are model calls; their output varies between runs. The case
 therefore runs as vid-test-inventory's derive-check protocol does: a
 fresh agent reviews, the checker judges, and the pasted checker output
-lands in the build notes with the model id and a plain statement of
+is kept with the release, with the model id and a plain statement of
 whether the agent was fresh.
 
 1. Copy the fixture's `PRD.md` into a scratch directory.
@@ -54,8 +53,7 @@ whether the agent was fresh.
 3. Judge: `sh pass-check.sh fixtures/<name> <scratch>/findings-<pass>.md`.
    Exit 0 = every expectation held; one line per expectation.
 
-Paste the checker output into the release's build notes (kept in the
-repository's docs/, not shipped) with the model id that reviewed. A run whose agent
+Keep the checker output with the release, with the model id that reviewed. A run whose agent
 was not fresh, or whose prompt carried more than the brief and the
 artifact, is stated plainly and does not count.
 

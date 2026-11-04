@@ -4,7 +4,7 @@
 # 3.4, R4). S2 builds on S1; S3 is unrelated. A receipt passing S2's rows,
 # judged at later commits: 0.9.6 staled it after a change under S1's
 # modules, a change to a shared: path, and a file moved out of S1 into S3
-# (backlog R2-F1's ROW-1015 shape). Under 0.9.6.1 a result stands until the
+# Under 0.9.6.1 a result stands until the
 # row's own test changes, it is amended, or a later receipt shows it
 # otherwise — so after each of those changes, and after a change in S3,
 # ROW-003 still passes, labelled with the commit it passed at. The guard

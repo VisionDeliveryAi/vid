@@ -1,6 +1,6 @@
 ---
 name: vid-test-inventory
-description: Own a ViD project's Test Inventory — the whole test contract, every test the project will ever have, routed by what can run it (rule rows with census denominators, materialised ledger rows, grading-checklist lines, the governance rows for what is deliberately not tested, hostility and seam rows). Derives from the PRD's effective set, the resolved design join, and the route table by enumeration joins; deliberates genus through fresh-context expert lenses; challenges the derived evidence with a counterexample lens; ratifies rows with the owner at recognition speed; materialises them as failing ledger tests and holds the red gate. vid-init runs it inline (init mode, two call points), vid-add and vid-design's standalone round call its append mode; standalone it re-derives after PRD appends or a consolidation and presents the row-set diff. It never owns an executor and never runs verification. Use when the owner says "vid test-inventory", "re-derive the inventory", after a PRD consolidation, or when init, add, or design delegate to it.
+description: Own a ViD project's Test Inventory — the whole test contract, every test the project will ever have, routed by what can run it (rule rows with census denominators, materialised ledger rows, grading-checklist lines, the governance rows for what is deliberately not tested, hostility and seam rows). Derives from the PRD's effective set, the resolved design join, and the route table by enumeration joins; deliberates genus through fresh-context expert lenses; challenges the derived evidence with a counterexample lens; ratifies rows with the owner at recognition speed; materialises them as failing ledger tests and holds the red gate. vid-init runs it inline (init mode, call point 1; v0.26.10.9: call point 2 is the code skeleton's), vid-add and vid-design's standalone round call its append mode; standalone it re-derives after PRD appends or a consolidation and presents the row-set diff. It never owns an executor and never runs verification. Use when the owner says "vid test-inventory", "re-derive the inventory", after a PRD consolidation, or when init, add, or design delegate to it.
 ---
 
 # /vid test-inventory
@@ -66,13 +66,22 @@ is the extractor contract the caller's generated extractors must meet).
 
 Three modes, chosen by what exists and who called:
 
-- **init mode** — no INVENTORY.md; called by vid-init in place, at two
-  call points: **call point 1** (init's step 4) runs §§1–6 below — derive,
-  deliberate, challenge, ratify, materialise — and hands back; init's own
-  steps (scaffold, courts, extractors, the harness) run between; **call
-  point 2** (init's step 7) runs §7 — the red gate and the proved-red
-  stamp. The owner's experience of init is one sitting in one place,
-  unchanged.
+- **init mode** — no INVENTORY.md; called by vid-init in place at
+  **call point 1** (init's step 4), which runs §§1–5 below — derive,
+  deliberate, challenge, the governance rows, the ratification sitting —
+  and hands back (v0.26.10.9 R3: init makes the spec only). A row that
+  would be materialised gets the `test` field `owed: spec-only — first
+  stage`; every other `test` field is written as before — the deploy-gate
+  form (`owed: paid by /vid deploy gate <n>`) and the legitimate deferral
+  classes (`guard-first`, `census-armed`, `probe-capture`, `golden-set`,
+  `fixture-source`, `prerequisite`, `owner-decision`) keep their class,
+  executor and payment point. **Call point 2** — §6 materialisation, §7 the
+  red gate and proved-red — is no longer init's: in develop mode its caller
+  is the code skeleton (vid-skeleton Part 3), verbatim as §6 and §7 state
+  them, in **skeleton mode**, each row's test written, committed, observed
+  red and stamped before the par line is read; in ticket mode (RUN-STATE's
+  `mode: tickets`) its §6 runs per ticket (vid-replan writes a ticket's
+  tests before it is published), with no red gate of ViD's own.
 - **append mode** — INVENTORY.md exists and the caller names a DELTA: the
   REQs an add introduced (vid-add, after its append commit and before
   develop) or the resolved surfaces a standalone design round produced
@@ -80,7 +89,10 @@ Three modes, chosen by what exists and who called:
   genus lenses run scoped to the delta (one round each unless a lens is
   not dry); the row-set diff (§5) is presented; ratification;
   materialisation red; `proved-red` stamped at the parent sha where each
-  test was observed red.
+  test was observed red. **Under tickets** (RUN-STATE's `mode: tickets`,
+  v0.26.10.9 R3), append mode stops after the ratification: its new rows are
+  written `owed: spec-only — ticket`, and vid-replan writes their tests with
+  their ticket; nothing is materialised or run in ViD's repository.
 - **re-derivation mode** — the standalone invocation ("vid
   test-inventory"), over the whole effective PRD after appends or a
   consolidation: derive everything with every axis of §1, run the genus
@@ -104,9 +116,9 @@ Three modes, chosen by what exists and who called:
     ↓
  RATIFICATION SITTING — one table, recognition speed         §5  ← the owner
     ↓
- materialise — failing ledger tests, two tiers               §6
-    ↓
- red gate + proved-red                                       §7  (init: call point 2)
+ materialise — failing ledger tests, two tiers               §6  (call point 2: the code skeleton;
+    ↓                                                              per ticket in ticket mode)
+ red gate + proved-red                                       §7  (call point 2: the code skeleton)
     ↓
  hand-back — counts, never scores                            §8
 ```
@@ -581,6 +593,17 @@ row-set-diff sitting, two commits.
 
 ## 6. Materialise — two tiers, one rhythm
 
+**Who runs §6 and §7 (v0.26.10.9 R3).** In develop mode the code skeleton
+(vid-skeleton Part 3, skeleton mode) runs both over every `spec-only` row
+(an adopted project's: every `owed: prerequisite` row), each row through
+the whole rhythm before anything is counted; then the par line must show
+`spec-only=0`. In ticket mode §6 runs per ticket — the test-author pass
+writes the ticket's rows' tests in the code repository's framework (the
+vid-code block's test facts), ViD commits them unchanged as its copy, then
+the rows' `test` fields alone as a standalone law commit — and nothing is
+run: no `proved-red:` stamp, no red gate (red shows only as
+`red-observed … pr= commit=` from the dev team's CI).
+
 Then **materialise**: every row that can be expressed pre-code becomes a
 FAILING ledger test in tests/invariants/ — reachability, shell, journey
 and surface rows are all directly writable pre-code, in the engines the
@@ -606,10 +629,10 @@ A row the passes cannot write is deferred only by the closed vocabulary
 "materialised when its surface exists" is a red test, and is written) —
 blocked from completion by the coverage join and counted on the par line
 (§7). Because the passes need the harness contract and the route table,
-**in init mode materialisation runs after init's step 6, as the first act
-of call point 2, before the gate** — the one ordering change of v0.9.2
-(vid-init §4, §7); what the owner sees is unchanged: one sitting, then a
-red ledger at the initial commit. **Surface rows are routed to the surface pass** (v0.9.2
+**materialisation runs after the code skeleton's harness and extractors
+exist, as the first act of call point 2, before the gate** — the ordering
+of v0.9.2, now in vid-skeleton Part 3 (v0.26.10.9 R3; before it, init's
+step 7). **Surface rows are routed to the surface pass** (v0.9.2
 3.4, R7): `passes/test-author.md`, batch `surface`, spawned once over
 every surface row with the canvases, the manifest, the shell rows'
 markers and the measure module's contract, produces the surface
@@ -763,9 +786,10 @@ proposals kept per lens per round, the counterexample lens's kept rows,
 proposed Fail-if amendments, the checklist lines added, the diff buckets
 in append and re-derivation modes, the deploy-owed rows and the `later`
 items as their own two counts (v0.9.1 3.6), and the red-ledger count —
-proved red at the gate. Then return to the caller (init continues at its step 5, or
-its step 8 after call point 2; add continues to develop) or, standalone,
-name the next verb.
+proved red at the gate. Then return to the caller (init continues at its step 6
+after call point 1, with the `spec-only` rows counted; the code skeleton
+continues after call point 2; add continues to develop, or under tickets to
+replan) or, standalone, name the next verb.
 
 ## Pass mechanics — what each fresh context receives
 

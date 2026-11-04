@@ -23,7 +23,7 @@ REQ-002     yes     yes    OK
 REQ-003     yes     yes    OK
 REQ-004     yes     no     ROW-GAP (ROW-004) — counted once per row, above
 later (deferred, never a gap): REQ-005 
-    inventory: rows=6 routes=0 route-gaps=0 owed=0 (legitimate=0: guard-first=0 census-armed=0 probe-capture=0 golden-set=0 fixture-source=0 prerequisite=0 owner-decision=0 reverted=0; other=0; seam-probes=0) deploy-owed=0 orphans=0 missing-tests=0 hostility=2 tier0=2 hostility-gaps=0
+    inventory: rows=6 routes=0 route-gaps=0 owed=0 (legitimate=0: guard-first=0 census-armed=0 probe-capture=0 golden-set=0 fixture-source=0 prerequisite=0 spec-only=0 owner-decision=0 reverted=0; other=0; seam-probes=0) deploy-owed=0 orphans=0 missing-tests=0 hostility=2 tier0=2 hostility-gaps=0
 
 REQs: 4   gaps: 1   open VID-QUESTION markers: 0   deploy-owed: 0   later items: 1   later markers: 0
 note: 'cited' = citation present under app-source placement prefixes; the ledger tests are the evidence.

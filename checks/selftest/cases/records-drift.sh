@@ -28,19 +28,30 @@
 # the records-19 event, delegated. v0.9.8 (R14; amendment 3): so must two records-20 events —
 # test-proven, authority-kept. v0.26.10.6 (R17): so must the records-26 event, usage. v0.26.10.7 (R18): so must the
 # records-27 events, deploy-check and stage-hold. v0.26.10.8 (R14): so must the records-28 event, staging-auth.
+# v0.26.10.9 (R28): the code source also takes a script's own `ev "<type> …"` helper call (ticket.sh, github.sh), and
+# the records-29 events — ticket, milestone, publish-approved, copy-check, skeleton — must be found written AND listed.
+# v0.26.10.12 (H1): the project branch's stub read only two of the three forms, so in every init'd project the case
+# aborted before any plant; both now read one extraction, and the project branch runs in the plugin repository too.
 # Env: CHECKS.
 set -eu
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 ROOT=$(cd "$CHECKS/.." && pwd)
-# drift <root>: prints each written type RECORDS.md does not list; exit 1 if any
-drift() {
-  _r=$1; : > "$T/types"
-  for f in "$_r"/checks/*.sh "$_r"/checks/hooks/* "$_r"/hooks/*.sh "$_r"/checks/selftest/run.sh; do   # v0.9.8.1: run.sh writes selftest-retried
+# code_types <file>...: each type the code writes, by the three writer forms. v0.26.10.12 (H1): the detector and a
+# project's stub contract both read through this one function, so they cannot read different forms again.
+code_types() {
+  for f in "$@"; do
     [ -f "$f" ] || continue
     grep -E "printf ['\"][a-z][a-z-]* [^'\"]*=" "$f" | grep '>>' | grep -E 'metrics-events|"\$EV"|\$EVENTS|\$\{EV\}' \
-      | sed -E "s/.*printf ['\"]([a-z][a-z-]*) .*/\1/" >> "$T/types" || true
-    grep -oE "event\.sh\"?[[:space:]]+['\"][a-z][a-z-]* [^'\"]*=" "$f" | sed -E "s/.*['\"]([a-z][a-z-]*) .*/\1/" >> "$T/types" || true
+      | sed -E "s/.*printf ['\"]([a-z][a-z-]*) .*/\1/" || true
+    grep -oE "event\.sh\"?[[:space:]]+['\"][a-z][a-z-]* [^'\"]*=" "$f" | sed -E "s/.*['\"]([a-z][a-z-]*) .*/\1/" || true
+    # v0.26.10.9 (R28): ticket.sh, github.sh and the planner write through their own `ev "<type> …"` helper
+    grep -oE "(^|[;&|( ])ev ['\"][a-z][a-z-]* [^'\"]*=" "$f" | sed -E "s/.*ev ['\"]([a-z][a-z-]*) .*/\1/" || true
   done
+}
+# drift <root>: prints each written type RECORDS.md does not list; exit 1 if any
+drift() {
+  _r=$1
+  code_types "$_r"/checks/*.sh "$_r"/checks/hooks/* "$_r"/hooks/*.sh "$_r"/checks/selftest/run.sh > "$T/types"   # v0.9.8.1: run.sh writes selftest-retried
   if [ -d "$_r/skills" ]; then
     find "$_r/skills" -type f -name '*.md' | while IFS= read -r f; do
       tr '\n' ' ' < "$f" | grep -oE "event\.sh\"?[[:space:]]+['\"][a-z][a-z-]*[[:space:]]" | sed -E "s/.*['\"]([a-z][a-z-]*)[[:space:]]$/\1/" || true
@@ -60,8 +71,24 @@ drift() {
   [ -z "$_m" ] || { printf 'unlisted: %s\n' $_m; return 1; }
   return 0
 }
-S="$T/scratch"; mkdir -p "$S/checks/hooks"
-cp "$CHECKS"/*.sh "$S/checks/"; cp "$CHECKS"/hooks/* "$S/checks/hooks/"
+# copy <scratch>: the checks/ under test, its scripts and hooks
+copy() { mkdir -p "$1/checks/hooks"; cp "$CHECKS"/*.sh "$1/checks/"; cp "$CHECKS"/hooks/* "$1/checks/hooks/"; }
+# plants <scratch> <branch>: the copy shows no drift, then each of the three plants is caught alone
+plants() {
+  _s=$1 _b=$2
+  drift "$_s" >/dev/null || { echo "records-drift: the $_b scratch copy drifts before any plant" >&2; exit 1; }
+  mkdir -p "$_s/skills/vid-plant"
+  for p in single double skill; do
+    rm -f "$_s/checks/plant.sh" "$_s/skills/vid-plant/SKILL.md"
+    case "$p" in
+      single) printf '#!/bin/sh\n# Purpose: plant\nprintf '"'"'xplant n=%%s\\n'"'"' 1 >> .vid/metrics-events\n' > "$_s/checks/plant.sh" ;;
+      double) printf '#!/bin/sh\n# Purpose: plant\ntrap '"'"'printf "yplant seconds=%%s\\n" 1 >> .vid/metrics-events'"'"' EXIT\n' > "$_s/checks/plant.sh" ;;
+      skill)  printf 'Then record\n`sh checks/event.sh '"'"'zplant slice=N n=K'"'"'` and continue.\n' > "$_s/skills/vid-plant/SKILL.md" ;;
+    esac
+    if OUT=$(drift "$_s"); then echo "records-drift: the $p plant was not caught in the $_b scratch copy" >&2; exit 1; fi
+    printf '%s\n' "$OUT" | grep -q 'plant' || { echo "records-drift: the $p plant failed for another reason in the $_b scratch copy: $OUT" >&2; exit 1; }
+  done
+}
 if [ -f "$ROOT/RECORDS.md" ]; then
   drift "$ROOT" || { echo 'records-drift: the shipped tree writes an event type RECORDS.md does not list' >&2; exit 1; }
   for t in session agent-start agent-stop refused deploy-gate deploy-confirm deploy-rollback; do
@@ -96,6 +123,10 @@ if [ -f "$ROOT/RECORDS.md" ]; then
     grep -qxF "$t" "$T/written" || { echo "records-drift: no writer of the records-27 event $t was found" >&2; exit 1; }
     grep -qxF "$t" "$T/listed" || { echo "records-drift: RECORDS.md does not list the records-27 event $t" >&2; exit 1; }
   done
+  for t in ticket milestone publish-approved copy-check skeleton; do   # v0.26.10.9 (R28)
+    grep -qxF "$t" "$T/written" || { echo "records-drift: no writer of the records-29 event $t was found" >&2; exit 1; }
+    grep -qxF "$t" "$T/listed" || { echo "records-drift: RECORDS.md does not list the records-29 event $t" >&2; exit 1; }
+  done
   for t in staging-auth; do   # v0.26.10.8 (R14)
     grep -qxF "$t" "$T/written" || { echo "records-drift: no writer of the records-28 event $t was found" >&2; exit 1; }
     grep -qxF "$t" "$T/listed" || { echo "records-drift: RECORDS.md does not list the records-28 event $t" >&2; exit 1; }
@@ -104,27 +135,18 @@ if [ -f "$ROOT/RECORDS.md" ]; then
     grep -qxF "$t" "$T/written" || { echo "records-drift: no writer of the records-18 event $t was found" >&2; exit 1; }
     grep -qxF "$t" "$T/listed" || { echo "records-drift: RECORDS.md does not list the records-18 event $t" >&2; exit 1; }
   done
+  S="$T/plugin"; copy "$S"
   cp "$ROOT/RECORDS.md" "$S/"
   [ -d "$ROOT/skills" ] && cp -R "$ROOT/skills" "$S/"
   [ -d "$ROOT/hooks" ] && cp -R "$ROOT/hooks" "$S/"
-else
-  # a project: a contract listing exactly what its checks/ writes
-  mkdir -p "$S/skills"; printf '# stub\n' > "$S/skills/stub.md"
-  { printf '## Events\n\n| type | fields |\n|---|---|\n'
-    for f in "$S"/checks/*.sh "$S"/checks/hooks/*; do grep -E "printf ['\"][a-z][a-z-]* [^'\"]*=" "$f" | grep '>>' | grep -E 'metrics-events|"\$EV"|\$EVENTS|\$\{EV\}' | sed -E "s/.*printf ['\"]([a-z][a-z-]*) .*/| \`\1\` | x |/" || true
-      grep -oE "event\.sh\"?[[:space:]]+['\"][a-z][a-z-]* [^'\"]*=" "$f" | sed -E "s/.*['\"]([a-z][a-z-]*) .*/| \`\1\` | x |/" || true; done | sort -u
-  } > "$S/RECORDS.md"
+  plants "$S" plugin
 fi
-drift "$S" >/dev/null || { echo 'records-drift: the scratch copy drifts before any plant' >&2; exit 1; }
-mkdir -p "$S/skills/vid-plant"
-for p in single double skill; do
-  rm -f "$S/checks/plant.sh" "$S/skills/vid-plant/SKILL.md"
-  case "$p" in
-    single) printf '#!/bin/sh\n# Purpose: plant\nprintf '"'"'xplant n=%%s\\n'"'"' 1 >> .vid/metrics-events\n' > "$S/checks/plant.sh" ;;
-    double) printf '#!/bin/sh\n# Purpose: plant\ntrap '"'"'printf "yplant seconds=%%s\\n" 1 >> .vid/metrics-events'"'"' EXIT\n' > "$S/checks/plant.sh" ;;
-    skill)  printf 'Then record\n`sh checks/event.sh '"'"'zplant slice=N n=K'"'"'` and continue.\n' > "$S/skills/vid-plant/SKILL.md" ;;
-  esac
-  if OUT=$(drift "$S"); then echo "records-drift: the $p plant was not caught" >&2; exit 1; fi
-  printf '%s\n' "$OUT" | grep -q 'plant' || { echo "records-drift: the $p plant failed for another reason: $OUT" >&2; exit 1; }
-done
+# v0.26.10.12 (H1): the project branch runs everywhere, the plugin repository included, so ViD's own suite takes the
+# path every init'd project takes: checks/ alone, with a contract listing exactly what its code writes
+S="$T/project"; copy "$S"
+mkdir -p "$S/skills"; printf '# stub\n' > "$S/skills/stub.md"
+{ printf '## Events\n\n| type | fields |\n|---|---|\n'
+  code_types "$S"/checks/*.sh "$S"/checks/hooks/* | sort -u | sed 's/.*/| `&` | x |/'
+} > "$S/RECORDS.md"
+plants "$S" project
 exit 0

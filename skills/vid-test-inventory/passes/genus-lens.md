@@ -95,7 +95,7 @@ or not at all. A shape that fires nothing across two runs is dropped
     (v0.8 G-04: a throwaway key signing in the production shape)
 22. A computational promise proved only by published, named examples is
     unproved: rows use generated or independently sampled inputs. (the
-    Astera v0.7 run: exact fixture-named assertions satisfied by
+    One real run: exact fixture-named assertions satisfied by
     branching on the fixture names; the engines built in a later
     rewrite)
 23. Realistic datasets and fixture generators derive from sources

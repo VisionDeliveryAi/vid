@@ -11,8 +11,8 @@
 #      paths of the open verb's skill and the internal skills it uses (the
 #      verb: the latest `stage name=<verb> state=start` with no `end` after
 #      it; develop and fix use vid-test-manager, vid-verify and, from
-#      v0.9.7.0.7 3.1, vid-build), with the
-#      debt file's path and how the owner lifts it;
+#      v0.9.7.0.7 3.1, vid-build), then, from v0.26.10.10 (R3, F-71), how
+#      to read a long file in windows — never the debt file or deleting it;
 #   3. `sh checks/observe.sh alive`'s lines — only when the project's
 #      checks/records-version is 9 or more (an older observe.sh takes an
 #      unknown mode for a tick, which writes); from records 12 (v0.9.7.0.9)
@@ -29,7 +29,10 @@
 # It writes one file, the session's re-read debt,
 # <home>/.vid/reread-owed.<session_id>: `since <UTC>` and one `file <path>`
 # line per path on the list, replacing that session's earlier debt; another
-# session's is never touched. hooks/reread.sh pays and enforces it. It always
+# session's is never touched. hooks/reread.sh pays and enforces it. For the
+# owner only (v0.26.10.10, R4): the owner may delete
+# <home>/.vid/reread-owed.<session> from another terminal to lift the block;
+# no agent-facing text and no skill file says so. It always
 # exits 0. The input is read by hooks/json.sh.
 IN=$(cat 2>/dev/null) || exit 0
 HD=$(dirname "$0"); [ -f "$HD/json.sh" ] && [ -f "$HD/home.sh" ] || exit 0
@@ -68,7 +71,7 @@ $(printf '%s' "$LIST" | sed 's/^/- /')"
   elif [ -n "$LIST" ]; then
     P2="Re-read these in full now, with the Read tool:
 $(printf '%s' "$LIST" | sed 's/^/- /')
-Until each is read in full, every tool but Read is refused. The owner can delete $OWED from another terminal to lift this."
+Until each is read in full, every tool but Read is refused. Read long files in windows with offset and limit, at most 400 lines a call (for example offset 1 limit 400, then offset 400 limit 400). Each window counts; the block lifts when every line is covered."
   else P2="Re-read: no ViD skill file found under $PR"; fi
   P3=''
   RV=$(sed -n 's/^records:[[:space:]]*\([0-9][0-9]*\).*/\1/p' "$H/checks/records-version" 2>/dev/null | head -n 1)

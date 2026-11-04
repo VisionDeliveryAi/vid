@@ -24,8 +24,7 @@ For each fixture directory under `fixtures/`:
    Exit 0 = every expectation held. The output lists each expectation with
    its match count.
 
-Paste the checker output into the acceptance record in the release's build notes
-(kept in the repository's docs/, not shipped) with the model id that derived. State plainly when the deriving session
+Keep the checker output with the release, with the model id that derived. State plainly when the deriving session
 was not fresh, or when the lenses were not spawned.
 
 ## Fixtures
@@ -77,8 +76,7 @@ polarity, the inventory court's join — `cases/surface-instrument.sh`).
 3. Judge: `sh checks/selftest/fixtures/surface-instrument/surface-check.sh <the file>`.
    Exit 0 = every expectation held; the output lists each expectation.
 
-Paste the checker output into the release's build notes (kept in the
-repository's docs/, not shipped) with the model that authored, N runs, counts per expectation — never a score. State plainly
+Keep the checker output with the release, with the model that authored, N runs, counts per expectation — never a score. State plainly
 when the authoring session was not fresh.
 
 ## Expectation grammar

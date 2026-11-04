@@ -9,7 +9,7 @@
 # carries an expected.md, the shared PRD is court-green, and pass-check.sh
 # convicts a known-bad output and acquits a known-good one — so the
 # checker is never vacuous. The stochastic half (a fresh agent reviews, the
-# checker judges) runs procedurally and lands in the build notes, never
+# checker judges) runs procedurally and is kept with the release, never
 # here. Env: CHECKS (set by checks/selftest/run.sh).
 set -eu
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT

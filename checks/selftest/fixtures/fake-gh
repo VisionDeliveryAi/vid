@@ -1,0 +1,179 @@
+#!/bin/sh
+# Purpose: selftest fixture — a fake `gh` for ticket mode's cases (v0.26.10.9 spec §5): no network. The cases copy it
+# to a folder put first on PATH. Its state is the folder $FAKEGH: `repo` (the one repository it serves, owner/name),
+# `remote` (the local bare repository standing in for it), `next` (the shared issue and pull request counter),
+# issues/<n>/ (title, body, state, labels, milestone, parent, comments/<k>), prs/<n>/ (title, body, head, base, state,
+# draft, merge, comments/<k>), milestones/<n>/ (title, description, state), labels/<name>, `runs` (one line per run:
+# `<id> <attempt> <sha> <workflow, spaces as %20> <event> <status> <conclusion>`, the newest attempt of each run) and
+# artifacts/<run id>/<name>/ (only the newest attempt's, as GitHub keeps them). Every call is appended to $FAKEGH/log.
+# $FAKEGH/auth-fail makes `gh auth status` fail; $FAKEGH/no-workflow drops the workflow scope. `gh pr merge` merges in
+# the bare repository (--merge, the body in the merge commit, refused when --match-head-commit is not the head) and
+# closes the issue a "Closes #<n>" in the description names. `gh workflow run <workflow> --ref main` (v0.26.10.12 R3)
+# adds a run of main's tip to `runs`, `<id> 1 <sha> <workflow> workflow_dispatch queued -`, its id one past the largest
+# there (at least 901), then runs $FAKEGH/on-dispatch <id> <sha> when that file exists (a CI stand-in); --ref other
+# than main is refused. v0.26.10.12.3 (as main's 7147906): `gh repo create <owner/name> [--private]` makes a second
+# repository (a local bare one under $FAKEGH/repos/), which `gh repo view` then serves — `--json url` its path,
+# `--json isPrivate` whether private; the code repository's url is its remote. A comment's address ends
+# #issuecomment-<issue * 1000 + k>; `--json viewerPermission` answers ADMIN, or the repository's `perm` file (v0.26.10.12.3.1); `gh api -X PATCH repos/<repo>/issues/comments/<id> -F body=@<file>` edits it (fix 3). Only the calls checks/github.sh makes
+# are understood; any other exits 64, naming itself.
+set -u
+IFS='
+'   # a path with a space stays one word
+F=${FAKEGH:?the fake gh needs FAKEGH}
+mkdir -p "$F"
+_l=gh; for a in "$@"; do _l="$_l $(printf '%s' "$a" | tr '\n' ' ')"; done; printf '%s\n' "$_l" >> "$F/log"   # one line per call, in one write
+die() { echo "fake gh: $*" >&2; exit "${2:-1}"; }
+nxt() { _n=$(cat "$F/next" 2>/dev/null || echo 0); _n=$((_n + 1)); echo "$_n" > "$F/next"; echo "$_n"; }
+REPO=$(cat "$F/repo" 2>/dev/null || echo owner/code)
+REMOTE=$(cat "$F/remote" 2>/dev/null || echo '')
+# opt <name> <args…>: the value after --name (or -name), else empty
+opt() { _o=$1; shift; while [ $# -gt 0 ]; do [ "$1" = "$_o" ] && { printf '%s' "${2:-}"; return 0; }; shift; done; return 0; }
+has() { _o=$1; shift; for _a in "$@"; do [ "$_a" = "$_o" ] && return 0; done; return 1; }
+chkrepo() { _r=$(opt -R "$@"); [ -z "$_r" ] || [ "$_r" = "$REPO" ] || die "no repository $_r" 1; }
+labels_of() { [ -f "$1/labels" ] && grep -v '^$' "$1/labels" | paste -sd ',' - || true; }
+headsha() { git -C "$REMOTE" rev-parse -q --verify "refs/heads/$1" 2>/dev/null || echo ''; }
+body_from() { _bf=$(opt --body-file "$@"); if [ -n "$_bf" ]; then cat "$_bf"; else printf '%s' "$(opt --body "$@")"; fi; }
+comments() { # <dir> <jq>
+  _c=$1/comments; _q=$2; _k=$(ls "$_c" 2>/dev/null | grep -c . || true)
+  case "$_q" in
+    '.comments | length') echo "$_k" ;;
+    .comments\[*\].body) _i=${_q#.comments[}; _i=${_i%%]*}; cat "$_c/$((_i + 1))" 2>/dev/null ;;
+    '.comments[] | .url + "\t" + (.body | split("\n") | .[0])') _n=${1##*/}
+      for _j in $(ls "$_c" 2>/dev/null | sort -n); do printf 'https://github.com/%s/issues/%s#issuecomment-%s\t%s\n' "$REPO" "$_n" "$((_n * 1000 + _j))" "$(head -n 1 "$_c/$_j")"; done ;;
+    *) die "unknown --jq for comments: $_q" 64 ;;
+  esac; }
+CMD="${1:-} ${2:-}"
+case "$CMD" in
+  'auth status')
+    [ -f "$F/auth-fail" ] && { echo 'You are not logged into any GitHub hosts. To log in, run: gh auth login' >&2; exit 1; }
+    if [ -f "$F/no-workflow" ]; then sc="'repo', 'read:org'"; else sc="'repo', 'read:org', 'workflow'"; fi
+    printf 'github.com\n  ✓ Logged in to github.com account toy (keyring)\n  - Active account: true\n  - Git operations protocol: https\n  - Token scopes: %s\n' "$sc"; exit 0 ;;
+  'repo view')
+    _rd=$F/repos/$(printf '%s' "${3:-}" | tr '/' '%')
+    if [ "${3:-}" != "$REPO" ] && [ -d "$_rd" ]; then
+      case "$(opt --json "$@")" in url) cat "$_rd/remote" ;; isPrivate) cat "$_rd/private" ;; viewerPermission) cat "$_rd/perm" 2>/dev/null || echo ADMIN ;; *) printf '%s\n' "${3#*/}" ;; esac; exit 0; fi
+    [ "${3:-}" = "$REPO" ] || die "Could not resolve to a Repository with the name '${3:-}'." 1
+    case "$(opt --json "$@")" in url) printf '%s\n' "$REMOTE" ;; isPrivate) echo true ;; viewerPermission) cat "$F/perm" 2>/dev/null || echo ADMIN ;; *) printf '%s\n' "${REPO#*/}" ;; esac; exit 0 ;;
+  'repo create')
+    _n=${3:-}; case "$_n" in */*) ;; *) die "repo create: give owner/name" 1 ;; esac
+    _rd=$F/repos/$(printf '%s' "$_n" | tr '/' '%'); { [ "$_n" = "$REPO" ] || [ -d "$_rd" ]; } && die "Name already exists on this account" 1
+    mkdir -p "$_rd"; git init -q --bare "$_rd/remote.git"; git -C "$_rd/remote.git" symbolic-ref HEAD refs/heads/main
+    printf '%s\n' "$_rd/remote.git" > "$_rd/remote"; if has --private "$@"; then echo true; else echo false; fi > "$_rd/private"
+    echo "https://github.com/$_n"; exit 0 ;;
+  'repo clone') [ "${3:-}" = "$REPO" ] || die "no repository ${3:-}" 1; git clone -q "$REMOTE" "${4:-${REPO#*/}}" 2>/dev/null; exit $? ;;
+  'label create') shift 2; chkrepo "$@"; mkdir -p "$F/labels"; : > "$F/labels/$1"; exit 0 ;;
+  'issue create')
+    shift 2; chkrepo "$@"; n=$(nxt); d=$F/issues/$n; mkdir -p "$d/comments"
+    printf '%s' "$(opt --title "$@")" > "$d/title"; body_from "$@" > "$d/body"; echo OPEN > "$d/state"
+    m=$(opt --milestone "$@"); [ -n "$m" ] && printf '%s' "$m" > "$d/milestone"
+    l=$(opt --label "$@"); [ -n "$l" ] && printf '%s\n' "$l" | tr ',' '\n' > "$d/labels"
+    echo "https://github.com/$REPO/issues/$n"; exit 0 ;;
+  'issue edit')
+    n=$3; shift 3; chkrepo "$@"; d=$F/issues/$n; [ -d "$d" ] || die "no issue $n"
+    if has --body-file "$@" || has --body "$@"; then body_from "$@" > "$d/body"; fi
+    t=$(opt --title "$@"); [ -n "$t" ] && printf '%s' "$t" > "$d/title"
+    a=$(opt --add-label "$@"); [ -n "$a" ] && { printf '%s\n' "$a" | tr ',' '\n' >> "$d/labels"; sort -u "$d/labels" -o "$d/labels"; }
+    r=$(opt --remove-label "$@"); [ -n "$r" ] && [ -f "$d/labels" ] && { printf '%s\n' "$r" | tr ',' '\n' > "$F/rm"; grep -vxF -f "$F/rm" "$d/labels" > "$d/l2" || true; mv "$d/l2" "$d/labels"; }
+    exit 0 ;;
+  'issue comment'|'pr comment')
+    n=$3; shift 3; chkrepo "$@"; d=$F/issues/$n; [ -d "$d" ] || d=$F/prs/$n; [ -d "$d" ] || die "no issue or pull request $n"
+    mkdir -p "$d/comments"; k=$(( $(ls "$d/comments" | grep -c . || true) + 1 )); body_from "$@" > "$d/comments/$k"; echo "https://github.com/$REPO/issues/$n#issuecomment-$((n * 1000 + k))"; exit 0 ;;
+  'issue close') n=$3; [ -d "$F/issues/$n" ] || die "no issue $n"; echo CLOSED > "$F/issues/$n/state"; exit 0 ;;
+  'issue reopen') n=$3; [ -d "$F/issues/$n" ] || die "no issue $n"; echo OPEN > "$F/issues/$n/state"; exit 0 ;;
+  'issue view')
+    n=$3; shift 3; chkrepo "$@"; d=$F/issues/$n; [ -d "$d" ] || die "no issue $n"; q=$(opt --jq "$@")
+    case "$q" in
+      .id) echo "I_$n" ;;
+      .body) cat "$d/body" ;;
+      '.state + "\t" + ([.labels[].name] | join(","))') printf '%s\t%s\n' "$(cat "$d/state")" "$(labels_of "$d")" ;;
+      .comments*) comments "$d" "$q" ;;
+      *) die "unknown --jq for issue view: $q" 64 ;;
+    esac; exit 0 ;;
+  'issue list')
+    shift 2; chkrepo "$@"; l=$(opt --label "$@"); st=$(opt --state "$@"); q=$(opt --jq "$@")
+    [ "$q" = '.[].number' ] || die "unknown --jq for issue list: $q" 64
+    for d in $(ls -d "$F"/issues/* 2>/dev/null | sort -t/ -k1); do n=${d##*/}
+      [ "$st" = open ] && [ "$(cat "$d/state")" != OPEN ] && continue
+      [ -n "$l" ] && ! grep -qxF "$l" "$d/labels" 2>/dev/null && continue
+      echo "$n"; done | sort -n; exit 0 ;;
+  'pr create')
+    shift 2; chkrepo "$@"; h=$(opt --head "$@"); [ -n "$(headsha "$h")" ] || die "no branch $h on the remote"
+    n=$(nxt); d=$F/prs/$n; mkdir -p "$d/comments"; printf '%s' "$(opt --title "$@")" > "$d/title"; body_from "$@" > "$d/body"
+    printf '%s' "$h" > "$d/head"; b=$(opt --base "$@"); printf '%s' "${b:-main}" > "$d/base"; echo OPEN > "$d/state"
+    if has --draft "$@"; then echo true > "$d/draft"; else echo false > "$d/draft"; fi
+    echo "https://github.com/$REPO/pull/$n"; exit 0 ;;
+  'pr edit') n=$3; shift 3; d=$F/prs/$n; [ -d "$d" ] || die "no pull request $n"; body_from "$@" > "$d/body"; exit 0 ;;
+  'pr ready') n=$3; shift 3; d=$F/prs/$n; [ -d "$d" ] || die "no pull request $n"; if has --undo "$@"; then echo true > "$d/draft"; else echo false > "$d/draft"; fi; exit 0 ;;
+  'pr view')
+    n=$3; shift 3; chkrepo "$@"; d=$F/prs/$n; [ -d "$d" ] || die "no pull request $n"; q=$(opt --jq "$@")
+    case "$q" in
+      .body) cat "$d/body" ;;
+      .comments*) comments "$d" "$q" ;;
+      '.commits[].oid') b=$(headsha "$(cat "$d/base")"); h=$(cat "$d/headoid" 2>/dev/null || headsha "$(cat "$d/head")"); [ -f "$d/merge" ] && b=$(git -C "$REMOTE" rev-parse "$(cat "$d/merge")^1")
+        git -C "$REMOTE" rev-list --reverse "$b..$h" ;;
+      '[.headRefOid, .headRefName, .isDraft] | @tsv') h=$(cat "$d/headoid" 2>/dev/null || headsha "$(cat "$d/head")"); printf '%s\t%s\t%s\n' "$h" "$(cat "$d/head")" "$(cat "$d/draft")" ;;
+      *) die "unknown --jq for pr view: $q" 64 ;;
+    esac; exit 0 ;;
+  'pr list')
+    shift 2; chkrepo "$@"; q=$(opt --jq "$@")
+    [ "$q" = '.[] | [.number, .headRefName, .state, .isDraft, .headRefOid, (.mergeCommit.oid // "-")] | @tsv' ] || die "unknown --jq for pr list: $q" 64
+    for d in $(ls -d "$F"/prs/* 2>/dev/null); do n=${d##*/}; h=$(cat "$d/headoid" 2>/dev/null || headsha "$(cat "$d/head")")
+      printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$n" "$(cat "$d/head")" "$(cat "$d/state")" "$(cat "$d/draft")" "$h" "$(cat "$d/merge" 2>/dev/null || echo -)"; done | sort -n; exit 0 ;;
+  'pr checks')
+    n=$3; d=$F/prs/$n; [ -d "$d" ] || die "no pull request $n"; h=$(cat "$d/headoid" 2>/dev/null || headsha "$(cat "$d/head")")
+    l=$(awk -v s="$h" '$3 == s' "$F/runs" 2>/dev/null)
+    [ -n "$l" ] || { echo 'no checks reported'; exit 8; }
+    printf '%s\n' "$l" | awk '{ print $4 "\t" $7 }'
+    printf '%s\n' "$l" | awk '$6 != "completed" { p = 1 } $7 != "success" { f = 1 } END { exit f ? 1 : (p ? 8 : 0) }'; exit $? ;;
+  'pr merge')
+    n=$3; shift 3; chkrepo "$@"; d=$F/prs/$n; [ -d "$d" ] || die "no pull request $n"
+    has --merge "$@" || die 'only --merge is understood' 64
+    [ "$(cat "$d/state")" = OPEN ] || die "pull request $n is not open"
+    [ "$(cat "$d/draft")" = false ] || die "pull request $n is still a draft"
+    h=$(headsha "$(cat "$d/head")"); m=$(opt --match-head-commit "$@")
+    [ -z "$m" ] || [ "$m" = "$h" ] || die "Head branch was modified. Review and try the merge again." 1
+    w=$(mktemp -d); git clone -q "$REMOTE" "$w/c" 2>/dev/null; ( cd "$w/c" && git checkout -q main && git fetch -q origin "refs/heads/$(cat "$d/head")" &&
+      git -c user.email=gh@fake -c user.name=fake merge -q --no-ff -m "Merge pull request #$n from $REPO/$(cat "$d/head")" -m "$(opt --body "$@")" FETCH_HEAD && git push -q origin main ) || { rm -rf "$w"; die 'the merge failed'; }
+    git -C "$REMOTE" rev-parse refs/heads/main > "$d/merge"; printf '%s\n' "$h" > "$d/headoid"; echo MERGED > "$d/state"; rm -rf "$w"
+    for i in $(grep -oiE 'closes #[0-9]+' "$d/body" | grep -oE '[0-9]+'); do [ -d "$F/issues/$i" ] && echo CLOSED > "$F/issues/$i/state"; done
+    exit 0 ;;
+  'run list')
+    shift 2; chkrepo "$@"; c=$(opt --commit "$@"); w=$(opt --workflow "$@"); q=$(opt --jq "$@")
+    [ "$q" = '.[] | [.databaseId, .attempt, .headSha, .workflowName, .event, .status, .conclusion] | @tsv' ] || die "unknown --jq for run list: $q" 64
+    [ -f "$F/runs" ] || exit 0
+    awk -v c="$c" -v w="$(printf '%s' "$w" | sed 's/ /%20/g')" '(c == "" || index($3, c) == 1) && (w == "" || $4 == w) { wf = $4; gsub(/%20/, " ", wf); printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\n", $1, $2, $3, wf, $5, $6, $7 }' "$F/runs"; exit 0 ;;
+  'workflow run')
+    w=$3; shift 3; chkrepo "$@"; [ "$(opt --ref "$@")" = main ] || die 'only --ref main is understood' 64
+    h=$(headsha main); [ -n "$h" ] || die 'no main on the remote'
+    i=$(awk '{ if ($1 + 0 > m) m = $1 + 0 } END { print (m + 1 > 901 ? m + 1 : 901) }' "$F/runs" 2>/dev/null || echo 901)
+    printf '%s 1 %s %s workflow_dispatch queued -\n' "$i" "$h" "$(printf '%s' "$w" | sed 's/ /%20/g')" >> "$F/runs"
+    [ -f "$F/on-dispatch" ] && sh "$F/on-dispatch" "$i" "$h"
+    exit 0 ;;
+  'run download')
+    r=$3; shift 3; chkrepo "$@"; nm=$(opt --name "$@"); dd=$(opt --dir "$@")
+    [ -d "$F/artifacts/$r/$nm" ] || { echo "no artifact matches any of the names or patterns provided" >&2; exit 1; }
+    mkdir -p "${dd:-.}"; cp -R "$F/artifacts/$r/$nm/." "${dd:-.}/"; exit 0 ;;
+  'api graphql')
+    shift 2; q=$(opt -f "$@"); case "$q" in *addSubIssue*) ;; *) die 'only addSubIssue is understood' 64 ;; esac
+    p=''; c=''; while [ $# -gt 0 ]; do case "$1" in -f|-F) case "$2" in p=*) p=${2#p=} ;; c=*) c=${2#c=} ;; esac; shift 2 ;; *) shift ;; esac; done
+    [ -d "$F/issues/${c#I_}" ] && [ -d "$F/issues/${p#I_}" ] || die 'no such issue for addSubIssue'
+    printf '%s' "${p#I_}" > "$F/issues/${c#I_}/parent"; echo "{\"data\":{\"addSubIssue\":{\"issue\":{\"number\":${p#I_}}}}}"; exit 0 ;;
+  api\ *)
+    shift; X=POST; path=''; jq=''; set -- "$@"; T=''; DE=''; ST=''; BF=''
+    while [ $# -gt 0 ]; do case "$1" in -X) X=$2; shift 2 ;; --jq) jq=$2; shift 2 ;; -f|-F) case "$2" in title=*) T=${2#title=} ;; description=*) DE=${2#description=} ;; state=*) ST=${2#state=} ;; body=@*) BF=${2#body=@} ;; esac; shift 2 ;; *) path=$1; shift ;; esac; done
+    case "$path" in
+      "repos/$REPO/milestones")
+        n=$(ls "$F/milestones" 2>/dev/null | sort -n | tail -n 1); n=$(( ${n:-0} + 1 )); mkdir -p "$F/milestones/$n"
+        printf '%s' "$T" > "$F/milestones/$n/title"; printf '%s' "$DE" > "$F/milestones/$n/description"; echo open > "$F/milestones/$n/state"
+        if [ "$jq" = .number ]; then echo "$n"; else echo "{\"number\":$n}"; fi ;;
+      "repos/$REPO/milestones/"*)
+        n=${path##*/}; [ -d "$F/milestones/$n" ] || die "no milestone $n"
+        [ -n "$T" ] && printf '%s' "$T" > "$F/milestones/$n/title"; [ -n "$DE" ] && printf '%s' "$DE" > "$F/milestones/$n/description"; [ -n "$ST" ] && echo "$ST" > "$F/milestones/$n/state"
+        echo "{\"number\":$n}" ;;
+      "repos/$REPO/issues/comments/"*)   # an issue comment's edit (v0.26.10.12.3 fix 3): its id is <issue> * 1000 + <k>
+        i=${path##*/}; c=$F/issues/$((i / 1000))/comments/$((i % 1000)); [ "$X" = PATCH ] && [ -f "$c" ] && [ -f "$BF" ] || die "no comment $i to edit, or not -X PATCH -F body=@<file>"
+        cp "$BF" "$c"; echo "{\"id\":$i}" ;;
+      *) die "unknown api path $path" 64 ;;
+    esac; exit 0 ;;
+  *) die "unknown call: gh $*" 64 ;;
+esac

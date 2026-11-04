@@ -3,7 +3,7 @@
 Calibration fixtures for the design-vs-PRD consistency pass (v0.9.1
 spec 3.3), procedural like vid-create-prd's: a FRESH agent runs the
 pass over a fixture pack, `pass-check.sh` judges its lines, and the
-pasted checker output lands in the build notes with the model id.
+pasted checker output is kept with the release, with the model id.
 Never part of `checks/selftest/run.sh`; `checks/selftest/cases/
 design-consistency.sh` pins the static half (each pack joins clean
 against its manifest, carries an `expected.md`, and the checker convicts

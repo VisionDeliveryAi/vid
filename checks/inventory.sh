@@ -72,6 +72,9 @@
 # v0.9.8 (3.3, R6): --report also lists `authority-changed row=<id> since=<commit> what=<ids>` for each row whose
 # authority bundle changed since it was last looked at (checks/brief.sh authority --changed), then `authority:
 # changed=<n>` — a flag, never a wipe, and never a gate.
+# v0.26.10.9 (R3): a new owed class, `spec-only` — a row ratified at a spec-only init whose test is not written yet;
+# its detail is exactly `first stage`, or `ticket` for a row appended under ticket mode (any other detail is
+# unclassed). Legitimate on the par line; the per-class split shows `spec-only=S` after `prerequisite=`.
 # Usage: sh checks/inventory.sh [--strict|--report|protected] | sh checks/inventory.sh impact [--base <commit>] [--prd <file>] [--inventory <file>] [--detail]
 set -eu
 IFS='
@@ -305,7 +308,7 @@ cited_exists() { # $1=path — index, then HEAD, never the worktree; a file, nev
 }
 # v0.9.2 3.2: the closed deferral vocabulary. owed_class prints the class
 # word of a legal `owed: <class> — <detail>` field, or `unclassed`.
-LGF=0; LCA=0; LPC=0; LGS=0; LFS=0; LPR=0; LOD=0; LRV=0; OTHER=0
+LGF=0; LCA=0; LPC=0; LGS=0; LFS=0; LPR=0; LSO=0; LOD=0; LRV=0; OTHER=0
 PN=0; PK=0; PD=0; PJ=0   # the par, over ROW rows: materialised · legitimate · deploy-owed · other
 owed_class() { # $1=the test field
   r=$(printf '%s\n' "$1" | sed 's/^[Oo][Ww][Ee][Dd]:[[:space:]]*//')
@@ -321,10 +324,11 @@ owed_class() { # $1=the test field
   case "$c" in
     guard-first|census-armed|probe-capture|golden-set|fixture-source|prerequisite|reverted) echo "$c" ;;
     owner-decision) case "$det" in OQ-[0-9]*) echo "$c" ;; *) echo unclassed ;; esac ;;
+    spec-only) case "$det" in 'first stage'|ticket) echo "$c" ;; *) echo unclassed ;; esac ;;   # v0.26.10.9 (R3)
     *) echo unclassed ;;
   esac
 }
-count_class() { case "$1" in guard-first) LGF=$((LGF + 1)) ;; census-armed) LCA=$((LCA + 1)) ;; probe-capture) LPC=$((LPC + 1)) ;; golden-set) LGS=$((LGS + 1)) ;; fixture-source) LFS=$((LFS + 1)) ;; prerequisite) LPR=$((LPR + 1)) ;; owner-decision) LOD=$((LOD + 1)) ;; reverted) LRV=$((LRV + 1)) ;; esac; }
+count_class() { case "$1" in guard-first) LGF=$((LGF + 1)) ;; census-armed) LCA=$((LCA + 1)) ;; probe-capture) LPC=$((LPC + 1)) ;; golden-set) LGS=$((LGS + 1)) ;; fixture-source) LFS=$((LFS + 1)) ;; prerequisite) LPR=$((LPR + 1)) ;; spec-only) LSO=$((LSO + 1)) ;; owner-decision) LOD=$((LOD + 1)) ;; reverted) LRV=$((LRV + 1)) ;; esac; }
 owed_row() { # $1=id $2=subject $3=test field $4=row|other — the OWED line, classed under 0.9.2
   if [ "$GRAMMAR" = 0.9.2 ]; then
     c=$(owed_class "$3")
@@ -604,9 +608,9 @@ echo ''
 NHOST=$(printf '%s\n' "$HOSTS" | grep -c . || true)
 OWEDSTR="owed=$OWED"
 if [ "$GRAMMAR" = 0.9.2 ]; then
-  LEGIT=$((LGF + LCA + LPC + LGS + LFS + LPR + LOD + LRV))
-  OWEDSTR="owed=$OWED (legitimate=$LEGIT: guard-first=$LGF census-armed=$LCA probe-capture=$LPC golden-set=$LGS fixture-source=$LFS prerequisite=$LPR owner-decision=$LOD reverted=$LRV; other=$OTHER)"
-  if [ "$G93" = yes ]; then OWEDSTR="owed=$OWED (legitimate=$LEGIT: guard-first=$LGF census-armed=$LCA probe-capture=$LPC golden-set=$LGS fixture-source=$LFS prerequisite=$LPR owner-decision=$LOD reverted=$LRV; other=$OTHER; seam-probes=$SEAMOWED)"; fi
+  LEGIT=$((LGF + LCA + LPC + LGS + LFS + LPR + LSO + LOD + LRV))
+  OWEDSTR="owed=$OWED (legitimate=$LEGIT: guard-first=$LGF census-armed=$LCA probe-capture=$LPC golden-set=$LGS fixture-source=$LFS prerequisite=$LPR spec-only=$LSO owner-decision=$LOD reverted=$LRV; other=$OTHER)"
+  if [ "$G93" = yes ]; then OWEDSTR="owed=$OWED (legitimate=$LEGIT: guard-first=$LGF census-armed=$LCA probe-capture=$LPC golden-set=$LGS fixture-source=$LFS prerequisite=$LPR spec-only=$LSO owner-decision=$LOD reverted=$LRV; other=$OTHER; seam-probes=$SEAMOWED)"; fi
 fi
 echo "inventory: rows=$NROWS routes=$NROUTES route-gaps=$GAPS $OWEDSTR deploy-owed=$DEPLOYOWED orphans=$ORPHANS missing-tests=$MISSING_TESTS hostility=$NHOST tier0=$NT0 hostility-gaps=$HGAPS"
 if [ "$GRAMMAR" = 0.9.2 ]; then

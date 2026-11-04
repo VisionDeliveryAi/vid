@@ -254,11 +254,34 @@
 # v0.26.10.3 (R3): the default listing (no --since, no --base) adds every row checks/metrics.sh to-confirm lists (R2's
 # rule) that the flag does not already list, `authority-changed row=<id> since=<its change> what=<items> to-confirm=yes`,
 # whatever its baseline says: an edit to its INVENTORY line or test lines never takes it off. `--kept` resolves it.
+# v0.26.10.9 (R12, R14, R17) — tickets, ViD's planner sending a builder or fixer brief to an outside dev team:
+#   write … --ticket   a builder or fixer brief whose header gains `ticket: pending` (the sub-issue's number is kept
+#     in .vid/tickets/map, never in the stamped file) and `base: <the code repository's main>` — origin/main of the
+#     read-only copy at .vid/code; `return:` reads `return: pull request`, and there is no `first act:`. quoted-at stays
+#     ViD's commit. Refused unless the copy was fetched in this session (its FETCH_HEAD newer than the newest
+#     `stage name=plan|replan state=start`) and ViD's repository has no uncommitted change. Section 10 also quotes the
+#     plan's shared: line. A new section, `## 16 ticket`: the stage, the step, its modules, the shared paths and the
+#     base; each acceptance test file whole (fenced) at its code-repository path, from ViD's copy at HEAD (a test file
+#     must end with a newline); the design screens the rows' markers cite (the files under design/ holding each, whole);
+#     the instructions; the vid-return block, its rows listed. v0.26.10.12 (R2): when ARCHITECTURE.md's vid-code block
+#     at HEAD names run-full:, a `### CI scope` subsection before the instructions — `selector: <the --selection>`,
+#     then `<ROW-id> <test path> ticket` for each of its rows citing a test and `<ROW-id> <test path> alarm` for each
+#     journey, shell or reachability row citing a test of a merged ticket (a `ticket … state=merged` event, its brief in
+#     .vid/tickets/map), never a hostility probe — and the return block's `ci-scope: <the selector>` line. The check (`brief.sh <file>`) compares each section-16
+#     test file byte for byte with ViD's copy at quoted-at, and, where the copy is here, refuses a base that is no longer
+#     its origin/main.
+#   return <file> --agent pr:<n>   for a ticket's brief: the commit is read in .vid/code and descends from the brief's
+#     base:; a pass names a CI receipt (<code sha>.ci-<run>-<attempt>.xml) and is credited from its .cases directly — at
+#     least one case naming the row, every one passed — never through checks/evidence.sh; the protected-path rule is
+#     replaced by ViD's copy check (the newest `copy-check pr=<n>` with changed=0 missing=0). On ok: the cases, then
+#     `agent-returned` and `build-cost … tool=ticket` (no transcript: unknown); no merge probe, no worktree.
+#   write --role grader --receipt <a CI receipt>   its cases from the receipt's .cases, its rows credited from its .rows
+#     (a row the .rows does not name has no case in the brief), never from checks/evidence.sh credit.
 # Usage: sh checks/brief.sh <brief-file> [--at <sha>]
 #        sh checks/brief.sh authority --row <ROW-id> [--at <commit>] | --changed [--rows <ROW-id,…>] [--since <commit> | --base <file>] | --kept <ROW-id,…>   (v0.9.8)
 #        sh checks/brief.sh return <hand-back file> [--agent <id|codex:<try>>]
 #        sh checks/brief.sh write --role grader --slice <N> --catch-up <step>   (v0.9.7.2)
-#        sh checks/brief.sh write --role builder|grader|fixer|test-author --slice <N> (--rows <ROW-id,…> | --claim <file>) [--step <id>] [--selection '<selection>' [--deployed-selection '<selection>']] [--receipt <name>] [--decisions <D-id,…>] [--notes <file>] [--upgrade] [--continue <package> [--law <sha>]]
+#        sh checks/brief.sh write --role builder|grader|fixer|test-author --slice <N> (--rows <ROW-id,…> | --claim <file>) [--step <id>] [--selection '<selection>' [--deployed-selection '<selection>']] [--receipt <name>] [--decisions <D-id,…>] [--notes <file>] [--upgrade] [--continue <package> [--law <sha>]] [--ticket]
 #        sh checks/brief.sh save <brief> [--worktree <path>] | restore <brief> | cost <brief> --agent <id> | context | plugins | protected
 set -u
 IFS='
@@ -293,6 +316,107 @@ locs() {
 # carries only the comment)
 mfiles() { _mc=${2%%/*}; _ms=${2#*/}
   git grep -l -E -e "$_mc/$_ms" -e "@screen[[:space:]]+$_mc[[:space:]][^>]*state=$_ms([^A-Za-z0-9_-]|\$)" "$1" -- design/ 2>/dev/null | sed "s/^$1://" | paste -sd ',' -; }
+# --- v0.26.10.9 (R12): a ticket — a builder or fixer brief the dev team receives as a GitHub issue ---
+# tfetched: the read-only copy's FETCH_HEAD is newer than this session's newest plan or replan stage start (without
+# one, its presence is enough)
+tfetched() {
+  _fh=$(git -C .vid/code rev-parse --git-path FETCH_HEAD 2>/dev/null) || return 1
+  case "$_fh" in /*) ;; *) _fh=.vid/code/$_fh ;; esac
+  [ -f "$_fh" ] || return 1
+  _ss=$(awk '$1 == "stage" && (index($0, " name=plan ") || index($0, " name=replan ")) && index($0, " state=start ") { for (i = 2; i <= NF; i++) if (index($i, "at=") == 1) a = substr($i, 4) } END { print a }' .vid/metrics-events 2>/dev/null)
+  [ -n "$_ss" ] || return 0
+  _tt=$(printf '%s\n' "$_ss" | sed -n 's/^\([0-9]\{4\}\)-\([0-9][0-9]\)-\([0-9][0-9]\)T\([0-9][0-9]\):\([0-9][0-9]\):\([0-9][0-9]\)Z$/\1\2\3\4\5.\6/p')
+  [ -n "$_tt" ] || return 0
+  _ref=$(mktemp) || return 1
+  TZ=UTC0 touch -t "$_tt" "$_ref" 2>/dev/null || { rm -f "$_ref"; return 0; }
+  _nw=$(find "$_fh" -newer "$_ref" 2>/dev/null | grep -c . || true); rm -f "$_ref"
+  [ "${_nw:-0}" -gt 0 ]
+}
+# tfence <file>: a code fence longer than any run of backticks opening a line of the file (at least four)
+tfence() { _n=$(awk 'match($0, /^`+/) { if (RLENGTH > m) m = RLENGTH } END { print (m >= 4 ? m + 1 : 4) }' "$1"); awk -v n="$_n" 'BEGIN { s = ""; for (i = 0; i < n; i++) s = s "`"; print s }'; }
+# tfile <heading> <file> <path>: one file whole under its heading, fenced
+tfile() { _f=$(tfence "$2"); printf '#### %s\n\n%s\n' "$3" "$_f"; cat "$2"; printf '%s\n\n' "$_f"; }
+# tsection: section 16 of a ticket brief — the stage and the step, its modules and the shared paths, the acceptance
+# tests whole from ViD's copy at HEAD, the design screens the rows' markers cite, the instructions, the return block
+tsection() {
+  _st=$(sed -n 's/^stage:[[:space:]]*//p' .vid/RUN-STATE.md 2>/dev/null | head -n 1 | awk '{ print $1 }')
+  _ph=$(planhash); _pf=.vid/plans/$_ph.plan
+  _sl=''; [ -n "$WSTEP" ] && [ -f "$_pf" ] && _sl=$(steplines "$_pf" "$WSTEP" | head -n 1)
+  _nm=$(printf '%s\n' "$_sl" | awk -F'|' '{ for (i = 1; i <= NF; i++) { x = $i; gsub(/^[ \t]+|[ \t]+$/, "", x); if (x ~ /^name:/) { sub(/^name:[ \t]*/, "", x); print x } } }')
+  _md=$(printf '%s\n' "$_sl" | awk -F'|' '{ for (i = 1; i <= NF; i++) { x = $i; gsub(/^[ \t]+|[ \t]+$/, "", x); if (x ~ /^modules:/) { sub(/^modules:[ \t]*/, "", x); print x } } }')
+  _sh=$( [ -f "$_pf" ] && sed -n 's/^[[:space:]]*shared:[[:space:]]*//p' "$_pf" | head -n 1 | sed 's/[[:space:]]*$//')
+  printf '\n## 16 ticket\n\nstage: %s    step: %s — %s\nmodules: %s\nshared: %s\nbase: %s\n' "${_st:-1}" "${WSTEP:--}" "${_nm:--}" "${_md:--}" "${_sh:--}" "$TBASE"
+  printf '\n### Acceptance tests\n\nEach file whole, at its path in the code repository; commit them first, unchanged, as their own commit.\n\n'
+  _np=0
+  for _p in $(awk -F'|' '{ t = $8; gsub(/^[ \t]+|[ \t]+$/, "", t); sub(/[ \t].*/, "", t); if (t ~ /^tests\// && !s[t]++) print t }' "$W/rows"); do
+    git show "$QH:$_p" > "$W/tf" 2>/dev/null || wrefuse "$_p is not in ViD's copy at HEAD — commit the test files first (an ordinary commit), then the rows' test fields"
+    [ ! -s "$W/tf" ] || [ "$(tail -c 1 "$W/tf" | od -An -c | tr -d ' ')" = '\n' ] || wrefuse "$_p does not end with a newline — a ticket carries each test file whole and byte for byte"
+    tfile '' "$W/tf" "$_p"; _np=$((_np + 1))
+  done
+  [ "$_np" -gt 0 ] || printf 'none — no row of this ticket cites a test yet\n\n'
+  awk -F'|' '{ id = $1; t = $8; gsub(/^[ \t]+|[ \t]+$/, "", id); gsub(/^[ \t]+|[ \t]+$/, "", t); if (t !~ /^tests\//) print id ": " t ", no test in this ticket" }' "$W/rows"
+  printf '### Design screens\n\n'
+  : > "$W/tdf"
+  for _m in $(awk -F'|' '{ x = $5; gsub(/^[ \t]+|[ \t]+$/, "", x); n = split(x, a, /[ ,]+/); for (k = 1; k <= n; k++) if (index(a[k], "/") > 1 && !s[a[k]]++) print a[k] }' "$W/rows"); do
+    _mf=$(mfiles HEAD "$_m"); printf '%s: %s\n' "$_m" "${_mf:-no file under design/ holds it}"
+    printf '%s\n' "$_mf" | tr ',' '\n' | grep -v '^$' >> "$W/tdf" || true
+  done
+  [ -s "$W/tdf" ] || printf 'none — no row of this ticket cites a design marker\n'
+  printf '\n'
+  for _f in $(awk '!s[$0]++' "$W/tdf"); do git show "$QH:$_f" > "$W/tf" 2>/dev/null && tfile '' "$W/tf" "$_f"; done
+  # v0.26.10.12 (R2): the CI scope, once the skeleton runs every test only on a manual start (the vid-code block's
+  # run-full:) — this ticket's rows and the alarm set of built rows (the journeys, the shell and the reachability rows of
+  # the merged tickets; hostility probes are ticket-mode debt, never in it), each with its test path, and the runner
+  # selector: the session's --selection, opaque — ViD never derives a selector from row ids
+  _rf=$(git show "$QH:ARCHITECTURE.md" 2>/dev/null | sed -n '/^```vid-code[[:space:]]*$/,/^```[[:space:]]*$/p' | sed -n 's/^run-full:[[:space:]]*//p' | head -n 1)
+  TSCOPE=''
+  if [ -n "$_rf" ]; then
+    TSCOPE=yes; : > "$W/built"
+    if [ -f .vid/tickets/map ] && [ -f .vid/metrics-events ]; then
+      for _n in $(awk '$1 == "ticket" && index($0, " state=merged") { for (i = 2; i <= NF; i++) if (index($i, "issue=") == 1) print substr($i, 7) }' .vid/metrics-events | sort -u); do
+        _b=$(awk -v n="number=$_n" '$1 == "ticket" && $2 == n { for (i = 3; i <= NF; i++) if (index($i, "brief=") == 1) print substr($i, 7) }' .vid/tickets/map | tail -n 1)
+        [ -n "$_b" ] && [ -f "$_b" ] && awk '/^## [0-9]/ { on = ($2 == 1); next } on' "$_b" | grep -oE '^ROW-[0-9A-Za-z-]+' >> "$W/built" || true
+      done
+    fi
+    printf '### CI scope\n\nThe tests your CI runs on this ticket'"'"'s pull request: its own rows, and the journeys, the shell and the\nreachability rows already built (the alarm set), each at its test path. The selector is the runner'"'"'s selection of\nthem; copy it, unchanged, onto the return block'"'"'s `ci-scope:` line. Every test runs only when ViD starts the full\nrun, at the stage'"'"'s end.\n\nselector: %s\n' "$WSEL"
+    awk -F'|' '{ id = $1; t = $8; gsub(/^[ \t]+|[ \t]+$/, "", id); gsub(/^[ \t]+|[ \t]+$/, "", t); sub(/[ \t].*/, "", t); if (t ~ /^tests\// && !s[id]++) print id " " t " ticket" }' "$W/rows"
+    awk -F'|' -v bf="$W/built" -v rf="$W/rows" 'function tr(x) { gsub(/^[ \t]+|[ \t]+$/, "", x); return x }
+      BEGIN { while ((getline l < bf) > 0) B[l] = 1; while ((getline l < rf) > 0) { split(l, a, "|"); O[tr(a[1])] = 1 } }
+      { id = tr($1); k = tr($2); t = tr($8); sub(/[ \t].*/, "", t) }
+      id ~ /^ROW-/ && (id in B) && !(id in O) && (k == "journey" || k == "shell" || k == "reachability") && t ~ /^tests\// && !s[id]++ { print id " " t " alarm" }' "$W/inv.ref"
+    printf '\n'
+  fi
+  cat <<'TINS'
+### Instructions
+
+1. Claim it. Fetch, then create this ticket's branch (its header's `branch=`) from its base (`base=`) with one
+   empty commit, pushed only if the branch does not exist yet — if the push is refused, someone else has it: take
+   another ready ticket.
+
+       git fetch origin
+       claim=$(git commit-tree <base>^{tree} -p <base> -m "claim #<issue> <your name>")
+       git push --force-with-lease=refs/heads/vid/<issue>: origin "$claim":refs/heads/vid/<issue>
+
+   Then work on that branch: `git checkout -b vid/<issue> origin/vid/<issue>`.
+2. Commit the acceptance tests above first, unchanged, as their own commit, before any product change.
+3. Build until they pass, running them with the code repository's own test command. Never edit, skip or weaken an
+   acceptance test.
+4. Stay inside the step's modules and the shared paths (above).
+5. Blocked — a product question, or a test that looks wrong? Open a draft pull request with the question in its
+   block's `questions:`, or the suspect test in `law-needed:`, label this ticket `blocked`, and take another ready
+   ticket. When the ticket is labelled `ready` again with an answer in a comment, check out the branch, merge
+   `origin/main` into it, apply any corrected test from the comment byte for byte, and go on.
+6. Done: open a pull request from the branch, "Closes #<issue>", with this block at the end of its description, every
+   line filled in (`fail` and `not-run` need a reason; `pass` and `fail` name the CI run).
+
+TINS
+  [ -z "$TSCOPE" ] || printf '7. Your CI runs this ticket'"'"'s scope on its pull request (CI scope, above): keep the return block'"'"'s\n   `ci-scope:` line as written, the selector unchanged.\n\n'
+  printf '### The return block (vid-return 1)\n\n```vid-return\nticket: #<issue>\n'
+  [ -z "$TSCOPE" ] || printf 'ci-scope: %s\n' "$WSEL"
+  printf 'rows:\n'
+  awk -F'|' '{ id = $1; df = $7; gsub(/^[ \t]+|[ \t]+$/, "", id); n = split(df, a, /[ ,]+/); q = ""; for (k = 1; k <= n; k++) if (a[k] ~ /^(REQ|INV)-/) { q = a[k]; break } printf "  %s/%s   pass   ci: <run id>\n", (q == "" ? "-" : q), id }' "$W/rows"
+  printf 'decisions:\n  - none\ndiscovered:\n  - none\nlaw-needed:\n  - none\nquestions:\n  - none\n```\n'
+}
 planhash() { [ -f .vid/metrics-events ] && awk '$1 == "plan-change" { for (i = 2; i <= NF; i++) if (index($i, "hash=") == 1) h = substr($i, 6) } END { print h }' .vid/metrics-events; }
 # steplines <plan file> <step>: the step's line, then the lines of the steps in its builds-on:, verbatim
 steplines() {
@@ -597,9 +721,10 @@ if [ "${1:-}" = write ]; then
   shift
   wusage() { echo "ViD brief: usage — sh checks/brief.sh write --role builder|grader|fixer|test-author --slice <N> (--rows <ROW-id,…> | --claim <file> | --catch-up <step>) [--step <id>] [--selection '<selection>' [--deployed-selection '<selection>']] [--receipt <name>] [--decisions <D-id,…>] [--notes <file>] [--upgrade] [--continue <package> [--law <sha>]]" >&2; exit 2; }
   wrefuse() { echo "ViD brief write: refused — $*" >&2; exit 1; }
-  WROLE=''; WSLICE=''; WROWS=''; WCLAIM=''; WSTEP=''; WRCPT=''; WDEC=''; WNOTES=''; WUP=no; WSEL=''; WDSEL=''; WCONT=''; WLAW=''; WCU=''
+  WROLE=''; WSLICE=''; WROWS=''; WCLAIM=''; WSTEP=''; WRCPT=''; WDEC=''; WNOTES=''; WUP=no; WSEL=''; WDSEL=''; WCONT=''; WLAW=''; WCU=''; WTK=no
   while [ $# -gt 0 ]; do
     [ "$1" = --upgrade ] && { WUP=yes; shift; continue; }   # v0.9.7.0.10 (R13): a flag, no value
+    [ "$1" = --ticket ] && { WTK=yes; shift; continue; }    # v0.26.10.9 (R12): a flag, no value
     [ $# -ge 2 ] || wusage
     case "$1" in
       --role) WROLE=$2 ;; --slice) WSLICE=$2 ;; --rows) WROWS=$2 ;; --claim) WCLAIM=$2 ;;
@@ -664,6 +789,16 @@ if [ "${1:-}" = write ]; then
     steplines "$PF" "$WSTEP" > /dev/null || wrefuse "step $WSTEP is no step of the plan in force ($PF)"
   fi
   [ -z "$WNOTES" ] || [ -f "$WNOTES" ] || wrefuse "no such notes file: $WNOTES"
+  # v0.26.10.9 (R12): a ticket — the base is the code repository's main in the read-only copy, fetched in this session;
+  # ViD's repository holds no uncommitted change (the brief quotes it at HEAD, its tests from ViD's copy)
+  TBASE=''
+  if [ "$WTK" = yes ]; then
+    case "$WROLE" in builder|fixer) ;; *) wrefuse "--ticket briefs a builder or a fixer, not a $WROLE" ;; esac
+    git -C .vid/code rev-parse -q --verify HEAD > /dev/null 2>&1 || wrefuse 'no read-only copy of the code repository at .vid/code (git clone it, then git -C .vid/code fetch)'
+    TBASE=$(git -C .vid/code rev-parse -q --verify 'refs/remotes/origin/main^{commit}' 2>/dev/null) || wrefuse "the read-only copy has no origin/main — fetch it: git -C .vid/code fetch"
+    tfetched || wrefuse "the read-only copy was not fetched in this session (its FETCH_HEAD is older than this session's stage start): git -C .vid/code fetch"
+    [ -z "$(git status --porcelain 2>/dev/null | grep -v ' \.vid/' | head -n 1)" ] || wrefuse "ViD's repository has uncommitted changes — a ticket quotes its records and its tests' copy as committed: commit them first"
+  fi
   W=$(mktemp -d); trap 'rm -rf "$W"' EXIT
   # v0.9.7.0.10 (3.6, R13): the harness upgrade's section, from the harness at HEAD, the template and the run's records
   if [ "$WUP" = yes ]; then
@@ -709,10 +844,13 @@ if [ "${1:-}" = write ]; then
     case "${RP##*/}" in *.proof.*) wrefuse "$RP is a proof receipt — never an ordinary one: a grader reads the close's evidence (checks/evidence.sh ordinary)" ;; esac   # v0.9.8 (R15)
     case "$RP" in *.close.xml) RT=${RP%.close.xml}.close.deployed.xml ;; *.checkpoint.xml) RT=${RP%.checkpoint.xml}.checkpoint.deployed.xml ;; *.full.xml) RT=${RP%.full.xml}.deployed.xml ;; esac
     [ -n "$RT" ] && [ ! -f "$RT" ] && RT=''
+    # v0.26.10.9 (R17): a CI receipt (checks/ticket.sh import) credits the rows its .rows names, and no other
+    case "${RP##*/}" in *.ci-*-*.xml) [ -f "$RP.rows" ] && [ -f "$RP.cases" ] || wrefuse "the CI receipt $RP has no .rows or .cases beside it (checks/ticket.sh import publishes both)"; CIR=$RP.rows ;; esac
   fi
   # a grader's receipt cases: the receipt's (and its deployed twin's), or each constituent's with the rows it credits
   # (checks/evidence.sh credit; without the reader, its .rows, else every row `*`)
-  bcredit() { if [ -f checks/evidence.sh ]; then sh checks/evidence.sh credit "$1" 2>/dev/null < /dev/null || true; elif [ -f "$1.rows" ]; then grep -v '^$' "$1.rows"; else echo '*'; fi; }
+  bcredit() { case "${1##*/}" in *.ci-*-*.xml) grep -v '^$' "$1.rows" 2>/dev/null; return 0 ;; esac   # v0.26.10.9 (R17): a CI receipt credits its .rows
+    if [ -f checks/evidence.sh ]; then sh checks/evidence.sh credit "$1" 2>/dev/null < /dev/null || true; elif [ -f "$1.rows" ]; then grep -v '^$' "$1.rows"; else echo '*'; fi; }
   rcases() { if [ -f "$1.cases" ]; then cat "$1.cases"; elif [ -f checks/extractors/results.sh ]; then sh checks/extractors/results.sh "$1" 2>/dev/null; fi | grep -E '^case ' || true; }
   : > "$W/cases"
   if [ "$WROLE" = grader ]; then
@@ -723,6 +861,7 @@ if [ "${1:-}" = write ]; then
   rowcases() {
     awk -F'|' 'function tr(s) { gsub(/^[ \t]+|[ \t]+$/, "", s); return s } { t = tr($8); sub(/ .*/, "", t); print tr($1) "\t" t "\t" tr($7) }' "$1" | while IFS=$TAB read -r id p df; do
       [ -n "$p" ] || continue
+      [ -z "${CIR:-}" ] || grep -qxF -- "$id" "$CIR" || continue
       if [ -n "$RB" ]; then : > "$W/cases"; _i=0; while IFS= read -r f; do _i=$((_i + 1)); grep -qxF -e "$id" -e '*' "$W/cr.$_i" && cat "$W/cs.$_i" >> "$W/cases"; done < "$W/cons"; fi
       rc=$(awk -v p="$p::" -v id="$id" 'BEGIN { alt = id; gsub(/-/, "_", alt) } index($2, p) == 1 && (index($2, id) || index($2, alt)) { print }' "$W/cases")
       if [ -z "$rc" ]; then
@@ -1045,11 +1184,12 @@ if [ "${1:-}" = write ]; then
     printf 'quoted-at: %s\n' "$QH"
     printf 'receives: %s    must not receive: %s\n' "${CELLS%%"$TAB"*}" "${CELLS#*"$TAB"}"
     { [ "$WROLE" = fixer ] || [ "$WROLE" = builder ]; } && printf 'skill: vid-build\n'
-    if [ -n "$TRY" ]; then printf 'try: %s\nbranch: vid/%s\nreturn: %s/%s\n' "$TRY" "$TRY" "$(pwd -P)" "$D/$WROLE-$N.return.md"; fi
+    if [ -n "$TRY" ] && [ "$WTK" = yes ]; then printf 'try: %s\nbranch: vid/%s\nreturn: pull request\nticket: pending\nbase: %s\n' "$TRY" "$TRY" "$TBASE"   # v0.26.10.9 (R12)
+    elif [ -n "$TRY" ]; then printf 'try: %s\nbranch: vid/%s\nreturn: %s/%s\n' "$TRY" "$TRY" "$(pwd -P)" "$D/$WROLE-$N.return.md"; fi
     [ -n "$PB" ] && printf 'pending-birth: %s\n' "$PB"
     [ -n "$PA" ] && printf 'pending-append: %s\n' "$PA"
     # v0.26.10.7 (R6, F-58): a fixer's and a test-author's first act records the project as its home
-    { [ "$WROLE" = fixer ] || [ "$WROLE" = test-author ]; } && printf 'first act: sh checks/plan.sh home --brief %s/%s\n' "$(pwd -P)" "$OUT"
+    { [ "$WROLE" = fixer ] || [ "$WROLE" = test-author ]; } && [ "$WTK" = no ] && printf 'first act: sh checks/plan.sh home --brief %s/%s\n' "$(pwd -P)" "$OUT"
   } > "$W/head"
   {
     printf '\n'
@@ -1116,6 +1256,7 @@ if [ "${1:-}" = write ]; then
       printf '\nthe canvases:\n'; git ls-tree -r --name-only HEAD -- design/screens 2>/dev/null | grep . || echo none
       printf '\n## 9 test locations\n\n'; cat "$W/s9"
       printf '\n## 10 the step\n\nplan: %s\n\n' "$PH"; cat "$W/steps"
+      [ "$WTK" = yes ] && grep -m 1 '^[[:space:]]*shared:' "$PF"   # v0.26.10.9 (R12, R23): a ticket quotes the plan's shared paths too
       [ -s "$W/mods" ] && { printf '\n'; cat "$W/mods"; }
       printf '\n## 11 rules\n\n'; [ -s "$W/rules" ] && cat "$W/rules"
     fi
@@ -1142,6 +1283,7 @@ if [ "${1:-}" = write ]; then
       printf "\nthe rules, in the template's words:\n"; cat "$W/rules3"
       printf '\nthe harness file at %s, whole:\n\n' "$QH"; sed 's/^/    /' "$W/harness"
     fi
+    [ "$WTK" = yes ] && tsection
   } > "$W/body"
   HASH=$(cat "$W/head" "$W/body" | git hash-object --stdin)
   { cat "$W/head"; printf 'written: brief.sh write %s\n' "$HASH"; cat "$W/body"; } > "$OUT"
@@ -1386,6 +1528,12 @@ if [ "${1:-}" = return ]; then
   if [ -n "$RB" ]; then
     awk '/^## [0-9]/ { on = ($2 == 1); next } on' "$RB" | grep -oE '^ROW-[0-9A-Za-z-]+' > "$W/want" || : > "$W/want"
   else : > "$W/want"; fi
+  # v0.26.10.9 (R14): a ticket's return (its brief's header names ticket:) — its commit is a code commit, read in the
+  # read-only copy (.vid/code), descending from the brief's base:; a pass is credited from the CI receipt's .cases
+  # directly (at least one case naming the row, every one passed), never through checks/evidence.sh; ViD's copy check
+  # (the newest `copy-check pr=<n>`, changed=0 missing=0) stands in for the protected-path rule; --agent is pr:<n>
+  TKB=''; [ -n "$RB" ] && TKB=$(bh ticket)
+  TPR=''; if [ -n "$TKB" ]; then case "$RA" in pr:[0-9]*) TPR=${RA#pr:} ;; *) rbad "header: a ticket's return names its pull request — agent: pr:<n> (--agent pr:<n>), not '${RA:-}'" ;; esac; fi
   # the valid receipts of the run, as checks/evidence.sh reads one
   : > "$W/valid"
   if [ -f .vid/metrics-events ]; then
@@ -1408,6 +1556,17 @@ if [ "${1:-}" = return ]; then
       pass)
         [ -n "$rc" ] || { rbad "line $ln: $id passes with no receipt"; continue; }
         r=${rc##*/}
+        if [ -n "$TKB" ]; then
+          case "$r" in *.ci-*-*.xml) ;; *) rbad "line $ln: $id — '$rc' is not a CI receipt (<code sha>.ci-<run>-<attempt>.xml, checks/ticket.sh import)"; continue ;; esac
+          if ! grep -qxF -- "$r" "$W/valid" || [ ! -f ".vid/ledger-results/$r.cases" ]; then rbad "line $ln: $id — '$rc' is not a published CI receipt (a ledger-run event names it, its .cases present)"; continue; fi
+          _v=$(awk -v id="$id" 'BEGIN { alt = id; gsub(/-/, "_", alt) } $1 == "case" && (index($2, id) || index($2, alt)) { n++; if ($3 != "passed") bad = bad " " $2 " " $3 } END { if (!n) print "none"; else if (bad != "") print "bad" bad; else print "ok" }' ".vid/ledger-results/$r.cases")
+          case "$_v" in
+            none) rbad "line $ln: $id — $r holds no case naming the row: it does not show the row passing" ;;
+            bad*) rbad "line $ln: $id — $r does not show the row passing:${_v#bad}" ;;
+            *) NP=$((NP + 1)) ;;
+          esac
+          continue
+        fi
         if ! grep -qxF -- "$r" "$W/valid" || [ ! -f ".vid/ledger-results/$r" ] || [ ! -f ".vid/ledger-results/$r.tree" ]; then
           rbad "line $ln: $id — '$rc' is not a valid receipt of this run (published by checks/test.sh, present with its .tree, not invalidated); the receipt field holds one receipt file name; notes go in the report"; continue; fi
         if [ ! -f "$W/cs.$r" ]; then
@@ -1432,7 +1591,14 @@ if [ "${1:-}" = return ]; then
   WRONGB=no
   if [ -s "$W/lines" ] && ! awk -F'\t' '{ print $2 }' "$W/lines" | awk -F'|' '{ s = $2; r = $3; w = $4; gsub(/^[ \t]+|[ \t]+$/, "", s); gsub(/^[ \t]+|[ \t]+$/, "", r); gsub(/^[ \t]+/, "", w)
       if (!(s == "not" && r == "none" && index(w, "wrong base:") == 1)) bad = 1 } END { exit bad ? 0 : 1 }'; then WRONGB=yes; fi
-  if [ -n "$RB" ] && [ -n "$RC" ] && [ "$WRONGB" = no ]; then
+  if [ -n "$TKB" ] && [ -n "$RC" ]; then
+    _tb=$(bh base)
+    if ! git -C .vid/code cat-file -e "$RC^{commit}" 2>/dev/null; then rbad "header: commit: $RC is no commit of the read-only copy (.vid/code) — fetch it"
+    elif [ -z "$_tb" ] || ! git -C .vid/code merge-base --is-ancestor "$_tb" "$RC" 2>/dev/null; then rbad "header: commit: $RC does not descend from the ticket's base (${_tb:-none}) in the read-only copy"; fi
+    _cc=$(awk -v p="pr=$TPR" '$1 == "copy-check" { for (i = 2; i <= NF; i++) if ($i == p) l = $0 } END { print l }' .vid/metrics-events 2>/dev/null)
+    if [ -z "$_cc" ]; then rbad "ViD's copy check: no copy-check event for pull request $TPR (sh checks/ticket.sh import $TPR records it)"
+    else case " $_cc " in *' changed=0 missing=0 '*) ;; *) rbad "ViD's copy check: the pull request's tests are not ViD's copy ($_cc) — a fix ticket restores them" ;; esac; fi
+  elif [ -n "$RB" ] && [ -n "$RC" ] && [ "$WRONGB" = no ]; then
     RQ=$(bh quoted-at)
     if ! git cat-file -e "$RC^{commit}" 2>/dev/null; then rbad "header: commit: $RC is no commit here"
     elif [ -n "$RQ" ] && ! git merge-base --is-ancestor "$RQ" "$RC" 2>/dev/null; then rbad "header: commit: $RC does not descend from the brief's quoted-at ($RQ) — a builder starts on its base (vid-build); a wrong base hands back every row 'not | none | wrong base: <the error>'"; fi
@@ -1450,7 +1616,7 @@ if [ "${1:-}" = return ]; then
     rbad "a not reason points at a report, and there is none: $RPT"
   fi
   # v0.9.7.1 (3.9, R9): a pass's receipt tested the committed protected paths — every builder and fixer, a harness upgrade (## 13) excepted
-  if [ -n "$RB" ] && [ -n "$RC" ] && git cat-file -e "$RC^{commit}" 2>/dev/null && ! grep -qE '^## 13([^0-9]|$)' "$RB"; then
+  if [ -z "$TKB" ] && [ -n "$RB" ] && [ -n "$RC" ] && git cat-file -e "$RC^{commit}" 2>/dev/null && ! grep -qE '^## 13([^0-9]|$)' "$RB"; then
     protected > "$W/prot"
     awk -F'\t' '{ print $2 }' "$W/lines" | awk -F'|' '{ s = $2; r = $3; gsub(/^[ \t]+|[ \t]+$/, "", s); gsub(/^[ \t]+|[ \t]+$/, "", r); if (s == "pass" && r != "") { sub(/.*\//, "", r); print r } }' | sort -u > "$W/prcpt"
     for r in $(cat "$W/prcpt"); do
@@ -1467,6 +1633,19 @@ if [ "${1:-}" = return ]; then
   if [ "$RFC" != "$RF" ]; then cat "$RFC" > "$RF.tmp.$$" && mv "$RF.tmp.$$" "$RF"
   fi
   echo "ViD return: ok — $RF ($NP of $NROWS rows pass)"
+  if [ -n "$TKB" ]; then   # v0.26.10.9 (R14): a ticket's hand-back — the cases read from its receipts; no merge probe, no worktree
+    awk -F'\t' '{ print $2 }' "$W/lines" | awk -F'|' '{ id = $1; r = $3; gsub(/^[ \t]+|[ \t]+$/, "", id); gsub(/^[ \t]+|[ \t]+$/, "", r); if (r != "" && r != "none") { sub(/.*\//, "", r); print id "\t" r } }' | while IFS='	' read -r id r; do
+      [ -f ".vid/ledger-results/$r.cases" ] || { echo "    $id: no receipt $r here"; continue; }
+      awk -v id="$id" -v r="$r" 'BEGIN { alt = id; gsub(/-/, "_", alt) } $1 == "case" && (index($2, id) || index($2, alt)) { n++; print "    " id " " $2 " " $3 " (" r ")" } END { if (!n) print "    " id ": no case of the row in " r }' ".vid/ledger-results/$r.cases"
+    done
+    if bcost_seen "$RB"; then echo "ViD return: build-cost for $RB is already recorded — nothing recorded"; exit 0; fi
+    ROLE=$(bh role); SLICE=$(bh slice); STEP=$(bh step); [ -n "$STEP" ] || STEP=-
+    _n=$(printf '%s' "$RB" | sed -n 's/.*-\([0-9][0-9]*\)\.md$/\1/p'); _bb=$(wc -c < "$RB" | tr -d ' ')
+    sh checks/event.sh "agent-returned role=$ROLE n=${_n:--} try=$(bh try | sed 's/^$/-/') agent=$RA" >/dev/null 2>&1 || true
+    sh checks/event.sh "build-cost role=$ROLE slice=$SLICE step=$STEP brief=$RB rows=$NROWS rows-passed=$NP peak=unknown total=unknown before-change=unknown tool=ticket model=unknown effort=unknown brief-bytes=$_bb agent=$RA" >/dev/null 2>&1 || true
+    echo "ViD return: build-cost role=$ROLE slice=$SLICE step=$STEP brief=$RB rows=$NROWS rows-passed=$NP tool=ticket agent=$RA"
+    exit 0
+  fi
   # v0.9.7.1 (3.7, R7): the hand-off in one command — what the run manager acts on, printed; nothing routed
   RTRY=$(bh try)
   # v0.9.7.0.9 (3.4, R4): the analyst-dues still open, for the run manager — it alone starts the analyst; v0.9.7.3
@@ -1767,6 +1946,34 @@ fi
 for l in $(sect 18 | grep -E '^ROW-' || true); do
   grep -qE "^[[:space:]]*${l%% *}[[:space:]]*\|" "$T/inv.ref" || bad "section 18: ${l%% *} is no row of INVENTORY.md at ${REF:-?}"
 done
+# v0.26.10.9 (R12): a ticket brief — section 16's acceptance tests byte for byte ViD's copy at quoted-at, and its
+# base the read-only copy's origin/main (when the copy is here; a brief is rewritten when the code repository moves)
+if [ -n "$(hval ticket)" ]; then
+  if ! grep -qE '^## 16([^0-9]|$)' "$B"; then bad 'a ticket brief (ticket: in the header) has no section 16'
+  else
+    sect 16 | awk -v d="$T" '/^### / { acc = ($0 == "### Acceptance tests"); next }
+      acc && f == "" && /^#### / { p = substr($0, 6); k++; print p > (d "/t16.list"); w = 1; next }
+      w && NF == 0 { next }
+      w { w = 0; if ($0 !~ /^````*$/) { print "BAD\t" p > (d "/t16.bad"); next } f = $0; o = d "/t16." k; printf "" > o; next }
+      f != "" && $0 == f { close(o); f = ""; next }
+      f != "" { print > o }
+      END { if (f != "" || w) print "BAD\t" p > (d "/t16.bad") }'
+    [ -f "$T/t16.bad" ] && for x in $(cut -f2 "$T/t16.bad"); do bad "section 16: the test file $x is not fenced whole"; done
+    _k=0
+    [ -f "$T/t16.list" ] && for _p in $(cat "$T/t16.list"); do
+      _k=$((_k + 1))
+      if [ -z "$REF" ] || ! git cat-file -e "$REF:$_p" 2>/dev/null; then bad "section 16: $_p is not in ViD's copy at ${REF:-?}"; continue; fi
+      git show "$REF:$_p" > "$T/t16.ref"
+      cmp -s "$T/t16.ref" "$T/t16.$_k" || bad "section 16: $_p differs from ViD's copy at $REF — a ticket carries each acceptance test byte for byte"
+    done
+    _tb=$(hval base)
+    if [ -z "$_tb" ]; then bad 'header: a ticket brief names its base (base: <the code repository commit>)'
+    elif git -C .vid/code rev-parse -q --verify HEAD > /dev/null 2>&1; then
+      _om=$(git -C .vid/code rev-parse -q --verify 'refs/remotes/origin/main^{commit}' 2>/dev/null || true)
+      [ "$_om" = "$_tb" ] || bad "header: base $_tb is not the read-only copy's origin/main (${_om:-none}) — the code repository moved: write the ticket again"
+    fi
+  fi
+fi
 # the attempt record travels to builders and fixers
 case "$ROLE" in builder|fixer)
   S7=$(sect 7)

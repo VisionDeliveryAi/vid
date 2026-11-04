@@ -2,7 +2,7 @@
 # Purpose: selftest case — the page is the owner's design, changed only as recorded (v0.9.7.4 spec 3.10, R9; v0.26.10.2
 # R11: the design is the v0.26.10.2 pack's v3; v0.26.10.6 R18: the v0.26.10.6 pack's v4). Convicts unless applying
 # every change viewer/page/CHANGES.md lists — each entry's ~~~old text, found exactly once, replaced by its ~~~new
-# text, in the file's order — to docs/releases/V0.26.10.6-DESIGN/VID Viewer v4.dc.html gives viewer/page/ViD Viewer
+# text, in the file's order — to the v4 design pack's page gives viewer/page/ViD Viewer
 # v4.dc.html byte for byte, v2 and v3 are gone, the note and every screenshot of the v4 pack are unchanged, v3's
 # screenshots are the v0.26.10.2 pack's, the runtime and v2's screenshots are the 0.9.7.4 pack's; and unless the same check fails a page carrying one change the file does not list, and a CHANGES.md entry
 # whose old text the design does not hold. v0.26.10.8 (R12): kind 4, a panel added in the page's own look, is

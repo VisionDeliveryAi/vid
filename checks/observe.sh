@@ -134,7 +134,11 @@
 #   <g>s ago · run: …` — the source that set the newest activity: events,
 #   commit hooks, heartbeat, git or agent <id> — or `run activity: none
 #   recorded · …`.
-# Usage: sh checks/observe.sh [tick [--now]] | start | loop <token> | resume | alive
+# v0.26.10.24 (R5, R7): a step's builder briefed again after a hand-back that passed under half its rows, with no plan
+# change between, is told once (key handback.<the path's cksum>), until that brief is handed back or a newer builder
+# brief for the step is written. (R6) An `overrun` event is told once, whenever it was written (key overrun.<ticket>, never
+# cleared). `notices` prints each standing notice, `<key><TAB><text>`, an overrun's while its request runs; it writes nothing.
+# Usage: sh checks/observe.sh [tick [--now]] | start | loop <token> | resume | alive | notices
 set -u
 IFS='
 '
@@ -312,6 +316,28 @@ EVAWK='function ep(t,  y,m,d,H,M,S) { y=substr(t,1,4)+0; m=substr(t,6,2)+0; d=su
     if (m<=2) { y--; m+=12 } return (365*y + int(y/4) - int(y/100) + int(y/400) + int((153*(m-3)+2)/5) + d - 719469)*86400 + H*3600 + M*60 + S }
   function lastat(  i) { for (i = NF; i >= 2; i--) if (index($i, "at=") == 1) { if ($i ~ /^at=[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]Z$/) return substr($i, 4); return "" } return "" }
   function kv(k,  i) { for (i = 2; i <= NF; i++) if (index($i, k "=") == 1) return substr($i, length(k) + 2); return "" }'
+# standing [running]: the notices that stop nothing (v0.26.10.24 R5, R6), one `<key><TAB><text>` each; off under `mode:
+# tickets`. Every `overrun` event; with `running`, only a request whose state is running.
+# A step's newest builder brief after the run's start (plan.sh run-start), not handed back, whose step's newest hand-back
+# before it passed under half its rows, with no plan change between: the event order is the gate's, time then file order
+standing() {
+  [ "$(rsline mode)" != tickets ] && [ -f "$EV" ] || return 0
+  _rp=''; [ -f checks/plan.sh ] && _rp=$(sh checks/plan.sh run-start 2>/dev/null)
+  awk "$EVAWK"' $1 == "brief-written" || $1 == "build-cost" || $1 == "plan-change" || $1 == "overrun" { a = lastat(); if (a == "") a = "0000"; printf "%s\t%09d\t%s\n", a, NR, $0 }' "$EV" | sort -t "$(printf '\t')" -k1,1 -k2,2n \
+  | awk -v rp="$_rp" -v h="$(pwd -P)" "$EVAWK"'
+    function pv(k,   i, s, j) { i = index($0, " " k "="); if (!i) return ""; s = substr($0, i + length(k) + 2); j = match(s, / [a-z][a-z-]*=/); if (j) s = substr(s, 1, j - 1); if (index(s, h "/") == 1) s = substr(s, length(h) + 2); return s }
+    $3 == "plan-change" { pc = NR }
+    $3 == "overrun" { printf "O\t%s\t%d\t%d\n", kv("ticket"), kv("estimate") / 60 + 0.5, kv("awake") / 60 + 0.5 }
+    $3 == "build-cost" && (kv("role") == "builder" || kv("role") == "fixer") { s = kv("step"); HB[pv("brief")] = NR; LN[s] = NR; LK[s] = kv("rows-passed"); LR[s] = kv("rows") }
+    $3 == "brief-written" && kv("role") == "builder" && rp != "" && $1 "\t" $2 > rp { p = pv("path"); l = ""; if ((getline l < p) > 0) close(p); if (!sub(/^.*step:[ \t]*/, "", l)) next; sub(/[ \t].*$/, "", l)
+      BP[l] = p; BN[l] = NR; low = (l in LN) && LR[l] ~ /^[0-9]+$/ && LK[l] ~ /^[0-9]+$/ && LK[l] * 2 < LR[l] + 0 && pc < LN[l]; BK[l] = low ? LK[l] : ""; BR[l] = LR[l] }
+    END { for (s in BP) if (BK[s] != "" && !(HB[BP[s]] > BN[s])) printf "H\t%s\t%s\t%s\t%s\n", s, BP[s], BK[s], BR[s] }' | sort -u | while IFS='	' read -r _k _a _b _c _d; do
+    if [ "$_k" = H ]; then printf 'handback.%s\t%s\n' "$(printf '%s' "$_b" | cksum | cut -d' ' -f1)" "ViD: step $_a's next builder was briefed ($_b) after its last hand-back passed $_c of $_d rows, with no plan change between."
+    elif [ "${1:-}" != running ] || [ "$(cat ".vid/requests/$(printf '%s' "$_a" | sed 's#/#/chunks/#')/state" 2>/dev/null)" = running ]; then
+      printf 'overrun.%s\t%s\n' "$(printf '%s' "$_a" | tr '/' '-')" "ViD: test run $_a passed twice its estimate ($_b min) at $_c min."; fi
+  done
+}
+if [ "$MODE" = notices ]; then standing running; exit 0; fi
 ACT=0; ACTS=''; RSE=0; RSS=''; RSAT=''; DIEDS=''
 if [ -f "$EV" ]; then
   _o=$(awk "$EVAWK"'
@@ -622,6 +648,8 @@ $k"; NEWQ="$NEWQ${NEWQ:+; }$qn: $(cap "$qt") — it holds up $qg"
     esac
     notify "died.$ds.$da" "$DT" resume
   done
+  # v0.26.10.24 (R5–R7): the notices that stop nothing, each once until it clears
+  for _n in $(standing); do notify "${_n%%	*}" "${_n#*	}"; done
   # gone quiet (3.3): one standing at a time, cleared by newer activity or a recorded reason
   REASONLESS=no
   case "$RUN" in active) REASONLESS=yes ;; waiting) [ "$NQ" -eq 0 ] && REASONLESS=yes ;; stopped) [ -z "$RREASON" ] && REASONLESS=yes ;; esac
@@ -663,7 +691,7 @@ $k"; NEWQ="$NEWQ${NEWQ:+; }$qn: $(cap "$qt") — it holds up $qg"
   [ -n "$QS" ] && LIVE="$LIVE ${QS%% *} "
   # clear what ended: every notice of these kinds whose condition no longer holds
   for k in $(sed -n 's/^notified\.\([^ ]*\) .*/\1/p' "$STF"); do
-    case "$k" in q.*|qbatch.*|qlist.*|waiting.*|stopped.*|state.*|died.*|quiet.*|agentq.*|false-complete|codex-paused|jobdead.*|takeover.*) ;; *) continue ;; esac
+    case "$k" in q.*|qbatch.*|qlist.*|waiting.*|stopped.*|state.*|died.*|quiet.*|agentq.*|false-complete|codex-paused|jobdead.*|takeover.*|handback.*) ;; *) continue ;; esac
     case "$LIVE" in *" $k "*) ;; *) clear_note "$k" ;; esac
   done
   for k in $(sed -n 's/^\(epstart\.[^ ]*\) .*/\1/p' "$STF"); do [ "$k" = "epstart.$EPI" ] || sset "$k" ''; done

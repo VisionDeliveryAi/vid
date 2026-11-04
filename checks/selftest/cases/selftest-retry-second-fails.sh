@@ -13,5 +13,5 @@ rt_run
 [ "$(rt_ran cases/a-bad.sh)" -eq 2 ] || fail 'the listed case did not run exactly twice'
 grep -q 'cases/a-bad.sh FAILED TO CONVICT again on its retry' "$T/out" || fail 'the failed retry is not named'
 grep -q '^selftest-retried case=cases/a-bad.sh result=failed at=' .vid/metrics-events || fail 'no selftest-retried result=failed event'
-[ ! -f "$T/rescued" ] || fail 'a refused run was marked rescued'
+! grep -q 'rescued by a retry' "$T/out" || fail 'a refused run was marked rescued'
 exit 0

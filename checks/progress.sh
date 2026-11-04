@@ -5,6 +5,8 @@
 # 3.3), the row engine's owed, held and `later` rows, the open `Q<n>` lines,
 # the live run folders and the events. Nothing in it is written by the
 # model but `now:` (RUN-STATE, one line, `--now`).
+#   Notices v0.26.10.24 (R7): first, only when `sh checks/observe.sh notices`
+#           prints a line: the standing notices' texts, `; ` between them.
 #   Passing (v0.9.7.2 3.6: was "Done", which now means a step's computed
 #           done) the steps passing (every row passing, owed, held or later), by
 #           name, and the rows passing; v0.9.6.1 (3.3): of them, the rows
@@ -378,7 +380,9 @@ if [ -f STAGES.md ] && [ -f checks/stages.sh ]; then
   # v0.26.10.8 (R2): of <the final stage>, the highest number — with STAGE-0 one less than the count of lines
   STGL="$_cs of $(printf '%s\n' "$_sb" | sed -n 's/^[[:space:]]*STAGE-\([0-9][0-9]*\)[[:space:]]*|.*/\1/p' | sort -n | tail -n 1)${_sn:+, $_sn}${_sc:+ · closed: $_sc}"
 fi
+NOTL=''; [ -f checks/observe.sh ] && NOTL=$(sh checks/observe.sh notices 2>/dev/null | cut -f2- | awk 'NR > 1 { printf "; " } { printf "%s", $0 }')
 { printf '%s\n\n| | |\n|---|---|\n' "$HEADL"
+  [ -n "$NOTL" ] && printf '| Notices | %s |\n' "$NOTL"
   [ -n "$STGL" ] && printf '| Stage | %s |\n' "$STGL"
   printf '| Passing | %s |\n' "$DONEL"
   printf '| Debt | %s |\n' "$DEBT"

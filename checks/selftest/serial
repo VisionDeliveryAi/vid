@@ -1,0 +1,35 @@
+# Purpose: the self-test cases that run one at a time, after the others have run side by side (selftest-parallel).
+# One a line: <path from checks/selftest/> <reason>. Cases sensitive to timing, signals or load; the cases on
+# checks/selftest/flaky run one at a time too, without being listed here. checks/selftest/run.sh reads this list.
+cases/interrupt-wrapper.sh sends SIGINT to a running test.sh and times its exit
+cases/no-completed-key.sh sends SIGINT to a running test.sh and times its exit
+cases/silence-stops.sh times a run's silence against a 10-second limit
+cases/batch-request.sh follows its requests through test.sh serve
+cases/cancel-sandboxed.sh follows its requests through test.sh serve
+cases/request-dirty.sh follows its requests through test.sh serve
+cases/selection-refused.sh follows its requests through test.sh serve
+cases/batch-retry.sh runs the Docker stub's held environments
+cases/host-lease.sh runs the Docker stub's held environments
+cases/leftovers-agent-worktree.sh runs the Docker stub's held environments
+cases/leftovers-fresh-worktree-in-use.sh runs the Docker stub's held environments
+cases/leftovers-live-claude-agent.sh runs the Docker stub's held environments
+cases/leftovers-merged-worktree.sh runs the Docker stub's held environments
+cases/leftovers.sh runs the Docker stub's held environments
+cases/service-death.sh runs the Docker stub's held environments
+cases/services-kept-healthy.sh runs the Docker stub's held environments
+cases/silence-startup-output.sh runs the Docker stub's held environments
+cases/slot-memory.sh runs the Docker stub's held environments
+cases/slot-unsignalled.sh runs the Docker stub's held environments
+cases/startup-limit.sh runs the Docker stub's held environments
+cases/stop-during-deployed-up.sh runs the Docker stub's held environments
+cases/stop-during-up.sh runs the Docker stub's held environments
+cases/stop-no-restart.sh runs the Docker stub's held environments
+cases/testenv-heavy.sh runs the Docker stub's held environments
+cases/testenv-never-writes-compose.sh runs the Docker stub's held environments
+cases/testenv-overlap.sh runs the Docker stub's held environments
+cases/testenv-pick.sh runs the Docker stub's held environments
+cases/testenv-prove-waits-for-free-slots.sh runs the Docker stub's held environments
+cases/testenv-prove.sh runs the Docker stub's held environments
+cases/testenv-request.sh runs the Docker stub's held environments
+cases/testenv-selector-multi-id.sh runs the Docker stub's held environments
+cases/test-selector-lock.sh kills running test runs and checks their locks and exit statuses; failed side by side in the 0.26.10.12 full run, convicts alone

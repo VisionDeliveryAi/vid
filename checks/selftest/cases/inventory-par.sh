@@ -42,7 +42,7 @@ grammar: 0.9.2' "$FX" > INVENTORY.md
 if inv >/dev/null 2>&1; then echo 'inventory-par: the legacy block passed under grammar 0.9.2' >&2; exit 1; fi
 OUT=$(inv --report)
 printf '%s\n' "$OUT" | grep -q '^par: rows=26 materialised=4 legitimate=0 deploy-owed=0 other=22 — FAILS' || { echo 'inventory-par: the par line is wrong' >&2; printf '%s\n' "$OUT" | grep '^par:' >&2; exit 1; }
-printf '%s\n' "$OUT" | grep -q 'owed=34 (legitimate=0: guard-first=0 census-armed=0 probe-capture=0 golden-set=0 fixture-source=0 prerequisite=0 owner-decision=0 reverted=0; other=32)' || exit 1
+printf '%s\n' "$OUT" | grep -q 'owed=34 (legitimate=0: guard-first=0 census-armed=0 probe-capture=0 golden-set=0 fixture-source=0 prerequisite=0 spec-only=0 owner-decision=0 reverted=0; other=32)' || exit 1
 [ "$(printf '%s\n' "$OUT" | grep -c 'unclassed deferral')" -eq 31 ] || exit 1      # 22 ROW + 4 rule + 5 hostility
 printf '%s\n' "$OUT" | grep -q 'GAP  SEAM-002 .*credentials: not-yet born probe: owed' || exit 1
 RED=$(sed -n '/^```vid-inventory/,/^```$/p' INVENTORY.md | grep -E '^ROW-' | grep -cE '\| owed: (materialised when (its|the) surface exists|browser render test lands with the screen.s slice|materialised in the slice that builds the subject)')
@@ -70,7 +70,7 @@ sed -e 's#| owed: materialised with its guard row#| owed: guard-first — its gu
 printf '# ledger — the rows\n' > tests/invariants/test_rows.py
 OUT=$(inv --report)
 printf '%s\n' "$OUT" | grep -q '^par: rows=26 materialised=19 legitimate=7 deploy-owed=0 other=0 — holds' || { echo 'inventory-par: the corrected block does not hold the par' >&2; printf '%s\n' "$OUT" | grep -E '^(par:|GAP)' | head -5 >&2; exit 1; }
-printf '%s\n' "$OUT" | grep -q 'guard-first=7 census-armed=4 probe-capture=0 golden-set=1 fixture-source=4 prerequisite=0 owner-decision=0 reverted=0; other=0)' || { printf '%s\n' "$OUT" | tail -2 >&2; exit 1; }
+printf '%s\n' "$OUT" | grep -q 'guard-first=7 census-armed=4 probe-capture=0 golden-set=1 fixture-source=4 prerequisite=0 spec-only=0 owner-decision=0 reverted=0; other=0)' || { printf '%s\n' "$OUT" | tail -2 >&2; exit 1; }
 printf '%s\n' "$OUT" | grep -q '^GAP' && { printf '%s\n' "$OUT" | grep '^GAP' | head -3 >&2; exit 1; }
 inv >/dev/null 2>&1 || { echo 'inventory-par: the corrected block was refused' >&2; exit 1; }
 if inv --strict >/dev/null 2>&1; then exit 1; fi        # legitimately deferred rows are still debt: strict blocks

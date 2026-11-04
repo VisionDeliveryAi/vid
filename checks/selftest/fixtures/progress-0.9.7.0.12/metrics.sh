@@ -1,6 +1,6 @@
 #!/bin/sh
-# Purpose: ViD metrics — the develop dataset as counts, not prose (§10;
-# definitions: DEVELOP-METRICS.md). Emits one ```vid-metrics machine block
+# Purpose: ViD metrics — the develop dataset as counts, not prose (§10).
+# Emits one ```vid-metrics machine block
 # — the five groups: progress, honesty, evidence, cost, friction — per run
 # and per slice, from four substrates: INVENTORY.md, the census and
 # self-test reports, git history, and .vid/metrics-events (one line per

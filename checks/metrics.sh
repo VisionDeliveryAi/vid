@@ -1,6 +1,6 @@
 #!/bin/sh
-# Purpose: ViD metrics — the develop dataset as counts, not prose (§10;
-# definitions: DEVELOP-METRICS.md). Emits one ```vid-metrics machine block
+# Purpose: ViD metrics — the develop dataset as counts, not prose (§10).
+# Emits one ```vid-metrics machine block
 # — the five groups: progress, honesty, evidence, cost, friction — per run
 # and per slice, from four substrates: INVENTORY.md, the census and
 # self-test reports, git history, and .vid/metrics-events (one line per
@@ -75,6 +75,7 @@
 #        sh checks/metrics.sh test-state [--rows <ROW-id,…>]   (v0.9.8: written, passing, proven per row — derived)
 #        sh checks/metrics.sh to-confirm [--rows <ROW-id,…>]   (v0.26.10.3: the rows whose law changed and no resolution covers — R2)
 #        sh checks/metrics.sh stage-close --stage N [--record]   (v0.26.10.5: stages 1 to N ready — R8, R9)
+#        sh checks/metrics.sh stage-close --stage N --ci <receipt> [--record]   (v0.26.10.9 R18: the ticket-mode close)
 #        sh checks/metrics.sh change-set --base <sha>   (v0.26.10.7 R4: the rows changed since the last full pass)
 #        sh checks/metrics.sh deploy-check [--target staging|production] [--by develop] [--record]   (v0.26.10.7 R3, R5, R8, R13; v0.26.10.8 R8: --by develop reads develop's own staging candidate)
 #        sh checks/metrics.sh proof --row <id> --brief <grader brief> --fault <patch> --target <case> --control <case> --clean <receipt|none> --red <receipt|none>   (v0.9.8)
@@ -520,6 +521,94 @@ if [ "${1:-}" = to-confirm ]; then
   exit 0
 fi
 
+# --- v0.26.10.9 (R18): the ticket-mode close — main's CI run at the stage's last merge -----------------------------
+#   stage-close --stage N --ci <receipt> [--record]   the receipt is a CI receipt checks/ticket.sh import published
+#   (<code sha>.ci-<run>-<attempt>.xml, its `ledger-run type=ci` event naming the run and the commit); its cases are
+#   read from <receipt>.cases — never through read_report, which needs checks/extractors/results.sh, absent in ticket
+#   mode. Stages up to N are ready when every ROW row of them: has each case naming it (under its test path) passed in
+#   that run, at least one; its latest eligible verdict KEPT; ViD's copy of its test byte-identical at that commit in
+#   the read-only copy (.vid/code); nothing to confirm; no open question gating it. Ticket-mode debt, listed by name,
+#   never required: every RULE and HOS row of those stages (the census and the hostility rituals have no route while
+#   ViD runs nothing), each with its test field, and every row owed to a deploy gate (its executor and environment are
+#   the dev team's). Not checked in ticket mode, and said so: the census; coverage's REQ-citation and design-marker
+#   joins. --record, when ready: `stage-closed n=N sha=<the code commit, 12> source=ci run=<id> rows=<n> debt=<n>`
+#   (no `ready` token: develop's readers of a close's sha, a ViD commit, never read a code commit), `## stage N` in
+#   .vid/SLICE-REPORTS.md with the debt and what was not checked, RUN-STATE's `stage:` set to N+1 (none after the final
+#   stage). No tag, no staging, no hold. v0.26.10.12 (R4): when ARCHITECTURE.md's vid-code block names run-full:, the
+#   receipt must be from a full run ViD started — a `run-full started run=<its run> sha=<its commit>` event — else it is
+#   refused, naming it; without run-full:, main's run as before.
+sc_ci() {
+  SCI_r=$SCCI; case "$SCI_r" in */*) ;; *) SCI_r=.vid/ledger-results/$SCI_r ;; esac; SCI_rn=${SCI_r##*/}
+  [ -f "$SCI_r.cases" ] || { echo "metrics stage-close: no CI receipt $SCI_r with its .cases (checks/ticket.sh import --main <sha> --stage $SCN)"; return 0; }
+  SCI_le=$(awk -v r="report=$SCI_rn" '$1 == "ledger-run" { for (i = 2; i <= NF; i++) if ($i == r) l = $0 } END { print l }' "$EV" 2>/dev/null)
+  case " $SCI_le " in *' type=ci '*) ;; *) echo "metrics stage-close: $SCI_rn is not a CI receipt (no ledger-run type=ci names it)"; return 0 ;; esac
+  SCI_cm=$(printf '%s\n' "$SCI_le" | tr ' ' '\n' | sed -n 's/^commit=//p'); SCI_run=$(printf '%s\n' "$SCI_le" | tr ' ' '\n' | sed -n 's/^run=//p')
+  # v0.26.10.12 (R4): with the vid-code block's run-full:, only a full run ViD started closes a stage — a `run-full
+  # started` event names the receipt's run and commit; a pull request's scoped receipt never does
+  if [ -n "$(sed -n '/^```vid-code[[:space:]]*$/,/^```[[:space:]]*$/p' ARCHITECTURE.md 2>/dev/null | sed -n 's/^run-full:[[:space:]]*//p' | head -n 1)" ]; then
+    awk -v r="run=$SCI_run" -v c="$SCI_cm" '$1 == "run-full" && $2 == "started" { a = 0; b = 0; for (i = 3; i <= NF; i++) { if ($i == r) a = 1; if (index($i, "sha=") == 1 && substr($i, 5) == c) b = 1 } if (a && b) f = 1 } END { exit !f }' "$EV" 2>/dev/null \
+      || { echo "metrics stage-close: $SCI_rn is not from a full run ViD started (no run-full started event names run $SCI_run at $SCI_cm) — a pull request's scoped run never closes a stage; sh checks/github.sh run-full"; return 0; }
+  fi
+  vstate93; toconfirm93 "$TMP93/tc"
+  printf '%s\n' "$IBLOCK" | awk -F'|' -v of="$TMP93/obl" 'function tr(s) { gsub(/^[ \t]+|[ \t]+$/, "", s); return s } BEGIN { while ((getline l < of) > 0) S[l] = 1 }
+    { c = tr($1) } c ~ /^ROW-/ && (c in S) { t = tr($8); if (t ~ /^tests\//) sub(/[ \t].*/, "", t); print "ROW\t" c "\t" t; next }
+    (c == "hostility" || c == "rule") && (tr($2) in S) { id = tr($2); t = "-"
+      if (c == "hostility") { for (i = 3; i <= NF; i++) { x = tr($i); if (x ~ /^(tests\/|owed:)/) t = x } }
+      else { n = NF; while (n > 3 && $n ~ /^[ \t]*(origin|proved-red|paid-at):/) n--; t = tr($n) }
+      print (c == "rule" ? "RULE" : "HOS") "\t" id "\t" t }' > "$TMP93/cirows"
+  SCI_w=$(mktemp -d)
+  while IFS='	' read -r SCI_k SCI_id SCI_t; do
+    case "$SCI_k" in
+      RULE) echo "$SCI_id: rule row — the census is not run in ticket mode ($SCI_t)" >> "$TMP93/debt"; continue ;;
+      HOS) echo "$SCI_id: hostility probe — its ritual has no route while ViD runs nothing ($SCI_t)" >> "$TMP93/debt"; continue ;;
+    esac
+    case "$SCI_t" in
+      'owed: paid by /vid deploy'*) SCI_g=$(printf '%s\n' "$SCI_t" | sed 's/^owed: paid by \/vid deploy gate[[:space:]]*//'); echo "$SCI_id gate $SCI_g — the dev team's evidence, on their environment" >> "$TMP93/debt"; continue ;;
+      owed*) echo "$SCI_id: owed ($SCI_t)" >> "$TMP93/unmet"; continue ;;
+      tests/*) ;;
+      *) echo "$SCI_id: unrecognized test field '$SCI_t'" >> "$TMP93/unmet"; continue ;;
+    esac
+    awk -v p="$SCI_t::" -v id="$SCI_id" 'BEGIN { alt = id; gsub(/-/, "_", alt) } $1 == "case" && index($2, p) == 1 && (index($2, id) || index($2, alt)) { n++; if ($3 != "passed") bad = bad $2 " " $3 "; " }
+      END { if (!n) print id ": absent from the CI run (no case in " p " names it)"; else if (bad != "") { sub(/; $/, "", bad); print id ": not green in the CI run: " bad } }' "$SCI_r.cases" >> "$TMP93/unmet"
+    SCI_lv=$(awk -F'\t' -v id="$SCI_id" '$1 == id { print $2 }' "$TMP93/vstate"); [ "$SCI_lv" = KEPT ] || echo "$SCI_id: latest verdict ${SCI_lv:-none}, not KEPT" >> "$TMP93/unmet"
+    awk -F'\t' -v id="$SCI_id" '$1 == id { f = 1 } END { exit !f }' "$TMP93/tc" && echo "$SCI_id: to confirm — its law changed and no resolution covers it" >> "$TMP93/unmet"
+    if ! git -C .vid/code cat-file -e "$SCI_cm:$SCI_t" 2>/dev/null; then echo "$SCI_id: ViD's copy $SCI_t is missing at $SCI_cm" >> "$TMP93/unmet"
+    else git -C .vid/code show "$SCI_cm:$SCI_t" > "$SCI_w/c"; git show "HEAD:$SCI_t" > "$SCI_w/v" 2>/dev/null || : > "$SCI_w/v"; cmp -s "$SCI_w/c" "$SCI_w/v" || echo "$SCI_id: ViD's copy $SCI_t changed at $SCI_cm" >> "$TMP93/unmet"; fi
+  done < "$TMP93/cirows"
+  rm -rf "$SCI_w"
+  if [ -f "$EV" ]; then
+    awk -v of="$TMP93/obl" 'function kv(k,  i) { for (i = 2; i <= NF; i++) if (index($i, k "=") == 1) return substr($i, length(k) + 2); return "" }
+      BEGIN { while ((getline l < of) > 0) S[l] = 1 }
+      $1 == "question" { q = kv("n"); st = kv("state"); if (st == "asked") { O[q] = 1; G[q] = kv("gates") } else if (st == "answered") delete O[q] }
+      END { for (q in O) { g = G[q]; if (g == "" || g == "all") { print "open question Q" q " gates all"; continue }
+        n = split(g, a, ","); for (k = 1; k <= n; k++) if (a[k] in S) { print "open question Q" q " gates " a[k]; break } } }' "$EV" >> "$TMP93/unmet"
+  fi
+  NU=$(grep -c . "$TMP93/unmet" || true); ND=$(grep -c . "$TMP93/debt" || true); NR=$(grep -c '^ROW-' "$TMP93/obl" || true)
+  sed 's/^/unmet /' "$TMP93/unmet"; sed 's/^/debt /' "$TMP93/debt"
+  echo 'not checked in ticket mode: the census'
+  echo "not checked in ticket mode: coverage's REQ-citation and design-marker joins"
+  if [ "$NU" -gt 0 ]; then echo "stage-close $SCN unmet=$NU"; return 0; fi
+  echo "stage-close $SCN ready rows=$NR debt=$ND source=ci run=$SCI_run commit=$SCI_cm"
+  [ "$SCR" = yes ] || return 0
+  if awk -v n="n=$SCN" '$1 == "stage-closed" { for (i = 2; i <= NF; i++) if ($i == n) f = 1 } END { exit !f }' "$EV" 2>/dev/null; then echo "metrics stage-close: not recorded — stage $SCN is closed already"; return 0; fi
+  NOW=$(date -u '+%Y-%m-%dT%H:%M:%SZ'); mkdir -p .vid
+  printf 'stage-closed n=%s sha=%s source=ci run=%s rows=%s debt=%s at=%s\n' "$SCN" "$SCI_cm" "$SCI_run" "$NR" "$ND" "$NOW" >> "$EV"
+  NST=$(sed -n '/^```vid-stages$/,/^```$/p' STAGES.md 2>/dev/null | sed -n 's/^[[:space:]]*STAGE-\([0-9][0-9]*\)[[:space:]]*|.*/\1/p' | sort -n | tail -n 1)
+  FIN=no; [ "$SCN" -ge "${NST:-0}" ] && FIN=yes; NX=$((SCN + 1))
+  { printf '\n## stage %s %s\n\n' "$SCN" "$NOW"
+    printf -- '- closed from the dev team'"'"'s CI: run %s at %s (%s) — %s rows passing and graded KEPT\n' "$SCI_run" "$SCI_cm" "$SCI_rn" "$NR"
+    printf -- '- ticket-mode debt: %s\n' "$ND"; sed 's/^/  - /' "$TMP93/debt"
+    printf -- '- not checked in ticket mode: the census; coverage'"'"'s REQ-citation and design-marker joins\n'
+    if [ "$FIN" = yes ]; then printf -- '- next: none — stage %s is the final stage\n' "$SCN"; else printf -- '- next: stage %s\n' "$NX"; fi
+  } >> .vid/SLICE-REPORTS.md
+  if [ "$FIN" = no ] && [ -f .vid/RUN-STATE.md ]; then
+    if grep -q '^stage:' .vid/RUN-STATE.md; then sed "s/^stage:.*/stage: $NX/" .vid/RUN-STATE.md > "$TMP93/rs"; else { cat .vid/RUN-STATE.md; printf 'stage: %s\n' "$NX"; } > "$TMP93/rs"; fi
+    cat "$TMP93/rs" > .vid/RUN-STATE.md
+  fi
+  echo "recorded: stage-closed n=$SCN sha=$SCI_cm source=ci run=$SCI_run; ## stage $SCN in .vid/SLICE-REPORTS.md$( [ "$FIN" = no ] && printf '; stage: %s' "$NX"); no tag"
+  return 0
+}
+
 # --- v0.26.10.5 (R8, R9): the stage close ---------------------------------------------------------------------------
 #   stage-close --stage N [--record]   computed at HEAD, under grammar 0.9.3; stages 1 to N are ready when:
 #   - a full run of HEAD: a whole-suite receipt current for HEAD (receipt93's currency rule);
@@ -544,8 +633,8 @@ fi
 #   the hold's cycle holds the setup hold (`words="staging setup"`), the run line is `run: stopped staging setup after
 #   stage N`.
 if [ "${1:-}" = stage-close ]; then
-  shift; SCN=''; SCR=no
-  while [ $# -gt 0 ]; do case "$1" in --stage) SCN=${2:-}; shift 2 ;; --record) SCR=yes; shift ;; *) echo 'metrics stage-close: usage — sh checks/metrics.sh stage-close --stage N [--record]' >&2; exit 2 ;; esac; done
+  shift; SCN=''; SCR=no; SCCI=''
+  while [ $# -gt 0 ]; do case "$1" in --stage) SCN=${2:-}; shift 2 ;; --record) SCR=yes; shift ;; --ci) SCCI=${2:-}; [ -n "$SCCI" ] || { echo 'metrics stage-close: --ci names the CI receipt' >&2; exit 2; }; shift 2 ;; *) echo 'metrics stage-close: usage — sh checks/metrics.sh stage-close --stage N [--ci <receipt>] [--record]' >&2; exit 2 ;; esac; done
   # v0.26.10.8 (R2): stage 0 when STAGES.md holds STAGE-0 (the technical stage)
   SLO=1; sed -n '/^```vid-stages$/,/^```$/p' STAGES.md 2>/dev/null | grep -qE '^[[:space:]]*STAGE-0+[[:space:]]*\|' && SLO=0
   case "$SCN" in ''|*[!0-9]*) echo 'metrics stage-close: --stage takes a stage number (1 or more; 0 when STAGES.md holds STAGE-0)' >&2; exit 2 ;; esac
@@ -556,6 +645,7 @@ if [ "${1:-}" = stage-close ]; then
   sh checks/stages.sh scope --upto "$SCN" --reqs > "$TMP93/scope" 2> "$TMP93/scope.err" || { echo "metrics stage-close: the scope cannot be read — $(head -n 1 "$TMP93/scope.err")"; exit 0; }
   grep -E '^(ROW|RULE|DIF|EXC|SUP|HOS)-' "$TMP93/scope" > "$TMP93/obl" || true
   : > "$TMP93/unmet"; : > "$TMP93/debt"
+  if [ -n "$SCCI" ]; then sc_ci; exit $?; fi
   receipt93
   if [ -z "$RECEIPT" ]; then echo "no full run current for HEAD $(git rev-parse --short=12 HEAD 2>/dev/null) — request one: sh checks/test.sh request --type full --stage $SCN …" >> "$TMP93/unmet"; fi
   vstate93
@@ -2207,8 +2297,8 @@ if [ -f checks/census.sh ]; then
 else
   echo 'evidence census uncounted (no checks/census.sh)'
 fi
-if [ -f checks/selftest/run.sh ]; then
-  STOUT=$(sh checks/selftest/run.sh 2>&1 || true)
+if [ -f checks/selftest/run.sh ]; then   # the project's own cases only (v0.26.10.12.1, F-108)
+  STOUT=$(VID_SELFTEST_UNLISTED=1 sh checks/selftest/run.sh 2>&1 || true)
   CONV=$(printf '%s\n' "$STOUT" | grep -oE '[0-9]+/[0-9]+ courts convict' | tail -n 1 || true)
   if [ -n "$CONV" ]; then
     echo "evidence courts-convicting $CONV  # a court failing open is a build failure (checks/selftest)"

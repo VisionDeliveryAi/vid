@@ -66,7 +66,7 @@ fi
 # is court-green, carries an expected.md; and the pass-output checker
 # convicts a known-bad output and acquits a known-good one — the
 # stochastic half (fresh agents reviewing, the checker judging) runs
-# procedurally and lands in the build notes, never here.
+# procedurally and is kept with the release, never here.
 CAL="$SKILLS/vid-create-prd/selftest"
 if [ -d "$CAL" ]; then
   for fx in clean-set deliberate-deferral engineering-choice material-contradiction append-contradiction append-clean wording-arms; do

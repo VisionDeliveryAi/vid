@@ -1,6 +1,6 @@
 ---
 name: vid-stage
-description: Cut a ViD project into stages the owner ratifies in one sitting — through four lenses (outcome, technical order, constraints, risk) it builds the finest cut whose every stage is usable, safe to release, buildable, protected and whole, then coarser rungs by merging neighbours, shown as one ladder with counts, the recommended rung's plain-language cards and the open product choices; the ratified cut is STAGES.md, a law file, or no file at all when the owner keeps a single stage; at init's cut it also offers a technical stage 0 (the walking skeleton, deployed to staging, never released) and asks once for the standing staging authorization. vid-init runs it at its end, after the inventory is materialised and proved red; it also runs on request for a re-cut. Use when the owner says "vid stage", wants the product delivered in stages, or wants the cut changed.
+description: Cut a ViD project into stages the owner ratifies in one sitting — through four lenses (outcome, technical order, constraints, risk) it builds the finest cut whose every stage is usable, safe to release, buildable, protected and whole, then coarser rungs by merging neighbours, shown as one ladder with counts, the recommended rung's plain-language cards and the open product choices; the ratified cut is STAGES.md, a law file, or no file at all when the owner keeps a single stage; at init's cut it also offers a technical stage 0 (the walking skeleton, deployed to staging, never released) and asks once for the standing staging authorization. vid-init runs it at its end, after the inventory is ratified and the spec committed; it also runs on request for a re-cut. Use when the owner says "vid stage", wants the product delivered in stages, or wants the cut changed.
 ---
 
 # /vid stage
@@ -21,10 +21,11 @@ session=$CLAUDE_CODE_SESSION_ID"` when it hands back.
 ## When
 
 - **At the end of init** — vid-init calls it after the inventory is
-  materialised and proved red, before its hand-back, so it sees the whole
-  baseline.
+  ratified (v0.26.10.9 R6: init makes the spec only; the spec commit comes
+  first), before its hand-back, so it sees the whole baseline.
 - **On request** (`/vid stage`) — a re-cut. Stages already closed (a
-  `stage-closed … ready` event) are shown as they stand; the re-cut is of
+  `stage-closed … ready` event, or in ticket mode `stage-closed … source=ci`)
+  are shown as they stand; the re-cut is of
   the stages not yet closed.
 
 ## What it reads

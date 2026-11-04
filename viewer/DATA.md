@@ -357,7 +357,7 @@ agent's or one in `rework.noAcceptance`.
 
 ## Differences from the design's sample data
 
-The sample (in the release's design notes, kept in the repository's docs/, not shipped) was written before the data side
+The design's sample was written before the data side
 was built. Each difference, and why:
 - `meta.records` is a number (or null), as the sample's.
 - New in `meta`: `label`, `milestones`, `requested`, `mode`, `fingerprint`,

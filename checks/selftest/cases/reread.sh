@@ -4,9 +4,11 @@
 # the plugin's hooks/ beside checks/. Convicts unless hooks.json registers
 # hooks/reread.sh for PreToolUse (every tool) and PostToolUse (Read); and,
 # after the page: a main-session Bash call is denied with the documented
-# deny output, naming the unpaid paths and the debt file; Read is allowed;
-# a read whose response is truncated pays nothing; a failed read
-# (PostToolUseFailure) pays nothing; reads covering 1–400 and 402–814 leave
+# deny output, naming the unpaid paths and neither the debt file nor
+# deleting it (v0.26.10.10 R2); Read is allowed;
+# a read whose response is truncated at 1–500 pays 1–499 (v0.26.10.10 R1); a
+# failed read (PostToolUseFailure) pays nothing; from a fresh debt, reads
+# covering 1–400 and 402–814 leave
 # the file unpaid and adding 401 pays it; one complete response pays a
 # file; two parallel paying reads both count, and after the last listed
 # file the debt file is gone and Bash is allowed; an agent's call is
@@ -31,16 +33,19 @@ pre Bash; allowed 'a call with no debt file'
 page compact
 pre Bash; denied 'Bash after the page'
 for f in "$DV" "$TM" "$VV" "$VB"; do grep -qF "$f" "$T/pre.out" || fail "the refusal does not name $f"; done
-grep -qF "The owner can delete $OW from another terminal to lift this." "$T/pre.out" || fail 'the refusal does not name the debt file'
+grep -qF "$OW" "$T/pre.out" && fail 'the refusal names the debt file'   # v0.26.10.10 (R2): nor tells of deleting it
+grep -qF 'delete' "$T/pre.out" && fail 'the refusal tells of deleting'
 grep -q '"hookEventName":"PreToolUse"' "$T/pre.out" && grep -q '"permissionDecisionReason":"ViD: your copy of this run' "$T/pre.out" || fail 'the deny output is not the documented form'
 pre Read; allowed 'Read while the debt stands'
 # C-5: the owed line while the file stands
 owed S1 | grep -q "since 20[0-9-]*T[0-9:]*Z: $DV, $TM, $VV, $VB$" || fail "resume does not print S1's owed line: $(owed S1)"
-# a truncated response and a failed read pay nothing
-rd "$DV" 1 814 S1 "$H" '' truncated
+# v0.26.10.10 (R1): a truncated response of 1–500 pays 1–499; a failed read pays nothing
+rd "$DV" 1 500 S1 "$H" '' truncated
+grep -qxF "cover $DV 1 499 814" "$OW" || fail "a truncated read of 1–500 did not pay 1–499: $(grep '^cover ' "$OW")"
 printf '{"session_id":"S1","cwd":"%s","hook_event_name":"PostToolUseFailure","tool_name":"Read","tool_input":{"file_path":"%s"},"error":"no such file"}' "$H" "$DV" | sh "$PR/hooks/reread.sh"
-grep -q '^cover ' "$OW" && fail 'a truncated or failed read paid'
-# 1–400 and 402–814 leave the file unpaid; 401 pays it
+[ "$(grep -c '^cover ' "$OW")" = 1 ] || fail 'a failed read paid'
+# from a fresh debt: 1–400 and 402–814 leave the file unpaid; 401 pays it
+page compact; grep -q '^cover ' "$OW" && fail 'the page did not write a fresh debt'
 rd "$DV" 1 400; rd "$DV" 402 413
 pre Bash; denied 'Bash with line 401 unread'; grep -qF "$DV" "$T/pre.out" || fail 'the gap did not keep develop unpaid'
 rd "$DV" 401 1; pre Bash; denied 'Bash with two files unread'

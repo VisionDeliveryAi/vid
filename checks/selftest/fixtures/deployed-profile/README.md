@@ -10,5 +10,5 @@ checks/test.sh with a real container engine — the half of case 12 the
 recording stub cannot show (fresh volumes between passes; a `(process)` row
 red in the profile with its consumer absent, green when wired). The suite's
 `deployed-profile.sh` covers the wrapper's order with a stub and needs no
-engine; this procedure is run by the builder and its output recorded in the
-build notes.
+engine; this procedure is run by the builder and its output kept with the
+release.
