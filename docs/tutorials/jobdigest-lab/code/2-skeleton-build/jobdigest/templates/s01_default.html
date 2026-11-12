@@ -1,0 +1,13 @@
+<!doctype html>
+<!-- Design: design/screens/S01-save-a-search.html (S01/default). `required` is a small delta: the canvas draws no error state. -->
+<html lang="en"><head><meta charset="utf-8"><title>JobDigest — save a search</title><link rel="stylesheet" href="{{ url_for('static', filename='tokens.css') }}"></head>
+<body>
+<section id="s01-default" data-screen="S01" data-state="default">
+  <h1>JobDigest</h1>
+  <form id="save-search-form" method="post">
+    <label for="search-words">Search words</label> <input id="search-words" name="words" type="text" required>
+    <label for="email">Email</label> <input id="email" name="email" type="email" required>
+    <button id="save-search" type="submit">Save</button>
+  </form>
+</section>
+</body></html>

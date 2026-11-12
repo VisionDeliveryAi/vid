@@ -29,12 +29,12 @@ sec "$P2" 'Faulted rows' | grep -qx '> disable: remove the merge by source id fr
 for r in 'ROW-001 accepted' 'ROW-005 accepted' 'ROW-008 accepted-by-ruling' 'ROW-012 accepted' 'ROW-013 accepted' 'HOS-001 accepted fault-proven' 'SEAM-002 owed' 'DIF-002 owed' 'ROW-015 failing' 'ROW-016 held' 'RULE-005 accepted'; do tw_hand "row $r"; done
 tw_hand 'closed S02'; tw_close "$TW_N"; sh "$GS" tw-sync > /dev/null 2>&1
 tw_start S03 || fail 'S03 was refused'; tw_post step S03 || fail "S03's ticket was refused"; P3=$TW_F
-[ "$(ids "$P3" 'Regression rows')" = 'ROW-003 ROW-004 ROW-005 ROW-012 HOS-001' ] || fail "S03's regression rows are $(ids "$P3" 'Regression rows')"
+[ "$(ids "$P3" 'Regression rows')" = 'ROW-003 ROW-004 ROW-005 ROW-012 HOS-001 RULE-005' ]   # v0.26.10.26.4 (R5): the accepted rule row too || fail "S03's regression rows are $(ids "$P3" 'Regression rows')"
 [ "$(ids "$P3" 'Faulted rows')" = 'HOS-002 HOS-004 HOS-005' ] || fail "S03 faults $(ids "$P3" 'Faulted rows')"
 [ "$(sec "$P3" 'Faulted rows' | grep -c '^> disable: ')" = 3 ] || fail "S03's protection rows do not each show their disable: note"
 for r in 'ROW-006 accepted' 'ROW-007 accepted' 'ROW-005 known-limit'; do tw_hand "row $r"; done
 tw_hand 'closed S03'; tw_close "$TW_N"; sh "$GS" tw-sync > /dev/null 2>&1
 tw_start S04 || fail 'S04 was refused'; tw_post step S04 || fail "S04's ticket was refused"; P4=$TW_F
-[ "$(ids "$P4" 'Regression rows')" = 'ROW-003 ROW-004 ROW-006 ROW-007 ROW-012 HOS-001' ] || fail "S04's regression rows are $(ids "$P4" 'Regression rows')"
+[ "$(ids "$P4" 'Regression rows')" = 'ROW-003 ROW-004 ROW-006 ROW-007 ROW-012 HOS-001 RULE-005' ] || fail "S04's regression rows are $(ids "$P4" 'Regression rows')"
 [ "$(ids "$P4" 'Faulted rows')" = 'ROW-030 HOS-003' ] || fail "S04 faults $(ids "$P4" 'Faulted rows')"
 exit 0

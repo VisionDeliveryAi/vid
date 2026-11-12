@@ -1,8 +1,8 @@
 #!/bin/sh
 # Purpose: selftest case — inventory.sh must JOIN a proved-red stamp, not
-# merely see it (v0.8.1d; H-17 measured 22 rows citing a file absent at the
-# stamped sha and 34 citing a file that never names the row; G-08 measured
-# `proved-red: TBD-never-happened` passing). Convicts: a sha resolving to
+# merely see it (v0.8.1d: a row can cite a file absent at the stamped sha,
+# or one that never names the row, and `proved-red: TBD-never-happened`
+# can pass). Convicts: a sha resolving to
 # no commit; a sha at which the cited file is absent; a sha at which the
 # file never names the row or its REQ. Polarity: a stamp where the file
 # existed and named the REQ passes, default and --strict; default mode

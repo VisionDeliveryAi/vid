@@ -1,5 +1,5 @@
 #!/bin/sh
-# Purpose: selftest case — Codex runs out (v0.9.7.1 spec 3.9, R9; owner 2026-10-11). The job fixture, the fake
+# Purpose: selftest case — Codex runs out (v0.9.7.1 spec 3.9, R9). The job fixture, the fake
 # Codex exiting with its usage-limit error. Convicts unless the exit is `job-exit … reason=codex-limit`; the
 # unfinished work is saved; a queued ticket of the try is cancelled; builder-tool becomes `paused` with
 # `builder-tool paused reason=codex-limit reset=3:05_PM`; the run manager's line says Builders are paused; no

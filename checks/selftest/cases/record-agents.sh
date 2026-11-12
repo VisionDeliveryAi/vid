@@ -13,7 +13,7 @@
 # 0. Env: CHECKS.
 set -eu
 HD="$CHECKS/../hooks"
-[ -f "$HD/stop-failure.sh" ] || exit 0
+[ -f "$HD/stop-failure.sh" ] || { echo 'needs hooks/stop-failure.sh'; exit 77; }
 fail() { echo "record-agents: $*" >&2; cat "${R:-.}/.vid/metrics-events" >&2 2>/dev/null || true; exit 1; }
 [ -f "$HD/record.sh" ] || fail 'no hooks/record.sh'
 for e in SubagentStart SubagentStop; do

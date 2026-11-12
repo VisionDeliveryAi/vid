@@ -40,7 +40,7 @@ or not at all. A shape that fires nothing across two runs is dropped
 (seed law).
 
 1. Out-of-bounds pagination and range inputs return an orderly state,
-   never a server error. (field runs v0.6/v0.7)
+   never a server error.
 2. Double-submit of a creating action does not double-create. (P)
 3. Error surfaces leak no internals.
 4. No secret or session token in logs, URLs, or exports.
@@ -50,54 +50,50 @@ or not at all. A shape that fires nothing across two runs is dropped
 7. **Truth-bearer:** a user-visible success claim reads a recorded
    outcome the operation wrote, never the attempt — "has been emailed"
    is true only when a send outcome was recorded; a bulk action that
-   silently no-ops on an illegal state is a false claim. (v0.8 re-grade
-   H-05, H-20; the swallowed send failures of G-16; the row form is an
-   outcome timestamp read by the surface)
+   silently no-ops on an illegal state is a false claim. (The row form
+   is an outcome timestamp read by the surface.)
 8. Every scheduled or background promise has an **operator**: a trigger
    registered in the deployed shape, firing, with its last firing
-   recorded — "who runs this?" (v0.8 G-01: the logic was tested, no
-   scheduler entry existed)
+   recorded — "who runs this?" (Logic can be tested while no
+   scheduler entry exists.)
 9. Every collected configuration field has a **reader** other than
-   validation and display. (E, census — §4.1) (v0.8 G-01/G-02: two
-   fields validated, required, displayed, read by nothing)
+   validation and display. (E, census — §4.1) (A field can be
+   validated, required and displayed, and read by nothing.)
 10. Empty-but-valid input is a state, not a success: an input carrying
     zero records neither destroys inventory nor reports healthy —
-    ingest-shaped products. (v0.8 G-02)
+    ingest-shaped products.
 11. Every public collection surface is **bounded** — a limit and a page
     on every list a caller can reach, machine-facing lists (sitemaps,
-    feeds, exports) included. (E, census) (v0.8 G-16, G-13, H-08)
+    feeds, exports) included. (E, census)
 12. Every list surface stays **operable at the PRD's stated volume** —
-    one volume row per list surface once a scale item exists. (v0.8
-    G-13, H-08)
+    one volume row per list surface once a scale item exists.
 13. **Dependency failure during a protected operation fails closed**: the
     forbidden effect does not occur and the failure is recorded, never a
-    silent success. (P — hostility shape) (v0.8 G-05: an erasure failed
-    open when its store was down, and its probe could not fail for that)
+    silent success. (P — hostility shape) (An erasure can fail open
+    when its store is down; its probe must be able to fail for that.)
 14. **Concurrency against a protected operation**: two simultaneous
-    attempts produce exactly one effect. (P — hostility shape) (v0.8
-    H-13, H-21)
+    attempts produce exactly one effect. (P — hostility shape)
 15. A bound keyed on caller identity holds when the client-controlled
     part of that identity is rotated or reshaped, and is normalised per
-    address family. (P) (v0.7 rotated header; v0.8 H-14)
+    address family. (P)
 16. Account flows are **oracle-symmetric**: registration, reset, and
     sign-in answer identically for existing and non-existing identities.
-    (P) (v0.8 H-06)
+    (P)
 17. Cross-actor access: a valid session for actor A requesting actor B's
-    resource is refused, with an audit entry. (P) (v0.6 cross-tenant)
+    resource is refused, with an audit entry. (P)
 18. A replayed one-time link or token yields exactly one effect. (P)
 19. A privilege change rotates the session; a credential change
-    invalidates the actor's other sessions. (P) (v0.8 H-28)
+    invalidates the actor's other sessions. (P)
 20. Unauthenticated mutators are bounded: every public write path
     carries a per-identity rate bound and input length caps. (P, E)
-    (v0.8 G-10: an unthrottled public relay; H-33)
+    (An unthrottled public relay is the shape.)
 21. Every secret the product reads is declared in one registry, and
     every declared secret has a reader. (E, census — a candidate class)
-    (v0.8 G-04: a throwaway key signing in the production shape)
+    (A throwaway key must never sign in the production shape.)
 22. A computational promise proved only by published, named examples is
-    unproved: rows use generated or independently sampled inputs. (the
-    One real run: exact fixture-named assertions satisfied by
-    branching on the fixture names; the engines built in a later
-    rewrite)
+    unproved: rows use generated or independently sampled inputs. (Exact
+    fixture-named assertions can be satisfied by branching on the
+    fixture names, with no engine built.)
 23. Realistic datasets and fixture generators derive from sources
-    independent of the product's own tables. (v0.8 G-03: a corpus drawn
-    from the geocoder's own table could not exercise the failure)
+    independent of the product's own tables. (A corpus drawn from a
+    component's own table cannot exercise that component's failure.)

@@ -1,0 +1,9 @@
+by: TM
+commit: <the head commit, full id>
+engines: chromium
+environments: 1
+stand-in: the mail provider — a fake that records each message — the real mail provider
+stand-in: the digest schedule — every 2 seconds — each morning
+stand-in: the store — a temporary file per run — a platform disk
+stand-in: the addresses — plain http on the test network — the platform's https
+stand-in: the feed — a fake — the partner feed

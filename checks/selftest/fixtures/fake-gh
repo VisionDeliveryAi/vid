@@ -37,11 +37,20 @@ comments() { # <dir> <jq>
   _c=$1/comments; _q=$2; _k=$(ls "$_c" 2>/dev/null | grep -c . || true)
   case "$_q" in
     '.comments | length') echo "$_k" ;;
+    '.comments[].body') for _j in $(ls "$_c" 2>/dev/null | sort -n); do cat "$_c/$_j"; echo; done ;;
     .comments\[*\].body) _i=${_q#.comments[}; _i=${_i%%]*}; cat "$_c/$((_i + 1))" 2>/dev/null ;;
     '.comments[] | .url + "\t" + (.body | split("\n") | .[0])') _n=${1##*/}
       for _j in $(ls "$_c" 2>/dev/null | sort -n); do printf 'https://github.com/%s/issues/%s#issuecomment-%s\t%s\n' "$REPO" "$_n" "$((_n * 1000 + _j))" "$(head -n 1 "$_c/$_j")"; done ;;
     *) die "unknown --jq for comments: $_q" 64 ;;
   esac; }
+RPQ='.[] | [.number, .headRefName, .isDraft, .headRefOid, ([.labels[].name] | join(",")), (.body | split("\n") | .[0]), ([.comments[].body | split("\n") | .[0]] | join("\u0001")), (([.comments[] | select(.body | startswith("vid: decision "))] | last | .body) // ""), .updatedAt] | @tsv'
+RMQ='.[] | [.number, .headRefOid, (.mergeCommit.oid // "-"), (.body | split("\n") | .[0]), ([.comments[].body | split("\n") | .[0]] | join("\u0001"))] | @tsv'
+RIQ='.[] | [.number, ([.labels[].name] | join(",")), ([.comments[].body | split("\n") | .[0]] | join("\u0001")), .updatedAt] | @tsv'
+# DevAgent's dev manager's own two (devagent/dev-manager/dm.sh): its merged list as RMQ's first four columns, its issue list with each body's chunk names (v0.26.10.25.3)
+DMMQ='.[] | [.number, .headRefOid, (.mergeCommit.oid // "-"), (.body | split("\n") | .[0])] | @tsv'
+DMIQ='.[] | [.number, ([.labels[].name] | join(",")), ([.comments[].body | split("\n") | .[0]] | join("\u0001")), .updatedAt, ([(.body // "") | split("\n") | .[] | select(startswith("- chunk ")) | ltrimstr("- chunk ") | split(",") | .[0]] | join(" "))] | @tsv'
+heads() { for _j in $(ls "$1/comments" 2>/dev/null | sort -n); do head -n 1 "$1/comments/$_j"; done | awk 'NR > 1 { printf "\001" } { printf "%s", $0 }'; }
+upd() { cat "$1/updated" 2>/dev/null || date -u '+%Y-%m-%dT%H:%M:%SZ'; }
 CMD="${1:-} ${2:-}"
 case "$CMD" in
   'auth status')
@@ -53,7 +62,8 @@ case "$CMD" in
     if [ "${3:-}" != "$REPO" ] && [ -d "$_rd" ]; then
       case "$(opt --json "$@")" in url) cat "$_rd/remote" ;; isPrivate) cat "$_rd/private" ;; viewerPermission) cat "$_rd/perm" 2>/dev/null || echo ADMIN ;; *) printf '%s\n' "${3#*/}" ;; esac; exit 0; fi
     [ "${3:-}" = "$REPO" ] || die "Could not resolve to a Repository with the name '${3:-}'." 1
-    case "$(opt --json "$@")" in url) printf '%s\n' "$REMOTE" ;; isPrivate) echo true ;; viewerPermission) cat "$F/perm" 2>/dev/null || echo ADMIN ;; *) printf '%s\n' "${REPO#*/}" ;; esac; exit 0 ;;
+    # its code repository honours a filter, as GitHub does, unless $FAKEGH/no-filter (0.26.10.28.4, M5)
+    case "$(opt --json "$@")" in url) git -C "$REMOTE" config uploadpack.allowFilter "$([ -f "$F/no-filter" ] && echo false || echo true)" 2>/dev/null || true; printf '%s\n' "$REMOTE" ;; isPrivate) echo true ;; viewerPermission) cat "$F/perm" 2>/dev/null || echo ADMIN ;; *) printf '%s\n' "${REPO#*/}" ;; esac; exit 0 ;;
   'repo create')
     _n=${3:-}; case "$_n" in */*) ;; *) die "repo create: give owner/name" 1 ;; esac
     _rd=$F/repos/$(printf '%s' "$_n" | tr '/' '%'); { [ "$_n" = "$REPO" ] || [ -d "$_rd" ]; } && die "Name already exists on this account" 1
@@ -91,6 +101,8 @@ case "$CMD" in
     esac; exit 0 ;;
   'issue list')
     shift 2; chkrepo "$@"; l=$(opt --label "$@"); st=$(opt --state "$@"); q=$(opt --jq "$@")
+    if [ "$q" = "$RIQ" ]; then for d in $(ls -d "$F"/issues/* 2>/dev/null | sort -t/ -k1,1); do [ "$(cat "$d/state")" = OPEN ] || continue; printf '%s\t%s\t%s\t%s\n' "${d##*/}" "$(labels_of "$d")" "$(heads "$d")" "$(upd "$d")"; done | sort -n; exit 0; fi
+    if [ "$q" = "$DMIQ" ]; then for d in $(ls -d "$F"/issues/* 2>/dev/null); do [ "$(cat "$d/state")" = OPEN ] || continue; printf '%s\t%s\t%s\t%s\t%s\n' "${d##*/}" "$(labels_of "$d")" "$(heads "$d")" "$(upd "$d")" "$(sed -n 's/^- chunk \([^,]*\),.*/\1/p' "$d/body" | paste -sd ' ' -)"; done | sort -n; exit 0; fi
     [ "$q" = '.[].number' ] || die "unknown --jq for issue list: $q" 64
     for d in $(ls -d "$F"/issues/* 2>/dev/null | sort -t/ -k1); do n=${d##*/}
       [ "$st" = open ] && [ "$(cat "$d/state")" != OPEN ] && continue
@@ -108,6 +120,7 @@ case "$CMD" in
     n=$3; shift 3; chkrepo "$@"; d=$F/prs/$n; [ -d "$d" ] || die "no pull request $n"; q=$(opt --jq "$@")
     case "$q" in
       .body) cat "$d/body" ;;
+      '[.labels[].name] | join(",")') labels_of "$d"; echo ;;
       .comments*) comments "$d" "$q" ;;
       '.commits[].oid') b=$(headsha "$(cat "$d/base")"); h=$(cat "$d/headoid" 2>/dev/null || headsha "$(cat "$d/head")"); [ -f "$d/merge" ] && b=$(git -C "$REMOTE" rev-parse "$(cat "$d/merge")^1")
         git -C "$REMOTE" rev-list --reverse "$b..$h" ;;
@@ -116,6 +129,9 @@ case "$CMD" in
     esac; exit 0 ;;
   'pr list')
     shift 2; chkrepo "$@"; q=$(opt --jq "$@")
+    if [ "$q" = "$RPQ" ]; then for d in $(ls -d "$F"/prs/* 2>/dev/null); do [ "$(cat "$d/state")" = OPEN ] || continue; h=$(cat "$d/headoid" 2>/dev/null || headsha "$(cat "$d/head")"); b=''; for _j in $(ls "$d/comments" 2>/dev/null | sort -n); do head -n 1 "$d/comments/$_j" | grep -q '^vid: decision ' && b=$(awk '{ printf "%s%s", (NR > 1 ? "\\n" : ""), $0 }' "$d/comments/$_j"); done
+        printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "${d##*/}" "$(cat "$d/head")" "$(cat "$d/draft")" "$h" "$(labels_of "$d")" "$(head -n 1 "$d/body")" "$(heads "$d")" "$b" "$(upd "$d")"; done | sort -n; exit 0; fi
+    if [ "$q" = "$RMQ" ] || [ "$q" = "$DMMQ" ]; then for d in $(ls -d "$F"/prs/* 2>/dev/null); do [ "$(cat "$d/state")" = MERGED ] || continue; printf '%s\t%s\t%s\t%s\t%s\n' "${d##*/}" "$(cat "$d/headoid" 2>/dev/null || headsha "$(cat "$d/head")")" "$(cat "$d/merge" 2>/dev/null || echo -)" "$(head -n 1 "$d/body")" "$(heads "$d")"; done | sort -rn | head -n "$(opt --limit "$@")"; exit 0; fi
     [ "$q" = '.[] | [.number, .headRefName, .state, .isDraft, .headRefOid, (.mergeCommit.oid // "-")] | @tsv' ] || die "unknown --jq for pr list: $q" 64
     for d in $(ls -d "$F"/prs/* 2>/dev/null); do n=${d##*/}; h=$(cat "$d/headoid" 2>/dev/null || headsha "$(cat "$d/head")")
       printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$n" "$(cat "$d/head")" "$(cat "$d/state")" "$(cat "$d/draft")" "$h" "$(cat "$d/merge" 2>/dev/null || echo -)"; done | sort -n; exit 0 ;;

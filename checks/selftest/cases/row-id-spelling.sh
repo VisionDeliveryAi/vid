@@ -1,6 +1,6 @@
 #!/bin/sh
 # Purpose: selftest case — the row engine joins a case that names its row in
-# a test function's spelling (v0.9.6, a live project's replay: 955 of 1,239 cases
+# a test function's spelling (v0.9.6: cases
 # named `test_ROW_NNNN_…`). Under grammar 0.9.3, a full receipt whose cases
 # are `tests/invariants/t.py::test_ROW_001_…` (passed) and
 # `…::test_ROW_002_…` (failed): `metrics.sh row-state` reads ROW-001 green

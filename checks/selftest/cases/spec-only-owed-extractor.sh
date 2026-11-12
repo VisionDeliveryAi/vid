@@ -1,6 +1,6 @@
 #!/bin/sh
 # Purpose: selftest case — a spec-only tree whose rule rows name extractors not yet written, and whose design pack draws
-# markers no code cites yet, is committed (v0.26.10.9 spec R1, found by the trial: census refused every such rule row as
+# markers no code cites yet, is committed (v0.26.10.9 spec R1: census refused every such rule row as
 # promissory). The toy spec-only tree (fixtures/spec-only.sh) gains RULE-002 whose census command is an extractor path and
 # one drawn marker: the spec commit passes the real hooks; census reports RULE-002 pending ("extractor owed to the
 # skeleton") in pending=, design-cite reports the marker pending, not as a GAP; memory.sh alone changes nothing; once any

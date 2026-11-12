@@ -1,0 +1,8 @@
+by: GR
+commit: <the head commit, full id>
+ROW-019 kept — the digest is built in one place, and both its HTML part and its text part now end with the support address in plain words after the unsubscribe line; the tests read the footer as what follows the last job, for a digest of one job, of twelve jobs, and the text part, and each fails when the address is missing there, as the red run showed; that a person answers the address is ROW-021's, on production, and not this row's
+ROW-003 kept — unchanged since the header-and-footer step, and its test passes
+ROW-004-T1 kept — unchanged: one Confirm message on saving
+ROW-004-T2 kept — unchanged: the Confirm link opens the active state of that search
+ROW-004-T3 kept — unchanged: the digest lists the matching jobs and opens the listed job's page; the footer added after the jobs does not change which jobs are listed
+ROW-006 kept — the support address and its pattern moved from the test file into the shared helpers, and no check of the row changed; every page still shows one header and one footer with that address

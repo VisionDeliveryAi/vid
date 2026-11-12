@@ -5,7 +5,7 @@
 # dec, without enforced. Convicts unless the next run reads the services and the stack (not "not recorded") and
 # every technical decision carries its enforced: as written. Env: CHECKS.
 set -eu
-[ -f "$CHECKS/../viewer/view.sh" ] || exit 0   # the viewer ships in the plugin, not in a project's checks/
+[ -f "$CHECKS/../viewer/view.sh" ] || { echo 'needs viewer/view.sh'; exit 77; }   # the viewer ships in the plugin, not in a project's checks/
 T=$(mktemp -d); trap 'set +e; rm -rf "$T" 2>/dev/null' EXIT
 . "$CHECKS/selftest/fixtures/gated-run.sh"
 . "$CHECKS/selftest/fixtures/plan-run.sh"

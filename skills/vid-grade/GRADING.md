@@ -91,8 +91,8 @@ word for the other.
   performs) is `product`, with that counterexample.
 - **Every grader return is checked for row-count completeness (§8):**
   verdicts returned must equal REQs briefed — one verdict per REQ, no
-  silence. Fewer → re-run that batch with the same brief; a v0.7 grader
-  silently skipped 1 of 47, and an unverdicted REQ is an unevidenced
+  silence. Fewer → re-run that batch with the same brief; a grader can
+  silently skip a REQ, and an unverdicted REQ is an unevidenced
   completeness claim (F11).
 - The end grade's scope is what only it can do: cross-slice joins (the
   dead-path halves that span slices), journeys and the browser class, the

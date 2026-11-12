@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{# Design: design/screens/S01-save-a-search.html (S01/saved — REQ-001, D-003) #}
+{% block title %}save a search{% endblock %}
+{% block content %}
+<section id="s01-saved" data-screen="S01" data-state="saved">
+  <h1>JobDigest</h1>
+  <p id="saved-search">{{ words }}</p>
+  <p id="saved-address">{{ address }}</p>
+  <p id="saved-note">Check your inbox to confirm</p>
+</section>
+{% endblock %}

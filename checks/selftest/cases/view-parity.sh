@@ -3,7 +3,7 @@
 # unless every promise's state and detail at now equal what `sh checks/evidence.sh rows --at HEAD` prints when run in
 # the project with the same map (every INVENTORY row, its step from the plan, no paths). Env: CHECKS.
 set -eu
-[ -f "$CHECKS/../viewer/view.sh" ] || exit 0   # the viewer ships in the plugin, not in a project's checks/
+[ -f "$CHECKS/../viewer/view.sh" ] || { echo 'needs viewer/view.sh'; exit 77; }   # the viewer ships in the plugin, not in a project's checks/
 T=$(mktemp -d); trap 'set +e; rm -rf "$T" 2>/dev/null' EXIT
 . "$CHECKS/selftest/fixtures/gated-run.sh"
 . "$CHECKS/selftest/fixtures/plan-run.sh"

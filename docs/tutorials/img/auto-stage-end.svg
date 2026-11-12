@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 590" width="1000" height="590" role="img" aria-label="What happens at the end of a stage, in order, and who does each part">
+<rect x="0" y="0" width="1000" height="590" fill="#f6f7f8"/>
+<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:#0b5c7a"/></marker></defs>
+<text x="16" y="18" text-anchor="start" style="fill:#5a6875;font-size:11.5px;font-weight:400;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">YOU AND VID</text><line x1="16" y1="28" x2="336" y2="28" style="stroke:#16202a" stroke-width="1.5"/>
+<text x="370" y="18" text-anchor="start" style="fill:#5a6875;font-size:11.5px;font-weight:400;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">GITHUB</text><line x1="370" y1="28" x2="630" y2="28" style="stroke:#16202a" stroke-width="1.5"/>
+<text x="664" y="18" text-anchor="start" style="fill:#5a6875;font-size:11.5px;font-weight:400;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">THE DEV SIDE</text><line x1="664" y1="28" x2="984" y2="28" style="stroke:#16202a" stroke-width="1.5"/>
+<rect x="370" y="34" width="260" height="510" rx="3" style="fill:#e2eff4;stroke:#e2eff4" stroke-width="1"/>
+<rect x="664" y="44" width="320" height="42" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
+<text x="674" y="62" text-anchor="start" style="fill:#0b5c7a;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">1</text>
+<text x="698" y="62" text-anchor="start" style="fill:#16202a;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">The stage&#x27;s full run: its rows again, at</text>
+<text x="698" y="78" text-anchor="start" style="fill:#16202a;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">the merged commit</text>
+<text x="500" y="68" text-anchor="middle" style="fill:#16202a;font-size:12px;font-weight:400;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">an issue labelled run</text>
+<line x1="616" y1="74" x2="662" y2="74" style="stroke:#0b5c7a" stroke-width="1.5" marker-end="url(#ah)"/>
+<rect x="664" y="94" width="320" height="42" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
+<text x="674" y="112" text-anchor="start" style="fill:#0b5c7a;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">2</text>
+<text x="698" y="112" text-anchor="start" style="fill:#16202a;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">An independent review of each requirement:</text>
+<text x="698" y="128" text-anchor="start" style="fill:#16202a;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">pass, partial, facade or absent</text>
+<text x="500" y="118" text-anchor="middle" style="fill:#16202a;font-size:12px;font-weight:400;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">an issue labelled grade</text>
+<line x1="616" y1="124" x2="662" y2="124" style="stroke:#0b5c7a" stroke-width="1.5" marker-end="url(#ah)"/>
+<rect x="664" y="144" width="320" height="42" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
+<text x="674" y="162" text-anchor="start" style="fill:#0b5c7a;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">3</text>
+<text x="698" y="162" text-anchor="start" style="fill:#16202a;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">The product is started on your machine as</text>
+<text x="698" y="178" text-anchor="start" style="fill:#16202a;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">a test site: a local copy</text>
+<text x="500" y="168" text-anchor="middle" style="fill:#16202a;font-size:12px;font-weight:400;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">an issue labelled deploy</text>
+<line x1="616" y1="174" x2="662" y2="174" style="stroke:#0b5c7a" stroke-width="1.5" marker-end="url(#ah)"/>
+<rect x="664" y="194" width="320" height="42" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
+<text x="674" y="212" text-anchor="start" style="fill:#0b5c7a;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">4</text>
+<text x="698" y="212" text-anchor="start" style="fill:#16202a;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">The main journey and the rows that need</text>
+<text x="698" y="228" text-anchor="start" style="fill:#16202a;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">the running product are run against it</text>
+<text x="500" y="218" text-anchor="middle" style="fill:#16202a;font-size:12px;font-weight:400;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">an issue labelled run</text>
+<line x1="616" y1="224" x2="662" y2="224" style="stroke:#0b5c7a" stroke-width="1.5" marker-end="url(#ah)"/>
+<rect x="16" y="244" width="320" height="42" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
+<text x="26" y="262" text-anchor="start" style="fill:#0b5c7a;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">5</text>
+<text x="50" y="262" text-anchor="start" style="fill:#16202a;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">ViD&#x27;s walker uses the test site in a</text>
+<text x="50" y="278" text-anchor="start" style="fill:#16202a;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">browser, as a user would</text>
+<rect x="16" y="294" width="320" height="42" rx="3" style="fill:#0b5c7a;stroke:#0b5c7a" stroke-width="1"/>
+<text x="26" y="312" text-anchor="start" style="fill:#ffffff;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">6</text>
+<text x="50" y="312" text-anchor="start" style="fill:#ffffff;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">You rule on each finding: a new row,</text>
+<text x="50" y="328" text-anchor="start" style="fill:#ffffff;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">known, later, or no</text>
+<rect x="16" y="344" width="320" height="42" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
+<text x="26" y="362" text-anchor="start" style="fill:#0b5c7a;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">7</text>
+<text x="50" y="362" text-anchor="start" style="fill:#16202a;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">The stage closes. You get three headings:</text>
+<text x="50" y="378" text-anchor="start" style="fill:#16202a;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">working now, went back, decided for you</text>
+<rect x="664" y="394" width="320" height="42" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
+<text x="674" y="412" text-anchor="start" style="fill:#0b5c7a;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">8</text>
+<text x="698" y="412" text-anchor="start" style="fill:#16202a;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">A rehearsal of the release, on a copy of</text>
+<text x="698" y="428" text-anchor="start" style="fill:#16202a;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">the live data</text>
+<text x="500" y="418" text-anchor="middle" style="fill:#16202a;font-size:12px;font-weight:400;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">an issue labelled deploy</text>
+<line x1="616" y1="424" x2="662" y2="424" style="stroke:#0b5c7a" stroke-width="1.5" marker-end="url(#ah)"/>
+<rect x="16" y="444" width="320" height="42" rx="3" style="fill:#0b5c7a;stroke:#0b5c7a" stroke-width="1"/>
+<text x="26" y="462" text-anchor="start" style="fill:#ffffff;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">9</text>
+<text x="50" y="462" text-anchor="start" style="fill:#ffffff;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">You answer one question: deploy to</text>
+<text x="50" y="478" text-anchor="start" style="fill:#ffffff;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">production? yes or no</text>
+<rect x="664" y="494" width="320" height="42" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
+<text x="674" y="512" text-anchor="start" style="fill:#0b5c7a;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">10</text>
+<text x="698" y="512" text-anchor="start" style="fill:#16202a;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">The product is started as the live copy,</text>
+<text x="698" y="528" text-anchor="start" style="fill:#16202a;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">on your machine, and tested there</text>
+<text x="500" y="518" text-anchor="middle" style="fill:#16202a;font-size:12px;font-weight:400;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">an issue labelled deploy</text>
+<line x1="616" y1="524" x2="662" y2="524" style="stroke:#0b5c7a" stroke-width="1.5" marker-end="url(#ah)"/>
+<rect x="16" y="556" width="12" height="12" rx="2" style="fill:#0b5c7a"/>
+<text x="34" y="567" text-anchor="start" style="fill:#5a6875;font-size:12px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">yours to do</text>
+<text x="130" y="567" text-anchor="start" style="fill:#5a6875;font-size:12px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">Every other line happens without you. Each request to the dev side is an issue ViD opens.</text>
+</svg>

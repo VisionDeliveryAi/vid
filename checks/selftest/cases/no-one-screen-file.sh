@@ -6,7 +6,7 @@
 # of them planted back is convicted. Env: CHECKS.
 set -eu
 R=$(cd "$CHECKS/.." && pwd)
-[ -d "$R/skills/vid-test-writing" ] || exit 0
+[ -d "$R/skills/vid-test-writing" ] || { echo 'needs skills/vid-test-writing/'; exit 77; }
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 fail() { echo "no-one-screen-file: $*" >&2; exit 1; }
 scan() { grep -rniE 'one ledger test for every screen|ONE instrument for every screen|one file — never a per-screen test|per-screen test or a [a-z ]*(is a defect|hook)|per-screen authored test|never writes a per-screen test' \

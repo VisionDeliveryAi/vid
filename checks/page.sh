@@ -9,6 +9,7 @@
 # and the page's "copy answers" button copies every card's answer as `<id>: <option>[ — <note>]`, one per line. Prints
 # the file's path. Quick yes/no questions stay in chat; the skill publishes the page as a private artifact where it can.
 # Usage: sh checks/page.sh <markdown> [--out <file>]
+# serves: tickets (0.26.10.28.4, M9)
 set -eu
 MD=${1:-}; [ -n "$MD" ] && [ -f "$MD" ] || { echo 'ViD page: usage — sh checks/page.sh <markdown> [--out <file>]' >&2; exit 2; }
 OUT=''; [ "${2:-}" = --out ] && OUT=${3:-}

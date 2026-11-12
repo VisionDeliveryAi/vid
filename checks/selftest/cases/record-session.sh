@@ -14,7 +14,7 @@
 # that session's transcript. Env: CHECKS.
 set -eu
 HD="$CHECKS/../hooks"
-[ -f "$HD/stop-failure.sh" ] || exit 0
+[ -f "$HD/stop-failure.sh" ] || { echo 'needs hooks/stop-failure.sh'; exit 77; }
 fail() { echo "record-session: $*" >&2; cat "${HOMEP:-.}/.vid/metrics-events" >&2 2>/dev/null || true; exit 1; }
 [ -f "$HD/record.sh" ] || fail 'no hooks/record.sh'
 tr -d ' \n' < "$HD/hooks.json" | grep -q '"SessionStart":\[{"hooks":\[{"type":"command","command":"sh\\"${CLAUDE_PLUGIN_ROOT}/hooks/record.sh\\""' || fail 'hooks.json does not register record.sh for SessionStart'

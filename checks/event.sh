@@ -7,7 +7,7 @@
 # instruction; the skills that can run before a project's checks/ exists
 # (vid-create-prd, vid-init's own start, vid-design and vid-test-inventory)
 # call the plugin's copy, sh "${CLAUDE_PLUGIN_ROOT}/checks/event.sh". The
-# record contract is RECORDS.md (records: 5 since v0.9.7.0.1, checks/records-version).
+# record contract is RECORDS.md, at the version checks/records-version's records: line names.
 # v0.9.6.2 (3.1, R1): the line goes to the run's HOME's .vid/metrics-events
 # — this worktree's top level when it holds .vid/RUN-STATE.md, else the path
 # its .vid/home names (when that path holds a run), else this worktree's top
@@ -18,6 +18,7 @@
 # ` at=`, which stays the last token.
 # Refuses an empty event and one spanning lines (the second line would carry
 # no time). Usage: sh checks/event.sh '<type> <field>=<value> …'
+# serves: both (0.26.10.28.4, M9)
 set -eu
 L=${1:-}
 [ $# -eq 1 ] && [ -n "$L" ] || { echo "ViD event: usage — sh checks/event.sh '<type> <field>=<value> …' (one quoted argument)" >&2; exit 2; }
@@ -46,5 +47,5 @@ case "$L" in
       if [ -f "$_r" ]; then RUN=$(cd "$H" && sh "$_r" id 2>/dev/null || true); fi
     fi ;;
 esac
-if [ -n "$RUN" ]; then L="$L run=$RUN"; fi
+if [ -n "$RUN" ]; then L="$L run=$RUN"; fi   # fields: stage run=
 printf '%s at=%s\n' "$L" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >> "$H/.vid/metrics-events"

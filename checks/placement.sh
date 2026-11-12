@@ -2,6 +2,7 @@
 # Purpose: ViD court — every new staged file must land under a path prefix from
 # the ```vid-placement block in CLAUDE.md (a line may be an exact filename).
 # Root doc/config files, checks/, tests/ are always allowed. Fails closed.
+# serves: both (0.26.10.28.4, M9)
 set -eu
 IFS='
 '

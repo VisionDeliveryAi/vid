@@ -5,8 +5,8 @@
 # code repository, no labels-prefix: line, an open-tickets: of 0 or in words; an uncommitted change to PRD.md,
 # DECISIONS.md, BASELINE.md, design/ or a golden set. An empty labels-prefix: and no open-tickets: line pass. The gate
 # closes after a committed INVENTORY.md change (stage 1's R8) and opens after its new ratification, with its own
-# publish-approved words; two things missing give two lines. github.sh tw-post and tw-close ask the gate first (build
-# review 1, F18): with S02's ticket #2 open and S03's written, RUN-STATE's block edited with no recorded change shuts
+# publish-approved words; two things missing give two lines. github.sh tw-post and tw-close ask the gate first:
+# with S02's ticket #2 open and S03's written, RUN-STATE's block edited with no recorded change shuts
 # the gate, and tw-post posts nothing and tw-close withdraws nothing. Env: CHECKS.
 set -eu
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT

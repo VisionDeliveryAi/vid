@@ -41,12 +41,13 @@
 #   open   one line per job not yet cleaned after its return was collected or after a stop (the re-entry page,
 #     the observer).
 # Run at the run's home. Writes only .vid/jobs/, .vid/budget's builder-tool line and events.
+# serves: develop (0.26.10.28.4, M9)
 set -u
 IFS='
 '
 usage() { echo 'ViD job: usage — sh checks/job.sh tool [claude|codex --by owner] | start --brief <file> | run <try> | status [<try>] | stop <try> | clean <try> | open' >&2; exit 2; }
 die() { echo "ViD job: refused — $*" >&2; exit 1; }
-ev() { sh checks/event.sh "$1" >/dev/null 2>&1 || printf '%s at=%s\n' "$1" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >> .vid/metrics-events; }
+ev() { sh "$(cd "$(dirname "$0")" && pwd)/event.sh" "$1" >/dev/null 2>&1 || printf '%s at=%s\n' "$1" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >> .vid/metrics-events; }
 jk() { sed -n "s/^$1=//p" "$2" 2>/dev/null | tail -n 1; }
 jput() { printf '%s=%s\n' "$2" "$3" >> "$1"; }
 tool_now() { _t=$(sed -n 's/^builder-tool=//p' .vid/budget 2>/dev/null | tail -n 1); echo "${_t:-claude}"; }
@@ -155,7 +156,7 @@ case "$CMD" in
         index($0, "\"turn.completed\"") && (u = index($0, "\"usage\":{")) { s = substr($0, u); i += num(s, "input_tokens"); c += num(s, "cached_input_tokens"); w += num(s, "cache_write_input_tokens"); o += num(s, "output_tokens"); any = 1 }
         END { if (any) printf "input=%d cache-read=%d cache-write=%d cache-write-1h=0 output=%d\n", (i - c < 0 ? 0 : i - c), c, w, o }' "$EVF" 2>/dev/null)
     UM=$(jk model "$J" | tr -d ' '); UE=$(jk effort "$J" | tr -d ' ')
-    [ -n "$UK" ] && ev "usage agent=codex:$TRY session=- tool=codex model=${UM:-unknown} effort=${UE:-unknown} calls=unknown $UK scope=agent"
+    [ -n "$UK" ] && ev "usage agent=codex:$TRY session=- tool=codex model=${UM:-unknown} effort=${UE:-unknown} calls=unknown $UK scope=agent"   # fields: input= cache-read= cache-write= cache-write-1h= output=
     if [ "$REASON" = codex-limit ]; then
       sh checks/brief.sh save "$B" --worktree "$WT" > /dev/null 2>&1 || echo "ViD job: the save of $TRY failed — the worktree $WT is kept"
       sh checks/test.sh cancel --try "$TRY" --by job.sh > /dev/null 2>&1 || true

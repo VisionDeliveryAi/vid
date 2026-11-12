@@ -1,13 +1,13 @@
 #!/bin/sh
 # Purpose: selftest case — the re-entry page stays under 10,000 characters
-# (v0.9.7.0.6 spec 3.4, round 1 finding 1; §6 C-2). Needs the plugin's
+# (v0.9.7.0.6 spec 3.4; §6 C-2). Needs the plugin's
 # hooks/ beside checks/. A run with 500 uncommitted paths and one claims
 # line of 20,000 characters. Convicts unless the page is under 10,000
 # characters, ends with the "(+N more: sh checks/observe.sh resume)"
 # pointer, keeps every re-read path and the watcher's line whole, and cuts
 # no line past 300 characters. Env: CHECKS.
 set -eu
-[ -f "$CHECKS/../hooks/stop-failure.sh" ] || exit 0
+[ -f "$CHECKS/../hooks/stop-failure.sh" ] || { echo 'needs hooks/stop-failure.sh'; exit 77; }
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 cd "$T"; CASE=reentry-size
 . "$CHECKS/selftest/fixtures/reread-lib.sh"

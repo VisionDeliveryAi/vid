@@ -57,17 +57,30 @@
 #             .vid/plan/ratified; refused, each reason named, while a check flag is open, no review has the current
 #             hash, a finding of it has no answer, the block is not the newest recorded plan, or the newest page did
 #             not show this plan
+#   reratify --words "<the owner's yes>" --base <b> --to <t> --held <file,…>   (v0.26.10.25.5, R3) a counted change landed
+#             during a run, ratified by the owner's yes with no new sitting: a ratification in those words (checks/land.sh records
+#             the publish-approved event in the same words, as vid-plan does after ratify); refused while a check flag is open, when the spec files at the base are not the newest ratified ones,
+#             when a spec file the draft did not hold changed between them, or when the plan block is not the newest recorded
 #   ratified  exit 0 only while the spec files' hash is the ratified one, the block is the newest recorded plan and
 #             the check is clean: a recorded plan change keeps the ratification
 #   hash      the spec files' hash: PRD.md, INVENTORY.md, STAGES.md, GRADING-CHECKLIST.md, ARCHITECTURE.md, PLAN.md
+#   setup <key> <answer> --words "<the owner's words>"   (v0.26.10.26.7, R11) one setup answer: layout, team (one line each),
+#             split, repo, spec-repo ("not yet" writes no key) or github-mode (v0.26.10.28.8, R3: auto, ViD's own DevAgent works
+#             the tickets, or team, an outside team's); written to .vid/tw/settings, and `setup-answered key=` in
+#             .vid/plan/setup, the planner's own record (it writes no event) — until
+#             the first ratify, check flags `setup <key>` for each of layout, team, split, repo, spec-repo (none with
+#             layout: one) and github-mode that no such event covers
 #   prereq    (v0.26.10.12.3.2, R10) what the skeleton ticket quotes, no PLAN.md needed: one line per gap, exit 0; the page's notes repeat each
-# Usage: sh checks/planner.sh check | prereq | rows [--short|--added] | review --in <file> | page | counts |
-#        answer <n> keep --words "<…>" | ratify --words "<…>" | ratified | hash
+#   prd-form  (0.26.10.28.1, stage 9 R6, CK-R-006) refuses a PRD.md in the legacy block form (no ```vid-prd block) in one line,
+#             exit 1, naming /vid create-prd's import door; silent, exit 0, on an enriched PRD or none
+# Usage: sh checks/planner.sh check | prereq | prd-form | rows [--short|--added] | review --in <file> | page | counts |
+#        answer <n> keep --words "<…>" | ratify --words "<…>" | reratify … | ratified | hash
+# serves: tickets (0.26.10.28.4, M9)
 set -eu
 HERE=$(cd "$(dirname "$0")" && pwd)
+. "$HERE/lib.sh"   # 0.26.10.28.4 (9.3 R3): the shared helpers, lib.sh beside this file
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 die() { echo "ViD planner: $*" >&2; exit 2; }
-now() { date -u '+%Y-%m-%dT%H:%M:%SZ'; }
 hash() { for f in PRD.md INVENTORY.md STAGES.md GRADING-CHECKLIST.md ARCHITECTURE.md PLAN.md; do printf '== %s\n' "$f"; if [ -f "$f" ]; then cat "$f"; fi; done | git hash-object --stdin | cut -c1-12; }
 RV=.vid/plan/review
 # words --words "<…>": OW, the owner's words — one line, not empty
@@ -75,12 +88,11 @@ words() { [ "${1:-}" = --words ] && [ -n "${2:-}" ] || die "usage — … --word
   case "$2" in *'
 '*) die "the owner's words are recorded on one line; these span several" ;; esac; OW=$2; }
 block() { sed -n "/^\`\`\`$1[[:space:]]*\$/,/^\`\`\`[[:space:]]*\$/p" "$2" | grep -v '^```' | grep -v '^[[:space:]]*#' | grep -v '^[[:space:]]*$' || true; }
-# pblock: RUN-STATE's plan block (plan.sh's block); prose: the lines below it; phash: the plan's hash, as plan.sh's;
+# plan_block (lib.sh): RUN-STATE's plan block (plan.sh's block); prose: the lines below it; phash: the plan's hash, as plan.sh's;
 # recorded: the newest plan-change's hash; ceil: rule A's ceiling (plan.sh's budget); mods: ARCHITECTURE.md's modules
 PS='/^## The plan/ { s = 1; next } s && /^## / { exit } s && /^```vid-plan[ \t]*$/ { b = 1; next } b && /^```[ \t]*$/'
-pblock() { [ -f .vid/RUN-STATE.md ] && awk "$PS"' { exit } b { print }' .vid/RUN-STATE.md | sed 's/[[:space:]]*$//'; }
 prose() { [ -f .vid/RUN-STATE.md ] && awk "$PS"' { b = 0; a = 1; next } a' .vid/RUN-STATE.md; }
-phash() { pblock | { if command -v shasum > /dev/null 2>&1; then shasum -a 256; else sha256sum; fi; } | cut -c1-12; }
+phash() { plan_block | { if command -v shasum > /dev/null 2>&1; then shasum -a 256; else sha256sum; fi; } | cut -c1-12; }
 recorded() { grep '^plan-change ' .vid/metrics-events 2>/dev/null | tail -n 1 | sed -n 's/^plan-change what=[^ ]* hash=\([0-9a-f]*\) .*/\1/p'; }
 ceil() { b=''; s=''; if [ -f .vid/budget ]; then b=$(sed -n 's/^unverified-rows=\([0-9][0-9]*\).*/\1/p' .vid/budget | tail -n 1); s=$(sed -n 's/^stacks=\([0-9][0-9]*\).*/\1/p' .vid/budget | head -n 1); fi; c=$((60 * ${s:-1})); [ -n "$b" ] || b=60
   if [ "$b" -gt "$c" ] && ! grep '^plan-change ' .vid/metrics-events 2>/dev/null | grep ' what=other ' | grep -q "unverified-rows=$b\([^0-9]\|$\)"; then b=$c; fi; echo "$b"; }
@@ -91,7 +103,7 @@ gaps() { awk '/^## Stack[ \t]*$/ { on = 1; next } on && /^## / { exit } on' BASE
   grep -q '[^[:space:]]' "$T/sk" || echo "the stack: BASELINE.md's \`## Stack\` section is missing or empty; the skeleton ticket quotes it"
   grep -q '[^[:space:]]' "$T/ho" || echo "the hosting: ARCHITECTURE.md's \`vid-hosting\` block is missing or empty; the skeleton ticket quotes it"; }
 # planok: empty when the block is the newest recorded plan, else why not
-planok() { R=$(recorded); if [ -z "$R" ]; then echo 'no plan is recorded (sh checks/plan.sh change create "<why>" --trigger initial --expect "<one line>")'; elif ! pblock | cmp -s - ".vid/plans/$R.plan"; then echo "the plan block is not the newest recorded plan ($R): record the change with sh checks/plan.sh change"; fi; }
+planok() { R=$(recorded); if [ -z "$R" ]; then echo 'no plan is recorded (sh checks/plan.sh change create "<why>" --trigger initial --expect "<one line>")'; elif ! plan_block | cmp -s - ".vid/plans/$R.plan"; then echo "the plan block is not the newest recorded plan ($R): record the change with sh checks/plan.sh change"; fi; }
 
 # load [rows]: $T/items (`id kind tier phase stage`), $T/answers, $T/stages (`n<TAB>name`, stage 0 first), $T/stageof
 # (`id stage`, every obligation and item stages.sh stages), $T/inv (the inventory's lines), $T/rowsblk, $T/stepsblk
@@ -113,7 +125,7 @@ load() {
   awk '/^```vid-prd-answers/ { a = 1; next } /^```/ { a = 0 } a && /^A-[0-9]+[[:space:]]/ { print $1 }' PRD.md > "$T/answers"
   block vid-inventory INVENTORY.md | grep -v '^[[:space:]]*grammar:' > "$T/inv" || true
   : > "$T/rowsblk"; [ ! -f PLAN.md ] || block vid-rows PLAN.md > "$T/rowsblk"
-  pblock > "$T/stepsblk" || true; mods > "$T/mods" || true; cat .vid/tw/settings > "$T/set" 2>/dev/null || :; touch "$T/stepsblk" "$T/mods" "$T/set"
+  plan_block > "$T/stepsblk" || true; mods > "$T/mods" || true; cat .vid/tw/settings > "$T/set" 2>/dev/null || :; touch "$T/stepsblk" "$T/mods" "$T/set"
 }
 
 # inventory: $T/irows (id kind parent items marks promise failif carried golden added, tab-separated, in the inventory's
@@ -416,6 +428,11 @@ model() {
       if [ -n "$L" ] || ! cmp -s "$T/ia" "$T/ib"; then echo "inventory INVENTORY.md — changed since HEAD outside its origin: plan rows (\"$L\")" >> "$T/fl0"; fi
     else echo 'inventory INVENTORY.md — not committed; PL plans only a committed inventory' >> "$T/fl0"; fi
   fi
+  # v0.26.10.26.7 (R11, W-13): before the first ratify, each setup key no setup-answered line covers (a written default is no
+  # answer); a plan ratified before this release, with no such lines in .vid/plan/setup, is never flagged for them
+  if [ ! -s .vid/plan/ratified ]; then LY=$(skey layout)
+    for k in layout team split repo spec-repo github-mode; do [ "$k:$LY" != spec-repo:one ] || continue; grep -q "^setup-answered key=$k " .vid/plan/setup 2>/dev/null && continue
+      echo "setup $k — no answer of the owner's is recorded: ask it, then sh checks/planner.sh setup $k <the answer> --words \"<their words>\"" >> "$T/fl0"; done; fi
   mv "$T/fl0" "$T/flags"
 }
 # reviewed <hash>: prints yes when a review has that hash, else no; $T/open holds every finding of every review with
@@ -491,12 +508,14 @@ planpage() {
 # setuppage: the page's setup section (R4) — the answers kept in .vid/tw/settings, read as their defaults when missing
 sk() { sed -n "s/^$1:[[:space:]]*//p" "$T/set" | head -n 1 | sed 's/[[:space:]]*$//'; }
 setuppage() { L=$(sk layout); R=$(sk repo); S=$(sk spec-repo); X=$(sk split); A=$(sk access); O=$(sk open-tickets); W=''
-  for k in layout repo split team labels-prefix; do grep -q "^$k:" "$T/set" || W="$W, $k"; done; [ "$L" = one ] || grep -q '^spec-repo:' "$T/set" || W="$W, spec-repo"
-  if [ -z "$W" ]; then W='Nothing is missing: a later /vid plan asks nothing.'; else W="Still to ask at the next /vid plan: ${W#, }; until then each reads as its default."; fi
+  for k in layout repo split team github-mode labels-prefix; do grep -q "^$k:" "$T/set" || W="$W, $k"; done; [ "$L" = one ] || grep -q '^spec-repo:' "$T/set" || W="$W, spec-repo"
+  if [ -z "$W" ]; then W='Nothing is missing: a later /vid:vid-plan asks nothing.'; else W="Still to ask at the next /vid:vid-plan: ${W#, }; until then each reads as its default."; fi
   case $X in fine) X='finer steps, technical ones allowed (split: fine)' ;; journey) X='steps by journey (split: journey)' ;; *) X='steps by journey (the default)' ;; esac
   printf '\n## The setup\n\nAsked once, at the start of /vid plan, and kept in .vid/tw/settings. %s\n\n' "$W"
   if [ "$L" = one ]; then printf -- '- **Where the code lives and the specs go:** one repository, ViD'"'"'s specs under docs/specs. Publishing waits for a later\n  build, which exports into docs/specs: the settings name no spec-repo:, so the ticket writer'"'"'s gate stays shut.\n- **The code repository:** %s\n' "${R:-not set yet}"
   else printf -- '- **Where the code lives and the specs go:** separate repositories, the code and ViD'"'"'s private spec repository%s.\n- **The code repository:** %s\n- **The spec repository:** %s\n' "$([ -n "$L" ] || echo ' (the default)')" "${R:-not set yet}" "${S:-not set yet}"; fi
+  case $(sk github-mode) in auto) G='ViD'"'"'s own DevAgent, which you start (github-mode: auto)' ;; team) G='an outside team (github-mode: team)' ;; *) G='not asked yet' ;; esac   # v0.26.10.28.8 (R3)
+  printf -- '- **Who works the tickets:** %s\n' "$G"
   printf -- '- **The step size:** %s\n- **The open-ticket limit:** %s\n- **Access:** %s\n\n| Team | Area | Strict or core | People | Lanes |\n|---|---|---|---|---|\n' "$X" "${O:-not set}" "${A:-not checked yet}"
   awk -F'\t' 'FNR == NR { L[$2] = L[$2] (L[$2] == "" ? "" : ", ") $1; next } { printf "| %s | %s | %s | %s | %s |\n", $1, $2, $3, $4, L[$1] }' "$T/lanes" "$T/teams"
   grep -q '^team:' "$T/set" || printf '\nNo team is recorded: the default, one team of one person, its lane devagent.\n'; }
@@ -531,6 +550,7 @@ case "$CMD" in
     else cat "$T/rows"; fi ;;
   hash) hash ;;
   prereq) gaps ;;
+  prd-form) [ ! -f PRD.md ] || grep -q '^```vid-prd' PRD.md || { echo "ViD plan: refused — PRD.md is in the legacy block form, with no \`\`\`vid-prd block: ticket mode reads only the enriched PRD. Bring it in through /vid create-prd's import door." >&2; exit 1; } ;;
   counts) model; counts ;;
   page)
     model; gaps >> "$T/notes"; H=$(hash); RVD=$(reviewed "$H"); P=.vid/plan/PLAN-PAGE.md; mkdir -p .vid/plan
@@ -569,7 +589,7 @@ case "$CMD" in
       printf '\n## Counts\n\nEach row counts in its stage after its move. Inventory rows: the rows of the test inventory that are neither seams\nnor ViD'"'"'s own, so Inventory rows + Seams + ViD'"'"'s rows = Rows.\n\n| Stage | Inventory rows | Seams | ViD'"'"'s rows | Rows | Planned | Moved | Deploy-owed | Known limits | Records | Transitions | Steps | Requirements |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|\n'
       counts | awk '$1 == "later" { v = $2; sub(/^rows=/, "", v); w = $3; sub(/^transitions=/, "", w); print "| Later phase | — | — | — | " v " | — | — | — | — | — | " w " | — | — |"; next }
         { h = ($1 == "total" ? "All" : $2); o = "| " h; for (i = 1; i <= NF; i++) if ($i ~ /=/) { v = $i; sub(/^[a-z]*=/, "", v); o = o " | " v } print o " |" }'
-    } > "$P"
+    } > "$T/pg" || exit 1; put "$P" < "$T/pg" || exit 1
     sh "$HERE/page.sh" "$P" && printf 'paged spec=%s plan=%s at=%s\n' "$H" "$(phash)" "$(now)" >> .vid/plan/paged ;;
   review)
     [ "${1:-}" = --in ] && [ -f "${2:-}" ] || die 'usage — sh checks/planner.sh review --in <file>'
@@ -603,11 +623,42 @@ case "$CMD" in
     if [ -s "$T/why" ]; then sed 's/^/ViD planner: ratify refused — /' "$T/why" >&2; exit 1; fi
     mkdir -p .vid/plan; printf 'ratified hash=%s plan=%s at=%s words=%s\n' "$H" "$(phash)" "$(now)" "$OW" >> .vid/plan/ratified
     echo "planner: ratified, hash $H, in the owner's words" ;;
+  setup)   # v0.26.10.26.7 (R11, W-13): one setup answer, as the owner gave it: its key in .vid/tw/settings and setup-answered
+    K=${1:-}; V=${2:-}; [ $# -ge 2 ] && shift 2; OW=''; [ "${1:-}" = --words ] && OW=${2:-}
+    [ -n "$K" ] && [ -n "$V" ] && [ -n "$OW" ] || die 'usage — sh checks/planner.sh setup <layout|team|split|repo|spec-repo|github-mode> <the answer, or "not yet" for a repository> --words "<the owner'"'"'s words>"'
+    case $K in layout|team|split|repo|spec-repo|github-mode) ;; *) die "setup $K: no setup question has that key" ;; esac
+    case "$K:$V" in layout:separate|layout:one|split:journey|split:fine|team:*|repo:*|spec-repo:*|github-mode:auto|github-mode:team) ;; *) die "setup $K: $V is no answer to it" ;; esac
+    mkdir -p .vid/tw; touch .vid/tw/settings
+    grep -q '^labels-prefix:' .vid/tw/settings || echo 'labels-prefix:' >> .vid/tw/settings   # no question asks it; the writer needs the line (the walk)
+    case "$K:$V" in
+      repo:'not yet'|spec-repo:'not yet') grep -v "^$K:" .vid/tw/settings > "$T/st" || true; put .vid/tw/settings < "$T/st" || exit 1 ;;   # a written default goes
+      team:*) grep -q '^setup-answered key=team ' .vid/plan/setup 2>/dev/null || { grep -v '^team:' .vid/tw/settings > "$T/st" || true; put .vid/tw/settings < "$T/st" || exit 1; }   # the first answer replaces a written default
+        grep -qxF "team: $V" .vid/tw/settings || echo "team: $V" >> .vid/tw/settings ;;
+      *) grep -v "^$K:" .vid/tw/settings > "$T/st" || true; echo "$K: $V" >> "$T/st" || exit 1; put .vid/tw/settings < "$T/st" || exit 1 ;;
+    esac
+    mkdir -p .vid/plan; printf 'setup-answered key=%s value="%s" words="%s" at=%s\n' "$K" "$(printf %s "$V" | tr '"' "'")" "$(printf %s "$OW" | tr '"' "'")" "$(now)" >> .vid/plan/setup   # the planner's own record: it writes no event (P8)
+    echo "planner: setup $K answered, in the owner's words" ;;
+  reratify)   # v0.26.10.25.5 (R3): the owner's yes to a counted change landed during a run, with no new sitting
+    OW=''; B=''; TO=''; HELD=''; while [ $# -ge 2 ]; do case $1 in --words) OW=$2 ;; --base) B=$2 ;; --to) TO=$2 ;; --held) HELD=$2 ;; *) die "unknown $1" ;; esac; shift 2; done
+    [ -n "$OW" ] && [ -n "$B" ] && [ -n "$TO" ] || die 'usage — sh checks/planner.sh reratify --words "<the owner'"'"'s yes>" --base <the draft'"'"'s base> --to <the landing'"'"'s last commit> --held <file,…>'
+    git cat-file -e "$B^{commit}" 2>/dev/null && git cat-file -e "$TO^{commit}" 2>/dev/null || die "--base $B or --to $TO names no commit"
+    hashat() { for f in PRD.md INVENTORY.md STAGES.md GRADING-CHECKLIST.md ARCHITECTURE.md PLAN.md; do printf '== %s\n' "$f"; git show "$1:$f" 2>/dev/null || true; done | git hash-object --stdin | cut -c1-12; }
+    model; HB=$(hashat "$B"); H=$(hash)
+    { sed 's/^/a check flag is open: /' "$T/flags"
+      L=$(tail -n 1 .vid/plan/ratified 2>/dev/null || true); case "$L" in "ratified hash=$HB "*) ;; *) echo "the spec files at the base $(printf %.12s "$B") (hash $HB) are not the newest ratified ones: a change no one ratified lies before the draft" ;; esac
+      git merge-base --is-ancestor "$B" "$TO" 2>/dev/null || echo "the base $(printf %.12s "$B") is not an ancestor of $(printf %.12s "$TO")"
+      [ "$(git rev-parse HEAD)" = "$(git rev-parse "$TO")" ] || echo "$(printf %.12s "$TO") is not HEAD"
+      [ "$(hashat "$TO")" = "$H" ] || echo 'the spec files in the working tree are not those of the landing'
+      for f in $(git diff --name-only "$B" "$TO" -- PRD.md INVENTORY.md STAGES.md GRADING-CHECKLIST.md ARCHITECTURE.md PLAN.md); do case ",$HELD," in *",$f,"*) ;; *) echo "$f changed between the base and the landing, and the draft did not hold it" ;; esac; done
+      planok; } > "$T/why"
+    if [ -s "$T/why" ]; then sed 's/^/ViD planner: reratify refused — /' "$T/why" >&2; exit 1; fi
+    mkdir -p .vid/plan; printf 'ratified hash=%s plan=%s at=%s base=%s to=%s words=%s\n' "$H" "$(phash)" "$(now)" "$(printf %.12s "$B")" "$(printf %.12s "$TO")" "$OW" >> .vid/plan/ratified
+    echo "planner: reratified, hash $H, from $(printf %.12s "$B") to $(printf %.12s "$TO"), in the owner's words" ;;
   ratified)
     H=$(hash); L=$(tail -n 1 .vid/plan/ratified 2>/dev/null || true)
     case "$L" in "ratified hash=$H "*) ;; *) echo "planner: not ratified — the newest ratification is not of these spec files (hash $H)" >&2; exit 1 ;; esac
     W=$(planok); [ -z "$W" ] || { echo "planner: not ratified — $W" >&2; exit 1; }
     model; [ ! -s "$T/flags" ] || { echo "planner: not ratified — planner.sh check flags the plan ($(head -n 1 "$T/flags"))" >&2; exit 1; }
     echo "planner: ratified, hash $H, plan $(phash)" ;;
-  *) die "unknown subcommand $CMD — check, prereq, rows, review, page, counts, answer, ratify, ratified, hash" ;;
+  *) die "unknown subcommand $CMD — check, prereq, rows, review, page, counts, answer, ratify, reratify, ratified, hash, setup" ;;
 esac

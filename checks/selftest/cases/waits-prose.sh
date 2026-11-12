@@ -6,7 +6,7 @@
 # `{ while …; }`, `"$(while …)"`, `sh -c 'while …; sleep 5 …'` and `sh <<EOF` with a loop in its body. Env: CHECKS.
 set -eu
 H="$CHECKS/../hooks/waits.sh"
-[ -f "$H" ] || exit 0
+[ -f "$H" ] || { echo 'needs hooks/waits.sh'; exit 77; }
 fail() { echo "waits-prose: $*" >&2; exit 1; }
 inp() { printf '{"session_id":"s","hook_event_name":"PreToolUse","agent_id":"a1","agent_type":"vid:builder","tool_name":"Bash","tool_input":{"command":"%s","run_in_background":false}}' "$1"; }
 deny() { o=$(inp "$1" | sh "$H"); printf '%s' "$o" | grep -q '"permissionDecision":"deny"' || fail "not denied: $1"; printf '%s' "$o" | grep -qF 'sh checks/test.sh wait' || fail "the reason does not name the wait: $1"; }

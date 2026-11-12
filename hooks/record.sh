@@ -80,7 +80,7 @@ main() {
       PJ="${CLAUDE_PLUGIN_ROOT:-$HD/..}/.claude-plugin/plugin.json"
       VER=$( [ -f "$PJ" ] && F=$(json_fields < "$PJ") && jget version )
       MD=''; jhas model && [ -n "$(jget model)" ] && MD=" model=$(v "$(jget model)")"
-      printf 'session id=%s source=%s%s transcript=%s vid=%s at=%s\n' "$(v "$SID")" "$(v "$(jget source)")" "$MD" "$(v "$(jget transcript_path)")" "$(v "$VER")" "$AT" >> "$EV" ;;
+      printf 'session id=%s source=%s%s transcript=%s vid=%s at=%s\n' "$(v "$SID")" "$(v "$(jget source)")" "$MD" "$(v "$(jget transcript_path)")" "$(v "$VER")" "$AT" >> "$EV" ;;   # fields: model=
     SubagentStart)
       printf 'agent-start session=%s agent=%s type=%s transcript=%s at=%s\n' "$(v "$SID")" "$(v "$(jget agent_id)")" "$(v "$(jget agent_type)")" "$(v "$(jget transcript_path)")" "$AT" >> "$EV" ;;
     SubagentStop)
@@ -89,7 +89,7 @@ main() {
       TR=$(jget agent_transcript_path)
       if [ -n "$TR" ] && [ -f "$TR" ] && [ -r "$TR" ]; then
         UK=$(awk "$USAGE" "$TR") && [ -n "$UK" ] && \
-          printf 'usage agent=%s session=%s tool=claude %s scope=agent at=%s\n' "$(v "$(jget agent_id)")" "$(v "$SID")" "$UK" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >> "$EV"
+          printf 'usage agent=%s session=%s tool=claude %s scope=agent at=%s\n' "$(v "$(jget agent_id)")" "$(v "$SID")" "$UK" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >> "$EV"   # fields: model= effort= calls= input= cache-read= cache-write= cache-write-1h= output=
       fi ;;
   esac
 }

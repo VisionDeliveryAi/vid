@@ -1,0 +1,7 @@
+by: GR
+commit: <the head commit, full id>
+ROW-003 kept — the saved state is reached only through S01's real form, after a decoy search is saved first, and each of the search, the address and the line Check your inbox to confirm is read from its own element and compared word for word, with every property the design's tokens declare; the planted break that removes the line fails the test
+ROW-004-T1 kept — a fresh address has no mail before saving, the saved state shows that search and address, and exactly one message with a Confirm link must reach the address; the planted break that sends no confirmation fails it
+ROW-004-T2 kept — the test follows the Confirm link from the message itself, needs a 200, the S02 active state, this search and address, and the word Active; nothing reaches S02 any other way
+ROW-004-T3 kept — the digest arrives through the product's own worker and fake mail, must list the matching jobs and neither the non-matching job nor the feed's seed job, and the listed job's link must open that job's source page; a second digest in one day or a digest to an unconfirmed address fails a case of its own
+finding: bug medium — confirming and unsubscribing both act on a plain GET — the Confirm link and the unsubscribe link of the mail — fetch an address's unsubscribe link without a browser, as a mail scanner does: the address is unsubscribed

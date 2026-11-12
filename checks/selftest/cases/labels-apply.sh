@@ -1,6 +1,6 @@
 #!/bin/sh
-# Purpose: selftest case — the labels applied, with no question to the owner (v0.9.7.3 spec 3.3, R3; the owner,
-# 2026-10-14). Under the real hooks: `decisions.sh apply` writes each sure label after the line's enforced: field
+# Purpose: selftest case — the labels applied, with no question to the owner (v0.9.7.3 spec 3.3, R3).
+# Under the real hooks: `decisions.sh apply` writes each sure label after the line's enforced: field
 # (before origin:), in one commit of DECISIONS.md alone that both hooks accept — D-005's enforced: ref names a ledger
 # test that does not exist, judged only by the label rule — keeps the record .vid/decision-labels.applied, and records
 # `decision-labels applied= widened= changed= skipped=`. With anything else staged it is refused. Env: CHECKS.

@@ -90,6 +90,7 @@ for k in $rp; do grep -q "^vid: replaced. .*The current writing, $CW, is this is
 grep -q '^gh api -X PATCH repos/owner/code/issues/comments/2[0-9]* -F body=@' "$T/gh/log" || fail 'the edits were not made as issue comment edits'
 tw_hand 'reached ROW-004 REQ-001'; due; owes 'new reached'; tw_post reached || fail 'the reached rows ticket failed'; RT=$TW_N
 grep -qx -- '- kind: reached' "$TW_F" && sec "$TW_F" 'Rows a ruling reached' | grep -q '^- ROW-004, its requirement REQ-001 changed' || fail 'the reached rows ticket does not hold ROW-004'
+sec "$TW_F" Asks | grep -qF 'When every test is kept, commit nothing but one empty commit naming the kept rows, so the pull request has a head.' || fail 'the reached T1 does not say how a kept test returns'   # v0.26.10.26.7 (R6)
 due; ! grep -q 'new reached' "$T/due" || fail 'a listed reached row is owed again'
 tw_hand 'reached ROW-003 REQ-001'; tw_close 2; tw_close "$RT"; tw_close "$S7"; tw_hand 'closed S02'; sh "$GS" tw-sync > /dev/null 2>&1
 tw_start S04 || { cat "$T/start" >&2; fail 'S04 was refused'; }; tw_post step S04 || fail "S04's ticket failed"

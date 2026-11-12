@@ -8,7 +8,7 @@
 # the craft, and runs in the run's checkout. Plugin repository only (a project has no agents/ of ViD's). Env: CHECKS.
 set -eu
 A="$CHECKS/../agents"
-[ -d "$CHECKS/../skills/vid-build" ] || exit 0
+[ -d "$CHECKS/../skills/vid-build" ] || { echo 'needs skills/vid-build/'; exit 77; }
 fail() { echo "agent-files: $*" >&2; exit 1; }
 [ -d "$A" ] || fail 'no agents/ folder'
 [ "$(ls "$A" | sort | tr '\n' ' ')" = 'builder.md fixer.md grader.md test-analyst.md test-author.md ' ] || fail "agents/ holds: $(ls "$A" | tr '\n' ' ')"

@@ -1,29 +1,28 @@
 #!/bin/sh
-# Purpose: selftest case — the courts side by side refuse exactly what the
-# serial hook refused (v0.9.5 spec 3.8, R8; §7 case 9). Stub courts (a
-# refusal toggled per court) under the real hook and under the 0.9.4 serial
-# hook (fixtures/pre-commit-serial): over a commit where every court passes
-# and one where each court in turn refuses, both hooks agree. Then: two
-# failing courts are both printed and named; a quick-gate refusal comes
-# before any lane starts; a court whose job dies before writing its status
-# is a failure. Last, with the real harness court, a commit whose only fault
-# is an UNTRACKED test file carrying a forbidden harness token is refused
-# by both hooks. v0.9.6.2 (3.4, R4; §6 case 16): inventory and census
-# failing together are named apart in hook-times' by=. Env: CHECKS.
+# Purpose: selftest case — the courts side by side refuse what each court
+# refuses (v0.9.5 spec 3.8, R8; §7 case 9). Stub courts (a refusal toggled
+# per court) under the real hook: a commit where every court passes passes,
+# and one where each court in turn refuses is refused. Then: two failing
+# courts are both printed and named; a quick-gate refusal comes before any
+# lane starts; a court whose job dies before writing its status is a
+# failure. Last, with the real harness court, a commit whose only fault is
+# an UNTRACKED test file carrying a forbidden harness token is refused.
+# v0.9.6.2 (3.4, R4; §6 case 16): inventory and census failing together are
+# named apart in hook-times' by=. The run of the 0.9.4 serial hook beside
+# the real one went in 0.26.10.28.3 (R5). Env: CHECKS.
 set -eu
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 cd "$T"
 . "$CHECKS/selftest/fixtures/stub-courts.sh"
-SERIAL="$CHECKS/selftest/fixtures/pre-commit-serial"
 fail() { echo "hook-parallel: $*" >&2; cat "$T/out" >&2 2>/dev/null; exit 1; }
 # the PRD memo is cleared before every run: the stub PRD court reads a toggle outside the memo's key
 verdict() { rm -rf "$(git rev-parse --git-path vid-memo)"; if sh "$1" > "$T/out" 2>&1; then echo pass; else echo refused; fi; }
 stage one
-[ "$(verdict checks/hooks/pre-commit)" = pass ] && [ "$(verdict "$SERIAL")" = pass ] || fail 'the all-pass commit'
+[ "$(verdict checks/hooks/pre-commit)" = pass ] || fail 'the all-pass commit'
 for c in placement conformance imports seams inventory census design-cite prd harness; do
   rm -f .fail/*; : > ".fail/$c"
-  P=$(verdict checks/hooks/pre-commit); Q=$(verdict "$SERIAL")
-  [ "$P" = refused ] && [ "$Q" = refused ] || fail "a refusal by $c: side by side $P, serial $Q"
+  P=$(verdict checks/hooks/pre-commit)
+  [ "$P" = refused ] || fail "a refusal by $c: side by side $P"
 done
 rm -f .fail/*
 # two failing courts, both printed and named
@@ -58,6 +57,6 @@ g add -A && g commit -qm 'the real harness court'
 stage two
 [ "$(verdict checks/hooks/pre-commit)" = pass ] || fail 'the clean harness commit was refused'
 printf 'from runner import live_server\n' > tests/invariants/test_untracked.py
-P=$(verdict checks/hooks/pre-commit); Q=$(verdict "$SERIAL")
-[ "$P" = refused ] && [ "$Q" = refused ] || fail "the untracked forbidden token: side by side $P, serial $Q"
+P=$(verdict checks/hooks/pre-commit)
+[ "$P" = refused ] || fail "the untracked forbidden token: side by side $P"
 exit 0

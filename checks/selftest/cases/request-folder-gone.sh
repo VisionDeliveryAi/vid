@@ -3,7 +3,7 @@
 # one slot. Ticket A holds the slot; ticket B queues behind it. B's ticket folder is removed, as a self-test's scratch
 # or a trashed copy is. Convicts unless B's detached run and its queued checks/test.sh both end within 30 s while A
 # still holds the slot. Before the fix such a run waited out its 4-hour queue with no slot it could ever take: the
-# orphaned `checks/test.sh serve` processes the 0.26.10.9 trial found, one for each case whose scratch went while a
+# orphaned `checks/test.sh serve` processes, one for each case whose scratch went while a
 # request was queued. Env: CHECKS.
 set -eu
 T=$(mktemp -d); SV=''; RP=''

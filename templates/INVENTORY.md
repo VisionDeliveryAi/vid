@@ -323,7 +323,7 @@ Derived mechanically from the ratified Tier-0 protections, never invented:
 list — explicitly not a fuzzer, not a scanner, no generated or open-ended
 input exploration. Probes beyond the ratified protections are ceremony and
 are deleted under the complexity law; the way to add one is to ratify the
-protection it is the sibling of. The shapes prior field runs produced,
+protection it is the sibling of. The shapes these protections take,
 stated as behavior so they carry to any stack:
 
 - concurrent double-submit of the same action → exactly one record
@@ -372,7 +372,7 @@ blocks completion (`--strict`). The honesty of steps 1–3 is the builder's,
 and the row is what the graders read.
 
 Granularity is **screen × state** — the zero-results, expired, and error
-variants are where field runs leaked. Mandatory row classes, generated, not
+variants are where gaps hide. Mandatory row classes, generated, not
 judged: (1) every drawn screen × state, one surface row per applicable auth
 state; (2) every requirement with a Fail-if, one behavior row; (3) **the
 shell** in each auth state — header, footer, primary nav, error pages, empty

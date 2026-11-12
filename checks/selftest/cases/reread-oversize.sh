@@ -5,7 +5,7 @@
 # records `cover <path> 1 881 1227` and leaves the debt (Bash still refused); a read of 881–1227 then removes the
 # debt file and Bash is allowed. Env: CHECKS.
 set -eu
-[ -f "$CHECKS/../hooks/stop-failure.sh" ] || exit 0
+[ -f "$CHECKS/../hooks/stop-failure.sh" ] || { echo 'needs hooks/stop-failure.sh'; exit 77; }
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 cd "$T"; CASE=reread-oversize
 . "$CHECKS/selftest/fixtures/reread-lib.sh"

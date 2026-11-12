@@ -4,7 +4,7 @@
 # app/s1. Convicts unless app/s1's steps are S1 and S2 (joined as brief.sh archrows joins them), app/s2's S2, and
 # planOnly lists data, as written, with S1. Env: CHECKS.
 set -eu
-[ -f "$CHECKS/../viewer/view.sh" ] || exit 0   # the viewer ships in the plugin, not in a project's checks/
+[ -f "$CHECKS/../viewer/view.sh" ] || { echo 'needs viewer/view.sh'; exit 77; }   # the viewer ships in the plugin, not in a project's checks/
 T=$(mktemp -d); trap 'set +e; rm -rf "$T" 2>/dev/null' EXIT
 . "$CHECKS/selftest/fixtures/gated-run.sh"
 . "$CHECKS/selftest/fixtures/plan-run.sh"

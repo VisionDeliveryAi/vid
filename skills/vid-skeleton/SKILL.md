@@ -258,7 +258,7 @@ Record `skeleton state=part-done part=1`.
   known-bad fixture passes refuses it, naming the case — fix before
   proceeding.
 
-**The extractor set is ViD's decision** (decision 4, the owner's default):
+**The extractor set is ViD's decision** (the owner's default):
 record it in DECISIONS.md — one entry naming each extractor and its class,
 `| enforced: checks/selftest/cases/<its case>`, `| origin: proposal`,
 `| scope: project` — with no question to the owner. Record `skeleton

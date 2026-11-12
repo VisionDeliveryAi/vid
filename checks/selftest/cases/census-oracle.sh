@@ -1,28 +1,96 @@
 #!/bin/sh
-# Purpose: selftest case — the census, faster, gives identical results (v0.9.7.3 spec 3.4, R4). The 0.9.7.2 census
-# is kept as selftest/fixtures/census-0.9.7.2.sh, the oracle. (1) A scenario repository — duplicate exception keys,
-# a rule-scoped exception beside a class-scoped one, suppression under exception precedence, ordinary and topology
-# differences (the bare subject, a deploy-owed row), owed and active rules, an armed zero denominator, a two-sided
-# rule, an enumeration writing to standard error, a missing extractor, silent, failing and inactive extractors, the
-# report-only classes, an exception subject with whitespace at HEAD and one new — run in default and --report modes,
-# serially (VID_COURT_JOBS=1) and in parallel (4): each invocation's stdout, stderr and exit status are identical,
-# old against new, counters included (the census line). (2) Every census case, run with a census.sh that runs both
-# and logs any difference: none. (3) The extractor invocations fell to the number of distinct extractors (a class
-# extractor a rule row cites runs once), serially and in parallel. v0.9.8.1 (R13): the new census leaves no broken-pipe line where the 0.9.7.2
-# oracle could, when its caller ignores SIGPIPE — such lines are dropped from the oracle's standard error before the
-# comparison, never from the new census's. Env: CHECKS.
+# Purpose: selftest case — the census prints fixed results on a scenario, serially and in parallel (v0.9.7.3 spec 3.4,
+# R4; fitted in 0.26.10.28.3, R5). (1) A scenario repository — duplicate exception keys, a rule-scoped exception
+# beside a class-scoped one, suppression under exception precedence, ordinary and topology differences (the bare
+# subject, a deploy-owed row), owed and active rules, an armed zero denominator, a two-sided rule, an enumeration
+# writing to standard error, a missing extractor, silent, failing and inactive extractors, the report-only classes,
+# an exception subject with whitespace at HEAD and one new — run in default and --report modes, serially
+# (VID_COURT_JOBS=1) and in parallel (4): each invocation's stdout, stderr and exit status are the lines a run at
+# 92e0195 printed, written below, counters included (the census line). (2) The extractor invocations are the number
+# of distinct extractors (a class extractor a rule row cites runs once), serially and in parallel. The comparison
+# with the 0.9.7.2 census, the oracle this case was named for, went in 0.26.10.28.3. Env: CHECKS.
 set -eu
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
-OLD="$CHECKS/selftest/fixtures/census-0.9.7.2.sh"; NEW="$CHECKS/census.sh"
+NEW="$CHECKS/census.sh"
 fail() { echo "census-oracle: $*" >&2; cat "$T/why" >&2 2>/dev/null; exit 1; }
-# same <dir> <args…>: old and new, serial and parallel, compared
-same() {
-  _d=$1; shift
+# the expected lines, from a run at 92e0195: one stdout for every invocation; the five failing lines on stderr, after
+# the new whitespace subject's refusal once EXC-006 is in, and before the rejection in default mode
+cat > "$T/x.out" <<'EXP'
+EXC   dead-path.alpha  site-a  (EXC-001: first reason)
+FAIL  dead-path.alpha  site-b  d2
+FAIL  dead-path.alpha  site-c  d3
+SUP   dead-path.alpha  site-d  (SUP-002 — extractor gap, to-do)
+PEND  dead-path.alpha  owed-subj  d5 (partner row owed — reported, not failed)
+FAIL  dead-path.alpha  site-e  
+census dead-path.alpha: population=10 ok=1 orphans=3 exc=1 sup=1 pending=1 vac=0 rend=0 str=0
+census dead-path.idle: inactive no substrate yet
+DIF   dead-path.topology  q:jobs  consumer — a platform-only consumer (ratified DIF-002; its platform half is paid at deploy gate 2)
+DIF   dead-path.topology  q:sched  c — a platform-only consumer (ratified ROW-002; its platform half is paid at deploy gate 2)
+FAIL  dead-path.topology  q:other  c
+DIF   dead-path.topology  jobs  bare — a platform-only consumer (ratified DIF-002; its platform half is paid at deploy gate 2)
+census dead-path.topology: population=4 ok=0 orphans=1 exc=0 sup=0 pending=0 vac=0 rend=0 str=0
+DIF   divergence.beta  live-x  live: drift one  (ratified DIF-001)
+FAIL  divergence.beta  live-y  drift two
+census divergence.beta: population=2 ok=0 orphans=1 exc=0 sup=0 pending=0 vac=0 rend=0 str=0
+FAIL  invariant.gamma  g1  x
+EXC   invariant.gamma  site-c  (EXC-004: the class word, never a rule orphan)
+census invariant.gamma: population=3 ok=1 orphans=1 exc=1 sup=0 pending=0 vac=0 rend=0 str=0
+REND  rendered.r  r1  x (report-only §9 — the computed value differs from the canvas value; promote or delete on measured FP rate)
+census rendered.r: population=1 ok=0 orphans=0 exc=0 sup=0 pending=0 vac=0 rend=1 str=0
+STR   strength.s  s1  x (report-only — a Tier-0 row whose strongest assertion is existence; promote or delete on measured FP rate)
+census strength.s: population=1 ok=0 orphans=0 exc=0 sup=0 pending=0 vac=0 rend=0 str=1
+VAC   vacuity.v  v1  x (report-only — promote or delete on measured FP rate)
+census vacuity.v: population=2 ok=1 orphans=0 exc=0 sup=0 pending=0 vac=1 rend=0 str=0
+FAIL  RULE-001  site-a  d1
+EXC   RULE-001  site-b  (EXC-003: rule-scoped)
+FAIL  RULE-001  site-c  d3
+FAIL  RULE-001  site-d  d4
+PEND  RULE-001  owed-subj  d5 (partner row owed — reported, not failed)
+FAIL  RULE-001  site-e  
+census RULE-001: 10 sites, 4 guarded (orphans=4 exc=1 sup=0 pending=1)
+PEND  RULE-002  site-c  unguarded (partner row owed — reported, not failed)
+census RULE-002: 2 sites, 1 guarded (orphans=0 exc=0 sup=0 pending=1)
+census RULE-003: 0 sites, 0 guarded (orphans=0 exc=0 sup=0 pending=0)
+census RULE-006: 2 sites, 2 guarded (orphans=0 exc=0 sup=0 pending=0)
+FAIL  RULE-007  g1  x
+FAIL  RULE-007  site-c  y
+census RULE-007: 3 sites, 1 guarded (orphans=2 exc=0 sup=0 pending=0)
+census RULE-008: 0 sites, 0 guarded (orphans=0 exc=0 sup=0 pending=0)
+PEND  RULE-008  zero-denominator — rule ratified, test owed, no sites yet (fail-closed once armed)
+FAIL  RULE-009  s2  undeclared-transition:c>a
+census RULE-009: 3 sites, 2 guarded (orphans=1 exc=0 sup=0 pending=0)
+
+divergences (ratified — the green ledger did not validate these):
+    DIF-001  live-x  test=test-a  prod=prod-a  ordinary
+    DIF-002  jobs  test=test-b  prod=prod-b  bare topology
+    DIF-003  q:jobs  test=test-c  prod=prod-c  full topology
+
+suppressions (extractor to-do — never counted toward the ceremony threshold):
+    SUP-001  dead-path  site-a  gap: gap under an exception  fix-by: fix-by S9
+    SUP-002  dead-path  site-d  gap: a real gap  fix-by: fix-by S9
+    SUP-003  RULE-001  site-b  gap: rule-scoped gap  fix-by: fix-by S9
+
+census: population=43 orphans=13 exceptions=3 suppressed=1 pending=4 vacuity-reports=1 rendered-reports=1 strength-reports=1 · note: exception EXC-005's subject has whitespace, which no orphan's subject can carry (at HEAD)
+EXP
+cat > "$T/x.fails" <<'EXP'
+FAIL  dead-path.broken  extractor exited 3 — a broken census is a failure, never a pass.
+FAIL  dead-path.silent  silent-empty — an extractor declares 'inactive <reason>' when its substrate is absent; silence is how a census dies.
+FAIL  RULE-003  zero-denominator — the census command enumerates nothing; a rule must not silently survive the renaming of what it watches.
+FAIL  RULE-004  census command wrote to standard error — a failing arm must never silently shrink a population: oops
+FAIL  RULE-005  census command 'checks/extractors/nope.sh' does not exist — promissory denominators are invalid.
+EXP
+REJ='ViD census: rejected — every orphan is fixed, or carries a ratified exception/suppression row (standalone law commit).'
+SPACE="ViD census: rejected — exception EXC-006's subject has whitespace, which no orphan's subject can carry: 'new space'"
+{ cat "$T/x.fails"; printf '%s\n' "$REJ"; } > "$T/x.err.head"; cp "$T/x.fails" "$T/x.err.head.report"
+{ printf '%s\n' "$SPACE"; cat "$T/x.err.head"; } > "$T/x.err.new"; { printf '%s\n' "$SPACE"; cat "$T/x.fails"; } > "$T/x.err.new.report"
+# expect <dir> <status> <expected stderr> <args…>: today's census, serial and parallel, prints the expected lines
+expect() {
+  _d=$1; printf '%s\n' "$2" > "$T/x.st"; _e=$3; shift 3
   for _j in 1 4; do
-    ( cd "$_d" && VID_COURT_EVENT=off VID_COURT_JOBS=$_j sh "$OLD" "$@" > "$T/o.out" 2> "$T/o.err"; echo $? > "$T/o.st" ) || true
-    grep -v 'Broken pipe' "$T/o.err" > "$T/o.e2" || true; mv "$T/o.e2" "$T/o.err"   # v0.9.8.1 (R13): the oracle's known broken-pipe line
     ( cd "$_d" && VID_COURT_EVENT=off VID_COURT_JOBS=$_j sh "$NEW" "$@" > "$T/n.out" 2> "$T/n.err"; echo $? > "$T/n.st" ) || true
-    for _x in out err st; do cmp -s "$T/o.$_x" "$T/n.$_x" || { diff "$T/o.$_x" "$T/n.$_x" > "$T/why" 2>&1 || true; fail "$_d $* (jobs=$_j): $_x differs"; }; done
+    for _x in out:x.out "err:$_e" st:x.st; do
+      cmp -s "$T/${_x#*:}" "$T/n.${_x%%:*}" || { diff "$T/${_x#*:}" "$T/n.${_x%%:*}" > "$T/why" 2>&1 || true; fail "$_d $* (jobs=$_j): ${_x%%:*} is not the expected lines"; }
+    done
   done
 }
 # --- (1) the scenario ---------------------------------------------------------------------------------------------
@@ -66,37 +134,13 @@ rule | RULE-009 | state-machine status: a>b b>c | checks/extractors/state-machin
 INV
 printf '#!/bin/sh\n# Purpose: stub state machine\necho state-machine.status >> %s\nprintf "s1 a>b\\ns2 c>a\\ns3 b\\n"\n' "$LOG" > checks/extractors/state-machine.status.sh
 git add -A && git -c user.email=v@s -c user.name=v commit -qm scenario
-same "$S"; same "$S" --report
+expect "$S" 1 x.err.head; expect "$S" 0 x.err.head.report --report
 awk '/^exception \| EXC-005/ { print; print "exception | EXC-006 | new space | dead-path | not at HEAD"; next } { print }' INVENTORY.md > i && mv i INVENTORY.md
-same "$S"; same "$S" --report
-# (3) the invocations: twelve distinct extractor files are run (eleven class or rule extractors and the state machine;
+expect "$S" 1 x.err.new; expect "$S" 0 x.err.new.report --report
+# (2) the invocations: twelve distinct extractor files are run (eleven class or rule extractors and the state machine;
 # nope.sh does not exist), each once
 for _j in 1 4; do : > "$LOG"; ( cd "$S" && VID_COURT_EVENT=off VID_COURT_JOBS=$_j sh "$NEW" > /dev/null 2>&1 ) || true
   [ "$(sort "$LOG" | uniq -d | grep -c . || true)" = 0 ] || { sort "$LOG" | uniq -c > "$T/why"; fail "an extractor ran twice (jobs=$_j)"; }
   [ "$(grep -c . "$LOG")" = 11 ] || { sort "$LOG" | uniq -c > "$T/why"; fail "not the eleven distinct extractors (jobs=$_j)"; }
-  : > "$LOG"; ( cd "$S" && VID_COURT_EVENT=off VID_COURT_JOBS=$_j sh "$OLD" > /dev/null 2>&1 ) || true
-  [ "$(grep -c . "$LOG")" -gt 11 ] || fail "the fixture no longer shows the old double run (jobs=$_j)"
 done
-# --- (2) every census case through a comparing census.sh ----------------------------------------------------------
-cd "$T"; mkdir shim; cp -R "$CHECKS/." shim/
-MM="$T/mismatch"; N="$T/compared"; : > "$MM"; : > "$N"
-cat > shim/census.sh <<SHIM
-#!/bin/sh
-# Purpose: census-oracle shim — runs the 0.9.7.2 census and the new one, serially and in parallel, logs any difference, then runs the new one for its caller
-D=\$(mktemp -d)
-for j in 1 4; do
-  VID_COURT_EVENT=off VID_COURT_JOBS=\$j sh "$OLD" "\$@" > "\$D/o.out" 2> "\$D/o.err" < /dev/null; echo \$? > "\$D/o.st"
-  grep -v 'Broken pipe' "\$D/o.err" > "\$D/o.e2" || true; mv "\$D/o.e2" "\$D/o.err"
-  VID_COURT_EVENT=off VID_COURT_JOBS=\$j sh "$NEW" "\$@" > "\$D/n.out" 2> "\$D/n.err" < /dev/null; echo \$? > "\$D/n.st"
-  for k in out err st; do cmp -s "\$D/o.\$k" "\$D/n.\$k" || echo "\$(pwd) \$* jobs=\$j: \$k differs" >> "$MM"; done
-done
-rm -rf "\$D"; echo x >> "$N"
-exec sh "$NEW" "\$@"
-SHIM
-for c in census census-rendered census-parallel census-subject-space census-parallel-order census-memory census-stderr census-state-machine topology strength-grain; do
-  _n0=$(grep -c . "$N" || true)
-  CHECKS="$T/shim" sh "$CHECKS/selftest/cases/$c.sh" > /dev/null 2>&1 || true
-  [ "$(grep -c . "$N" || true)" -gt "$_n0" ] || fail "case $c never ran the census through the shim"
-done
-[ ! -s "$MM" ] || { cp "$MM" "$T/why"; fail 'a census case differs, old against new'; }
 exit 0

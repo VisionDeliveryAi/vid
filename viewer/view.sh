@@ -27,7 +27,7 @@
 # neighbours and the page, and written only when they change; delegated marks are applied at assembly, from the
 # full events file. Read only (R2): every git call runs with GIT_OPTIONAL_LOCKS=0, and nothing is written into
 # the project. Nothing pops up.
-# Figures (v0.26.10.6 R16, the owner's ruling of 2026-10-20): counts, durations, token counts and dollar estimates
+# Figures (v0.26.10.6 R16): counts, durations, token counts and dollar estimates
 # labelled "API-equivalent, not your bill" — never a percentage, a ratio or a score; a cache share is two counts.
 # Times are elapsed, never compute time.
 # v0.26.10.6 (R1–R15): two more parts — `execution` (the latest snapshot and the index; null in a past one: agents and

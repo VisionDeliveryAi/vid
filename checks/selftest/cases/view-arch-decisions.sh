@@ -8,7 +8,7 @@
 # and D-002 during the build, each with its commit; and with no develop start, or at a commit off HEAD's first-parent
 # history, added and stage are null. Env: CHECKS.
 set -eu
-[ -f "$CHECKS/../viewer/view.sh" ] || exit 0   # the viewer ships in the plugin, not in a project's checks/
+[ -f "$CHECKS/../viewer/view.sh" ] || { echo 'needs viewer/view.sh'; exit 77; }   # the viewer ships in the plugin, not in a project's checks/
 T=$(mktemp -d); trap 'set +e; rm -rf "$T" 2>/dev/null' EXIT
 . "$CHECKS/selftest/fixtures/gated-run.sh"
 . "$CHECKS/selftest/fixtures/plan-run.sh"

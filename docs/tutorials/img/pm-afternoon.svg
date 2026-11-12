@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 190" width="1000" height="190" role="img" aria-label="Where the afternoon goes: the spec about an hour, the build about two hours and twenty minutes, judging about half an hour">
+<rect x="0" y="0" width="1000" height="190" fill="#f6f7f8"/>
+<text x="16" y="18" text-anchor="start" style="fill:#5a6875;font-size:11.5px;font-weight:400;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">WHERE THE AFTERNOON GOES (MINUTES, FROM THE CHECKED RUN)</text>
+<rect x="16.0" y="34" width="251.6" height="46" rx="2" style="fill:#0b5c7a;stroke:#ffffff" stroke-width="2"/>
+<text x="141.79735682819384" y="62" text-anchor="middle" style="fill:#ffffff;font-size:14px;font-weight:600;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">59</text>
+<line x1="141.8" y1="80" x2="141.8" y2="88" style="stroke:#d6dce2" stroke-width="1"/>
+<text x="141.79735682819384" y="100" text-anchor="middle" style="fill:#16202a;font-size:13px;font-weight:600;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">The spec</text>
+<text x="141.79735682819384" y="116" text-anchor="middle" style="fill:#5a6875;font-size:12px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">you answer and approve</text>
+<rect x="267.6" y="34" width="102.3" height="46" rx="2" style="fill:#e2eff4;stroke:#ffffff" stroke-width="2"/>
+<text x="318.7665198237886" y="62" text-anchor="middle" style="fill:#16202a;font-size:14px;font-weight:600;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">24</text>
+<line x1="318.8" y1="80" x2="318.8" y2="126" style="stroke:#d6dce2" stroke-width="1"/>
+<text x="318.7665198237886" y="138" text-anchor="middle" style="fill:#16202a;font-size:13px;font-weight:600;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">Setting up</text>
+<rect x="369.9" y="34" width="149.3" height="46" rx="2" style="fill:#e2eff4;stroke:#ffffff" stroke-width="2"/>
+<text x="444.5638766519824" y="62" text-anchor="middle" style="fill:#16202a;font-size:14px;font-weight:600;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">35</text>
+<line x1="444.6" y1="80" x2="444.6" y2="88" style="stroke:#d6dce2" stroke-width="1"/>
+<text x="444.5638766519824" y="100" text-anchor="middle" style="fill:#16202a;font-size:13px;font-weight:600;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">Writing the tests</text>
+<text x="444.5638766519824" y="116" text-anchor="middle" style="fill:#5a6875;font-size:12px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">each seen to fail</text>
+<rect x="519.2" y="34" width="166.3" height="46" rx="2" style="fill:#e2eff4;stroke:#ffffff" stroke-width="2"/>
+<text x="602.3436123348018" y="62" text-anchor="middle" style="fill:#16202a;font-size:14px;font-weight:600;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">39</text>
+<line x1="602.3" y1="80" x2="602.3" y2="126" style="stroke:#d6dce2" stroke-width="1"/>
+<text x="602.3436123348018" y="138" text-anchor="middle" style="fill:#16202a;font-size:13px;font-weight:600;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">Building</text>
+<rect x="685.5" y="34" width="170.6" height="46" rx="2" style="fill:#e2eff4;stroke:#ffffff" stroke-width="2"/>
+<text x="770.784140969163" y="62" text-anchor="middle" style="fill:#16202a;font-size:14px;font-weight:600;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">40</text>
+<line x1="770.8" y1="80" x2="770.8" y2="88" style="stroke:#d6dce2" stroke-width="1"/>
+<text x="770.784140969163" y="100" text-anchor="middle" style="fill:#16202a;font-size:13px;font-weight:600;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">Review and close</text>
+<text x="770.784140969163" y="116" text-anchor="middle" style="fill:#5a6875;font-size:12px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">two questions to you</text>
+<rect x="856.1" y="34" width="76.8" height="46" rx="2" style="fill:#0b5c7a;stroke:#ffffff" stroke-width="2"/>
+<text x="894.4493392070484" y="62" text-anchor="middle" style="fill:#ffffff;font-size:14px;font-weight:600;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">18</text>
+<line x1="894.4" y1="80" x2="894.4" y2="126" style="stroke:#d6dce2" stroke-width="1"/>
+<text x="894.4493392070484" y="138" text-anchor="middle" style="fill:#16202a;font-size:13px;font-weight:600;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">Try it, read</text>
+<text x="894.4493392070484" y="154" text-anchor="middle" style="fill:#5a6875;font-size:12px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">you</text>
+<rect x="932.8" y="34" width="51.2" height="46" rx="2" style="fill:#0b5c7a;stroke:#ffffff" stroke-width="2"/>
+<text x="958.4140969162996" y="62" text-anchor="middle" style="fill:#ffffff;font-size:14px;font-weight:600;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">12</text>
+<line x1="958.4" y1="80" x2="958.4" y2="88" style="stroke:#d6dce2" stroke-width="1"/>
+<text x="984.0" y="100" text-anchor="end" style="fill:#16202a;font-size:13px;font-weight:600;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">Rule, fix</text>
+<text x="984.0" y="116" text-anchor="end" style="fill:#5a6875;font-size:12px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">you; unfinished</text>
+<rect x="16" y="168" width="12" height="12" rx="2" style="fill:#0b5c7a"/>
+<text x="34" y="179" text-anchor="start" style="fill:#5a6875;font-size:12px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">your time</text>
+<rect x="120" y="168" width="12" height="12" rx="2" style="fill:#e2eff4"/>
+<text x="138" y="179" text-anchor="start" style="fill:#5a6875;font-size:12px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">ViD builds; you are free</text>
+</svg>

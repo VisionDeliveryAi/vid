@@ -1,5 +1,5 @@
 #!/bin/sh
-# Purpose: selftest case — one shared test ledger (v0.9.7.1 spec 3.9, R9; owner 2026-10-12, the 22:32 collision).
+# Purpose: selftest case — one shared test ledger (v0.9.7.1 spec 3.9, R9): two runs once collided on one ledger.
 # The job fixture. Convicts unless `run` refuses to launch when the worktree's home doesn't resolve to the run's
 # (its .vid/home removed), naming home-of, and launches nothing; and `status` reports a ticket carrying the try
 # under the worktree's own .vid/requests/ as a `coordination fault`, recorded once as an incident. Env: CHECKS.

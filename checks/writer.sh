@@ -4,20 +4,24 @@
 # calls no outside service (checks/github.sh posts what it writes). Everything quoted is read at ViD's HEAD, the spec
 # export's commit. Its records: .vid/tw/settings (repo:, spec-repo:, labels-prefix:, open-tickets:), .vid/tw/handed
 # (what later roles hand in, each line ending `| stand-in: <who>` until their stages: `engines <primary> <other>…`,
-# `engine-split <row>`, `closed <step>`, `row <id> <state> [fault-proven]`, `fix <row> | <reason> | <links>`, `lesson
-# <ids> | <words>`, `reached <row> <REQ|INV id>`, `candidate <stage>`), .vid/tw/log (github.sh's), .vid/tw/out/.
+# `engine-split <row>`, `closed <step>`, `row <id> <state> [fault-proven]`, `fix <row> [<row> …] | <reason> | <links>`, `lesson
+# <ids> | <words>`, `reached <row> <REQ|INV id> [<the landing>]`, `candidate <stage>`), .vid/tw/log (github.sh's), .vid/tw/out/.
 #   gate      exit 0 only when planner.sh ratified exits 0, the newest publish-approved event's words are the newest
 #             ratification's, the settings name repo:, spec-repo: (another repository), labels-prefix: (empty counts)
 #             and, when set, an open-tickets: of 1 or more, and no exported or quoted file has an uncommitted change;
 #             else one line per thing missing, exit 1
-#   write skeleton | step <S> | fix <row> | reached | amend <n>   the gate first; then the ticket into
+#   write skeleton | step <S> | fix <key|row> | reached | amend <n>   the gate first; then the ticket into
 #             .vid/tw/out/<kind>-<arg>.md, its path printed, and <file>.meta (its log line's fields, then `sent <row>
 #             <hash>` per row) for github.sh tw-post; then the check. A step ticket holds the started step's rows less
-#             known limits, rows in an open ticket and rows sent unchanged; a fix ticket the oldest unpublished fix ask
-#             of the row, in the row's own started step; `reached` the rows a ruling reached, in a ticket of their own;
+#             known limits, rows in an open ticket and rows sent unchanged; a fix ticket one unpublished fix line,
+#             by its key or the oldest holding the row, its rows less known limits, in the step of the close it names
+#             (`close #<n> of <S>`), else the first row's own started step (v0.26.10.25.4 R1, R2); `reached` the rows a ruling reached, in a ticket of their own;
 #             `amend <n>` open ticket n again, its rows as the plan now holds them, naming the plan change or export.
 #             Every new ticket carries the rows of rulings no ticket has listed (a ruling is a handed reached line, so a
 #             row a later ruling reaches goes out again), and the retired rows whose tests TA removes.
+#             v0.26.10.25.5 (R4): an id landed (.vid/decide/landed) after a ticket was published is never added to it, and an amendment
+#             drops it; a started step's landed rows owe a step ticket of their own at once, beside any open ticket of the step, the
+#             skeleton's step too; a reached line is known by its row, item and landing, so a second change reaches the row again.
 #             Every ticket's Further reading (§1.1 §8) names the spec repository, then each file of its export by path
 #   check <file>   exit 1, one line per refusal (`line <k>: <shape> — <word>`, or `item: …`): an item of the kind
 #             missing, empty or out of order; a part over 60,000 bytes; outside the quoted lines (`> ` in The step,
@@ -28,7 +32,7 @@
 #             checked too, and Further reading may quote only a path of the export the header names (.vid/spec.git).
 #             v0.26.10.12.3.1: an `owed: prerequisite` note in a row line; anywhere
 #             but the header (the title too), a pointer into ViD's
-#             records (a .vid/ path, an artifact link or id); in a quoted decision or an answer of Requirements, one of
+#             records (a .vid/ path, a path into ViD's checks/, an artifact link or id); in a quoted decision or an answer of Requirements, one of
 #             the three forms the writer rewrites (owner chose "…", owner: "…", A: "…"; ); anywhere, profanity. The writer
 #             drops the note, writes "(ViD's records)" for a pointer, and rewrites those three forms; other quotes stay.
 #   parts <file> <issue> <dir>   the ticket as one issue's body and comments, each at most 60,000 bytes, its sections
@@ -36,25 +40,31 @@
 #   due       what the round owes, one line each: `withdraw <n> [decision=<D> what=<w>]` (its step left the plan, by
 #             that newest change of its rows), `amend <n>` (rewritten, its rows or quoted text differ), then `new
 #             skeleton|step <S>` (a started step with no ticket, or its rows changed after its tickets closed), `new fix
-#             <row>`, and `new reached` when nothing else is new
+#             <key>` for a fix line with a row no known limit, and `new reached` when nothing else is new. A fix line's key
+#             is a hash of its text less its stand-in label, never its place in the record (v0.26.10.25.4 R2)
 #   fresh <file> [<n>]   exit 1, one line per thing moved since the file was written (github.sh tw-post asks it first):
 #             the plan's recorded hash, the newest export, or its ticket work (new, or the amendment of #n) not owed now
-# Usage: sh checks/writer.sh gate | write skeleton|step <S>|fix <row>|reached|amend <n> | check <file> | parts <f> <n> <dir> | due | fresh <file> [<n>]
+#   pending   (v0.26.10.26.7, R9) the reached rows of rulings no open ticket holds yet, `<row> <step>` a line (`-` in no step)
+# Usage: sh checks/writer.sh gate | write skeleton|step <S>|fix <row>|reached|amend <n> | check <file> | parts <f> <n> <dir> | due | pending | fresh <file> [<n>]
+# serves: tickets (0.26.10.28.4, M9)
 set -eu
+LC_ALL=C; export LC_ALL
 HERE=$(cd "$(dirname "$0")" && pwd)
+. "$HERE/lib.sh"   # 0.26.10.28.4 (9.3 R3): the shared helpers, lib.sh beside this file
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 die() { echo "ViD writer: $*" >&2; exit 2; }
 ref() { echo "ViD writer: refused — $*" >&2; exit 1; }
-now() { date -u '+%Y-%m-%dT%H:%M:%SZ'; }
 LOG=.vid/tw/log; HAND=.vid/tw/handed; OUT=.vid/tw/out; SET=.vid/tw/settings; LIM=60000
-TR='function tr(s) { gsub(/^[ \t]+|[ \t]+$/, "", s); return s }'
+TR=$RNG' function tr(s) { gsub(/^[ \t]+|[ \t]+$/, "", s); return s }'   # rng, the row-range expander, from lib.sh (0.26.10.28.4)
 WHOLE='function has(s, id,   p, q, b, a) { q = s; while ((p = index(q, id)) > 0) { b = (p > 1) ? substr(q, p - 1, 1) : ""; a = substr(q, p + length(id), 1); if (b !~ /[A-Za-z0-9_-]/ && a !~ /[A-Za-z0-9_-]/) return 1; q = substr(q, p + 1) } return 0 }'
 KV='function kv(k,   i) { for (i = 2; i <= NF; i++) if (index($i, k "=") == 1) return substr($i, length(k) + 2); return "" }'
-# A1 (Amendment 1): ptr, a pointer into ViD's records (an artifact id holds a digit; unptr writes each as "(ViD's
+# A1 (Amendment 1): ptr, a pointer into ViD's records (an artifact id holds a digit; v0.26.10.24.2: a word that begins
+# checks/ and names a file or a deeper path, never a path within a product's own src/checks/, nor the words health checks/alarms; unptr writes each as "(ViD's
 # records)"); isr, a ruling line — a quoted decision, or an answer in Requirements, AMENDED or not; unq, its three
 # rewrites and nothing else (owner chose "…" one or more, owner: "…", an answer's own A: "…"; ), check refusing any
 # left (rw, a whole-word rewrite); prof, a word of the check's own list
 A1='function ptr(l,   n, w, i, a, x) { if (match(l, /(https?:\/\/)?claude\.ai\/[^ \t)]*artifact\/[A-Za-z0-9_-]+/) || match(l, /[^ \t"(),;]*\.vid\/[^ \t"(),;]*/)) return substr(l, RSTART, RLENGTH)
+    if (match(l, /(^|[^A-Za-z0-9_.\/-])(\.\/)?checks\/[A-Za-z0-9_.-]+(\/|\.[a-z])[A-Za-z0-9_.\/-]*/)) { x = substr(l, RSTART, RLENGTH); sub(/^[^A-Za-z0-9_.\/-]/, "", x); sub(/\.$/, "", x); return x }
     n = split(l, w, /[ \t]+/); for (i = 1; i < n; i++) { a = w[i]; sub(/^[^A-Za-z]+/, "", a); sub(/[^A-Za-z]+$/, "", a); x = w[i + 1]; sub(/^[^A-Za-z0-9_-]+/, "", x); sub(/[^A-Za-z0-9_-]+$/, "", x)
       if (tolower(a) ~ /^artifacts?$/ && x ~ /^[A-Za-z0-9_-]+$/ && x ~ /[0-9]/ && length(x) >= 16 && match(l, a "[^A-Za-z0-9_ \t-]*[ \t]+[^A-Za-z0-9_ \t-]*" x)) return substr(l, RSTART, RLENGTH) } return "" }
   function unptr(l,   p, i) { while ((p = ptr(l)) != "") { i = index(l, p); l = substr(l, 1, i - 1) "(ViD\047s records)" substr(l, i + length(p)) } return l }
@@ -66,11 +76,8 @@ A1='function ptr(l,   n, w, i, a, x) { if (match(l, /(https?:\/\/)?claude\.ai\/[
 SP=' /^[ \t]*step[ \t]/ { n = split($0, f, "|"); id = tr(f[1]); sub(/^step[ \t]+/, "", id); nm = ""; md = ""; bo = ""; rw = ""; kd = ""
       for (i = 2; i <= n; i++) { x = tr(f[i]); if (x ~ /^name:/) nm = tr(substr(x, 6)); else if (x ~ /^modules:/) md = tr(substr(x, 9)); else if (x ~ /^builds-on:/) bo = tr(substr(x, 11)); else if (x ~ /^rows:/) rw = substr(x, 6); else if (x ~ /^kind:/) kd = tr(substr(x, 6)) }
       gsub(/\t/, " ", rw); m = split(rw, t, /[ ,]+/); r = ""
-      for (j = 1; j <= m; j++) { x = t[j]; if (x == "") continue; if (x !~ /\.\./) { r = r " " x; continue }
-        a = x; sub(/\.\..*/, "", a); b = x; sub(/.*\.\./, "", b); p = a; sub(/-[0-9]+$/, "", p); lo = a; sub(/^.*-/, "", lo); hi = b; sub(/^.*-/, "", hi); w = length(lo)
-        for (k = lo + 0; k <= hi + 0; k++) r = r " " sprintf("%s-%0" w "d", p, k) }
+      for (j = 1; j <= m; j++) { x = t[j]; if (x == "") continue; r = r " " rng(x) }
       print id "\t" nm "\t" md "\t" (bo == "-" ? "" : bo) "\t" substr(r, 2) "\t" kd }'
-twkey() { sed -n "s/^$1:[[:space:]]*//p" "$SET" 2>/dev/null | head -n 1 | sed 's/[[:space:]]*$//'; }
 twhas() { grep -q "^$1:" "$SET" 2>/dev/null; }
 specpaths() { printf '%s\n' PRD.md INVENTORY.md STAGES.md GRADING-CHECKLIST.md ARCHITECTURE.md PLAN.md DECISIONS.md BASELINE.md CLAUDE.md design
   sed -n 's/.*|[[:space:]]*golden:[[:space:]]*\([^ |]*\).*/\1/p' INVENTORY.md 2>/dev/null | sort -u; }
@@ -94,7 +101,7 @@ gate() {
 # $T/prd, $T/dec (DECISIONS.md's decision lines), $T/arch; $T/rows (planner.sh rows); PH and PF (the plan's recorded
 # hash, read from the plan-change event's own hash= field, and its kept file); $T/steps (`id name modules builds rows
 # kind`, tab-separated, ranges expanded); $T/st (the handed records, tab-separated: eng, split, closed, rs <row> <state>
-# <fp|->, fix <line> <row> <why> <links>, lesson <ids> <words>, reached <row> <item> <line>); $T/lg (the log)
+# <fp|->, fix <key> <rows,…> <why> <links>, lesson <ids> <words>, reached <row> <item> <line>); $T/lg (the log)
 load() {
   [ -f PRD.md ] && [ -f INVENTORY.md ] || die "no PRD.md or INVENTORY.md here — run at the top of ViD's repository"
   git show HEAD:INVENTORY.md > "$T/invf" 2>/dev/null || die 'no INVENTORY.md at HEAD'
@@ -109,6 +116,10 @@ load() {
   [ -n "$PH" ] && [ -f "$PF" ] || die 'no recorded plan (sh checks/plan.sh change create …)'
   awk "$TR$SP" "$PF" > "$T/steps"
   mkdir -p .vid/tw "$OUT"; touch "$LOG" "$HAND"; cp "$LOG" "$T/lg"
+  # v0.26.10.27.3 (8.1b R2): the log with every ticket withdrawn closed-outside read as never published (its published, amended and
+  # sent lines out), for what a step is owed; a plan change's withdrawal stays as it is
+  awk '$1 == "withdrawn" && $3 == "decision=closed-outside" { print $2 }' "$T/lg" | sort -u > "$T/cow"
+  awk -v C="$T/cow" 'BEGIN { while ((getline l < C) > 0) W[l] = 1 } ($1 == "published" || $1 == "amended") && ($2 in W) { next } $1 == "sent" { for (i = 3; i <= NF; i++) if ($i ~ /^ticket=/ && (substr($i, 8) in W)) next } { print }' "$T/lg" > "$T/lgc"
   awk -v ST="$T/st" -v BAD="$T/badh" '{ l = $0; if (l ~ /^[ \t]*(#|$)/) next
       if (l !~ /[|][ \t]*stand-in/) { print "line " FNR ": no stand-in label" > BAD; next }
       sub(/[ \t]*[|][ \t]*stand-in.*$/, "", l); n = split(l, w, " "); split(l, p, /[ \t]*[|][ \t]*/)
@@ -116,11 +127,13 @@ load() {
       else if (w[1] == "engine-split" && n == 2) print "split\t" w[2] > ST
       else if (w[1] == "closed" && n == 2) print "closed\t" w[2] > ST
       else if (w[1] == "row" && w[3] ~ /^(accepted|accepted-by-ruling|owed|paid|failing|held|known-limit|retired)$/) print "rs\t" w[2] "\t" w[3] "\t" (w[4] == "fault-proven" ? "fp" : "-") > ST
-      else if (w[1] == "fix" && w[3] == "|" && p[2] != "") print "fix\t" FNR "\t" w[2] "\t" p[2] "\t" p[3] > ST
+      else if (w[1] == "fix" && p[2] != "" && (rs = p[1]) ~ /^fix[ \t]+[A-Z]+-[0-9]/) { sub(/^fix[ \t]+/, "", rs); gsub(/[ \t]+/, ",", rs); print "fixr\t" l "\t" rs "\t" p[2] "\t" p[3] > ST }
       else if (w[1] == "lesson" && w[3] == "|" && p[2] != "") print "lesson\t" w[2] "\t" p[2] > ST
-      else if (w[1] == "reached" && w[3] ~ /^(REQ|INV)-[0-9]+$/) print "reached\t" w[2] "\t" w[3] "\t" FNR > ST
-      else if (w[1] != "candidate") print "line " FNR ": out of form" > BAD }' "$HAND"
+      else if (w[1] == "reached" && w[3] ~ /^[A-Z]+-[0-9]+$/) print "reached\t" w[2] "\t" w[3] "\t" ((w[4] ~ /^[0-9a-f]+$/) ? w[2] ":" w[3] ":" w[4] : FNR) > ST
+      else if (w[1] != "candidate" && w[1] != "staged" && w[1] != "setup-hold" && w[1] != "stage-closed" && w[1] != "production") print "line " FNR ": out of form" > BAD }' "$HAND"   # v0.26.10.26.2: staged and setup-hold too, plan.sh reads them
   touch "$T/st" "$T/badh"; [ ! -s "$T/badh" ] || ref ".vid/tw/handed: $(paste -sd ';' "$T/badh")"
+  # R2: a fix line known by a hash of its text
+  { grep -v '^fixr	' "$T/st" || true; awk -F'\t' '$1 == "fixr"' "$T/st" | while IFS='	' read -r _x l rs y z; do printf 'fix\t%s\t%s\t%s\t%s\n' "$(printf '%s' "$l" | cksum | cut -d' ' -f1)" "$rs" "$y" "$z"; done; } > "$T/st2"; cat "$T/st2" > "$T/st"
 }
 sv() { awk -F'\t' -v k="$1" '$1 == k { v = $2 } END { print v }' "$T/st"; }
 state() { awk -F'\t' -v r="$1" '$1 == "rs" && $2 == r { v = $3 } END { print v }' "$T/st"; }
@@ -136,7 +149,9 @@ srows() { awk -F'\t' -v s="$1" '$1 == s { print $5 }' "$T/steps" | tr ' ' '\n' |
 rline() { awk -F'|' "$TR"' { k = tr($1); id = (k ~ /^(rule|difference|exception|suppression|hostility|seam)$/) ? tr($2) : k } id == r { print; exit }' r="$1" "$T/inv"; }
 rhash() { rline "$1" | git hash-object --stdin | cut -c1-12; }
 # sentin <row> <step>: the row's hash as a ticket of that step last sent it (a row moved in from another step is unsent)
-sentin() { awk "$KV"' ($1 == "published" || $1 == "amended") && kv("step") == s { K[$2] = 1 } $1 == "sent" && $2 == r && (kv("ticket") in K) { h = kv("hash") } END { print h }' r="$1" s="$2" "$T/lg"; }
+sentin() { awk "$KV"' ($1 == "published" || $1 == "amended") && kv("step") == s { K[$2] = 1 } $1 == "sent" && $2 == r && (kv("ticket") in K) { h = kv("hash") } END { print h }' r="$1" s="$2" "$(lgof "$2")"; }
+# lgof <step>: the log a step is owed by: closed-outside tickets as never published, but for a step of a closed stage (nothing owed again there)
+lgof() { r0=$(srows "$1" | head -n 1); g0=$(awk -F'\t' -v r="$r0" '$1 == r { print $5; exit }' "$T/rows"); if [ -n "$g0" ] && grep -q "^stage-closed $g0 " "$HAND" 2>/dev/null; then echo "$T/lg"; else echo "$T/lgc"; fi; }
 lim() { awk -F'\t' -v r="$1" '$1 == r && $2 == "row" && $6 ~ /^(limit|later|record)$/ { f = 1 } END { exit !f }' "$T/rows" || case "$(state "$1")" in known-limit|retired) true ;; *) false ;; esac; }
 owed() { awk -F'\t' -v r="$1" '$1 == r && $2 == "row" && $7 ~ /(^| )(owed-[a-z]+|seam)( |$)/ { f = 1 } END { exit !f }' "$T/rows"; }
 
@@ -194,6 +209,11 @@ reqs() {
     BEGIN { while ((getline l < jf) > 0) { J[++nj] = l; JS[l] = 1 } while ((getline l < saf) > 0) SA[++ns] = l; while ((getline l < sbf) > 0) SB[l] = 1
       while ((getline l < dbf) > 0) DB[l] = 1; while ((getline l < smf) > 0) SM[l] = 1 }
     function mnm(s) { gsub(/\./, "/", s); sub(/\/+$/, "", s); return s }
+    # 0.26.10.28.5 (R2): a decision about the settings of ViD itself never reaches a ticket, whatever its label or join: it carries the mark
+    # `| about: vid-settings` beside its label, or it records keys of the records of ViD (.vid/budget and its keys), as a project made before the mark has it
+    function own(   n, t, k, f) { n = split($0, t, "|"); for (k = 2; k <= n; k++) { f = t[k]; gsub(/^[ \t]+|[ \t]+$/, "", f); if (f ~ /^about:[ \t]*vid-settings$/) return 1 }
+      return (index($0, ".vid/budget") || $0 ~ /(^|[^A-Za-z0-9_-])(stacks|memory-headroom-mb|claims-per-slice|wall-hours-per-slice|court-seconds|builder-context-tokens|chunk-seconds|unverified-rows|env-mb|silence-minutes|startup-minutes|run-limit-minutes|builders-target|builder-tool|codex-model|codex-effort)=/) }
+    own() { next }
     { hit = 0; for (i = 1; !hit && i <= nj; i++) if (has($0, J[i])) hit = 1
       lab = label()
       for (i = 1; !hit && i <= nap; i++) if ((AP[i] in JS) || (AP[i] in SB) || (AP[i] in DB)) hit = 1
@@ -205,15 +225,16 @@ reqs() {
 # seam's evidence paths, module:, match:), quoted, then its marks, a fix's reason. A rule's or hostility row's test or
 # census field that is one path is the path left out
 rowsec() {
-  awk -F'|' -v ST="$T/rows" "$TR"' BEGIN { while ((getline l < ST) > 0) { split(l, a, "\t"); if (a[2] == "row") { M[a[1]] = a[7]; if (index(a[11], "actor: (process)") || a[7] ~ /journey/) P[a[1]] = 1 } } }
+  awk -F'|' -v ST="$T/rows" "$TR$A1"' function clean(v,   n, a, i, o) { n = split(v, a, " "); o = ""; for (i = 1; i <= n; i++) o = o (o == "" ? "" : " ") (prof(a[i]) != "" ? "(a word)" : a[i]); return o }
+    BEGIN { while ((getline l < ST) > 0) { split(l, a, "\t"); if (a[2] == "row") { M[a[1]] = a[7]; if (index(a[11], "actor: (process)") || a[7] ~ /journey/) P[a[1]] = 1 } } }
     { k = tr($1); id = (k ~ /^(rule|difference|exception|suppression|hostility|seam)$/) ? tr($2) : k; m = split($0, f, "|"); o = ""
       for (i = 1; i <= m; i++) { x = tr(f[i]); y = x; sub(/[ \t].*/, "", y)
         if (x ~ /^(proved-red|golden|module|match):/ || (x ~ /^evidence:/ && x !~ /^evidence:[ \t]*owed$/) || (k ~ /^ROW-/ && i == 8 && x !~ /^owed:/ && y ~ /\//) || x ~ /^owed:[ \t]*prerequisite/ || (k ~ /^(rule|hostility)$/ && i >= 4 && x !~ /[ \t:]/ && x ~ /\//)) continue
         o = o (o == "" ? "" : "|") f[i] }
       sub(/[ \t]+$/, "", o); print "> " o; print "- " id " marks: " (M[id] == "" ? "none" : M[id]) (id in P ? "; run with the product'"'"'s processes" : "")
-      if (W != "") print "- " id " failed: " W }' W="${WHY:-}" "$T/rl"; }
+      if (W != "") { m = split(W, wp, "; "); v = W; for (j = 1; j <= m; j++) if (index(wp[j], id ": ") == 1) { v = substr(wp[j], length(id) + 3); break } print "- " id " failed: " clean(v) } }' W="${WHY:-}" "$T/rl"; }
 # lists: $T/reg and $T/flt — the regression rows (accepted or by ruling, of the golden path, a journey, a protection row
-# with fault-proven, a shell or reachability row, a row of a bug finding, a reached row; never a known limit, a
+# with fault-proven, a shell or reachability row, a rule row (v0.26.10.26.4 R5), a row of a bug finding, a reached row; never a known limit, a
 # deploy-owed row or the ticket's own) and the faulted rows (the ticket's rows not deploy-owed: every protection row with
 # its disable: note, a journey's lowest transition, every other row whose number is a multiple of ten); a reached-rows
 # ticket's rows are regression rows, faulted only when retested (T4)
@@ -229,11 +250,13 @@ lists() {
           if (has(m, "protection")) { print "- " r ": make this row'"'"'s fail-if true, and nothing else; its disable: note, quoted:" > FL; d = dis[r]; sub(/[ \t]+$/, "", d); print "> " (d == "" ? "disable: none" : d) > FL }
           else if (has(m, "journey")) print "- " ft[r] " (of the journey " r "): make this transition'"'"'s fail-if true, and nothing else" > FL
           else if (k % 10 == 0) print "- " r ": make this row'"'"'s fail-if true, and nothing else" > FL; continue }
-        if ((S[r] == "accepted" || S[r] == "accepted-by-ruling") && !ow && cl[r] != "limit" && (has(G, r) || has(m, "journey") || (has(m, "protection") && F[r] == "fp") || has(m, "shell") || has(m, "reachability") || bug[r] || has(RC, r))) print "- " r > RG } }' "$T/rows"
+        if ((S[r] == "accepted" || S[r] == "accepted-by-ruling") && !ow && cl[r] != "limit" && (has(G, r) || has(m, "journey") || (has(m, "protection") && F[r] == "fp") || has(m, "shell") || has(m, "reachability") || has(m, "rule") || bug[r] || has(RC, r))) print "- " r > RG } }' "$T/rows"   # v0.26.10.26.4 (R5): an accepted rule row, kept armed
   touch "$T/reg" "$T/flt"; }
 q_() { if [ -s "$1" ]; then q "$1"; else echo none; fi; }
+# laws: the sections of CLAUDE.md that bind the product, Import law and Design law, quoted; 0.26.10.28.1 (stage 9 R6, LW-03):
+# the complexity law is this plugin's own law for ViD's checks, never quoted into a ticket
 laws() { git cat-file -e HEAD:CLAUDE.md 2>/dev/null || { echo 'none: the project has no CLAUDE.md'; return 0; }
-  git show HEAD:CLAUDE.md | awk '/^## / { on = ($0 ~ /^## (Import law|The complexity law|Design law)/); sk = 0 } on && /^```vid-placement/ { sk = 1; next } sk && /^```/ { sk = 0; next } on && !sk' > "$T/law"
+  git show HEAD:CLAUDE.md | awk '/^## / { on = ($0 ~ /^## (Import law|Design law)/); sk = 0 } on && /^```vid-placement/ { sk = 1; next } sk && /^```/ { sk = 0; next } on && !sk' > "$T/law"
   if [ -s "$T/law" ]; then q "$T/law"; else echo 'none: no section of CLAUDE.md binds the product'; fi; }
 stack() { printf 'The stack, decided at init:\n\n'; { git show HEAD:BASELINE.md 2>/dev/null || true; } | awk '/^## Stack[ \t]*$/ { on = 1; next } on && /^## / { exit } on' > "$T/sk"; q_ "$T/sk"
   printf '\nThe hosting, decided at init:\n\n'; sed -n '/^```vid-hosting[[:space:]]*$/,/^```[[:space:]]*$/p' "$T/arch" | grep -v '^```' > "$T/ho" || true; q_ "$T/ho"; }
@@ -241,18 +264,21 @@ engines() { set -- $(sv eng); printf '\n## Engines\n\n- primary: %s\n' "$1"; shi
   if grep -q '^split' "$T/st"; then for e; do printf -- '- also: %s\n' "$e"; done; printf '\nEvery engine is asked: a row has failed in one engine and passed in another.\n'
   else printf '\nThe primary alone is asked: no row has yet failed in one engine and passed in another.\n'; fi; }
 reached() { if [ -n "$REACH" ]; then for r in $REACH; do i=$(awk -F'\t' -v r="$r" '$1 == "reached" && $2 == r { v = $3 } END { print v }' "$T/st")
-      printf -- '- %s, its requirement %s changed%s:\n' "$r" "$i" "$(! owed "$r" || echo '; deploy-owed, so no regression row: kept, its state stands; rewritten, it is retested and owed again')"
-      awk -F'|' -v r="$i" '{ id = $1; gsub(/^[ \t]+|[ \t]+$/, "", id) } id == r { print "> " $0; exit }' "$T/eff"; done
+      case $i in REQ-*|INV-*) w="its requirement $i" ;; *) w="the line $i it rests on" ;; esac
+      printf -- '- %s, %s changed%s:\n' "$r" "$w" "$(! owed "$r" || echo '; deploy-owed, so no regression row: kept, its state stands; rewritten, it is retested and owed again')"
+      case $i in REQ-*|INV-*) awk -F'|' -v r="$i" '{ id = $1; gsub(/^[ \t]+|[ \t]+$/, "", id) } id == r { print "> " $0; exit }' "$T/eff" ;; *) rline "$i" | sed 's/^/> /' ;; esac; done
   else echo none; fi; printf '\nThe retired rows whose tests TA removes: %s.\n' "${RET:-none}"; }
 hist() { for r in $(cat "$T/ids"); do
     t=$(awk "$KV"' $1 == "published" && $2 != n && index("," kv("rows") ",", "," r ",") { printf "%s#%s", (c++ ? ", " : ""), $2 }' r="$r" n="$NUM" "$T/lg")
-    x=$(awk -F'\t' -v r="$r" '$1 == "fix" && $3 == r && $5 != "" { printf "%s%s", (c++ ? "; " : ""), $5 }' "$T/st")
+    x=$(awk -F'\t' -v r="$r" '$1 == "fix" && index("," $3 ",", "," r ",") && $5 != "" { printf "%s%s", (c++ ? "; " : ""), $5 }' "$T/st")
     [ -z "$t$x" ] || printf -- '- %s: its earlier tickets %s; its failing decisions, fix tickets and runs: %s.\n' "$r" "${t:-none}" "${x:-none}"; done > "$T/hi"
   if [ -s "$T/hi" ]; then cat "$T/hi"; else echo 'none: no row of this ticket has an earlier attempt'; fi; }
 # reading (§1.1 §8): the spec repository by name, then each file of the export the ticket rests on, by its path there
 xpaths() { git --git-dir=.vid/spec.git ls-tree -r -z --name-only "$1" > "$T/xz" 2>/dev/null && tr '\0' '\n' < "$T/xz"; }
 reading() { xpaths "$EXP" > "$T/xr" || ref "the export $EXP is not in .vid/spec.git: sh checks/github.sh spec-export"
   printf 'The spec repository, https://github.com/%s, at the export %s; each of its files, by its path there:\n\n' "$(twkey spec-repo)" "$EXP"; q "$T/xr"; }
+# known (v0.26.10.25.3, R4): the findings the owner ruled known, each quoted, so a later grader reads them as the ticket's own words
+known() { if [ -s .vid/tw/known-findings ]; then q .vid/tw/known-findings; else echo none; fi; }
 lessons() { awk -F'\t' -v IDS="$T/ids" 'BEGIN { while ((getline l < IDS) > 0) W[l] = 1 } $1 == "lesson" { n = split($2, a, ","); for (i = 1; i <= n; i++) if (a[i] in W) { print "- " $3 " (" $2 ")"; c++; break } } END { if (!c) print "none" }' "$T/st"; }
 roles() { cat <<'R'
 DevAgent's roles; each report names the role that made it:
@@ -264,25 +290,28 @@ DevAgent's roles; each report names the role that made it:
 - BU, builder: writes the product code until the row tests and the regression rows pass.
 - FX, fixer: fixes the failing rows of an open pull request, and builds fix tickets.
 - GR, grader: gives each row its verdict, and writes each needed fault's change.
-- RV, reviewer: does DevAgent's own review of the code, asks for ViD's decision, and merges once ViD accepts.
+- SR, second reviewer: sorts GR's breached and unclear lines, once a ticket.
+- MR, merger: does DevAgent's own review of the code, asks for ViD's decision, and merges once ViD accepts.
 - DP, deployer: deploys on ViD's okay, and reports each deploy.
 
 The independence rules, which ViD takes DevAgent's word it keeps:
 
 1. TA, TM and GR are never BU or FX. TA and TM may be one agent.
-2. GR is a separate agent, never TA or TM, in a fresh context: it reads the code, the tests and the results, never the reasoning of BU, FX, TA or TM. A GR grading a later head is not told an earlier decision or a fix, and checks with cases of its own.
+2. GR is a separate agent, never TA or TM, in a fresh context: it reads the code, the tests and the results, never the reasoning of BU, FX, TA or TM. A GR writing a break at a later head is not told an earlier decision or a fix. In a fix ticket, GR reads the ticket without its failed: lines, its History and the why: of each decision: the rows, the code and the results alone.
 3. BU and FX never write, change or weaken a test.
 4. Only TM's test runs are reported. DP reports deploys, and the deploy steps that are no row.
 5. TA never weakens a test below its row's promise. It may correct a test that asks more than the promise; the row is then retested.
-6. DM, AN, RV and DP may be any of DevAgent's agents, but each report names its role.
+6. DM, AN, MR and DP may be any of DevAgent's agents, but each report names its role.
+7. SR is a fresh agent, never the GR, BU, FX or TA of the ticket. It is given no earlier sorting, no fix history, no spend or time, no count either way, and no push to find problems, clear them, finish a ticket or keep it open.
+8. DevAgent reads the spec repository's main alone: its other branches hold ViD's records, and are no part of the spec.
 R
 }
 asks() {
   t3='- T3 (TM): at the pull request'"'"'s head, run every row and every regression row, in each asked engine.'
-  t4='- T4 (GR, then TM): at the same head, GR writes each needed fault'"'"'s change, always: make this row'"'"'s fail-if true, and nothing else. TM plants it and runs the faulted row'"'"'s test and the control'"'"'s, in the primary engine; TM picks each control, a row that passed at this head'"'"'s T3. The needed faults: the faulted rows'"'"', each row with no red'"'"'s, each retested row'"'"'s.'
-  t5='- T5 (GR): once the ticket is built, grade each row against its fail-if, the grading checklist and the test differences, a screen row also against the design.'
+  t4='- T4 (GR, then TM): at the same head, GR writes each needed fault'"'"'s change: make this row'"'"'s fail-if true, and nothing else; a later head may plant a row'"'"'s earlier patch again. TM plants it and runs the faulted row'"'"'s test and the control'"'"'s, in the primary engine; TM picks each control, a row or another case of the faulted row that passed at this head'"'"'s T3. The needed faults: the faulted rows'"'"', each row with no red'"'"'s, each retested row'"'"'s.'
+  t5='- T5 (GR, SR): at the ticket'"'"'s first head alone, two fresh GRs, each in its own blind copy, grade each row against its fail-if, the grading checklist and the test differences, a screen row also against the design, and their lines are combined. SR sorts what the grade leaves, once. No later head has a grade or a sort.'
   case $K in
-    reached) echo '- T1 (TA): for each row, keep its test when the changed clause is not one it tests, or rewrite it; when unsure, rewrite it. A rewritten test makes its row retested.'; echo "$t3"; echo "$t4" ;;
+    reached) echo '- T1 (TA): for each row, keep its test when the changed clause is not one it tests, or rewrite it; when unsure, rewrite it. A rewritten test makes its row retested. When every test is kept, commit nothing but one empty commit naming the kept rows, so the pull request has a head.'; echo "$t3"; echo "$t4" ;;   # v0.26.10.26.7 (R6, W-8)
     *) echo '- T1 (TA): write at least one test per row, per transition for a journey, its name matching the row'"'"'s id.'
       if [ "$K" = skeleton ]; then echo '- T3 (TM): at the pull request'"'"'s head, run every row in each engine you declare. The head report declares the engines, the primary first, and how many test environments you run.'
         echo '- T4 (GR, then TM): at the same head, the skeleton'"'"'s fault: GR writes the change that makes its rows'"'"' fail-if true, and nothing else; TM plants it and runs the rows'"'"' tests in the primary engine, with no control.'; echo "$t5"
@@ -293,13 +322,13 @@ asks() {
         echo "$t3"; echo "$t4"; echo "$t5"; fi ;;
   esac; echo
   awk -F'\t' -v IDS="$T/ids" 'BEGIN { while ((getline l < IDS) > 0) W[l] = 1 } ($1 in W) && $2 == "row" { m = " " $7 " "
-      if (index(m, " protection ")) print "- " $1 ": its test'"'"'s failure message carries the line vid-forbidden-effect: " $1 "."
+      if (index(m, " protection ")) print "- " $1 ": its test'"'"'s failure message carries the line vid-forbidden-effect: " $1 ". A protection row names something that must never happen, and the line marks evidence of that thing alone."
       if (index(m, " seam ")) print "- " $1 ": the seam'"'"'s probe: its test makes one real action through the service, on staging."
       if (index(m, " rule ")) print "- " $1 ": the report gives the number of places its test covered; zero places means the row fails."
       if ($1 ~ /^DIF-/) print "- " $1 ": a test difference: the test environment uses its test value as the stand-in, and the report names it."
       if (index($11, "actor: (process)") || index(m, " journey ")) print "- " $1 ": run with the product'"'"'s own declared processes, not inline."
       if (m ~ / (owed-[a-z]+|seam) /) D = D " " $1 } END { if (D != "") print "- Deploy-owed rows take part in T1 and T5 only:" D "." }' "$T/rows"
-  printf '\nQuestions: label this issue %sblocked, and write the question and the rows or step it concerns; a question that need not stop the work goes without the label.\n\nResults: every report in ViD'"'"'s results format, by name: ViD results format 1.\n' "$PFX"; }
+  printf '\nQuestions: a product question goes as a comment on this issue, its pull request or a run ask, its first line beginning Question: and naming the rows or step it concerns. Label the issue %sblocked only when the work cannot go on without the answer; otherwise build on your default, and say the default in the question.\n\nA decision line beginning analyst due asks for DevAgent'"'"'s test analyst on the cases that could not run.\n\nResults: every report in ViD'"'"'s results format, by name: ViD results format 1.\n\nWork on any branch, from the base above; open one pull request into main whose body begins ticket: #, then this issue'"'"'s number.\n' "$PFX"; }   # v0.26.10.26.7 (R6, W-7): outside the hash (qhash)
 qhash() { awk '/^## / { s = substr($0, 4); next } s == "Header" && /^- (kind|step|rows):/ { print; next } s ~ /^(The step|Rows|Requirements|Decisions|Rules that bear on these rows|Laws|Non-goals|Rows a ruling reached|Grading checklist and records|Golden sets|The stack and hosting)$/' "$1" | git hash-object --stdin | cut -c1-12; }
 # ticket <file>: the ticket of K, S, $T/ids, NUM, BASE, EXP, WHY, FIXL, REACH, RUL, RET and AMW, and its meta
 ticket() {
@@ -312,6 +341,7 @@ ticket() {
   {
     printf '# %s ticket %s: %s\n\n## Header\n\n- number: %s\n- kind: %s\n- step: %s\n- stage: %s%s\n- plan: %s\n- base: %s\n- export: %s\n- rows: %s\n' "$TT" "$S" "$SN" "$NUM" "$K" "$S" "${STG:-?}" "${STN:+, $STN}" "$PH" "$BASE" "$EXP" "$(paste -sd ' ' "$T/ids")"
     [ -z "$AMW" ] || printf -- '- amended: %s\n' "$AMW"
+    [ "$BASE" != none ] || printf '\nThe code repository is empty: start main with your first commit, then work from it.\n'   # v0.26.10.28.2 (R3)
     printf '\n## The step\n\n'; q "$T/sl"; printf '\n## Rows\n\n'; rowsec
     printf '\n## Requirements\n\n'; q_ "$T/items"; printf '\nThe answers they cite:\n\n'; q_ "$T/ans"
     printf '\n## Decisions\n\n'; q_ "$T/decs"; printf '\n## Rules that bear on these rows\n\n'; q_ "$T/rules"; printf '\n## Laws\n\n'; laws
@@ -323,12 +353,12 @@ ticket() {
     awk -F'\t' '$2 == "record" { print $1 }' "$T/rows" | while IFS= read -r r; do rline "$r"; done > "$T/rec"; printf '\nThe records, deliberately not tested:\n\n'; q_ "$T/rec"
     printf '\n## Golden sets\n\n'; awk -F'\t' -v IDS="$T/ids" 'BEGIN { while ((getline l < IDS) > 0) W[l] = 1 } ($1 in W) && $12 != "-" && $12 != "" { print $1 "\t" $12 }' "$T/rows" > "$T/gs"
     if [ -s "$T/gs" ]; then while IFS='	' read -r r g; do printf 'The golden set of %s:\n\n' "$r"; git show "HEAD:$g" > "$T/g1" 2>/dev/null || : > "$T/g1"; q_ "$T/g1"; echo; done < "$T/gs"; else echo none; fi
-    printf '\n## History\n\n'; hist; [ "$K" = skeleton ] || { printf '\n## Test lessons\n\n'; lessons; }; printf '\n## Further reading\n\n'; reading
+    printf '\n## History\n\n'; hist; [ "$K" = skeleton ] || { printf '\n## Test lessons\n\n'; lessons; }; printf '\n## Known, ruled by the owner\n\n'; known; printf '\n## Further reading\n\n'; reading
     printf '\n## Roles\n\n'; roles; printf '\n## Asks\n\n'; asks
-  } > "$F"
-  awk "$A1"' /^## / { s = substr($0, 4) } /^>/ { $0 = unptr($0); if (isr(s, $0)) $0 = unq($0) } { print }' "$F" > "$T/a1" && cat "$T/a1" > "$F"   # Amendment 1
+  } > "$T/wf" || exit 1
+  awk "$A1"' /^## / { s = substr($0, 4) } /^>/ { $0 = unptr($0); if (isr(s, $0)) $0 = unq($0) } { print }' "$T/wf" > "$T/a1" || exit 1; put "$F" < "$T/a1" || exit 1   # Amendment 1
   { printf 'kind=%s step=%s rows=%s reached=%s rulings=%s retired=%s fix=%s qhash=%s plan=%s base=%s export=%s\n' "$K" "$S" "$(paste -sd , "$T/ids")" "$(echo $REACH | tr ' ' ,)" "$(echo $RUL | tr ' ' ,)" "$(echo $RET | tr ' ' ,)" "${FIXL:--}" "$(qhash "$F")" "$PH" "$BASE" "$EXP"
-    [ -z "$AMW" ] || printf 'why %s\n' "$AMW"; for r in $(cat "$T/ids"); do printf 'sent %s %s\n' "$r" "$(rhash "$r")"; done; } > "${F%.md}.meta"
+    [ -z "$AMW" ] || printf 'why %s\n' "$AMW"; for r in $(cat "$T/ids"); do printf 'sent %s %s\n' "$r" "$(rhash "$r")"; done; } > "$T/wm" || exit 1; put "${F%.md}.meta" < "$T/wm" || exit 1
 }
 # check <file>: one refusal per line into $T/ref (R8)
 check() {
@@ -341,7 +371,7 @@ check() {
       u = l; gsub(/https?:\/\/[^ \t]*/, "", u); if (index(u, "/")) ref("line " k ": a file path — " word(u, "/")); n = split(u, w, /[ \t]+/)
       for (i = 1; i <= n; i++) { x = w[i]; if (x !~ /@/ && x ~ /(^|[^A-Za-z0-9_-])[a-z0-9_-][a-z0-9_-]+\.[a-z][a-z]?[a-z]?[a-z]?([^A-Za-z0-9]|$)/) ref("line " k ": a file path — " x)
         if (x ~ /^--?[A-Za-z]/) ref("line " k ": a runner command — " x) } }
-    BEGIN { SET = "`{}<>$\\="; QS = "|The step|Rows|Requirements|Decisions|Rules that bear on these rows|Laws|Non-goals|Faulted rows|Rows a ruling reached|Grading checklist and records|Golden sets|The stack and hosting|Further reading|"
+    BEGIN { SET = "`{}<>$\\="; QS = "|The step|Rows|Requirements|Decisions|Rules that bear on these rows|Laws|Non-goals|Faulted rows|Rows a ruling reached|Grading checklist and records|Golden sets|The stack and hosting|Known, ruled by the owner|Further reading|"
       while ((getline x < RL) > 0) rl = rl x "\n"; while ((getline x < XF) > 0) XP[x] = 1 }
     { l = $0 }
     sec != "Header" && (x = ptr(l)) != "" { ref("line " NR ": a pointer into ViD" "\047" "s records — " x) }
@@ -366,7 +396,7 @@ check() {
     sec == "The stack and hosting" && l ~ /^The (stack|hosting), decided at init:/ { part = substr(l, 5, 5); next }
     sec == "The stack and hosting" && l ~ /^>/ && l != ">" { sh[part]++ }
     END { K = hv["kind"]; if (K !~ /^(skeleton|step|fix|reached)$/) { ref("item: the header'"'"'s kind is missing, or not skeleton, step, fix or reached"); K = "step" }
-      want = "Header|The step|Rows|Requirements|Decisions|Rules that bear on these rows|Laws|Non-goals|" (K == "skeleton" ? "The stack and hosting" : "Engines|Regression rows|Faulted rows|Rows a ruling reached") "|Grading checklist and records|Golden sets|History|" (K == "skeleton" ? "" : "Test lessons|") "Further reading|Roles|Asks"
+      want = "Header|The step|Rows|Requirements|Decisions|Rules that bear on these rows|Laws|Non-goals|" (K == "skeleton" ? "The stack and hosting" : "Engines|Regression rows|Faulted rows|Rows a ruling reached") "|Grading checklist and records|Golden sets|History|" (K == "skeleton" ? "" : "Test lessons|") "Known, ruled by the owner|Further reading|Roles|Asks"
       n = split(want, Wn, "|"); got = ""; for (i = 1; i <= ns; i++) got = got (i > 1 ? "|" : "") so[i]
       for (i = 1; i <= n; i++) { if (!(Wn[i] in seen)) ref("item: the section ## " Wn[i] " is missing"); else if (!body[Wn[i]]) ref("item: the section ## " Wn[i] " is empty") }
       if (got != want) ref("item: the sections are not, in order, " want)
@@ -377,7 +407,7 @@ check() {
       need = (K == "skeleton") ? "T1 T3 T4 T5" : (K == "reached") ? "T1 T3 T4" : (index(at, "Every row of this ticket is deploy-owed") ? "T1 T3 T5" : "T1 T2 T3 T4 T5")
       for (i = 1; i <= 5; i++) { t = "T" i; if (index(need, t) && !ask[t]) ref("item: the asks lack " t); if (!index(need, t) && ask[t]) ref("item: the asks hold " t ", which this ticket must not ask") }
       if (!index(at, "ViD results format 1")) ref("item: the asks do not name the results format")
-      if (!index(at, "blocked, and write the question")) ref("item: the asks do not give the question channel")
+      if (!index(at, "its first line beginning Question:")) ref("item: the asks do not give the question channel")
       if (K == "skeleton" && !(index(at, "declares the engines") && index(at, "test environments"))) ref("item: the skeleton ticket does not ask for the engines and the test environments")
       if (K == "skeleton" && (!sh["stack"] || !sh["hosti"])) ref("item: the stack or the hosting is missing")
       if (K != "skeleton" && !prim) ref("item: the engines name no primary")
@@ -399,12 +429,22 @@ parts_() {
 # the open tickets' rows; listed <key>: every value a published or amended line gives the key; unruled: each ruling (a
 # handed reached line, by its line) no ticket has listed, `<line>\t<row>`; pendreach: REACH and RUL, those rulings'
 # rows in no open ticket and the rulings; the retired rows not yet listed
-openrows() { for n in $(opn); do fld "$(tk "$n")" rows | tr , '\n'; done | grep -v '^-*$' | sort -u; }
+# v0.26.10.25.5 (R4): pubt <n>, ticket n's first publication; stl <n>, the ids landed after it (.vid/decide/landed), never in it;
+# lnew <step>, the step's landed rows no ticket published since their landing holds, known limits apart
+# by the log's order, a landing's `landed … ids=` line (checks/land.sh) against each ticket's `published` line, never by the second
+stl() { awk -v n="$1" '$1 == "published" && $2 == n { p = 1; next } p && $1 == "landed" { for (i = 2; i <= NF; i++) if ($i ~ /^ids=/) { m = split(substr($i, 5), a, ","); for (j = 1; j <= m; j++) print a[j] } }' "$T/lg" | sort -u; }
+lnew() { srows "$1" > "$T/lr"; [ -s "$T/lr" ] || return 0
+  awk -v LR="$T/lr" 'BEGIN { while ((getline l < LR) > 0) W[l] = 1 }
+    $1 == "landed" { for (i = 2; i <= NF; i++) if ($i ~ /^ids=/) { m = split(substr($i, 5), a, ","); for (j = 1; j <= m; j++) if (a[j] in W) { L[a[j]] = 1; delete G[a[j]] } } }
+    $1 == "published" { for (i = 3; i <= NF; i++) if ($i ~ /^rows=/) { m = split(substr($i, 6), a, ","); for (j = 1; j <= m; j++) if (a[j] in L) G[a[j]] = 1 } }
+    END { for (r in L) if (!(r in G)) print r }' "$(lgof "$1")" | while read -r r; do lim "$r" || echo "$r"; done | sort; }
+openrows() { for n in $(opn); do stl "$n" > "$T/sl.$n"; fld "$(tk "$n")" rows | tr , '\n' | grep -vxF -f "$T/sl.$n" || true; done | grep -v '^-*$' | sort -u; }
 listed() { awk "$KV"' $1 == "published" || $1 == "amended" { print kv(k) }' k="$1" "$T/lg" | tr , '\n' | grep -v '^-*$' | sort -u; }
 unruled() { listed rulings > "$T/lu"; awk -F'\t' -v LU="$T/lu" 'BEGIN { while ((getline l < LU) > 0) D[l] = 1 } $1 == "reached" && !($4 in D) { print $4 "\t" $2 }' "$T/st"; }
 pendreach() { openrows > "$T/or"; unruled | awk -F'\t' -v OR="$T/or" 'BEGIN { while ((getline l < OR) > 0) O[l] = 1 } !($2 in O)' > "$T/pr"
   REACH=$(cut -f2 "$T/pr" | awk '!s[$0]++' | paste -sd ' ' -); RUL=$(cut -f1 "$T/pr" | paste -sd ' ' -); }
-pendret() { listed retired > "$T/lt"; awk -F'\t' '$1 == "rs" { S[$2] = $3 } END { for (r in S) if (S[r] == "retired") print r }' "$T/st" | sort | grep -vxF -f "$T/lt" | paste -sd ' ' -; }
+# pendret: the retired rows no ticket carries yet; a withdrawn ticket's retired= counts for none (0.26.10.28.6, R2), so the next carries it
+pendret() { awk "$KV"' $1 == "withdrawn" { W[$2] = 1 } $1 == "published" || $1 == "amended" { P[NR] = $2; V[NR] = kv(k) } END { for (i in P) if (!(P[i] in W)) print V[i] }' k=retired "$T/lg" | tr , '\n' | grep -v '^-*$' | sort -u > "$T/lt"; awk -F'\t' '$1 == "rs" { S[$2] = $3 } END { for (r in S) if (S[r] == "retired") print r }' "$T/st" | sort | grep -vxF -f "$T/lt" | paste -sd ' ' -; }
 stepof() { awk -F'\t' -v r="$1" '{ n = split($5, a, " "); for (i = 1; i <= n; i++) if (a[i] == r) { print $1; exit } }' "$T/steps"; }
 # newset <kind> <arg>: a new ticket's K, S, $T/ids, NUM, BASE (the newest sync's main), WHY, FIXL, REACH, RUL, RET
 newset() {
@@ -412,16 +452,22 @@ newset() {
   case "$1" in
     skeleton) K=skeleton; S=$(awk -F'\t' '$6 == "skeleton" { print $1; exit }' "$T/steps"); [ -n "$S" ] || ref 'the plan has no skeleton step'; srows "$S" > "$T/ids"; REACH=''; RUL=''; RET='' ;;
     step) K=step; S=$2; awk -F'\t' -v s="$S" '$1 == s { f = 1 } END { exit !f }' "$T/steps" || ref "${S:-(none)} is no step of the recorded plan"
-      [ "$(awk -F'\t' -v s="$S" '$1 == s { print $6 }' "$T/steps")" != skeleton ] || ref "$S is the skeleton: write skeleton"
-      openrows > "$T/or"; srows "$S" | while IFS= read -r r; do lim "$r" || grep -qxF "$r" "$T/or" || [ "$(sentin "$r" "$S")" = "$(rhash "$r")" ] || echo "$r"; done > "$T/ids"
+      lnew "$S" > "$T/ln"; SO=$(for n in $(opn); do [ "$(fld "$(tk "$n")" step)" != "$S" ] || echo "$n"; done)
+      [ "$(awk -F'\t' -v s="$S" '$1 == s { print $6 }' "$T/steps")" != skeleton ] || [ -s "$T/ln" ] || ref "$S is the skeleton: write skeleton"
+      if [ -s "$T/ln" ] && { [ -n "$SO" ] || [ "$(awk -F'\t' -v s="$S" '$1 == s { print $6 }' "$T/steps")" = skeleton ]; }; then cp "$T/ln" "$T/ids"   # R4: its own ticket, beside the open one
+      else openrows > "$T/or"; srows "$S" | while IFS= read -r r; do lim "$r" || grep -qxF "$r" "$T/or" || [ "$(sentin "$r" "$S")" = "$(rhash "$r")" ] || echo "$r"; done > "$T/ids"; fi
       [ -s "$T/ids" ] || ref "$S has no row to send: each is a known limit, in an open ticket, or sent unchanged" ;;
-    fix) K=fix; R=$2; awk -F'\t' -v r="$R" '$1 == r && $2 == "row" { f = 1 } END { exit !f }' "$T/rows" || ref "${R:-(none)} is no row of the inventory"
-      ! lim "$R" || ref "$R is a known limit, a later-phase row or a record: it gets no fix ticket"
-      ! { openrows | grep -qxF "$R"; } || ref "$R is in an open ticket: FX fixes it in that pull request"
-      listed fix > "$T/lf"; FL=$(awk -F'\t' -v r="$R" -v LF="$T/lf" 'BEGIN { while ((getline l < LF) > 0) D[l] = 1 } $1 == "fix" && $3 == r && !($2 in D) { print $2 "\t" $4; exit }' "$T/st")
-      [ -n "$FL" ] || ref "no fix ask for $R waits in .vid/tw/handed"; FIXL=${FL%%	*}; WHY=${FL#*	}; printf '%s\n' "$R" > "$T/ids"; S=$(stepof "$R") ;;
+    fix) K=fix; R=${2:-}; isrow() { awk -F'\t' -v r="$1" '$1 == r && $2 == "row" { f = 1 } END { exit !f }' "$T/rows"; }
+      case $R in *[!0-9]*|'') isrow "$R" || ref "${R:-(none)} is no row of the inventory"; ! lim "$R" || ref "$R is a known limit, a later-phase row or a record: it gets no fix ticket" ;; esac
+      openrows > "$T/or"; listed fix > "$T/lf"; FL=$(awk -F'\t' -v a="$R" -v LF="$T/lf" 'BEGIN { while ((getline l < LF) > 0) D[l] = 1 } $1 == "fix" && !($2 in D) && ($2 == a || index("," $3 ",", "," a ",")) { print $2 "\t" $3 "\t" $4 "\t" $5; exit }' "$T/st")
+      [ -n "$FL" ] || ref "no fix ask for $R waits in .vid/tw/handed"; IFS='	' read -r FIXL RS WHY LK <<EOF
+$FL
+EOF
+      for r in $(printf '%s' "$RS" | tr , ' '); do isrow "$r" || ref "$r is no row of the inventory"; lim "$r" && continue; ! grep -qxF "$r" "$T/or" || ref "$r is in an open ticket: FX fixes it in that pull request"; echo "$r"; done > "$T/ids"
+      [ -s "$T/ids" ] || ref "every row of the fix ask $FIXL is a known limit: it owes nothing"
+      S=$(printf '%s' "$LK" | sed -n 's/.*close #[0-9]* of \([^ :,]*\).*/\1/p'); [ -n "$S" ] || S=$(stepof "$(head -n 1 "$T/ids")") ;;
     reached) K=reached; [ -n "$REACH" ] || ref 'no row a ruling reached waits'; printf '%s\n' $REACH > "$T/ids"; S=$(stepof "$(head -n 1 "$T/ids")") ;;
-    *) die 'usage — sh checks/writer.sh write skeleton | step <S> | fix <row> | reached | amend <n>' ;;
+    *) die 'usage — sh checks/writer.sh write skeleton | step <S> | fix <key|row> | reached | amend <n>' ;;
   esac
   [ -n "$S" ] && started "$S" || ref "step ${S:-(none)} was never admitted (no step-start event): sh checks/plan.sh start ${S:-<step>}"; }
 # amendset <n>: open ticket n written again — its kind, step, base and number; a step's rows as the plan now holds them
@@ -430,19 +476,22 @@ newset() {
 # its step's rows, else the export
 amendset() {
   L=$(tk "$1"); [ -n "$L" ] || ref "#$1 is no ticket TW published"; opn | grep -qx "$1" || ref "#$1 is not open: a merged or closed ticket is never changed"
-  NUM=$1; K=$(fld "$L" kind); S=$(fld "$L" step); BASE=$(fld "$L" base); FIXL=$(fld "$L" fix); [ "$FIXL" != - ] || FIXL=''; RET=$(fld "$L" retired | tr , ' ')
-  fld "$L" rows | tr , '\n' > "$T/ids0"
+  NUM=$1; K=$(fld "$L" kind); S=$(fld "$L" step); BASE=$(fld "$L" base); FIXL=$(fld "$L" fix); [ "$FIXL" != - ] || FIXL=''; RET=$(fld "$L" retired | tr , ' '); LD=''
+  [ "$BASE" != none ] || { _b=$(awk "$KV"' $1 == "sync" { v = kv("main") } END { print v }' "$T/lg"); case $_b in ''|*[!0-9a-f]*) ;; *) BASE=$_b ;; esac; }   # v0.26.10.28.2 (R3): main started since
+  stl "$1" > "$T/st1"; fld "$L" rows | tr , '\n' | grep -vxF -f "$T/st1" > "$T/ids0" || true   # R4: a landed id leaves a ticket published before its landing
   if [ "$K" = step ] || [ "$K" = skeleton ]; then srows "$S" > "$T/sr"; rowsof "$S" > "$T/all"
-    { grep -xF -f "$T/sr" "$T/ids0" || true; grep -vxF -f "$T/all" "$T/sr" | while IFS= read -r r; do lim "$r" || echo "$r"; done; } > "$T/keep"
+    { grep -xF -f "$T/sr" "$T/ids0" || true; grep -vxF -f "$T/all" "$T/sr" | grep -vxF -f "$T/st1" | while IFS= read -r r; do lim "$r" || echo "$r"; done; } > "$T/keep"
     grep -xF -f "$T/keep" "$T/sr" > "$T/ids" || true
-  else cp "$T/ids0" "$T/ids"; fi
+  else while IFS= read -r r; do lim "$r" || echo "$r"; done < "$T/ids0" > "$T/ids"   # 0.26.10.28.6 (R2): a fix ticket drops its rows ruled known limits
+    [ -s "$T/ids" ] || [ ! -s "$T/ids0" ] || { echo "ViD writer: refused — every row of #$1 is a known limit: it is withdrawn while no pull request names it (sh checks/github.sh tw-close $1), and merges as it is once one does" >&2; exit 4; }
+    LD=$(grep -vxF -f "$T/ids" "$T/ids0" | paste -sd ' ' -); fi   # the rows dropped, named in the amendment
   [ -s "$T/ids" ] || { echo "ViD writer: refused — #$1 would hold no row: withdraw it (sh checks/github.sh tw-close $1)" >&2; exit 3; }
   unruled | awk -F'\t' -v I="$T/ids" 'BEGIN { while ((getline l < I) > 0) W[l] = 1 } ($2 in W)' > "$T/ur"
   REACH=$( { fld "$L" reached | tr , '\n'; cut -f2 "$T/ur"; } | grep -v '^-*$' | awk '!s[$0]++' | paste -sd ' ' -); RUL=$( { fld "$L" rulings | tr , '\n'; cut -f1 "$T/ur"; } | grep -v '^-*$' | paste -sd ' ' -)
   WHY=''; [ -z "$FIXL" ] || WHY=$(awk -F'\t' -v k="$FIXL" '$1 == "fix" && $2 == k { print $4 }' "$T/st")
   AMW=$(chgs "$1" "$S" | awk -F'\t' '{ printf "%s%s, what %s", (c++ ? "; " : ""), $1, $2 }')
   awk '/^## / { on = ($0 == "## Laws"); next } on' ".vid/tw/out/issue-$1.md" > "$T/ol" 2>/dev/null || :; { echo; laws; echo; } | awk "$A1"' /^>/ { $0 = unptr($0) } { print }' > "$T/nl"   # the laws alone, as written
-  if [ -n "$AMW" ]; then AMW="by plan change $AMW"; elif [ "$(fld "$L" export)" = "$EXP" ] && [ -s "$T/ol" ] && ! cmp -s "$T/ol" "$T/nl"; then AMW="at the spec export $EXP, the laws it quotes changed"
+  if [ -n "$AMW" ]; then AMW="by plan change $AMW"; elif [ -n "$LD" ]; then AMW="as its rows $LD were ruled known limits or taken out of the plan"; elif [ "$(fld "$L" export)" = "$EXP" ] && [ -s "$T/ol" ] && ! cmp -s "$T/ol" "$T/nl"; then AMW="at the spec export $EXP, the laws it quotes changed"
   else AMW="at the spec export $EXP, the text it quotes changed"; fi; }
 # chgs <n> <step>: each plan change recorded after the plan ticket n was last written for that changed the step's rows
 # (against the plan before it), `<decision>\t<what>`
@@ -452,21 +501,29 @@ chgs() { awk -v lp="$(fld "$(tk "$1")" plan)" '$1 == "plan-change" { h = $3; sub
       [ "$x" = "$y" ] || printf '%s\t%s\n' "${d#decision=}" "${w#what=}"; done; }
 # wd <n> <step>: `withdraw <n>`, with the newest change that changed the step's rows (decision= what=)
 wd() { c=$(chgs "$1" "$2" | tail -n 1); echo "withdraw $1${c:+ decision=${c%%	*} what=${c#*	}}"; }
-# due: what the round owes (R7, R9)
+# prn <n> (0.26.10.28.6, R2): a pull request names ticket n, open or merged — in the round's read (github.sh round-read, kept
+# by round.sh at .vid/round/read before each step and next), or in the merges ViD recorded; with no read yet, one is taken to
+prn() { [ -f .vid/round/read ] || return 0; awk -F'\t' -v n="$1" '($1 == "open" || $1 == "merged") && $3 == n { f = 1 } END { exit !f }' .vid/round/read && return 0
+  cat .vid/decide/merges .vid/decide/merged-tickets 2>/dev/null | awk -F'\t' -v n="$1" '(NF >= 4 && $2 == n) || (NF == 2 && $1 == n) { f = 1 } END { exit !f }'; }
+# due: what the round owes (R7, R9); R2 (0.26.10.28.6): a fix ticket whose every row is a known limit, with no pull request
+# naming it, `withdraw <n> limits=<rows>`; with one, nothing, so it merges
 due() {
   EXP=$(awk '$1 == "export" { v = $2 } END { print v }' "$T/lg"); : > "$T/due"
   for n in $(opn); do L=$(tk "$n"); k=$(fld "$L" kind); s=$(fld "$L" step)
     if { [ "$k" = step ] || [ "$k" = skeleton ]; } && ! awk -F'\t' -v s="$s" '$1 == s { f = 1 } END { exit !f }' "$T/steps"; then wd "$n" "$s"; continue; fi
     rc=0; ( amendset "$n"; ticket "$T/re.md" ) > /dev/null 2>&1 || rc=$?
-    if [ "$rc" = 3 ]; then wd "$n" "$s"; elif [ "$rc" != 0 ] || [ "$(fld "$(sed -n 1p "$T/re.meta")" qhash)" != "$(fld "$L" qhash)" ] || [ "$(fld "$(sed -n 1p "$T/re.meta")" rows)" != "$(fld "$L" rows)" ]; then echo "amend $n"; fi
+    if [ "$rc" = 4 ]; then prn "$n" || echo "withdraw $n limits=$(paste -sd , "$T/ids0")"
+    elif [ "$rc" = 3 ]; then wd "$n" "$s"; elif [ "$rc" != 0 ] || [ "$(fld "$(sed -n 1p "$T/re.meta")" qhash)" != "$(fld "$L" qhash)" ] || [ "$(fld "$(sed -n 1p "$T/re.meta")" rows)" != "$(fld "$L" rows)" ]; then echo "amend $n"; fi
   done
   awk -F'\t' '{ print $1 "\t" $6 }' "$T/steps" | while IFS='	' read -r s kd; do started "$s" || continue
-    if ! awk "$KV"' $1 == "published" && kv("step") == s && kv("kind") ~ /^(step|skeleton)$/ { f = 1 } END { exit !f }' s="$s" "$T/lg"; then
+    if ! awk "$KV"' $1 == "published" && kv("step") == s && kv("kind") ~ /^(step|skeleton)$/ { f = 1 } END { exit !f }' s="$s" "$(lgof "$s")"; then
       if [ "$kd" = skeleton ]; then echo 'new skeleton'; else echo "new step $s"; fi
+    elif [ -n "$(lnew "$s")" ]; then echo "new step $s"
     elif [ "$kd" != skeleton ] && ! for n in $(opn); do [ "$(fld "$(tk "$n")" step)" = "$s" ] && echo y; done | grep -q y; then
       srows "$s" | while IFS= read -r r; do lim "$r" || [ "$(sentin "$r" "$s")" = "$(rhash "$r")" ] || { echo "new step $s"; break; }; done; fi
   done > "$T/due"
-  listed fix > "$T/lf"; awk -F'\t' -v LF="$T/lf" 'BEGIN { while ((getline l < LF) > 0) D[l] = 1 } $1 == "fix" && !($2 in D) && !s[$3]++ { print "new fix " $3 }' "$T/st" >> "$T/due"
+  listed fix > "$T/lf"; awk -F'\t' -v LF="$T/lf" 'BEGIN { while ((getline l < LF) > 0) D[l] = 1 } $1 == "fix" && !($2 in D) && !s[$2]++ { print $2 "\t" $3 }' "$T/st" | while IFS='	' read -r k rs; do
+    for r in $(printf '%s' "$rs" | tr , ' '); do lim "$r" || { echo "new fix $k"; break; }; done; done >> "$T/due"
   cat "$T/due"; grep -q '^new ' "$T/due" || { pendreach; [ -z "$REACH" ]; } || echo 'new reached'; }
 # fresh <file> [<n>] (fix 2): one line per thing that moved since the file was written — the plan's recorded hash, the
 # newest export, and its ticket work (new, or the amendment of #n), which due must owe now — so no stale file is posted
@@ -474,7 +531,8 @@ fresh() {
   M=$(sed -n 1p "${1%.md}.meta"); NB=$(sed -n 's/^- number: //p' "$1" | head -n 1); EXP=$(awk '$1 == "export" { v = $2 } END { print v }' "$T/lg")
   [ "$(fld "$M" plan)" = "$PH" ] || echo "the plan moved: $1 was written for the plan $(fld "$M" plan); the recorded plan is now $PH"
   [ "$(fld "$M" export)" = "$EXP" ] || echo "the export moved: $1 was written at the export $(fld "$M" export); the newest is ${EXP:-none}"
-  case $(fld "$M" kind) in skeleton) w='new skeleton' ;; step) w="new step $(fld "$M" step)" ;; fix) w="new fix $(fld "$M" rows)" ;; *) w='new reached' ;; esac
+  case $(fld "$M" kind) in skeleton) w='new skeleton' ;; step) w="new step $(fld "$M" step)" ;; fix) w="new fix $(fld "$M" fix)" ;; *) w='new reached' ;; esac
+  [ "$(fld "$M" kind)" != fix ] || for r in $(fld "$M" rows | tr , ' '); do ! lim "$r" || echo "the fix rows moved: $r is now a known limit, and $1 still holds it"; done
   if [ "$NB" != pending ]; then w="amend $NB"; [ "$2" = "$NB" ] || echo "the ticket work moved: $1 was written as the amendment of #$NB, not posted as one"
   elif [ -n "$2" ]; then echo "the ticket work moved: $1 was written as a new ticket, not the amendment of #$2"; fi
   ( due ) > "$T/dn" 2>&1 || true; grep -qxF "$w" "$T/dn" || echo "the ticket work moved: $1 was written for '$w', which the round no longer owes (due: $(paste -sd ';' "$T/dn" | sed 's/^$/nothing/'))"; }
@@ -487,13 +545,15 @@ case "$CMD" in
     load; EXP=$(awk '$1 == "export" { v = $2 } END { print v }' "$T/lg"); [ -n "$EXP" ] || ref 'no export yet — sh checks/github.sh spec-export first'
     if [ "${1:-}" = amend ]; then amendset "${2:-}"; F=$OUT/amend-$2.md; else newset "${1:-}" "${2:-}"; F=$OUT/$K-${2:-$S}.md; fi
     [ "$K" = skeleton ] || [ -n "$(sv eng)" ] || ref "no engines line in .vid/tw/handed: the skeleton's head report declares them first"
-    [ -n "$BASE" ] && [ "$BASE" != none ] || ref "no base: the code repository's main is not known (sh checks/github.sh tw-sync first)"
+    # v0.26.10.28.2 (R3): a base is a commit; none, an empty code repository, the skeleton's alone: DevAgent starts main
+    case $BASE in none) [ "$K" = skeleton ] || ref "no base: the code repository is empty, and only the skeleton starts main" ;; ''|*[!0-9a-f]*) ref "no base: the code repository's main is not known${BASE:+ ($BASE)} (sh checks/github.sh tw-sync first)" ;; esac
     ticket "$F"; echo "$F"; check "$F"; if [ -s "$T/ref" ]; then sed 's/^/ViD writer: check refused — /' "$T/ref" >&2; exit 1; fi ;;
   check) [ -f "${1:-}" ] || die 'usage — sh checks/writer.sh check <file>'; check "$1"
     if [ -s "$T/ref" ]; then sed 's/^/writer: check refused — /' "$T/ref"; exit 1; fi; echo "writer: check passed — $1" ;;
   parts) [ -f "${1:-}" ] && [ -n "${2:-}" ] && [ -n "${3:-}" ] || die 'usage — sh checks/writer.sh parts <file> <issue> <dir>'; parts_ "$1" "$2" "$3" ;;
   due) load; due ;;
+  pending) load; pendreach; for r in $REACH; do printf '%s %s\n' "$r" "$(stepof "$r" | grep . || echo -)"; done ;;   # v0.26.10.26.7 (R9): the reached rows no ticket holds yet, `<row> <step>`
   fresh) [ -f "${1:-}" ] && [ -f "${1%.md}.meta" ] || die 'usage — sh checks/writer.sh fresh <file> [<n>]'; load; fresh "$1" "${2:-}" > "$T/fr"
     if [ -s "$T/fr" ]; then sed 's/^/writer: stale — /' "$T/fr"; exit 1; fi; echo "writer: fresh — $1" ;;
-  *) die "unknown subcommand ${CMD:-(none)} — gate, write, check, parts, due, fresh" ;;
+  *) die "unknown subcommand ${CMD:-(none)} — gate, write, check, parts, due, pending, fresh" ;;
 esac

@@ -6,7 +6,7 @@
 # keeps its model as recorded (the page then says "model not priced"); and unless the built page prices the 1-hour
 # part of a cache write at the table's 1-hour rate and the rest at the 5-minute rate. Env: CHECKS.
 set -eu
-[ -f "$CHECKS/../viewer/view.sh" ] || exit 0   # the viewer ships in the plugin, not in a project's checks/
+[ -f "$CHECKS/../viewer/view.sh" ] || { echo 'needs viewer/view.sh'; exit 77; }   # the viewer ships in the plugin, not in a project's checks/
 T=$(mktemp -d); trap 'set +e; rm -rf "$T" 2>/dev/null' EXIT
 . "$CHECKS/selftest/fixtures/gated-run.sh"
 . "$CHECKS/selftest/fixtures/plan-run.sh"

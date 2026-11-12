@@ -5,12 +5,13 @@
 # "chosen by the owner", "confirmed by the owner" and the answer by its id, and the ticket passes the check. Refused by
 # line and word in copies: the prerequisite note planted back; a .vid/ path and an artifact id; a named owner form in
 # Decisions; a profanity. v0.26.10.12.3.2 (R2): ROW-002 (no "fails if") among the Faulted
-# rows passes. Build review 1:
+# rows passes. Also:
 # a pointer and a profanity in the title are refused; an artifact id with a full stop after it is rewritten and refused;
 # a requirement statement's own quote, and in a decision a quote after "owners", "SLA: " or a key's "owner", stay.
-# Build review 2: an AMENDED answer's named form is refused; "artifact" before an ordinary word (no digit) is no
-# pointer. The cut (only the three named forms rewritten and refused): stage 2's demo lines A-177, A-090, A-175, D-056
-# and D-042, toy-shaped, keep their other quotes and pass; a quote after the owner in no named form passes. Env: CHECKS.
+# And: an AMENDED answer's named form is refused; "artifact" before an ordinary word (no digit) is no
+# pointer. The cut (only the three named forms rewritten and refused): the lines A-177, A-090, A-175, D-056
+# and D-042, toy-shaped, keep their other quotes and pass; a quote after the owner in no named form passes. v0.26.10.24.2: a
+# quoted path into ViD's checks/ is rewritten and refused like the other pointers; a product's own path and plain words are not. Env: CHECKS.
 set -eu
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 . "$CHECKS/selftest/fixtures/tw-toy.sh"
@@ -29,6 +30,7 @@ printf -- '- **D-006** %s | why: clarity | enforced: convention\n- **D-007** %s 
 D8='REQ-006 the message is "Ask the owner!"; the action says "Save"'; printf -- '- **D-008** %s | why: product text | enforced: convention\n' "$D8" >> DECISIONS.md
 D56='**D-056** REQ-006 the name confirmed by the owner as "Sparrow" | why: brand'; D42='**D-042** REQ-006 the cap holds | why: owner ("Ten it is", 2026-10-23)'
 printf -- '- %s | enforced: convention\n- %s | enforced: convention\n' "$D56" "$D42" >> DECISIONS.md
+printf -- '- **D-013** REQ-006 the row is counted by checks/extractors/invariant.cap.sh, as `checks/test.sh` runs it | why: cost | enforced: convention\n- **D-014** REQ-006 the product'"'"'s src/checks/cap.py runs the health checks/alarms. | why: cost | enforced: convention\n' >> DECISIONS.md
 g commit -qam 'owner words and records planted'; tw_ratify 'Yes, with D-005' || fail 'the toy was not ratified again'
 tw_skel || fail 'the skeleton round failed'; tw_hand 'closed S02'; tw_hand 'closed S03'; tw_start S04 || fail 'S04 was refused'
 F=$(sh "$W" write step S04 2> "$T/werr") || fail "S04's ticket was refused"
@@ -43,6 +45,8 @@ for x in "$A090" "$A175" "> - $D56 |" "> - $D42 |"; do grep -qF -- "$x" "$F" || 
 grep -qxF "> - **D-007** $D7 | why: product text | enforced: convention" "$F" || fail "a quote after owners, SLA: or a key's owner is left out"
 grep -qF 'and the account owner sees "10 of 10" above the list.' "$F" || fail "a requirement statement's own quote is left out"
 grep -qxF "> - **D-008** $D8 | why: product text | enforced: convention" "$F" || fail 'a quoted "owner" is taken for the owner'
+grep -qxF "> - **D-013** REQ-006 the row is counted by (ViD's records), as \`(ViD's records)\` runs it | why: cost | enforced: convention" "$F" || fail 'a path into checks/ is not rewritten'
+grep -qF "the product's src/checks/cap.py runs the health checks/alarms. | why" "$F" || fail "a product's own path or plain words are rewritten"
 ck "$F"; [ "$RC" = 0 ] || fail "S04's ticket, ROW-002 in Rows among them, is refused"
 grep -q '^- ROW-002' "$F" && ! sed -n '/^## Faulted rows$/,/^## /p' "$F" | grep -q 'ROW-002' || fail 'ROW-002 is not in Rows alone'
 # planted, each refused by line and word
@@ -50,6 +54,9 @@ pl() { awk -v s="## $1" -v l="$2" '{ print } $0 == s { getline; print; print l }
 sed 's/^\(> ROW-002 | .*\) | origin: REQ-006$/\1 | owed: prerequisite — the harness holds none | origin: REQ-006/' "$F" > "$T/p.md"; refused 'a prerequisite note — ROW-002'
 pl 'Faulted rows' "- ROW-002: make this row's fail-if true, and nothing else"; ck "$T/p.md"; [ "$RC" = 0 ] || fail 'a faulted row with no "fails if" is refused'
 pl 'Decisions' '> - **D-009** REQ-006 as set down in .vid/plan/notes.md'; refused "a pointer into ViD's records — .vid/plan/notes.md"
+pl 'Rules that bear on these rows' '> rule | RULE-009 | a rule | checks/extractors/invariant.x.sh | 1'; refused "a pointer into ViD's records — checks/extractors/invariant.x.sh"
+pl 'Decisions' "> - **D-015** REQ-006 run by 'checks/test.sh'"; refused "a pointer into ViD's records — checks/test.sh"
+pl 'Decisions' '> - **D-016** REQ-006 see [checks/census.sh](x) and **checks/test.sh**'; refused "a pointer into ViD's records — checks/census.sh"
 pl 'History' '- see the owner page, artifact JTBFCZ4Y8xhDKzpgttPvAC'; refused "a pointer into ViD's records — artifact JTBFCZ4Y8xhDKzpgttPvAC"
 pl 'Decisions' '> - **D-010** REQ-006 the cap, owner chose "ten" and "no more"'; refused 'an owner quote — owner chose "ten"'
 pl 'Decisions' '> - **D-012** REQ-006 the cap, owner: "ten and no more"'; refused 'an owner quote — owner: "ten and no more"'

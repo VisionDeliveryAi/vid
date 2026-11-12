@@ -14,7 +14,7 @@
 # 8 the hook never calls `alive` (an older observe.sh would tick and write):
 # .vid/observer.state is unchanged. Env: CHECKS.
 set -eu
-[ -f "$CHECKS/../hooks/stop-failure.sh" ] || exit 0
+[ -f "$CHECKS/../hooks/stop-failure.sh" ] || { echo 'needs hooks/stop-failure.sh'; exit 77; }
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 cd "$T"; CASE=reentry
 . "$CHECKS/selftest/fixtures/reread-lib.sh"

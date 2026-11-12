@@ -8,7 +8,7 @@
 # and `sh checks/brief.sh protected` prints the set job.sh hands it. Env: CHECKS.
 set -eu
 H="$CHECKS/../hooks/codex-protect.sh"
-[ -f "$H" ] || exit 0
+[ -f "$H" ] || { echo 'needs hooks/codex-protect.sh'; exit 77; }
 fail() { echo "job-protect: $*" >&2; exit 1; }
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 printf 'tests/invariants/\nchecks/\ndesign/\nPRD.md\ndocker-compose.test.yml\n' > "$T/pl"

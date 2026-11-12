@@ -11,7 +11,7 @@
 # Env: CHECKS.
 set -eu
 HD="$CHECKS/../hooks"
-[ -f "$HD/stop-failure.sh" ] || exit 0
+[ -f "$HD/stop-failure.sh" ] || { echo 'needs hooks/stop-failure.sh'; exit 77; }
 fail() { echo "usage-record-agent: $*" >&2; cat "${R:-.}/.vid/metrics-events" >&2 2>/dev/null || true; exit 1; }
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 R="$T/run"; mkdir -p "$R/.vid" "$T/tr"; cd "$R"; git init -q

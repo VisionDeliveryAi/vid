@@ -5,7 +5,7 @@
 # minutes prints nothing; one after 30 minutes (the marker 31 minutes old) prints the page again; another session's
 # resume is unaffected; and `source=compact` still writes the debt. Env: CHECKS.
 set -eu
-[ -f "$CHECKS/../hooks/stop-failure.sh" ] || exit 0
+[ -f "$CHECKS/../hooks/stop-failure.sh" ] || { echo 'needs hooks/stop-failure.sh'; exit 77; }
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 cd "$T"; CASE=reentry-resume-no-debt
 . "$CHECKS/selftest/fixtures/reread-lib.sh"

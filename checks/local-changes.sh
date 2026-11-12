@@ -7,6 +7,7 @@
 # change is carried over by hand or dropped on purpose. Prints, one a line: `since <sha> <subject>`, then `commit
 # <sha> <subject>` and `uncommitted <status> <path>`, then a count line. Reads only; exit 0, or 2 outside a repository.
 # Usage: sh local-changes.sh
+# serves: both (0.26.10.28.4, M9)
 set -eu
 git rev-parse --git-dir >/dev/null 2>&1 || { echo 'ViD local-changes: not inside a repository' >&2; exit 2; }
 cd "$(git rev-parse --show-toplevel)"

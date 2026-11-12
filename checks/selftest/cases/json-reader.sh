@@ -10,7 +10,7 @@
 # own cases (death-record.sh) run unchanged on the shared reader. Env: CHECKS.
 set -eu
 HD="$CHECKS/../hooks"
-[ -f "$HD/stop-failure.sh" ] || exit 0
+[ -f "$HD/stop-failure.sh" ] || { echo 'needs hooks/stop-failure.sh'; exit 77; }
 fail() { echo "json-reader: $*" >&2; exit 1; }
 [ -f "$HD/json.sh" ] || fail 'no hooks/json.sh'
 grep -q 'json\.sh' "$HD/stop-failure.sh" || fail 'stop-failure.sh does not source the shared reader'

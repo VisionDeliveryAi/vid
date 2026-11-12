@@ -1,10 +1,10 @@
 #!/bin/sh
-# Purpose: selftest case — outside the gate checks/test.sh is 0.9.5's, and
+# Purpose: selftest case — outside the gate checks/test.sh keeps its ungated path, and
 # the two paths never share a folder (v0.9.6 spec 3.7.6, 3.13, R7, R13; §7
 # case 15). In a repository with no commit (init's red gate) and in one
 # with no develop run, a scoped run takes .vid/ledger.lock (seen while it
 # runs), mounts the live tree (VID_TEST_CONTEXT=.) and names its receipt
-# <head>.live.sel-<hash>.xml, as fixtures/test-0.9.5.sh does. A live gated
+# <head>.live.sel-<hash>.xml, as 0.9.5's checks/test.sh did. A live gated
 # run folder makes an ungated run refuse; a held lock makes a gated run
 # refuse. The measured kill (3.13): while a gated run is up, a rendered
 # extractor that joins "a running product under the folder's default

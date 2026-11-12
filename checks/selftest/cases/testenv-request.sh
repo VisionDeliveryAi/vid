@@ -1,6 +1,6 @@
 #!/bin/sh
 # Purpose: selftest case — the test-environment pass makes real requests
-# (v0.9.7.0.2 spec 3.4; §6 C-5b, round 2 finding 1). Before any step-start
+# (v0.9.7.0.2 spec 3.4; §6 C-5b). Before any step-start
 # (the plan holds ROW-001 in an unstarted S1), `testenv.sh measure --rows
 # ROW-001 -- <selection>` runs as a `testenv` request — a ticket with an
 # estimate and its limits, its event role=testenv with request= and silence=, startup=, limit= (v0.26.10.4; cap= before) —

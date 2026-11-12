@@ -1,6 +1,5 @@
 #!/bin/sh
-# Purpose: selftest case — a brief path with spaces is never cut, and a missing hand-back is said (v0.9.8.1 R7, F-1;
-# the live project's A-272). The brief-write fixture in a folder whose path holds spaces and ends in one: a builder's
+# Purpose: selftest case — a brief path with spaces is never cut, and a missing hand-back is said (v0.9.8.1 R7, F-1). The brief-write fixture in a folder whose path holds spaces and ends in one: a builder's
 # return naming its brief by the absolute path records `brief=` relative to the home; a second check of it records
 # nothing, and so does a check after an older record of the same brief by its absolute path. Then progress, with a
 # Codex build-cost recording an absolute brief path (an older record) and one naming a hand-back the home lacks,

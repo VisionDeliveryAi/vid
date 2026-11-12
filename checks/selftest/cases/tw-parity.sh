@@ -1,5 +1,5 @@
 #!/bin/sh
-# Purpose: selftest case — the ticket carries develop's builder brief, W11 (v0.26.10.12.3; the owner's ruling of 2026-11-02, "we do exactly the same things"). On TW's toy, TW writes S05's ticket (ROW-017
+# Purpose: selftest case — the ticket carries develop's builder brief, W11 (v0.26.10.12.3): a ticket does exactly what develop does. On TW's toy, TW writes S05's ticket (ROW-017
 # alone) and S03's (five ROW rows, three rules, three hostility rows and a seam); in a copy of the toy outside any plan
 # session, develop's own `brief.sh write --role builder` (fixtures/brief-write.sh's plugin) writes the builder brief of
 # the same step and the same ROW rows, develop's writer taking ROW rows only. S05: the ticket's quoted Rows, Requirements,
@@ -49,6 +49,6 @@ within() { awk 'NR == FNR { W[++n] = $0; next } k < n && $0 == W[k + 1] { k++ } 
 treq "$T3" > "$T/t2"; dsec "$B3" 2 | a1 > "$T/d2"; within "$T/d2" "$T/t2" "develop's section 2 is not, in order, within S03's requirements"
 grep -vxF -f "$T/d2" "$T/t2" | cut -d'|' -f1 | tr -d ' ' > "$T/x2"; [ "$(paste -sd ' ' "$T/x2")" = 'INV-002' ] || fail "S03's requirements beyond develop's are $(paste -sd ' ' "$T/x2"), not INV-002 alone (HOS-005's)"
 tsec "$T3" Decisions > "$T/t3"; dsec "$B3" 3 | a1 > "$T/d3"; within "$T/d3" "$T/t3" "develop's section 3 is not, in order, within S03's decisions"
-tsec "$T3" 'Rules that bear on these rows' > "$T/t11"; dsec "$B3" 11 > "$T/d11"; within "$T/d11" "$T/t11" "develop's section 11 is not, in order, within S03's rules"
+tsec "$T3" 'Rules that bear on these rows' > "$T/t11"; dsec "$B3" 11 | sed "s# | checks/extractors/[^ ]* | # | (ViD's records) | #" > "$T/d11"; within "$T/d11" "$T/t11" "develop's section 11 is not, in order, within S03's rules"
 dsec "$B3" 10 | grep -v '^plan: ' > "$T/d10"; tsec "$T3" 'The step' | grep -v '^shared: ' > "$T/t10"; same "$T/d10" "$T/t10" "S03's step lines are not develop's section 10"
 exit 0

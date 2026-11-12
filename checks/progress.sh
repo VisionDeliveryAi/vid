@@ -91,6 +91,7 @@
 # windows end there — for replaying past records; the default is now.
 # Inside a 0.9.6 develop run only (checks/plan.sh gate); run at the home.
 # Usage: sh checks/progress.sh [--record] [--trigger hourly|plan-change|session] [--by observer|session] [--now "<line>"]
+# serves: develop (0.26.10.28.4, M9)
 set -u
 IFS='
 '
@@ -272,7 +273,7 @@ ROLEL=$(awk "$AWKAT"' $1 == "build-cost" { r = kv("role"); if (r == "builder" ||
 # receipt while one of the attempt's tickets still ran, and court refusals at commit (.vid/hook-times by worktree)
 BYT=''
 if grep -q '^build-cost .* tool=' "$EV"; then
-  # v0.9.8.1 (R7, F-1; the live project's A-272): brief= up to the next field, its home prefix removed — an older
+  # v0.9.8.1 (R7, F-1): brief= up to the next field, its home prefix removed — an older
   #   record's absolute path in a home whose path holds a space is read whole, never cut and counted as no row
   awk -v h="$(pwd -P)" "$AWKAT"' $1 == "build-cost" && (kv("role") == "builder") { t = kv("tool"); if (t == "") t = "claude"; print bkv(h) "\t" t "\t" kv("step") "\t" kv("rows-passed") }' "$EV" > "$T/bt"
   awk "$AWKAT"' $1 == "verdict" && kv("row") != "" { V[kv("row")] = kv("result") } END { for (r in V) print r "\t" V[r] }' "$EV" > "$T/lv"

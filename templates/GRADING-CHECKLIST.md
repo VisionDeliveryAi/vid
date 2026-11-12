@@ -22,22 +22,20 @@
   ranking, a match, a decision — proved only by published, named examples
   is unproved: find the implementation that branches on the fixture and
   answers correctly for exactly those inputs. Generated or independently
-  sampled inputs are the standard (a field run's exact fixture-named
-  assertions were satisfied by branching on the fixture names; the engines
-  were built in a later rewrite).
+  sampled inputs are the standard (exact fixture-named assertions can be
+  satisfied by branching on the fixture names, with no engine built).
 - **Probe fixture realism.** Tidy stand-in fixtures carry none of the
   hostile properties of real input: check that a hostility probe's input
   is hostile in every field the product stores or renders, not only the
   one the probe asserts on, and that filenames, addresses and markup look
-  like the real thing (a field run planted hostile markup in the
-  description alone while every other field stood between a hostile feed
-  and stored script).
+  like the real thing (hostile markup planted in the description alone
+  leaves every other field between a hostile feed and stored script).
 - **Assertion strength on Tier-0.** A Tier-0 row whose test asserts only
   that something EXISTS — an element is present, a record count is at
   least one, a status is in a set spanning success and redirect — is a
   finding: name the value or behaviour the assertion should have pinned
-  (the ladder: existence → type → status → value → behaviour; a field run
-  carried 163 presence assertions against 3 real visibility assertions).
+  (the ladder: existence → type → status → value → behaviour; presence
+  assertions can outnumber real visibility assertions many times over).
 
 ## Domain lines
 

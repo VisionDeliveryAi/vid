@@ -1,8 +1,8 @@
 #!/bin/sh
 # Purpose: selftest case — census.sh must fail a rule row whose census
-# command writes to standard error (v0.8.1d, G-08's measured class: a syntax
-# error in one arm of a compound command took a population from 72 sites to
-# 18 with zero orphans and exit 0). Exits 0 only if the court convicts the
+# command writes to standard error (v0.8.1d: a syntax error in one arm of a
+# compound command can take a population from 72 sites to 18 with zero
+# orphans and exit 0). Exits 0 only if the court convicts the
 # arm-broken command AND (polarity) passes the same rule with a clean one,
 # AND reports a strength-class extractor's orphan as STR without failing.
 set -eu

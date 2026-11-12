@@ -1,13 +1,11 @@
 # Content-contract catalog — the 19-dimension floor
 
 **Source:** carried over verbatim-in-substance from the pinned PDLC
-default content contract (evidence:
-`pdlc_v3/products/*/inputs/INPUT-prd-content-contract/prd_content_contract.v1.yaml`,
-identical across both sealed example runs; the WOD seal cites all 19).
+default content contract.
 Item-type names are mapped to ViD's closed type list (the source's
 `functional_requirement` is ViD's `functional`); everything else —
 categories, demand, covered_by, facets, prompts with their boundary
-clauses, defect-class provenance — is carried unchanged in substance.
+clauses, defect classes — is carried unchanged in substance.
 
 **This file's law:**
 
@@ -18,7 +16,7 @@ clauses, defect-class provenance — is carried unchanged in substance.
   `case-by-case` dimension explicitly in or out.
 - The entry rule, imported verbatim as contract law: *"a dimension that
   cannot name its defect class does not enter."* For catalog dimensions
-  the defect class is the measured post-seal finding recorded below; for
+  the defect class is the one recorded below; for
   panel-added dimensions it is the `prompt:` line, and a panel proposal
   without one is refused at the sitting.
 - **Hard cap: 24 dimensions** in any ratified contract — a contract that
@@ -51,8 +49,7 @@ citations are facet-qualified and closure is per facet.
   resource belongs to DIM-authorization.
 - **Defect class:** the build team invents the entire auth/identity tier
   structure because "registered or subscribed" is load-bearing and
-  undefined (evidence: wod-v3 F1 — both reviewers' highest-impact
-  finding).
+  undefined.
 
 ## DIM-consent — Contact permission & consent handling
 
@@ -64,8 +61,7 @@ citations are facet-qualified and closure is per facet.
   account deletion. Applies to any product that stores contact details.
 - **Defect class:** an email-loop product ships without consent
   separation, unsubscribe, or withdrawal — a compliance obligation, not
-  polish (evidence: wod-v3 F7; v2 Q-015 died at the regeneration
-  boundary).
+  polish.
 
 ## DIM-lifecycle — Entity time-lifecycle
 
@@ -81,7 +77,7 @@ citations are facet-qualified and closure is per facet.
   notification triggers to DIM-notifications.
 - **Defect class:** core entities have no defined
   past/cancelled/postponed/expired behaviour; the team improvises
-  transitions in week one (evidence: wod-v3 F5 — load-bearing where
+  transitions in week one (load-bearing where
   other rules depend on "future date").
 
 ## DIM-operations — Operational & admin surfaces
@@ -94,8 +90,7 @@ citations are facet-qualified and closure is per facet.
   a queue, something must consume the queue.
 - **Defect class:** user-facing intakes exist with no operator-facing
   review side — claims are reviewed by nobody specified, with no
-  rejection, competing-claim, or revocation behaviour (evidence: wod-v3
-  F2).
+  rejection, competing-claim, or revocation behaviour.
 
 ## DIM-feedback-intake — Corrections & user feedback handling
 
@@ -107,8 +102,7 @@ citations are facet-qualified and closure is per facet.
   learns the outcome. Intake without resolution is not coverage.
 - **Defect class:** a correction/report submission path exists and
   terminates in a void — no entity, no review flow, no outcome; a
-  /dev/null form passes acceptance (evidence: wod-v3 F3; the seed's own
-  "corrections go to moderation" was shed at the thesis hop).
+  /dev/null form passes acceptance.
 
 ## DIM-trust-states — Trust-state production & freshness
 
@@ -119,8 +113,7 @@ citations are facet-qualified and closure is per facet.
   staleness. A state with no producer is decoration.
 - **Defect class:** trust states are display-side only — "verified" has
   no producer, freshness has no clock, staleness has no rule; the state
-  machine must be invented (evidence: wod-v3 F4; seed §7/§17 shed at the
-  thesis hop).
+  machine must be invented.
 
 ## DIM-authorization — Authorization: grants and denials
 
@@ -132,7 +125,7 @@ citations are facet-qualified and closure is per facet.
   from otherwise-authorized editors. Every grant needs its boundary.
 - **Defect class:** capabilities are granted with no matching denial —
   owners can edit, nothing forbids non-owners; protected fields are
-  unspecified (evidence: wod-v3 F2 / Codex finding 1).
+  unspecified.
 
 ## DIM-notifications — Notifications: triggers, preferences, delivery
 
@@ -145,8 +138,7 @@ citations are facet-qualified and closure is per facet.
   consent withdrawal belong to DIM-consent.
 - **Defect class:** the retention loop rests on "reminders when
   available" — no trigger catalogue, no preferences, no unsubscribe, an
-  escape hatch that makes the fail condition unassertable (evidence:
-  wod-v3 F6/loss 2; seed §9.5 triggers shed at the thesis hop).
+  escape hatch that makes the fail condition unassertable.
 
 ## DIM-data-integrity — Data identity, dedup & provenance recording
 
@@ -160,8 +152,7 @@ citations are facet-qualified and closure is per facet.
   (who/when/source).
 - **Defect class:** records duplicate or fragment silently, and edits
   carry no recorded origin — dedup rules and canonical identity left to
-  the build team (evidence: v2 §8/§9 slot; partially covered in wod-v3,
-  kept as a dimension so the coverage is a decision, not luck).
+  the build team (kept as a dimension so the coverage is a decision, not luck).
 
 ## DIM-nfr-security — NFR: security
 
@@ -173,9 +164,8 @@ citations are facet-qualified and closure is per facet.
   (claims, corrections, invites). "Industry standard" without naming the
   bar is not coverage.
 - **Defect class:** a public product handling identities, ownership
-  claims, and direct content editing ships with no stated security floor
-  (evidence: wod-v3 F7 — five thesis-posture NFRs satisfied the type
-  slot while security went unstated; v2 §14 slot).
+  claims, and direct content editing ships with no stated security floor (posture NFRs can fill the type
+  slot while security goes unstated).
 
 ## DIM-nfr-privacy — NFR: privacy & data protection
 
@@ -187,8 +177,7 @@ citations are facet-qualified and closure is per facet.
   consent is the mechanism, this is the obligation set.
 - **Defect class:** privacy posture exists as product principles but no
   requirement covers data deletion, retention, or regulatory floor for
-  the audience actually served (evidence: wod-v3 F7; seed §19 carried
-  principles, not obligations).
+  the audience actually served.
 
 ## DIM-nfr-availability — NFR: availability & performance
 
@@ -202,9 +191,7 @@ citations are facet-qualified and closure is per facet.
   produce COMPARABLE bounds — a number without its measurement profile
   is not comparable. MVP-honest numbers are fine; absence is not.
 - **Defect class:** no availability or performance floor exists; "it was
-  slow and down" cannot violate any requirement (evidence: wod-v3 F7; v2
-  §14 had core-web-vitals targets that died at the regeneration
-  boundary).
+  slow and down" cannot violate any requirement.
 
 ## DIM-nfr-accessibility — NFR: accessibility
 
@@ -214,8 +201,7 @@ citations are facet-qualified and closure is per facet.
   public pages, keyboard navigability, image alts on content surfaces) —
   or an owner disposition explicitly deferring it. Silence is neither.
 - **Defect class:** no accessibility baseline stated; a public content
-  product excludes users silently and retrofits expensively (evidence:
-  wod-v3 F7; v2 §14 slot).
+  product excludes users silently and retrofits expensively.
 
 ## DIM-nfr-operability — NFR: operability (backup, observability, support)
 
@@ -228,7 +214,7 @@ citations are facet-qualified and closure is per facet.
   has. Bars, not architecture. One citation must not collapse the three.
 - **Defect class:** nothing states backup/recovery, error observability,
   or how operators learn the product is broken; the first data-loss
-  incident writes this dimension the hard way (evidence: wod-v3 F7).
+  incident writes this dimension the hard way.
 
 ## DIM-proof-thresholds — Decidable success thresholds
 
@@ -240,9 +226,7 @@ citations are facet-qualified and closure is per facet.
   gate. "Regular return behavior" without a definition is not a metric.
 - **Defect class:** the MVP is designed as a proof whose pass/fail
   cannot be adjudicated — metric NAMES exist but no numeric threshold,
-  window, denominator, or kill band (evidence: wod-v3 F6/loss 6 — "the
-  evaluation the MVP exists to perform is not executable from the
-  document").
+  window, denominator, or kill band.
 
 ## DIM-instrumentation — Instrumentation for the declared metrics
 
@@ -252,8 +236,7 @@ citations are facet-qualified and closure is per facet.
   events or queries that measure it, and those events are demanded by a
   requirement. A metric nothing records is a wish.
 - **Defect class:** declared metrics have no defined measurement events;
-  the proof window closes with unmeasurable claims (evidence: v2 §12
-  slot; largely covered in wod-v3 — kept so coverage is asserted, not
+  the proof window closes with unmeasurable claims (kept so coverage is asserted, not
   assumed).
 
 ## DIM-core-loop-continuity — Core-loop continuity (post-action journeys & recovery)
@@ -269,9 +252,7 @@ citations are facet-qualified and closure is per facet.
 - **Defect class:** the load-bearing user loop stops at a persisted
   flag — save exists but no list/manage/remove surface, no follow-up
   behaviour, no empty/failure/recovery states; the loop's continuation
-  is silently absent (evidence: wod-v3 F2-save/return in BOTH post-seal
-  analyses — found by the evidence, missed by every other dimension;
-  added per CR2-005).
+  is silently absent.
 
 ## DIM-seo-technical — Technical SEO contract
 
@@ -285,8 +266,7 @@ citations are facet-qualified and closure is per facet.
 - **Defect class:** organic search is a declared MVP proof while the
   build contract (indexability mechanics, canonicals vs dedup, sitemap,
   structured data) is absent — the strategy survives, its executable
-  half does not (evidence: wod-v3 loss 5; v2 §13 died at the
-  regeneration boundary).
+  half does not.
 
 ## DIM-i18n-locale — Internationalisation & locale display
 
@@ -296,6 +276,4 @@ citations are facet-qualified and closure is per facet.
   locales/timezones): how dates/times are shown (event-local vs
   viewer-local), currency display, and the language posture for the MVP.
 - **Defect class:** a worldwide product leaves timezone/currency/date
-  display undefined; every build team re-decides it inconsistently
-  (evidence: v2 Q-029 — elicited once, then lost at the regeneration
-  boundary).
+  display undefined; every build team re-decides it inconsistently.

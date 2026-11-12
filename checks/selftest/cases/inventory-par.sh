@@ -115,7 +115,7 @@ sh checks/inventory.sh >/dev/null 2>&1 || exit 1
 inv6 'ROW-003 | surface | /x | anonymous | P01/default | the page paints | REQ-001 | owed: materialised when its surface exists'
 if sh checks/inventory.sh >/dev/null 2>&1; then echo 'inventory-par: "materialised when its surface exists" passed as a class' >&2; exit 1; fi
 sh checks/inventory.sh --report | grep -q 'unclassed deferral' || exit 1
-# a rule row with an unrecognised test field (a live project's HEAD tree shape) is a GAP and the report still reaches its summary — the 2026-09-21 replay found the court aborting here
+# a rule row with an unrecognised test field is a GAP and the report still reaches its summary, never aborting the court
 inv6 'rule | RULE-005 | every export names its count | printf "a\n" | T1 | census: RULE-005 joined 2026-09-19 orphans=0 | origin: REQ-001' \
      'ROW-004 | behavior | REQ-001 | n/a | n/a | a promise | REQ-001 | owed: prerequisite — a capture; paid at slice 2'
 OUT=$(sh checks/inventory.sh --report) || { echo 'inventory-par: --report exited non-zero on an unrecognised rule test field' >&2; exit 1; }

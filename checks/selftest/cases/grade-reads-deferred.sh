@@ -6,7 +6,7 @@
 set -eu
 fail() { echo "grade-reads-deferred: $*" >&2; exit 1; }
 SK="$CHECKS/../skills"
-[ -f "$SK/vid-grade/SKILL.md" ] || exit 0
+[ -f "$SK/vid-grade/SKILL.md" ] || { echo 'needs skills/vid-grade/SKILL.md'; exit 77; }
 flat() { tr '\n' ' ' < "$1" | tr -s ' '; }
 flat "$SK/vid-grade/SKILL.md" | grep -qF 'reads the open deferrals — each `deferred` event with no later `deferred-resolved` for its row' || fail 'vid-grade does not read the deferred events'
 flat "$SK/vid-grade/SKILL.md" | grep -qF '.vid/end-grade-queue.md' || fail 'vid-grade no longer reads the end-grade file'

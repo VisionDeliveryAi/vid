@@ -34,6 +34,7 @@
 # `sh checks/design-join.sh --index [pack-dir]` prints the index as lines — `layout <value>`, `file <name>`,
 # `component <screen> <file>` — for the brief writer; nothing for a pack without index.json.
 # Usage: sh checks/design-join.sh [brief.md] [pack-dir] | --index [pack-dir]
+# serves: both (0.26.10.28.4, M9)
 set -eu
 IFS='
 '

@@ -209,9 +209,8 @@
 #     writes `cap-hit` (reason=silent|startup|limit, last-output=) and stops the run
 #     through the signal path (no later pass, no receipt, `capped=yes
 #     stop=<reason>` in the event). The request carries silence=, startup=, limit=
-#     (the estimate's start-up term is estimate-startup=; old tickets' cap= and
-#     slept= are still read as written). Only the run's own completion writes a
-#     final state, after `result`.
+#     (the estimate's start-up term is estimate-startup=). Only the run's own
+#     completion writes a final state, after `result`.
 #   wait <ticket>  reads `state` every 5 s for at most 200 s: queued → one line
 #     `queued <elapsed>s of estimate <e>s`; running → `running <awake>s of
 #     estimate <e>s, silent <s>s of <limit>s`, the watcher's own counts from its
@@ -248,8 +247,8 @@
 #   age, repository and compose project — to its ticket folder's `holders`;
 #   `wait` prints them after its line while the state is `queued`; the
 #   request's `queue:` line counts held slots live and stale.
-# v0.9.7.0.8 (T2.2; reverses 0.9.3's "never removed", by the owner's ruling
-#   of 2026-10-03): a run that finds no free slot — waiting or about to be
+# v0.9.7.0.8 (T2.2; reverses 0.9.3's "never removed"):
+#   a run that finds no free slot — waiting or about to be
 #   refused — frees a slot only when its holder pid is gone (kill -0 fails),
 #   Docker answers, and `docker ps -a -q --filter
 #   label=com.docker.compose.project=<the holder's project>` is empty. The
@@ -446,7 +445,7 @@ rq_estimate() {
     awk '$1 == "ledger-run" { r = ""; s = ""; for (i = 2; i <= NF; i++) { if (index($i, "report=") == 1) r = substr($i, 8); else if (index($i, "seconds=") == 1) s = substr($i, 9) }
       if (r != "" && r != "none" && !index(r, ".proof.")) print r "\t" s }' "$_ev" | while IFS="$TX" read -r _r _s; do [ -f "$_rd/$_r.cases" ] && printf '%s\t%s\n' "$_r" "$_s"; done > "$RQT/kept" || true   # v0.9.8 (R15): a proof receipt estimates nothing
   fi
-  # v0.9.8.1 (R11, F-10; the live project's A-274): a receipt whose case seconds exceed its wall time (a merged split
+  # v0.9.8.1 (R11, F-10): a receipt whose case seconds exceed its wall time (a merged split
   # run, parallel chunks) tells nothing of start-up — it is left out, never counted as 0
   STARTUP=$(tail -n 20 "$RQT/kept" | while IFS="$TX" read -r _r _s; do awk -v s="${_s:-0}" '$1 == "case" { c += $4 } END { d = s - c; if (d >= 0) print d }' "$_rd/$_r.cases"; done |
     sort -n | awk '{ v[NR] = $1 } END { if (NR == 0) print 90; else if (NR % 2) printf "%d\n", v[(NR + 1) / 2] + 0.5; else printf "%d\n", (v[NR / 2] + v[NR / 2 + 1]) / 2 + 0.5 }')
@@ -671,7 +670,7 @@ rq_analyst() {
         print }' "$_at/cases" > "$_at/cases.s" && mv "$_at/cases.s" "$_at/cases"
   fi
   an_fire() { # <reason> <fields>
-    printf 'analyst-due request=%s reason=%s%s at=%s\n' "$_tk" "$1" "$2" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >> "$_h/.vid/metrics-events"
+    printf 'analyst-due request=%s reason=%s%s at=%s\n' "$_tk" "$1" "$2" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >> "$_h/.vid/metrics-events"   # fields: stop= last-output= rows= cases= group=
     printf 'analyst due: %s request=%s%s\n' "$1" "$_tk" "$2" >> "$_at/lines"
   }
   # v0.26.10.4 (R6): the cap trigger fires on all three reasons the watcher stops a run, with the reason and the last output time
@@ -1720,7 +1719,8 @@ up_stop() {
 cleanup() {
   [ "$CLEANED" = no ] || return 0
   CLEANED=yes
-  [ -n "$PLOCK" ] && rmdir "$PLOCK" 2>/dev/null
+  [ -z "$PLOCK" ] || pl_release || true   # v0.26.10.28.3 (R6): only the holder's own lock; teardown goes on
+  [ -z "${PRECL:-}" ] || { rmdir "$PRECL" 2>/dev/null || true; PRECL=''; }   # and a reclaim folder it holds
   admit_unlock
   [ -z "${SWPID:-}" ] || svc_stop   # v0.9.7.0.11 (3.3): the stack watcher, reaped before the teardown
   if [ "$INTERRUPTED" -eq 1 ] && [ -n "$UPPID" ] && [ "$GATED" = yes ]; then up_stop; else teardown; fi
@@ -1758,7 +1758,7 @@ cleanup() {
 rq_capev() {
   _k=${KIND:-}; [ -n "$_k" ] || { _k=full; [ -n "$SEL" ] && _k=scoped; [ "$SELCLOSE" = yes ] && _k=$ROLE; }
   _x=''; [ "$GATED" = yes ] && _x=" tree=${TREE:-} run=$RUNID"; [ "$TDFAIL" = yes ] && _x="$_x teardown=failed"
-  printf 'ledger-run seconds=%s kind=%s report=none status=130 role=%s%s%s %s%s at=%s\n' "$(( $(date +%s) - $(cat "$TD/running-at" 2>/dev/null || date +%s) ))" "$_k" "${ROLE:--}" "$_x" "$RQF" "${1:-capped=yes}" "$RQW" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >> "$EV"
+  printf 'ledger-run seconds=%s kind=%s report=none status=130 role=%s%s%s %s%s at=%s\n' "$(( $(date +%s) - $(cat "$TD/running-at" 2>/dev/null || date +%s) ))" "$_k" "${ROLE:--}" "$_x" "$RQF" "${1:-capped=yes}" "$RQW" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >> "$EV"   # fields: tree= run= teardown= request= type= rows= estimate= silence= startup= limit= try= expect= no-history= purpose= batch= capped= stop= cancelled= stopped= why=
 }
 on_signal() { INTERRUPTED=1; rm -f "$PENDING"
   [ -n "${WERR:-}" ] && { cat "$WERR" >&2 2>/dev/null; rm -f "$WERR"; WERR=''; }   # v0.9.7.3 (R9): the Compose child's lines so far
@@ -1999,6 +1999,60 @@ ROLEF=" role=${ROLE:--}"   # v0.9.7.0.1 (3.2, R5): an ungated roleless run is re
 [ "$GATED" = no ] && [ -z "${VID_REQUEST:-}" ] && ROLEF="$ROLEF form=legacy"   # v0.9.7.0.2 (3.4, R5): a plain call outside a run
 FINAL=0
 
+# v0.26.10.28.3 (R6, M16): the publish lock really held. A gated publish takes $RDIR/.publish.lock (a folder, by mkdir)
+# before its report is moved into place and holds it through the commit-named copy and the event; its holder writes
+# `pid` into it at once (its pid and start time, as admit_mine). A holder is dead when its pid is gone or that pid's
+# start time is another's, or when the folder has no `pid` and is older than 30 s (one between its mkdir and its write
+# is live till then). A dead holder's lock is reclaimed only under $RDIR/.publish.reclaim (mkdir): judged again under
+# it and removed only when still dead and the same `pid` text; a standing reclaim folder is never removed by another.
+# Tried once a second for 20 s; then the no-report path — the report kept as <report>.unpublished, the `none` passes
+# line, one ledger-run report=none event (`pid=<p> why=publish-lock-held`, or why=publish-reclaim-stands), one line, and
+# never exit 0. Only the holder releases it (its own `pid`); cleanup releases it, and a reclaim folder it holds.
+PLME=''; PRECL=''; PLPID=''; PLWHY=''; PLKEY=''
+pl_dead() { # $1=the lock → exit 0 when its holder is dead; prints the `pid` text judged
+  _pt=$(cat "$1/pid" 2>/dev/null || true); printf '%s\n' "$_pt"
+  if [ -z "$_pt" ]; then
+    [ -d "$1" ] || return 1
+    _pm=$(stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null || echo 0)
+    [ $(( $(date +%s) - _pm )) -gt 30 ] && return 0
+    return 1
+  fi
+  _pp=${_pt%% *}; _ps=''; case "$_pt" in *' '*) _ps=${_pt#* } ;; esac
+  case "$_pp" in ''|*[!0-9]*) return 0 ;; esac
+  pid_alive "$_pp" || return 0
+  if [ -n "$_ps" ]; then _pn=$(ps -o lstart= -p "$_pp" 2>/dev/null | sed 's/^ *//; s/ *$//'); [ -z "$_pn" ] || [ "$_pn" = "$_ps" ] || return 0; fi
+  return 1
+}
+pl_take() { # → 0 with the lock held (PLOCK); 1 after 20 s, PLPID, PLWHY and PLKEY saying why
+  _plk="$RDIR/.publish.lock"; _prc="$RDIR/.publish.reclaim"; _pl=0; PLME=$(admit_mine)
+  while :; do
+    # the holder is the one that creates `pid` in it (noclobber): one that took the folder and was slow to write finds another's
+    # `pid` there after a reclaim, and goes on waiting
+    if mkdir "$_plk" 2>/dev/null && ( set -C; printf '%s\n' "$PLME" > "$_plk/pid" ) 2>/dev/null; then PLOCK=$_plk; return 0; fi
+    _pd=no; _pj=$(pl_dead "$_plk") && _pd=yes
+    PLPID=${_pj%% *}; PLKEY=publish-lock-held
+    PLWHY="the publish lock is held by pid ${PLPID:-unknown} since $(date -u -r "$_plk" '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || echo '?')"
+    if [ "$_pd" = yes ]; then
+      if mkdir "$_prc" 2>/dev/null; then
+        PRECL=$_prc
+        # a pid-less lock goes by rmdir alone, which fails once a slow taker has just written its pid
+        if _pk=$(pl_dead "$_plk") && [ "$_pk" = "$_pj" ]; then [ -z "$_pj" ] || rm -f "$_plk/pid"; rmdir "$_plk" 2>/dev/null || true; fi
+        rmdir "$_prc" 2>/dev/null || true; PRECL=''
+        [ -e "$_plk" ] || continue
+      else
+        PLKEY=publish-reclaim-stands; PLWHY="the publish lock's reclaim folder $_prc stands; remove it if no ViD test runs"
+      fi
+    fi
+    [ "$_pl" -lt 20 ] || return 1
+    sleep 1; _pl=$((_pl + 1))
+  done
+}
+pl_release() { # only the holder: PLOCK set and its `pid` this run's
+  [ -n "$PLOCK" ] || return 0
+  if [ -n "$PLME" ] && [ "$(cat "$PLOCK/pid" 2>/dev/null)" = "$PLME" ]; then rm -f "$PLOCK/pid"; rmdir "$PLOCK" 2>/dev/null || true; fi
+  PLOCK=''
+}
+
 # publish <name> <kind> <status> <seconds> [<copy name>] [<shape>]: renamed only when the run ran to its end
 publish() {
   RAN_TO_END=yes; WHY=''
@@ -2010,8 +2064,12 @@ publish() {
     XF=" tree=$TREE run=$RUNID"; [ "$WAITED" -gt 0 ] && XF="$XF waited=$WAITED"; [ "$TDFAIL" = yes ] && XF="$XF teardown=failed"
   fi
   XF="$XF$RQF"
+  PLNO=''
   if [ "$INTERRUPTED" -eq 0 ] && [ "$RAN_TO_END" = yes ] && [ -f "$PENDING" ]; then
     outside "${6:-inline}" || true; [ "$OUTN" -gt 0 ] && XF="$XF outside=$OUTN"
+    if [ "$GATED" = yes ] && ! pl_take; then PLNO=yes; fi   # v0.26.10.28.3 (R6): the lock before the report is placed
+  fi
+  if [ -z "$PLNO" ] && [ "$INTERRUPTED" -eq 0 ] && [ "$RAN_TO_END" = yes ] && [ -f "$PENDING" ]; then
     # v0.9.7.0.11 (3.1, R1): the request's frozen rows ride the report — written before it is published (full: none)
     rm -f "$RDIR/$1.rows"
     if [ -n "$TD" ] && [ -f "$TD/rows" ] && [ "$(sed -n 's/^type=//p' "$TD/request")" != full ]; then cp "$TD/rows" "$RDIR/.$1.rows.$$" && mv "$RDIR/.$1.rows.$$" "$RDIR/$1.rows"; fi
@@ -2023,17 +2081,22 @@ publish() {
       # v0.9.7.0.10 (3.2, R5): the pass's overhead — its seconds minus its cases' seconds, never below 0
       OVH=$(awk -v s="$4" '$1 == "case" { c += $4 } END { d = s - c; if (d < 0) d = 0; printf "%d\n", d + 0.5 }' "$RDIR/$1.cases")
       XF="$XF overhead=$OVH"
-      # the commit-named copy and the event in one step, so the copy is the newest event's
-      _pl=0; while ! mkdir "$RDIR/.publish.lock" 2>/dev/null && [ "$_pl" -lt 20 ]; do sleep 1; _pl=$((_pl + 1)); done; PLOCK="$RDIR/.publish.lock"
+      # the commit-named copy and the event in one step, under the lock taken above, so the copy is the newest event's
       if [ -n "${5:-}" ]; then   # the copy carries the report's .rows, or none
         if [ -f "$RDIR/$1.rows" ]; then cp "$RDIR/$1.rows" "$RDIR/.$5.rows.$$" && mv "$RDIR/.$5.rows.$$" "$RDIR/$5.rows"; else rm -f "$RDIR/$5.rows"; fi
         cp "$RDIR/$1" "$RDIR/.$5.tmp.$$" && mv "$RDIR/.$5.tmp.$$" "$RDIR/$5"
       fi
     fi
     echo "ViD test: report $RDIR/$1 ($2 run, tree $HEAD, exit $3)"
-    printf 'ledger-run seconds=%s kind=%s report=%s status=%s%s%s%s at=%s\n' "$4" "$2" "$1" "$3" "$ROLEF" "$XF" "$RQW" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >> "$EV"
-    [ -n "$PLOCK" ] && { rmdir "$PLOCK" 2>/dev/null || true; PLOCK=''; }
+    printf 'ledger-run seconds=%s kind=%s report=%s status=%s%s%s%s at=%s\n' "$4" "$2" "$1" "$3" "$ROLEF" "$XF" "$RQW" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >> "$EV"   # fields: role= form= tree= run= waited= teardown= request= type= rows= estimate= silence= startup= limit= try= expect= no-history= purpose= batch= outside= overhead= why=
+    pl_release
     if [ -n "$TD" ]; then printf '%s\t%s\t%s\t%s\t%s\n' "$1" "$2" "$3" "$RAN_TO_END" "$(cd "$RDIR" && pwd)" >> "$TD/passes"; fi
+  elif [ -n "$PLNO" ]; then   # v0.26.10.28.3 (R6): the lock not got in 20 s — no report; it stays beside, unpublished
+    mv "$PENDING" "$RDIR/$1.unpublished"
+    echo "ViD test: no report — $PLWHY; the report is at $RDIR/$1.unpublished" >&2
+    printf 'ledger-run seconds=%s kind=%s report=none status=%s%s%s pid=%s why=%s at=%s\n' "$4" "$2" "$3" "$ROLEF" "$XF" "${PLPID:--}" "$PLKEY" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >> "$EV"   # fields: role= form= tree= run= waited= teardown= request= type= rows= estimate= silence= startup= limit= try= expect= no-history= purpose= batch= outside=
+    if [ -n "$TD" ]; then printf 'none\t%s\t%s\t%s\t-\n' "$2" "$3" "$RAN_TO_END" >> "$TD/passes"; fi
+    [ "$FINAL" -ne 0 ] || [ "$3" -ne 0 ] || FINAL=1   # never exit 0 with no receipt
   else
     rm -f "$PENDING"
     if [ "$RAN_TO_END" = no ]; then
@@ -2041,7 +2104,7 @@ publish() {
     else
       echo "ViD test: no report — the runner did not write one (exit $3); nothing is green that did not run." >&2
     fi
-    printf 'ledger-run seconds=%s kind=%s report=none status=%s%s%s%s at=%s\n' "$4" "$2" "$3" "$ROLEF" "$XF" "$RQW" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >> "$EV"
+    printf 'ledger-run seconds=%s kind=%s report=none status=%s%s%s%s at=%s\n' "$4" "$2" "$3" "$ROLEF" "$XF" "$RQW" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >> "$EV"   # fields: role= form= tree= run= waited= teardown= request= type= rows= estimate= silence= startup= limit= try= expect= no-history= purpose= batch= why=
     if [ -n "$TD" ]; then printf 'none\t%s\t%s\t%s\t-\n' "$2" "$3" "$RAN_TO_END" >> "$TD/passes"; fi
   fi
   [ "$FINAL" -ne 0 ] || FINAL=$3

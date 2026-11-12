@@ -37,7 +37,11 @@
 #                          and listed once more whole (kind `split`: its bytes
 #                          and sha256, reassembled from the parts in order);
 #                          kind `missing` for what was named but is absent.
+# 0.26.10.28.1 (stage 9 R6, CK-R-257): in ticket mode (RUN-STATE's mode: tickets) it packs ViD's side alone — the
+# records, the repository's bundle, ViD's own transcripts — leaving out .vid/code and .vid/code.old-*, DevAgent's
+# code; export.tsv's devagent line and the last line say DevAgent's transcripts are out of its reach.
 # Usage: sh checks/export.sh [--out <dir>]
+# serves: both (0.26.10.28.4, M9)
 set -eu
 IFS='
 '
@@ -70,11 +74,13 @@ root() { printf '%s\t%s\t%s\n' "$1" "$2" "$(utc)" >> "$W/roots"; }        # <bun
 missing() { printf 'missing\t%s\t-\t-\t%s\t%s\n' "$1" "$2" "$(utc)" >> "$W/missing"; }
 h256() { if command -v shasum >/dev/null 2>&1; then shasum -a 256 "$1" | cut -d' ' -f1; else sha256sum "$1" | cut -d' ' -f1; fi; }
 enc() { printf '%s' "$1" | sed 's/[^A-Za-z0-9]/-/g'; }
-# copyvid <.vid dir> <bundle dir>: the folder whole, its exports/ (and an --out inside it) left out
+TMODE=no; grep -q '^mode:[[:space:]]*tickets' "$H/.vid/RUN-STATE.md" 2>/dev/null && TMODE=yes
+# copyvid <.vid dir> <bundle dir>: the folder whole, its exports/ (and an --out inside it) left out; in ticket mode
+# DevAgent's code too, .vid/code and .vid/code.old-*
 copyvid() {
   mkdir -p "$B/$2"
   _x=''; case "$OUT/" in "$1"/*) _r=${OUT#"$1"/}; _x=${_r%%/*} ;; esac
-  ( cd "$1" && find . -type f ! -path './exports/*' | LC_ALL=C sort ) | { if [ -n "$_x" ]; then grep -v "^\./$_x/" || true; else cat; fi; } > "$W/list"
+  ( cd "$1" && if [ "$TMODE" = yes ]; then find . -type f ! -path './exports/*' ! -path './code/*' ! -path './code.old-*'; else find . -type f ! -path './exports/*'; fi | LC_ALL=C sort ) | { if [ -n "$_x" ]; then grep -v "^\./$_x/" || true; else cat; fi; } > "$W/list"
   ( cd "$1" && tar -cf - -T "$W/list" ) | ( cd "$B/$2" && tar -xf - )
   root "$2" "$1"
 }
@@ -167,6 +173,7 @@ done
 # 5. export.tsv
 RV=$(sed -n 's/^records:[[:space:]]*//p' "$H/checks/records-version" 2>/dev/null | head -n 1)
 printf 'export-version\t%s\nrecords\t%s\nrun\t%s\nhome\t%s\nhost\t%s\ntime\t%s\n' "$EXPORT_VERSION" "${RV:-none}" "$RUNID" "$H" "$(hostname 2>/dev/null || uname -n)" "$(utc)" > "$B/export.tsv"
+[ "$TMODE" = no ] || printf 'devagent	out of reach: DevAgent'"'"'s code and transcripts are on its side; this export holds ViD'"'"'s side alone\n' >> "$B/export.tsv"
 printf 'export.tsv\tgenerated\t%s\n' "$(utc)" >> "$W/roots"
 
 # 6. the manifest, last: every file, its provenance; a file over the limit cut into numbered parts
@@ -193,3 +200,4 @@ done
 cat "$W/missing" >> "$B/manifest.tsv.tmp"
 mv "$B/manifest.tsv.tmp" "$B/manifest.tsv"
 echo "ViD export: $B — $(grep -c '^file	\|^part	' "$B/manifest.tsv") files, $(grep -c '^split	' "$B/manifest.tsv") split, $(grep -c '^missing	' "$B/manifest.tsv") missing; refs: $(tg for-each-ref | grep -c .) ($(tg for-each-ref refs/vid-export/ | grep -c .) receipt trees)"
+[ "$TMODE" = no ] || echo "ViD export: ticket mode — ViD's side alone; .vid/code left out, and DevAgent's transcripts are out of its reach"

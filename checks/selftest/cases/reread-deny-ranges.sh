@@ -5,7 +5,7 @@
 # `<second path>, all of it` and `offset`, and neither `delete` nor the debt file's path; a listed path that does not
 # exist reads `cannot be read`. Env: CHECKS.
 set -eu
-[ -f "$CHECKS/../hooks/stop-failure.sh" ] || exit 0
+[ -f "$CHECKS/../hooks/stop-failure.sh" ] || { echo 'needs hooks/stop-failure.sh'; exit 77; }
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 cd "$T"; CASE=reread-deny-ranges
 . "$CHECKS/selftest/fixtures/reread-lib.sh"

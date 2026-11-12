@@ -27,6 +27,7 @@
 # one of its rows passes, and its line reports those rows without counting
 # them again. The per-row state is checks/metrics.sh's row engine (`row-state
 # --table`), one computation for the headline, the claim and this pass.
+# serves: both (0.26.10.28.4, M9)
 set -eu
 IFS='
 '

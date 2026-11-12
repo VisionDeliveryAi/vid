@@ -29,6 +29,7 @@
 # — no wipe: the row is to confirm (checks/metrics.sh to-confirm) until the next close's test-author pass keeps it
 # (brief.sh authority --kept) or amends its obligation. A row with both is amended only; a row new at HEAD gets
 # neither. From records 23 this hook never writes `amended … by=fail-if`; one already written still wipes.
+# serves: both (0.26.10.28.4, M9)
 set -u
 IFS='
 '

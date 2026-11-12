@@ -1373,7 +1373,7 @@ if [ "${1:-}" = cost ]; then
   if [ -n "$CT" ] && [ -r "$CT" ]; then CC=$(tcost "$CT" ''); CE=$(tmodel "$CT")
   elif [ -n "$CTK" ]; then CC="peak=unknown total=$CTK before-change=unknown source=agent-tool"; CE='model=unknown effort=unknown'
   else CC='peak=unknown total=unknown before-change=unknown'; CE='model=unknown effort=unknown'; fi
-  sh checks/event.sh "build-cost role=$CR slice=${CS:--} step=- brief=$CB rows=$CN rows-passed=- $CC tool=claude $CE brief-bytes=$(wc -c < "$CB" | tr -d ' ') agent=$CA" >/dev/null   # v0.9.8.1 (R9): agent=
+  sh checks/event.sh "build-cost role=$CR slice=${CS:--} step=- brief=$CB rows=$CN rows-passed=- $CC tool=claude $CE brief-bytes=$(wc -c < "$CB" | tr -d ' ') agent=$CA" >/dev/null   # v0.9.8.1 (R9): agent=   # fields: peak= total= before-change= source= model= effort=
   echo "ViD cost: build-cost role=$CR slice=${CS:--} brief=$CB rows=$CN $CC tool=claude $CE"
   exit 0
 fi
@@ -1523,7 +1523,7 @@ if [ "${1:-}" = return ]; then
       if [ "$(printf '%s\n' "$_bm" | grep -c .)" -eq 1 ]; then RB=$_bm
       elif [ -n "$_bm" ]; then rbad "header: brief: $RB names more than one brief of the run ($(printf '%s\n' "$_bm" | paste -sd ',' - | sed 's/,/, /g')) — give its path"; RB=''; fi; fi ;; esac
   if [ -n "$RB" ] && [ ! -f "$RB" ]; then rbad "header: the brief $RB does not exist"; RB=''; fi
-  [ -z "$RB" ] || RB=$(brel "$RB")   # v0.9.8.1 (R7): kept relative to the home (the live project's A-272)
+  [ -z "$RB" ] || RB=$(brel "$RB")   # v0.9.8.1 (R7): kept relative to the home
   bh() { sed -n "1,12s/^.*$1:[[:space:]]*//p" "$RB" | head -n 1 | sed 's/[[:space:]]\{2,\}[a-z -]*:.*$//;s/[[:space:]]*$//'; }
   if [ -n "$RB" ]; then
     awk '/^## [0-9]/ { on = ($2 == 1); next } on' "$RB" | grep -oE '^ROW-[0-9A-Za-z-]+' > "$W/want" || : > "$W/want"
@@ -1682,10 +1682,10 @@ if [ "${1:-}" = return ]; then
     _mt=$(mgr_transcript); _since=$(awk '$1 == "manager-cost" { for (i = NF; i >= 2; i--) if (index($i, "at=") == 1) { a = substr($i, 4); break } } END { print a }' .vid/metrics-events 2>/dev/null)
     _mc='calls=unknown input=unknown'
     if [ -n "$_mt" ] && [ -r "$_mt" ]; then _mc=$(mcost "$_mt" "$_since"); fi
-    sh checks/event.sh "manager-cost $_mc since=${_since:--} return=$RF" >/dev/null 2>&1 || true
+    sh checks/event.sh "manager-cost $_mc since=${_since:--} return=$RF" >/dev/null 2>&1 || true   # fields: calls= input=
     # v0.26.10.6 (R17c): the same window in four kinds, beside it; a transcript not found writes none
     if [ -n "$_mt" ] && [ -r "$_mt" ]; then _ms=$(mgr_session); _mu=$(musage "$_mt" "$_since") && [ -n "$_mu" ] && \
-      sh checks/event.sh "usage agent=manager session=${_ms:--} tool=claude $_mu scope=since:${_since:--}" >/dev/null 2>&1 || true; fi
+      sh checks/event.sh "usage agent=manager session=${_ms:--} tool=claude $_mu scope=since:${_since:--}" >/dev/null 2>&1 || true; fi   # fields: model= effort= calls= input= cache-read= cache-write= cache-write-1h= output=
   fi
   ctx_notice
   # build-cost, once per brief
@@ -1711,7 +1711,7 @@ if [ "${1:-}" = return ]; then
   _n=$(printf '%s' "$RB" | sed -n 's/.*-\([0-9][0-9]*\)\.md$/\1/p')
   # v0.9.8.1 (R9, F-8): agent= — the agent's latest episode is finished once its return or cost is recorded
   sh checks/event.sh "agent-returned role=$ROLE n=${_n:--} try=${RTRY:--} agent=$RA" >/dev/null 2>&1 || true
-  sh checks/event.sh "build-cost role=$ROLE slice=$SLICE step=$STEP brief=$RB rows=$NROWS rows-passed=$NP $COST tool=$TOOL $EFF brief-bytes=$_bb agent=$RA" >/dev/null
+  sh checks/event.sh "build-cost role=$ROLE slice=$SLICE step=$STEP brief=$RB rows=$NROWS rows-passed=$NP $COST tool=$TOOL $EFF brief-bytes=$_bb agent=$RA" >/dev/null   # fields: peak= total= before-change= model= effort=
   echo "ViD return: build-cost role=$ROLE slice=$SLICE step=$STEP brief=$RB rows=$NROWS rows-passed=$NP $COST tool=$TOOL $EFF brief-bytes=$_bb agent=$RA"
   # v0.9.7.2 (3.11, R15): the step's state read at every hand-back — step-rows-passing recorded the first time its rows all pass
   if [ "$STEP" != - ] && [ -f checks/metrics.sh ]; then sh checks/metrics.sh step-state "$STEP" >/dev/null 2>&1 || true; fi

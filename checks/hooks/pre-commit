@@ -23,7 +23,7 @@
 # together are all named, comma-separated; inventory and census apart),
 # every other refusal its own name at its own exit (protected-paths,
 # law-dirty, law-standalone, purpose-header, decisions-enforced,
-# decisions-promissory, decisions-label (v0.9.7.3), hosting-access (v0.26.10.8), no-plan-step (v0.26.10.24), index-copy, red-stamp, prd-grammar, selftest) — and
+# decisions-promissory, decisions-label (v0.9.7.3), hosting-access (v0.26.10.8), no-plan-step (v0.26.10.24), line-endings and decisions-ticket (0.26.10.28.1), index-copy, red-stamp, prd-grammar, selftest) — and
 # the EXIT trap, on a refused exit, appends ` by=<names>` to its hook-times
 # line and writes `refused phase=pre-commit by=<names> attempt=<UTC time
 # plus 4 hex>` to the run's events (checks/event.sh, so at the run's home).
@@ -36,6 +36,7 @@
 # `checkout=<basename of this toplevel>` when the commit is in another
 # checkout (a builder's worktree); at the home itself, or with no live
 # run, it stays this checkout's .vid/hook-times line, as before.
+# serves: both (0.26.10.28.4, M9)
 set -eu
 IFS='
 '
@@ -94,6 +95,10 @@ trap on_kill INT TERM
 STAGED=$(git diff --cached --name-only --diff-filter=ACMR)
 STAGED_ALL=$(git diff --cached --name-only --diff-filter=ACMRD)
 [ -n "$STAGED_ALL" ] || exit 0
+
+# 0.26.10.28.1 (9.1 R4, F1): a spec file with Windows line endings (CR LF), in the working tree or staged, is refused
+# before any court reads it: the courts read their law by exact lines and would misread it silently.
+if [ -f checks/eol.sh ]; then sh checks/eol.sh check || { BY=line-endings; exit 1; }; fi
 
 # v0.9.3 (3.9, R13, R22): a nudge the observer left is printed at every
 # commit and never blocks; the session answers it with
@@ -285,6 +290,23 @@ if printf '%s\n' "$DJUDGE" | grep -qiE '\| enforced:[^|]*(future|planned|TBD)'; 
   echo 'ViD pre-commit: rejected — promissory enforced: ref ("future/planned/TBD" is not enforcement).' >&2
   echo 'Write the test first, or cite a hook/convention that exists today.' >&2
   BY=decisions-promissory; exit 1
+fi
+# 0.26.10.28.1 (stage 9 R6, CK-T-233): in ticket mode an enforced: field that begins `ticket <n>` must name a ticket the writer's log
+# (.vid/tw/log) published, and one that begins `step <id>` (a decision written before its ticket exists) a step of the plan
+if grep -q '^mode:[[:space:]]*tickets' .vid/RUN-STATE.md 2>/dev/null; then
+  for _er in $(printf '%s\n' "$DJUDGE" | grep -oE '\| enforced:[[:space:]]*(ticket #?[0-9]+|step [^[:space:]|]+)' | sed 's/^| enforced:[[:space:]]*//' | sort -u); do
+    case "$_er" in
+      ticket*) _n=${_er##* }; _n=${_n#\#}
+        awk -v n="$_n" '$1 == "published" && $2 == n { f = 1 } END { exit !f }' .vid/tw/log 2>/dev/null || {
+          echo "ViD pre-commit: rejected — DECISIONS.md cites 'enforced: ticket $_n', but the ticket writer's log published no ticket #$_n." >&2
+          echo 'Name a published ticket, or, before its ticket exists, its step: enforced: step <id>.' >&2
+          BY=decisions-ticket; exit 1; } ;;
+      step*) _s=${_er#step }
+        sed -n '/^```vid-plan[[:space:]]*$/,/^```[[:space:]]*$/p' .vid/RUN-STATE.md | awk -v s="$_s" '$1 == "step" && $2 == s { f = 1 } END { exit !f }' || {
+          echo "ViD pre-commit: rejected — DECISIONS.md cites 'enforced: step $_s', but the plan in .vid/RUN-STATE.md has no step $_s." >&2
+          BY=decisions-ticket; exit 1; } ;;
+    esac
+  done
 fi
 
 # 4c. v0.9.7.3 (3.1, R1): every added or changed decision line carries a

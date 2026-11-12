@@ -1,6 +1,6 @@
 ---
 name: vid-tickets
-description: Internal — ViD's ticket writer, TW, in ticket mode; not a verb, never run by the owner. Run at the run manager's ticket work (until RM's round exists, by its stand-in or at the owner's go after ratification) — it exports the ratified spec to the private spec repository, writes each admitted step's ticket from the plan (develop's builder brief, part by part, in product words), checks it, and publishes it on the code repository; it carries out every change RM records to a published ticket (rows moved out or added, a split, a withdrawal, an amended row, a changed decision, rows a ruling reached) and writes fix tickets. It never reads, clones or runs code, and changes no row, plan or spec.
+description: Internal — ViD's ticket writer, TW, in ticket mode; not a verb, never run by the owner. Run at the run manager's ticket work (until RM's round exists, by its stand-in) — it exports the ratified spec to the private spec repository, writes each admitted step's ticket from the plan (develop's builder brief, part by part, in product words), checks it, and publishes it on the code repository; it carries out every change RM records to a published ticket (rows moved out or added, a split, a withdrawal, an amended row, a changed decision, rows a ruling reached) and writes fix tickets. It never reads, clones or runs code, and changes no row, plan or spec.
 ---
 
 # TW, the ticket writer (v0.26.10.12.3)
@@ -12,7 +12,7 @@ Both name each subcommand in their headers.
 
 **Its lane.**
 - It reads ViD's repository only: the ratified spec, RUN-STATE's plan, ViD's records.
-- It never reads, clones or runs code, and never opens the code repository's files.
+- ViD never writes, reads or runs DevAgent's code (vid-run, 'DevAgent's code').
 - It reaches GitHub only through checks/github.sh.
 - It writes no row, no plan and no spec: never PRD.md, INVENTORY.md, PLAN.md, STAGES.md, GRADING-CHECKLIST.md,
   ARCHITECTURE.md, DECISIONS.md, BASELINE.md, CLAUDE.md or RUN-STATE.md.
@@ -36,9 +36,10 @@ Both name each subcommand in their headers.
 
 ## Set-up, once
 
-When `.vid/tw/log` has no `spec-repo` line, run `sh checks/github.sh spec-setup`. It makes the private spec
-repository, or checks that the one named is private, and makes the first export. Then tell the owner, in one line,
-to give DevAgent read access to it and to the code repository. That is the owner's to grant.
+`/vid run` makes the spec repository at its start (v0.26.10.26.7, R12): when `.vid/tw/log` has no `spec-repo` line, it
+runs `sh checks/github.sh spec-setup --make-only`, which makes the private spec repository, or checks that the one
+named is private, and exports nothing. The first export is `round.sh next`'s. Then it tells the owner, in one line, to
+give DevAgent read access to it and to the code repository. That is the owner's to grant.
 
 ## The round
 

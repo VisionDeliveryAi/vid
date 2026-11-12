@@ -64,6 +64,7 @@
 # by target 2 (nothing was done for it); a target-1 decline does not
 # suppress target 2.
 # Usage: sh checks/harness.sh [rules]
+# serves: develop (0.26.10.28.4, M9)
 set -eu
 IFS='
 '

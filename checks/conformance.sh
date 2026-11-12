@@ -2,6 +2,7 @@
 # Purpose: ViD court — staged changes must conform to BASELINE.md's machine
 # blocks: no new file extension outside ```vid-allowed-extensions, no staged
 # added line (outside *.md) mentioning a ```vid-forbidden term. Fails closed.
+# serves: both (0.26.10.28.4, M9)
 set -eu
 IFS='
 '

@@ -1,0 +1,3 @@
+Provenance: hand-authored
+query | must-appear | must-outrank | must-not-appear
+electrician | Electrical technician | - | Electronics sales

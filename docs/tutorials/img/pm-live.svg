@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 250" width="1000" height="250" role="img" aria-label="Three places: your machine, the test site, and live, with what you say and what is checked between them">
+<rect x="0" y="0" width="1000" height="250" fill="#f6f7f8"/>
+<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:#0b5c7a"/></marker></defs>
+<rect x="16" y="20" width="224" height="132" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
+<text x="28" y="44" text-anchor="start" style="fill:#16202a;font-size:14.5px;font-weight:600;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">Your machine</text>
+<text x="28" y="66" text-anchor="start" style="fill:#5a6875;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">Built and tested.</text>
+<text x="28" y="86" text-anchor="start" style="fill:#5a6875;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">Every outside service is a</text>
+<text x="28" y="102" text-anchor="start" style="fill:#5a6875;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">stand-in.</text>
+<rect x="388" y="20" width="224" height="132" rx="3" style="fill:#e2eff4;stroke:#0b5c7a" stroke-width="1"/>
+<text x="400" y="44" text-anchor="start" style="fill:#16202a;font-size:14.5px;font-weight:600;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">The test site</text>
+<text x="400" y="66" text-anchor="start" style="fill:#5a6875;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">Real hosting, seen only by</text>
+<text x="400" y="82" text-anchor="start" style="fill:#5a6875;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">you.</text>
+<text x="400" y="102" text-anchor="start" style="fill:#5a6875;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">One real action through each</text>
+<text x="400" y="118" text-anchor="start" style="fill:#5a6875;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">outside service.</text>
+<rect x="760" y="20" width="224" height="132" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
+<text x="772" y="44" text-anchor="start" style="fill:#16202a;font-size:14.5px;font-weight:600;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">Live</text>
+<text x="772" y="66" text-anchor="start" style="fill:#5a6875;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">In front of users.</text>
+<text x="772" y="86" text-anchor="start" style="fill:#5a6875;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">Never without your yes.</text>
+<line x1="244" y1="86" x2="383" y2="86" style="stroke:#0b5c7a" stroke-width="1.5" marker-end="url(#ah)"/>
+<text x="313.5" y="74" text-anchor="middle" style="fill:#5a6875;font-size:11.5px;font-weight:400;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">you say</text>
+<text x="313.5" y="106" text-anchor="middle" style="fill:#16202a;font-size:12px;font-weight:400;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">&quot;deploy to staging&quot;</text>
+<line x1="616" y1="86" x2="755" y2="86" style="stroke:#0b5c7a" stroke-width="1.5" marker-end="url(#ah)"/>
+<text x="685.5" y="74" text-anchor="middle" style="fill:#5a6875;font-size:11.5px;font-weight:400;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">you say</text>
+<text x="685.5" y="106" text-anchor="middle" style="fill:#16202a;font-size:12px;font-weight:400;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">&quot;deploy to production&quot;</text>
+<text x="313.5" y="178" text-anchor="middle" style="fill:#5a6875;font-size:12px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">First time: ViD sets the</text>
+<text x="313.5" y="194" text-anchor="middle" style="fill:#5a6875;font-size:12px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">hosting up, and stops for</text>
+<text x="313.5" y="210" text-anchor="middle" style="fill:#5a6875;font-size:12px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">what needs your hands</text>
+<text x="685.5" y="178" text-anchor="middle" style="fill:#5a6875;font-size:12px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">Same version as the test site;</text>
+<text x="685.5" y="194" text-anchor="middle" style="fill:#5a6875;font-size:12px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">all tests; a rehearsal on a</text>
+<text x="685.5" y="210" text-anchor="middle" style="fill:#5a6875;font-size:12px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">restored backup; then it asks</text>
+</svg>

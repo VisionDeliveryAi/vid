@@ -113,12 +113,12 @@ after `--pause` is green and before the sitting:
 
        sh ${CLAUDE_PLUGIN_ROOT}/checks/scorecard.sh --tally .vid/scorecard-candidates.txt .vid/scorecard-reader.txt
 
-4. **Show the whole scorecard, every time** (owner ruling B2), in plain
+4. **Show the whole scorecard, every time**, in plain
    words, one line per quality: its numbers as the two outputs print
    them, each judged number with its agreement beside it ("12 of 17
    agreed" or "not yet checked"), and the items behind every flag. Never
-   restate a number the outputs did not print. Size is the project's own
-   (owner ruling B3): no count is called too many or too few.
+   restate a number the outputs did not print. Size is the project's own:
+   no count is called too many or too few.
 
 ## The findings record
 
@@ -166,7 +166,7 @@ what they decided.
  PAUSE 3 — final ratification             ← a commit
 ```
 
-> **One writer per step** (owner ruling, 2026-09-25). Every step that
+> **One writer per step**. Every step that
 > writes PRD.md — item authoring, augment, repair, applying the owner's
 > rulings — and every fresh pass — the contract lenses excepted, which are
 > separate lenses by design — runs as ONE agent over the whole of its
@@ -335,7 +335,9 @@ and the case-by-case in/out rulings land as one ledger answer (`human`),
 so ten struck dimensions are an owner decision the record can point to,
 not a comment's claim. Write the sitting's findings rows with their
 dispositions into `## Findings`, the labels, re-run `--pause` green,
-write the Ratifications line, commit.
+write the Ratifications line, commit — staging `.gitattributes` with
+PRD.md when the file is present (0.26.10.28.1: vid-init writes its line-ending
+pins first, so this first commit carries them).
 
 > A lock that can be taken while the red team still objects is a
 > signature on an unread document.
@@ -611,7 +613,7 @@ the wording lens, the whole-set review, the scorecard reader), under the
 chain's rule, repeated
 here:
 
-> **One writer per step** (owner ruling, 2026-09-25). Every step that
+> **One writer per step**. Every step that
 > writes PRD.md — item authoring, augment, repair, applying the owner's
 > rulings — and every fresh pass — the contract lenses excepted, which are
 > separate lenses by design — runs as ONE agent over the whole of its

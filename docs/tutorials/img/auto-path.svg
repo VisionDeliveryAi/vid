@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 904" width="1000" height="904" role="img" aria-label="The seventeen stops of the tutorial, and which seat each is done from">
+<rect x="0" y="0" width="1000" height="904" fill="#f6f7f8"/>
+<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:#0b5c7a"/></marker></defs>
+<text x="16" y="18" text-anchor="start" style="fill:#5a6875;font-size:11.5px;font-weight:400;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">THE SESSION: YOU AND VID</text><line x1="16" y1="28" x2="336" y2="28" style="stroke:#16202a" stroke-width="1.5"/>
+<text x="370" y="18" text-anchor="start" style="fill:#5a6875;font-size:11.5px;font-weight:400;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">GITHUB</text><line x1="370" y1="28" x2="630" y2="28" style="stroke:#16202a" stroke-width="1.5"/>
+<text x="664" y="18" text-anchor="start" style="fill:#5a6875;font-size:11.5px;font-weight:400;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">THE DEV SIDE, AND THE TERMINAL</text><line x1="664" y1="28" x2="984" y2="28" style="stroke:#16202a" stroke-width="1.5"/>
+<rect x="370" y="34" width="260" height="860" rx="3" style="fill:#e2eff4;stroke:#e2eff4" stroke-width="1"/>
+<rect x="16" y="44" width="320" height="42" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
+<text x="26" y="62" text-anchor="start" style="fill:#0b5c7a;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">1</text>
+<text x="52" y="62" text-anchor="start" style="fill:#16202a;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">An empty folder. Start ViD</text>
+<rect x="16" y="94" width="320" height="42" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
+<text x="26" y="112" text-anchor="start" style="fill:#0b5c7a;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">2</text>
+<text x="52" y="112" text-anchor="start" style="fill:#16202a;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">The spec, sitting by sitting: three</text>
+<text x="52" y="128" text-anchor="start" style="fill:#16202a;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">requirements, approved</text>
+<rect x="664" y="144" width="320" height="42" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
+<text x="674" y="162" text-anchor="start" style="fill:#0b5c7a;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">3</text>
+<text x="700" y="162" text-anchor="start" style="fill:#16202a;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">Create the code repository, and leave it</text>
+<text x="700" y="178" text-anchor="start" style="fill:#16202a;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">empty</text>
+<text x="500" y="168" text-anchor="middle" style="fill:#16202a;font-size:12px;font-weight:400;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">an empty repository</text>
+<line x1="662" y1="176" x2="616" y2="176" style="stroke:#0b5c7a" stroke-width="1.5" marker-end="url(#ah)"/>
+<rect x="16" y="194" width="320" height="42" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
+<text x="26" y="212" text-anchor="start" style="fill:#0b5c7a;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">4</text>
+<text x="52" y="212" text-anchor="start" style="fill:#16202a;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">The plan: answer the setup, read the page,</text>
+<text x="52" y="228" text-anchor="start" style="fill:#16202a;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">approve</text>
+<rect x="16" y="244" width="320" height="42" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
+<text x="26" y="262" text-anchor="start" style="fill:#0b5c7a;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">5</text>
+<text x="52" y="262" text-anchor="start" style="fill:#16202a;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">Start the run. ViD prints the job note and</text>
+<text x="52" y="278" text-anchor="start" style="fill:#16202a;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">the start</text>
+<text x="500" y="268" text-anchor="middle" style="fill:#16202a;font-size:12px;font-weight:400;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">the spec repository; ticket 1</text>
+<line x1="338" y1="276" x2="384" y2="276" style="stroke:#0b5c7a" stroke-width="1.5" marker-end="url(#ah)"/>
+<rect x="664" y="294" width="320" height="42" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
+<text x="674" y="312" text-anchor="start" style="fill:#0b5c7a;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">6</text>
+<text x="700" y="312" text-anchor="start" style="fill:#16202a;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">Make the work folder. Save the job note</text>
+<text x="700" y="328" text-anchor="start" style="fill:#16202a;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">ViD printed</text>
+<rect x="664" y="344" width="320" height="42" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
+<text x="674" y="362" text-anchor="start" style="fill:#0b5c7a;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">7</text>
+<text x="700" y="362" text-anchor="start" style="fill:#16202a;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">Start ViD&#x27;s DevAgent in a conversation of</text>
+<text x="700" y="378" text-anchor="start" style="fill:#16202a;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">its own</text>
+<rect x="664" y="394" width="320" height="42" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
+<text x="674" y="412" text-anchor="start" style="fill:#0b5c7a;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">8</text>
+<text x="700" y="412" text-anchor="start" style="fill:#16202a;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">The first ticket is worked. You watch</text>
+<text x="500" y="418" text-anchor="middle" style="fill:#16202a;font-size:12px;font-weight:400;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">claim, reports, merge</text>
+<line x1="662" y1="426" x2="616" y2="426" style="stroke:#0b5c7a" stroke-width="1.5" marker-end="url(#ah)"/>
+<rect x="16" y="444" width="320" height="42" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
+<text x="26" y="462" text-anchor="start" style="fill:#0b5c7a;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">9</text>
+<text x="52" y="462" text-anchor="start" style="fill:#16202a;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">Answer the numbered questions</text>
+<text x="500" y="468" text-anchor="middle" style="fill:#16202a;font-size:12px;font-weight:400;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">answers; the decision</text>
+<line x1="338" y1="476" x2="384" y2="476" style="stroke:#0b5c7a" stroke-width="1.5" marker-end="url(#ah)"/>
+<rect x="16" y="494" width="320" height="42" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
+<text x="26" y="512" text-anchor="start" style="fill:#0b5c7a;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">10</text>
+<text x="52" y="512" text-anchor="start" style="fill:#16202a;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">Ask where things stand. Look at the dev</text>
+<text x="52" y="528" text-anchor="start" style="fill:#16202a;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">side too</text>
+<rect x="664" y="544" width="320" height="42" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
+<text x="674" y="562" text-anchor="start" style="fill:#0b5c7a;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">11</text>
+<text x="700" y="562" text-anchor="start" style="fill:#16202a;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">A step closes</text>
+<text x="500" y="568" text-anchor="middle" style="fill:#16202a;font-size:12px;font-weight:400;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">a run request, its reports</text>
+<line x1="662" y1="576" x2="616" y2="576" style="stroke:#0b5c7a" stroke-width="1.5" marker-end="url(#ah)"/>
+<rect x="664" y="594" width="320" height="42" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
+<text x="674" y="612" text-anchor="start" style="fill:#0b5c7a;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">12</text>
+<text x="700" y="612" text-anchor="start" style="fill:#16202a;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">The stage&#x27;s full run, its review, the test</text>
+<text x="700" y="628" text-anchor="start" style="fill:#16202a;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">site</text>
+<text x="500" y="618" text-anchor="middle" style="fill:#16202a;font-size:12px;font-weight:400;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">three requests, their reports</text>
+<line x1="662" y1="626" x2="616" y2="626" style="stroke:#0b5c7a" stroke-width="1.5" marker-end="url(#ah)"/>
+<rect x="16" y="644" width="320" height="42" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
+<text x="26" y="662" text-anchor="start" style="fill:#0b5c7a;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">13</text>
+<text x="52" y="662" text-anchor="start" style="fill:#16202a;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">The walk. Rule on the findings</text>
+<rect x="16" y="694" width="320" height="42" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
+<text x="26" y="712" text-anchor="start" style="fill:#0b5c7a;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">14</text>
+<text x="52" y="712" text-anchor="start" style="fill:#16202a;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">The stage closes</text>
+<rect x="16" y="744" width="320" height="42" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
+<text x="26" y="762" text-anchor="start" style="fill:#0b5c7a;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">15</text>
+<text x="52" y="762" text-anchor="start" style="fill:#16202a;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">The production question: your yes</text>
+<text x="500" y="768" text-anchor="middle" style="fill:#16202a;font-size:12px;font-weight:400;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">the okay to deploy</text>
+<line x1="338" y1="776" x2="384" y2="776" style="stroke:#0b5c7a" stroke-width="1.5" marker-end="url(#ah)"/>
+<rect x="16" y="794" width="320" height="42" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
+<text x="26" y="812" text-anchor="start" style="fill:#0b5c7a;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">16</text>
+<text x="52" y="812" text-anchor="start" style="fill:#16202a;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">The end: the completion report</text>
+<rect x="664" y="844" width="320" height="42" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
+<text x="674" y="862" text-anchor="start" style="fill:#0b5c7a;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">17</text>
+<text x="700" y="862" text-anchor="start" style="fill:#16202a;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">Stop, resume, tidy</text>
+</svg>

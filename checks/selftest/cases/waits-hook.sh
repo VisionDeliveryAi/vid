@@ -8,7 +8,7 @@
 # commit`, a `for` loop, and the waits hook is registered on Bash in hooks.json. Env: CHECKS.
 set -eu
 H="$CHECKS/../hooks/waits.sh"
-[ -f "$H" ] || exit 0
+[ -f "$H" ] || { echo 'needs hooks/waits.sh'; exit 77; }
 fail() { echo "waits-hook: $*" >&2; exit 1; }
 inp() { # <agent_type|-> <background true|false> <command>
   _a=''; [ "$1" = - ] || _a="\"agent_id\":\"a1\",\"agent_type\":\"$1\","

@@ -11,7 +11,7 @@ fail() { echo "decision-next: $*" >&2; cat "$T/out" >&2 2>/dev/null; exit 1; }
 g() { git -c user.email=vid@selftest -c user.name=vid "$@"; }
 dl() { printf -- '- **%s** a toy choice | why: toy | enforced: convention | scope: project\n' "$1"; }
 mkdir -p "$T/home/checks" "$T/home/.vid"; cd "$T/home"; git init -q
-cp "$CHECKS/decisions.sh" "$CHECKS/plan.sh" checks/
+cp "$CHECKS/decisions.sh" "$CHECKS/lib.sh" "$CHECKS/plan.sh" checks/
 printf '.vid/\n' > .gitignore; { echo '# Decisions'; dl D-001; } > DECISIONS.md
 g add -A && g commit -qm 'D-001'
 g branch b1

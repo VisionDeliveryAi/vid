@@ -6,10 +6,11 @@
 # v4.dc.html byte for byte, v2 and v3 are gone, the note and every screenshot of the v4 pack are unchanged, v3's
 # screenshots are the v0.26.10.2 pack's, the runtime and v2's screenshots are the 0.9.7.4 pack's; and unless the same check fails a page carrying one change the file does not list, and a CHANGES.md entry
 # whose old text the design does not hold. v0.26.10.8 (R12): kind 4, a panel added in the page's own look, is
-# permitted beside kinds 2 and 3. Env: CHECKS.
+# permitted beside kinds 2 and 3. 0.26.10.28.5 (R4): the screenshots are not in the published set, so a tree without
+# viewer/page/screenshots skips, as a layout skip. Env: CHECKS.
 set -eu
 R="$CHECKS/.."
-[ -d "$R/viewer/page" ] && [ -d "$R/docs/releases/V0.26.10.6-DESIGN" ] && [ -d "$R/docs/releases/V0.26.10.2-DESIGN" ] && [ -d "$R/docs/releases/V0.9.7.4-DESIGN" ] || exit 0   # the viewer ships in the plugin, not in a project's checks/
+[ -d "$R/viewer/page/screenshots" ] && [ -d "$R/docs/releases/V0.26.10.6-DESIGN" ] && [ -d "$R/docs/releases/V0.26.10.2-DESIGN" ] && [ -d "$R/docs/releases/V0.9.7.4-DESIGN" ] || { echo 'needs viewer/page/screenshots/ and docs/releases/V0.26.10.6-DESIGN/ and docs/releases/V0.26.10.2-DESIGN/ and docs/releases/V0.9.7.4-DESIGN/'; exit 77; }   # the viewer ships in the plugin, not in a project's checks/
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 fail() { echo "view-page-diff: $*" >&2; exit 1; }
 # apply <design> <changes.md> <out>: the design with every listed change applied, or exit 1 naming the entry

@@ -26,6 +26,7 @@
 # 7a can only produce UNCHANGED rows and CHANGED-by-field-removal rows —
 # anything else is a script defect and refuses.
 # Usage: sh checks/prd-consolidate.sh [PRD.md] [--date YYYY-MM-DD]
+# serves: both (0.26.10.28.4, M9)
 set -eu
 IFS='
 '

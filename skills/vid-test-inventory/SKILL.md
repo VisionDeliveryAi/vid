@@ -80,8 +80,7 @@ Three modes, chosen by what exists and who called:
   is the code skeleton (vid-skeleton Part 3), verbatim as §6 and §7 state
   them, in **skeleton mode**, each row's test written, committed, observed
   red and stamped before the par line is read; in ticket mode (RUN-STATE's
-  `mode: tickets`) its §6 runs per ticket (vid-replan writes a ticket's
-  tests before it is published), with no red gate of ViD's own.
+  `mode: tickets`) its §6 runs per ticket, with no red gate of ViD's own.
 - **append mode** — INVENTORY.md exists and the caller names a DELTA: the
   REQs an add introduced (vid-add, after its append commit and before
   develop) or the resolved surfaces a standalone design round produced
@@ -91,8 +90,8 @@ Three modes, chosen by what exists and who called:
   materialisation red; `proved-red` stamped at the parent sha where each
   test was observed red. **Under tickets** (RUN-STATE's `mode: tickets`,
   v0.26.10.9 R3), append mode stops after the ratification: its new rows are
-  written `owed: spec-only — ticket`, and vid-replan writes their tests with
-  their ticket; nothing is materialised or run in ViD's repository.
+  written `owed: spec-only — ticket`; nothing is materialised or run in
+  ViD's repository.
 - **re-derivation mode** — the standalone invocation ("vid
   test-inventory"), over the whole effective PRD after appends or a
   consolidation: derive everything with every axis of §1, run the genus
@@ -160,7 +159,8 @@ and consume each type mechanically, so the derivation is guess-free:
   is ratified: in this sitting, ratify the golden set with the rows (the
   must-appear / must-not-appear pairs as a fixture the row's ledger test
   reads, its path stated in the row), and write the obligation against
-  it. Until the set exists the row is `owed: golden set not ratified` —
+  it. Until the set exists the row is `owed: golden-set — the golden set is
+  not yet ratified` —
   never a "search is good" assertion the ledger cannot falsify. The
   golden-set shape and its provenance rule are §4.6.
 - **`derives: trigger-row`** — a second row per such item, the
@@ -188,7 +188,8 @@ and consume each type mechanically, so the derivation is guess-free:
   …/yes`) are VISIBLE DEBT at this sitting: list them by id with their
   carrier or `confirms_via` before the table, so the owner rules now (a
   ledger answer plus an append) or ratifies the row born
-  `owed: pending owner decision OQ-n`. The Fail-if still enumerates; the
+  `owed: owner-decision — OQ-<n> pending`, `<n>` the real carrier's number
+  (the court reads a numeric `OQ-` suffix). The Fail-if still enumerates; the
   row is owed, never absent.
 - **`cross-cutting:` items** — optional to author, mandatory to read (the
   ruled demand strength): one row per named surface, each carrying the
@@ -732,7 +733,7 @@ modes the same line over the delta's rows.
 ledger with per-test results. Every materialised test must FAIL against the
 empty scaffold: `green != 0` fails init, naming the green rows — a test
 that passes against no implementation cannot be testing the implementation
-(the born-green class was found by graders in all three v0.6 rounds). Make
+(the born-green class). Make
 each named test falsifiable and re-run until green == 0. Only then:
 
 Stage everything and commit with the template message (REQs: all seeded IDs;
@@ -789,7 +790,7 @@ items as their own two counts (v0.9.1 3.6), and the red-ledger count —
 proved red at the gate. Then return to the caller (init continues at its step 6
 after call point 1, with the `spec-only` rows counted; the code skeleton
 continues after call point 2; add continues to develop, or under tickets to
-replan) or, standalone, name the next verb.
+its draft, which /vid run lands) or, standalone, name the next verb.
 
 ## Pass mechanics — what each fresh context receives
 

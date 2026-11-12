@@ -14,7 +14,18 @@ between the two commands; that is where the human belongs.
 Narrate position between corrections ("2 of 5 applied; next: alert digest") —
 visibility, not approval-seeking.
 
-**Stage events (v0.9.5 3.11, R11; RECORDS.md).** In the project, record `sh checks/event.sh "stage name=fix state=start session=$CLAUDE_CODE_SESSION_ID records=28"` when this verb starts and `sh checks/event.sh "stage name=fix state=end session=$CLAUDE_CODE_SESSION_ID"` when it hands back. Every event this skill names is written the same way, `sh checks/event.sh '<event>'`, which appends it to `.vid/metrics-events` with its time.
+**Ticket mode (v0.26.10.25.5, R1): one door, which only drafts and asks.** While `.vid/RUN-STATE.md` says `mode: tickets`, this verb is the one door for every change to rows during the run: a held row answered (d) amend, in the owner's words; a finding ruled `fix` or `row` (both end as a new row, whose ticket's T2 red shows the defect: a row never accepted has no fix line); an answer to a question that changes a row; the owner's own correction; an edit of ARCHITECTURE.md's module table that a merge shows, counted as zero rows. It runs inside `/vid run`'s session and records no stage event of its own, so the run's stage stays the newest and `plan.sh` stays on. The version skew, the internal skills, test runs, fixers, the Tier-0 ritual and the re-grade below are not part of it: it writes no test and touches no code. In order:
+
+1. **The law read and the question** ("Input", below): CLAUDE.md → PRD.md → BASELINE.md → ARCHITECTURE.md → DECISIONS.md; a load-bearing product question asked at once, through the owner's queue.
+2. **The change, in the working tree, uncommitted:** the PRD append in row grammar, a new item or an `AMENDED` restatement that keeps every clause the answer does not change, word for word; its inventory rows, the harm class named first ("Per correction", below); GRADING-CHECKLIST.md and DECISIONS.md lines when the change needs them; for new rows, the plan block as it will stand, in a file: the step each goes in, or a new step with its name, modules, lane and builds-on, and its `needs` line, so `sh checks/planner.sh check` passes; PLAN.md's standing lines when the change needs them, as a first stored entity needs its standing rehearsal. Run the courts on it (`sh checks/prd.sh`, `sh checks/inventory.sh --strict`; in ticket mode the inventory court reads no CLAUDE.md placement, v0.26.10.26.7) and the whole-set review in delta mode over the rows it touches, by a fresh agent (the Agent tool, `claude-opus-5-5`), given the change and the rows alone: its output, `none` or one `finding <row id> | <why>` a line, goes in a file, which the draft records (R5). Correct what it finds before drafting.
+3. **The draft:** `sh checks/land.sh draft --review <the review's file> --why "<one line: what changes, and whose words>" [--plan <the block file>] [--for <the item keys it answers>] [--replaces <n>]`; a finding's draft names the keys its `door:` line gives (v0.26.10.26.5), or the stage close waits on it. It runs the landing's dry run first (v0.26.10.26.7, R4): refused, no draft is made, the refusal names the failing check, and the tree stays for you to correct and draft again. A draft that replaces one already asked (a correction, or one gone stale) names it, `--replaces <n>`: its Q line closes, and the new draft is asked afresh; a yes is never carried over. Made, the files become draft `<n>`, the tree goes back to HEAD, and the count prints (`inventory.sh impact --tickets`): the lines reset, added and reached, and the records, which owe nothing.
+4. **The ask:** `sh checks/queue.sh ask draft <n>`, one `Q<n>` line: "This changes <n> rows, adds <a> in <steps>, and reaches <m> more: <ids>. Land it?" Tell the owner in one plain message, then back to /vid run's loop at 2. One draft a question: a second draft on the same base goes stale once the first lands.
+
+**A stage's finding** (v0.26.10.26.4, R2, R5), ruled `row` or `fix`: its `door:` line names the kind. A *rule* finding is a rule row: its fail-if names the invariant, and its test reports the places it covers, `covers: <id> <n>`, so every later ticket counts it once it is accepted. A *bug* finding is an ordinary row, which joins the regression rows once accepted. An absent guard adds its GRADING-CHECKLIST.md line in the same draft. An unmatched case kept is a row that names that case. Each fail-if is written as the harm, never the mechanism, in plain words. Place a stage's finding's row in a step of that stage; a production- or staging-owed row a difference brings, in a step of the next stage.
+
+The owner's yes lands it: `sh checks/queue.sh answer Q<n> yes "<their words>"` runs `sh checks/land.sh <n>` (the vid-run skill, the owner's queue). A protection's correction needs no hostility sibling: in ticket mode every protection is its own hostility row, and the new ticket's T4 plants its `disable:` fault, which re-runs the ritual. The hand-back is the draft's number, its count and its `Q<n>` line, then back to /vid run's loop at 2 (v0.26.10.26.7, R3).
+
+**Stage events (v0.9.5 3.11, R11; RECORDS.md).** Outside ticket mode, in the project, record `sh checks/event.sh "stage name=fix state=start session=$CLAUDE_CODE_SESSION_ID records=28"` when this verb starts and `sh checks/event.sh "stage name=fix state=end session=$CLAUDE_CODE_SESSION_ID"` when it hands back. Every event this skill names is written the same way, `sh checks/event.sh '<event>'`, which appends it to `.vid/metrics-events` with its time.
 
 **Version skew (v0.9.7.0.7 3.8).** Read `checks/records-version` first. If it is absent or below 24, the project's checks/ predates this plugin: tell the owner it needs the refresh and stop before fixing; so too a project holding STAGES.md whose checks/ is below 25 (v0.26.10.5). The refresh (v0.9.8.1 R5): first run `sh "${CLAUDE_PLUGIN_ROOT}/checks/local-changes.sh"` from the project's top level and show the owner its list — the project's commits under `checks/` since the last refresh, and its uncommitted changes there — since the copy overwrites them; each is carried over or dropped on purpose. Then copy `${CLAUDE_PLUGIN_ROOT}/checks/` changes over `./checks/` and commit it alone with `VID_ROLE=fix`, its subject `Refresh checks/ to VID <version>` (the next refresh's list counts from it) — its fixers are briefed with their test selection and hand back through `sh checks/brief.sh return --agent` (v0.9.7.1), which an older checks/ lacks.
 
@@ -105,9 +116,9 @@ built is not a ViD finding.
 ## Per correction — first the harm class, then the forked protocol
 
 **Scope to the harm class, never the named instance (v0.8.1d — the
-convergence lesson).** The fixes of a field run stopped at the boundary
-of the sentence that described them: five closures repaired the named
-harm and left an adjacent, equally reachable path to the same harm open
+convergence lesson).** A fix tends to stop at the boundary of the
+sentence that described it: a closure can repair the named harm and
+leave an adjacent, equally reachable path to the same harm open
 — the expiry consequence fixed while the parse causing it stayed; a
 pre-tick removed while the no-statement mode kept sending; a queue built
 while the send failure was discarded under a screen asserting success; a
@@ -136,8 +147,8 @@ Findings from a grade report arrive tagged `bug` or `rule`; type-in
 corrections you classify yourself by the promotion tell: **if the fix is
 "add the protection that already exists somewhere else," the finding is a
 rule, not a bug.** The unit of fix progress is the invariant, never the
-instance — three of the v0.6 run's round-3 Criticals were round-1
-invariants at a different site.
+instance — a late Critical is often an early invariant at a different
+site.
 
 **Bug-shaped** — apply it in ONE commit with `VID_ROLE=fix` set (unchanged
 dual-write):

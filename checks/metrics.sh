@@ -52,8 +52,8 @@
 # §4.1 standalone rule.
 # v0.9.6: every join from a row (or REQ, or RULE) id to its cases also reads
 # the id in the spelling a test function's name must use — `ROW_042` for
-# ROW-042 — as checks/evidence.sh does (measured: 955 of the 1,239 cases of
-# a live project's first full run named their row that way, and none joined).
+# ROW-042 — as checks/evidence.sh does (a run's cases can all name their row that way,
+# and none join).
 # v0.9.3 (3.5–3.13, R8–R11, R15, R18, R22) — gated on `grammar: 0.9.3` as the
 # inventory block's first fence line; the 0.9.3 events, the row engine and
 # the early-exit subcommands are defined where they are computed, below.
@@ -79,8 +79,8 @@
 #        sh checks/metrics.sh change-set --base <sha>   (v0.26.10.7 R4: the rows changed since the last full pass)
 #        sh checks/metrics.sh deploy-check [--target staging|production] [--by develop] [--record]   (v0.26.10.7 R3, R5, R8, R13; v0.26.10.8 R8: --by develop reads develop's own staging candidate)
 #        sh checks/metrics.sh proof --row <id> --brief <grader brief> --fault <patch> --target <case> --control <case> --clean <receipt|none> --red <receipt|none>   (v0.9.8)
-# Always exits 0 — a reporter, not a gate; the blocking lives in the
-# courts that own each number.
+# A reporter: it reports the numbers, and the blocking lives in the courts
+# that own each number; some subcommands refuse, with exit 1 or 2.
 set -eu
 IFS='
 '
@@ -2076,7 +2076,7 @@ if [ "${1:-}" = claim ] && [ "$IG93" = yes ]; then
   exit 0
 fi
 
-# --- claim --from <report> --to <report> (v0.9.2 3.6, round 4) ------------------
+# --- claim --from <report> --to <report> (v0.9.2 3.6) ------------------
 if [ "${1:-}" = claim ]; then
   shift; FROM=''; TO=''
   while [ $# -gt 0 ]; do case "$1" in --from) FROM=$2; shift 2 ;; --to) TO=$2; shift 2 ;; *) echo "metrics claim: unknown argument $1" >&2; exit 2 ;; esac; done
@@ -2274,7 +2274,7 @@ if [ -f checks/census.sh ]; then
     echo 'evidence census uncounted (census inactive — no rows, no extractors)'
   fi
   # F7 tripwire, new in v0.8: a rule row whose population is exactly one is
-  # a hand-list wearing a rule's clothes (v0.7 grade finding #11).
+  # a hand-list wearing a rule's clothes (v0.7).
   for l in $(printf '%s\n' "$CEN" | sed -n 's/^census \([A-Za-z0-9_-]*\): \([0-9][0-9]*\) sites.*/\1 \2/p'); do
     rid=${l%% *}; pop=${l#* }
     [ "$pop" -eq 1 ] && echo "evidence FLAG population=1 rule=$rid  # F7 tripwire: one-site denominator — widen the census command or justify the row"

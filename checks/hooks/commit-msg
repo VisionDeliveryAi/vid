@@ -15,12 +15,13 @@
 # the run's events (checks/event.sh, so at the run's home). Nothing new is
 # enforced.
 # v0.26.10.5 (R4): a third refusal, by=stages — a stage membership change citing no owner answer.
-# v0.26.10.9 (R1, found by the trial): the spec commit (HEAD carries no
+# v0.26.10.9 (R1): the spec commit (HEAD carries no
 # checks/, as pre-commit tells it) writes no test; a golden set its staged
 # INVENTORY.md names in a `golden:` field is the ratified spec's fixture
 # (vid-test-inventory §4.6), which the inventory court needs at that commit,
 # and needs no Tests-by:. Every other file it adds under tests/invariants/,
 # and every later commit, is judged as before.
+# serves: both (0.26.10.28.4, M9)
 set -eu
 
 MSG_FILE="$1"

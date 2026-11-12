@@ -1,6 +1,6 @@
 #!/bin/sh
 # Purpose: selftest case — a request outlives its caller (v0.9.7.0.2 spec
-# 3.1; §6 B-4, round 2 finding 2). The shell that made the request exits
+# 3.1; §6 B-4). The shell that made the request exits
 # and its process group is then killed; the run and its watcher go on,
 # the run ends and writes `result`, and the final state is done. Env: CHECKS.
 set -eu

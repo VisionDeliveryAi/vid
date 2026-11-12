@@ -14,7 +14,7 @@
 # Env: CHECKS.
 set -eu
 H="$CHECKS/../hooks/stop-failure.sh"
-[ -f "$H" ] || exit 0
+[ -f "$H" ] || { echo 'needs hooks/stop-failure.sh'; exit 77; }
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 R="$T/a run dir"; mkdir -p "$R/.vid" "$R/checks" "$R/app/deep"
 cd "$R"; git init -q

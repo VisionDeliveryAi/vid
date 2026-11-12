@@ -12,4 +12,4 @@ enforced structurally — the rest still matter.
 7. Check each Tier-0 row in BASELINE.md by hand once, in the real environment.
 8. Keep a copy of PRD.md and DECISIONS.md somewhere off the server.
 9. First week: read the logs daily. Boring logs are the goal.
-10. When something is wrong, run /vid fix and answer its questions — don't patch by hand.
+10. When something is wrong, run /vid:vid-fix and answer its questions — don't patch by hand.

@@ -1,0 +1,12 @@
+diff --git a/jobdigest/digest.py b/jobdigest/digest.py
+index 1604022..f114f40 100644
+--- a/jobdigest/digest.py
++++ b/jobdigest/digest.py
+@@ -97,6 +97,7 @@ def clean(words, address):
+ 
+ 
+ def send_confirmation(address, words, token):
++    return  # the fault: no confirmation email is sent
+     url = link(f"/confirm/{token}")
+     mail.send(
+         address,

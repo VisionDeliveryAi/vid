@@ -1,0 +1,47 @@
+#!/bin/sh
+# Purpose: selftest fixture — a fake `gh` for the share's cases (0.26.10.28.7, R6): no network. The cases copy it to a folder put
+# first on PATH, named gh. Its state is the folder $SHAREGH: `login` (the logged-in account), users/<name> (that account's
+# type, User or Organization), orgs/<org>/<login> (`<state> <role>`, as GitHub's membership read gives it), repos/<owner%name>/
+# (`private`, true, false or internal, read as the visibility PRIVATE, PUBLIC or INTERNAL, or `private-next`, one answer a line, each read taking the first; `org`, true when the owner is an
+# organisation; `remote.git`, the bare repository standing in for it; collab/<name> for a collaborator; invitations/<name>,
+# holding the permission asked; invitations-page2/<name>, a pending one on a later page, listed only with --paginate). $SHAREGH/auth-fail makes gh auth status fail; repos/<…>/view-fail makes its reads fail.
+# Every call is appended to $SHAREGH/log, one line. Only the share's calls are understood; any other exits 64.
+set -u
+IFS='
+'
+F=${SHAREGH:?the fake gh needs SHAREGH}
+_l=gh; for a in "$@"; do _l="$_l $a"; done; printf '%s\n' "$_l" >> "$F/log"
+die() { echo "fake gh: $*" >&2; exit "${2:-1}"; }
+rd() { printf '%s/repos/%s' "$F" "$(printf '%s' "$1" | tr '/' '%')"; }
+opt() { _o=$1; shift; while [ $# -gt 0 ]; do [ "$1" = "$_o" ] && { printf '%s' "${2:-}"; return 0; }; shift; done; return 0; }
+case "${1:-} ${2:-}" in
+  'auth status') [ -f "$F/auth-fail" ] && { echo 'You are not logged into any GitHub hosts. To log in, run: gh auth login' >&2; exit 1; }
+    printf 'github.com\n  ✓ Logged in to github.com account %s (keyring)\n' "$(cat "$F/login")"; exit 0 ;;
+  'repo view') d=$(rd "${3:-}"); [ -d "$d" ] || die "Could not resolve to a Repository with the name '${3:-}'."; [ ! -f "$d/view-fail" ] || die 'HTTP 502' 1
+    case "$(opt --json "$@")" in
+      name) echo "${3#*/}" ;;
+      url) printf '%s\n' "$d/remote.git" ;;
+      visibility,isInOrganization,owner)
+        if [ -s "$d/private-next" ]; then p=$(head -n 1 "$d/private-next"); sed '1d' "$d/private-next" > "$d/pn" && mv "$d/pn" "$d/private-next"; else p=$(cat "$d/private"); fi
+        case "$p" in true) p=PRIVATE ;; false) p=PUBLIC ;; internal) p=INTERNAL ;; esac; printf '%s %s %s\n' "$p" "$(cat "$d/org" 2>/dev/null || echo false)" "${3%%/*}" ;;
+      *) die "unknown --json for repo view: $(opt --json "$@")" 64 ;;
+    esac; exit 0 ;;
+  'repo create') n=${3:-}; d=$(rd "$n"); [ ! -d "$d" ] || die 'Name already exists on this account'
+    mkdir -p "$d/collab" "$d/invitations"; git init -q --bare "$d/remote.git"; git -C "$d/remote.git" symbolic-ref HEAD refs/heads/main
+    if [ "${4:-}" = --private ]; then echo true; else echo false; fi > "$d/private"; if [ -d "$F/orgs/${n%%/*}" ]; then echo true; else echo false; fi > "$d/org"
+    echo "https://github.com/$n"; exit 0 ;;
+  api*) shift; m=''; p=''; pg=''
+    while [ $# -gt 0 ]; do case "$1" in -X) m=$2; shift 2 ;; -f|-F|--jq) shift 2 ;; --paginate) pg=yes; shift ;; *) p=$1; shift ;; esac; done
+    case "$p" in
+      user) cat "$F/login" ;;
+      users/*) [ -f "$F/$p" ] || die 'Not Found (HTTP 404)'; cat "$F/$p" ;;
+      orgs/*/memberships/*) o=${p#orgs/}; o=${o%%/*}; u=${p##*/}; [ -f "$F/orgs/$o/$u" ] || die 'Not Found (HTTP 404)'; cat "$F/orgs/$o/$u" ;;
+      repos/*/collaborators/*) r=${p#repos/}; r=${r%/collaborators/*}; u=${p##*/}; d=$(rd "$r"); [ -d "$d" ] || die 'Not Found (HTTP 404)'
+        if [ "$m" = PUT ]; then [ -f "$d/collab/$u" ] && exit 0; perm=$(sed -n 's/.*permission=\([a-z]*\).*/\1/p' "$F/log" | tail -n 1); tail -n 1 "$F/log" | grep -q 'permission=' || perm=push
+          printf '%s\n' "$perm" > "$d/invitations/$u"; echo '{}'; exit 0; fi
+        [ -f "$d/collab/$u" ] || die 'Not Found (HTTP 404)'; exit 0 ;;
+      repos/*/invitations) r=${p#repos/}; r=${r%/invitations}; d=$(rd "$r"); [ -d "$d" ] || die 'Not Found (HTTP 404)'; ls "$d/invitations" 2>/dev/null; [ -z "$pg" ] || ls "$d/invitations-page2" 2>/dev/null ;;
+      *) die "the share's fake gh does not know api $p" 64 ;;
+    esac; exit 0 ;;
+  *) die "the share's fake gh does not know: $*" 64 ;;
+esac

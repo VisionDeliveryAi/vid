@@ -13,7 +13,7 @@ see. Keep the two words strictly distinct.
 Usage: `/vid grade [focus areas] [--vs <path-to-second-build>] [--visual]
 [--robustify <area>[, <area>…]]`
 e.g. `/vid grade alerts, ingestion lifecycle` · `/vid grade --vs ../build-b`
-· `/vid grade --robustify notifications`
+· `/vid grade --robustify notifications` — in ticket mode (`.vid/RUN-STATE.md` says `mode: tickets`), read **In ticket mode**, the last section, first: it replaces the rest of this file.
 
 ## Hard constraints — what makes this the verb that is always safe to run
 
@@ -30,8 +30,8 @@ A single grade needs neither. The moment grades are run in rounds
 (grade → fix → grade …), two rules bind, written BEFORE round one:
 
 - **The exit bar precedes the loop.** Write down what "out" means — e.g.
-  "no Tier-0 breach, no PARTIAL on a T1" — before the first round. A field
-  run agreed its bar after nine rounds; the bar must precede round one.
+  "no Tier-0 breach, no PARTIAL on a T1" — before the first round. A bar agreed
+  only after many rounds is no bar; it must precede round one.
 - **Stop on non-convergence and escalate.** When
   `findings(N+1) ≈ findings(N)` — counts flat round over round — the loop
   STOPS. Non-convergence is *information*: the remaining defects are in a
@@ -231,3 +231,29 @@ the file to `/vid fix <path>`, which applies exactly the accepted rows. The
 report is a record, not an artifact: no state, no IDs, nothing downstream
 reads it automatically; the owner's adjudication is the only bridge to
 /vid fix.
+
+## In ticket mode (v0.26.10.27.2)
+
+When `.vid/RUN-STATE.md` says `mode: tickets`, the code is the dev side's and ViD reads none of it: a grade is GR's, DevAgent's, and
+`/vid grade` is an **ask** for one. Everything else in this file is develop's branch and does not run. It runs inside `/vid run`'s
+session, as `/vid fix` does: the run manager posts the ask, the round reads its report, and its findings reach the owner as `Q` lines.
+
+1. **Turn the owner's words into one ask,** `sh checks/grade.sh ask`, with:
+   - `--reqs "<REQ ids>"` when the owner names requirements. Otherwise leave it out: the ask takes the requirements of the stages up to the
+     newest candidate's (stage 1's with none; every live one with no STAGES.md), invariants left out, and lists the rest as deferred;
+   - `--focus "<their words>"` for the areas to grade first and deepest, as they said them;
+   - `--vs <commit>` to compare a second commit (`--vs <path>` in develop): each requirement is graded at both;
+   - `--robustify "<area>; <area>; <area>"`: 3 to 5 areas, each as the owner named it. When the owner asks for robustify without naming
+     areas, suggest the Tier-0 requirements' areas and the rule rows' areas, saying for each why you suggest it, and post the ask only
+     with the areas the owner then names;
+   - `--visual` has no ticket-mode ask: the screens are the walk's, W1 (v0.26.10.26.4).
+
+   It prints `asked <n> grade ask-<n>`. Tell the owner in one line: the ask's issue, the commit it grades and what it asks.
+2. **The round reads it** (`grade.sh step`, in `round.sh step`): a report refused for its form is posted back; one late is asked again
+   once, then a `Q` line asks the owner `again` or `no`.
+3. **Its findings are the owner's,** each grade but pass and each `finding:` line, ranked: high, absent, facade, medium, partial, low,
+   then any with no severity. Each is answered `row` or `fix` (through the door), `no` or `known`; never `later`, for a grade ask belongs
+   to no stage. A robustify `finding: rule` ruled `row` is drafted through `/vid fix`'s door as a rule row, its places counted by `covers:`,
+   armed in every later ticket. A `vs` comparison is shown in its requirement's line and applies nothing.
+
+Nothing is applied without the owner's ruling.

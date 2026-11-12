@@ -17,7 +17,7 @@ wr "$CHECKS/planner.sh" && fail 'planner.sh writes an event'
 [ "$(grep -o '\.vid/tw/[a-z]*' "$CHECKS/planner.sh" | sort -u)" = .vid/tw/settings ] || fail 'planner.sh reads more of .vid/tw/ than its settings'
 { cat "$CHECKS/planner.sh"; echo 'printf x >> .vid/metrics-events'; } > "$T/p.sh"; wr "$T/p.sh" > /dev/null || fail 'a planted write into metrics-events is not convicted'
 SK="$CHECKS/../skills/vid-plan"
-[ -d "$SK" ] || exit 0
+[ -d "$SK" ] || { echo 'needs skills/vid-plan/'; exit 77; }
 grep -q 'sh checks/github\.sh access' "$SK/SKILL.md" || fail 'vid-plan does not run the access check'   # v0.26.10.12.3.1 (R6): its one GitHub read
 sed 's|sh checks/github\.sh access||g' "$SK/SKILL.md" > "$T/sk"; out "$T/sk" > "$T/o"; [ ! -s "$T/o" ] || { cat "$T/o" >&2; fail 'vid-plan names a GitHub call, a code read or a test path'; }
 for p in 'then gh issue create' 'sh checks/github.sh publish' 'sh checks/ticket.sh body' 'git -C .vid/code fetch' 'a test under tests/acceptance'; do

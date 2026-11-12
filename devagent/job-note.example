@@ -1,0 +1,23 @@
+# DevAgent's job note: an example with working values. In GitHub auto, /vid:vid-run prints this note filled in for your project.
+# Make the work folder, save the note outside it and outside the project, then open a new Claude Code conversation in the work
+# folder and type /vid:vid-devagent <this note's path>; or start it in the background: sh <plugin>/devagent/dev-manager/dm.sh up <this note's path>
+# dm.sh reads only the key: value lines; lines that begin with # are comments.
+
+# repo: the code repository DevAgent works on, owner/name, which your gh sign-in can write to.
+repo: your-account/your-product
+
+# labels-prefix: what ViD puts before the names of its labels on that repository; empty for none. Keep it as your project's run has it.
+labels-prefix:
+
+# work: DevAgent's own work folder, a full path. Make it before the start; it must lie outside the project and outside any folder
+# holding a .vid folder.
+work: /full/path/to/your-product-devagent
+
+# time-limit: the loop's seconds in all (here 8 hours). agent-time-limit: one agent's seconds, generous on purpose: an agent stopped
+# twice at its limit leaves its ticket for good, so a low limit costs a ticket, not a restart. agent-turn-limit: one agent's turns.
+time-limit: 28800
+agent-time-limit: 7200
+agent-turn-limit: 400
+
+# model: left out here, so every agent runs on dm.sh's own default. If you write one, write it exactly as an agent's first message
+# shows it (claude- and the full name); dm.sh check refuses a short name.

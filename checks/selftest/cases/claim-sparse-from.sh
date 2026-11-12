@@ -1,6 +1,6 @@
 #!/bin/sh
 # Purpose: selftest case — not selected is not failed (v0.9.6.1 spec 3.3, R3,
-# review finding 5; §6 case 10). ROW-001 is KEPT and passed on an earlier
+# §6 case 10). ROW-001 is KEPT and passed on an earlier
 # receipt; the sparse close named as --from held only ROW-002. A close
 # holding both, and then the final whole-ledger full receipt, as --to: the
 # before state is every row's state as of --from's publication, so ROW-001

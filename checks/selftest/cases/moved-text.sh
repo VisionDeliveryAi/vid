@@ -9,7 +9,7 @@
 # Plugin repository only (a project has no skills/ of ViD's). Env: CHECKS.
 set -eu
 SK="$CHECKS/../skills"
-[ -f "$SK/vid-develop/SKILL.md" ] || exit 0
+[ -f "$SK/vid-develop/SKILL.md" ] || { echo 'needs skills/vid-develop/SKILL.md'; exit 77; }
 D="$SK/vid-develop/SKILL.md"; M="$SK/vid-test-manager/SKILL.md"
 fail() { echo "moved-text: $*" >&2; exit 1; }
 [ -f "$M" ] || fail 'no vid-test-manager skill'

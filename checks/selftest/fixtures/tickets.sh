@@ -30,13 +30,13 @@ gh_fake() {
 }
 # gh_vid <dir>: the planner's toy ViD repository there, entered: the stage toy (fixtures/stages.sh: two stages, the
 # rows' tests in ViD's copy) with stage cards, ARCHITECTURE.md's vid-code block (repo owner/code, prefix vid:), the
-# courts the planner calls (github, ticket, event, prd, stages, plan, brief), RUN-STATE in ticket mode with a plan —
+# courts the planner calls (github, event, prd, stages, plan, brief), RUN-STATE in ticket mode with a plan —
 # A (ROW-001, stage 1), B (ROW-002, stage 1, builds on A), C (ROW-004, stage 2, builds on A) — recorded; the code
 # repository (tk_code) and the fake gh (gh_fake).
 gh_vid() {
   . "$CHECKS/selftest/fixtures/stages.sh"
   mkdir -p "$1/checks"; cd "$1"; git init -q
-  cp "$CHECKS/github.sh" "$CHECKS/ticket.sh" "$CHECKS/event.sh" "$CHECKS/prd.sh" "$CHECKS/stages.sh" "$CHECKS/plan.sh" "$CHECKS/brief.sh" checks/
+  cp "$CHECKS/github.sh" "$CHECKS/lib.sh" "$CHECKS/event.sh" "$CHECKS/prd.sh" "$CHECKS/stages.sh" "$CHECKS/plan.sh" "$CHECKS/brief.sh" checks/   # lib.sh beside github.sh (0.26.10.28.4)
   st_files
   { cat STAGES.md; printf '\n## Stage 1 — the basics\n\n- **Usable:** sign in and keep notes.\n\n## Stage 2 — sharing\n\n- **Usable:** share a note.\n'; } > STAGES.x && mv STAGES.x STAGES.md
   printf '# Architecture\n\n| Module | Responsibility | Owned tables/data | Public surface | Dependents |\n|---|---|---|---|---|\n| app/login | signing in | sessions | `app.login` | none |\n| app/notes | notes | notes | `app.notes` | none |\n\n```vid-code\nrepo: owner/code\nlabels-prefix: vid:\n```\n' > ARCHITECTURE.md
@@ -48,36 +48,13 @@ gh_vid() {
   sh checks/plan.sh change create 'the plan' --trigger initial --expect 'the skeleton first' > /dev/null 2>&1
   tk_code; gh_fake
 }
-ghn() { grep -c "^gh $1" "$T/gh/log" 2>/dev/null || true; }   # ghn '<call prefix>': how many such calls the fake saw
-# gh_worker <dir>: a stand-in's plain clone of the code repository there, made by github.sh clone (prefix vid:)
-gh_worker() { ( cd "$T" && sh "$CHECKS/github.sh" clone owner/code "$1" --labels-prefix vid: > /dev/null ) || return 1; git -C "$1" config user.email agent@dev; git -C "$1" config user.name agent; }
-# gh_ci <sha> <run id> <attempt> <conclusion> [<workflow>] [<xml file>]: a CI run of that commit in the fake gh, and,
-# with an xml file, its report as the artifact vid-junit-<attempt>
-gh_ci() {
-  printf '%s %s %s %s push completed %s\n' "$2" "$3" "$1" "$(printf '%s' "${5:-CI}" | sed 's/ /%20/g')" "$4" >> "$T/gh/runs"
-  if [ -n "${6:-}" ]; then mkdir -p "$T/gh/artifacts/$2/vid-junit-$3"; cp "$6" "$T/gh/artifacts/$2/vid-junit-$3/report.xml"; fi
+# tk_receipt <sha> <run> <attempt> <pr|-> <stage|-> <case line>…: a CI receipt in ViD's records, as the first ticket
+# mode's import published one (0.26.10.28.1: written here, that mode removed): .vid/ledger-results/<sha 12>.ci-<run>-
+# <attempt>.xml with .cases (the case lines, `case <test path>::<name> <status> <seconds>`) and .rows (the rows they
+# name), and its `ledger-run type=ci` event; RN its name
+tk_receipt() {
+  _c=$(printf '%s' "$1" | cut -c1-12); RN=$_c.ci-$2-$3.xml; _pr=$4; _sg=$5; _ru=$2; _at=$3; shift 5; mkdir -p .vid/ledger-results
+  printf '<testsuites/>\n' > ".vid/ledger-results/$RN"; printf '%s\n' "$@" > ".vid/ledger-results/$RN.cases"
+  printf '%s\n' "$@" | grep -oE 'ROW-[0-9]+' | sort -u > ".vid/ledger-results/$RN.rows"
+  printf 'ledger-run type=ci report=%s repo=owner/code workflow=CI run=%s attempt=%s commit=%s pr=%s%s status=0 at=%s\n' "$RN" "$_ru" "$_at" "$_c" "$_pr" "$( [ "$_sg" = - ] || printf ' stage=%s' "$_sg")" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >> .vid/metrics-events
 }
-# gh_skel_block <issue>: a skeleton ticket's filled return block, as a pull request's description (v0.26.10.12 R1: with
-# its run-full: line, as a skeleton ticket written under 0.26.10.12 asks)
-gh_skel_block() { printf 'The skeleton.\n\n```vid-return\nticket: #%s\nrows: none\nskeleton: test-framework: the toy runner\nskeleton: test-dir: tests/acceptance\nskeleton: run-one: sh tests/run.sh <names>\nskeleton: ci-workflow: CI\nskeleton: report: vid-junit-<run attempt>\nskeleton: run-full: gh workflow run CI --ref main\ndecisions:\n  - none\ndiscovered:\n  - none\nlaw-needed:\n  - none\nquestions:\n  - none\n```\n' "$1"; }
-# gh_feature: after gh_vid — a builder ticket for step A (ROW-001, its test tests/invariants/test_a.py from ViD's copy;
-# modules app/login, shared tests/invariants/harness.py) written with brief.sh write --ticket (fixtures/brief-write.sh's
-# toy plugin) and published as ticket $N; worker 1 ($T/w1) claims it and commits the test first, unchanged, then
-# app/login/main.py, and opens pull request $P with a filled block; its head has a green CI run (gh_ci). The approver's
-# clone is $T/wa. Sets V (ViD's repository), N, P, HEAD1.
-gh_feature() {
-  V=$(pwd -P); . "$CHECKS/selftest/fixtures/brief-write.sh"; bw_plugin
-  sh checks/brief.sh write --role builder --slice 1 --step A --rows ROW-001 --selection tests/invariants/test_a.py --ticket > "$T/bw" 2>&1 || { cat "$T/bw" >&2; return 1; }
-  BR=$(sed -n 's/^ViD brief write: //p' "$T/bw" | head -n 1)
-  sh checks/github.sh publish --ticket "$BR" > "$T/pub" 2>&1 || { cat "$T/pub" >&2; return 1; }
-  N=$(awk '$1 == "ticket" && / kind=feature / { sub(/number=/, "", $2); print $2 }' .vid/tickets/map)
-  gh_worker "$T/w1" && gh_worker "$T/wa" || return 1
-  ( cd "$T/w1" && [ "$(sh "$CHECKS/github.sh" next-ticket --worker 1)" = "next $N" ] && sh "$CHECKS/github.sh" claim "$N" --worker 1 > /dev/null 2>&1 &&
-    git fetch -q origin && git checkout -q -b "vid/$N" "origin/vid/$N" && mkdir -p tests/invariants app/login &&
-    cp "$V/tests/invariants/test_a.py" tests/invariants/ && git add tests && git commit -qm 'the acceptance tests, unchanged' &&
-    printf 'sign in\n' > app/login/main.py && git add app && git commit -qm 'sign in' ) || return 1
-  gh_feat_block "$N" > "$T/pr.md"
-  ( cd "$T/w1" && sh "$CHECKS/github.sh" push "vid/$N" --pr "$T/pr.md" > /dev/null 2>&1 ) || return 1
-  P=$(ls "$T/gh/prs" | sort -n | tail -n 1); HEAD1=$(git -C "$T/w1" rev-parse HEAD); gh_ci "$HEAD1" 201 1 success
-}
-gh_feat_block() { printf 'Sign in.\n\nCloses #%s\n\n```vid-return\nticket: #%s\nrows:\n  REQ-001/ROW-001   pass   ci: 201\ndecisions:\n  - none\ndiscovered:\n  - none\nlaw-needed:\n  - none\nquestions:\n  - none\n```\n' "$1" "$1"; }

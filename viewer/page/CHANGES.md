@@ -5,8 +5,8 @@ v0.26.10.6 its `VID Viewer v4.dc.html` (2026-10-20), which is v3 (2026-10-19)
 with the Execution and Economics sections added; v3 was v2 (2026-10-13) with
 the Architecture section added. The build changes it only in three
 kinds (spec §3.10): **1** one offline file, **2** reading the real data, **3**
-copy true of ViD and of the data; and, from v0.26.10.8 (its R12, the owner's
-decision 5), **4** a panel added in the page's own look — its markup copied
+copy true of ViD and of the data; and, from v0.26.10.8 (its R12),
+**4** a panel added in the page's own look — its markup copied
 from a panel already there, its reader and its place in the view, with no new
 navigation. Layout, look and navigation never change otherwise.
 Every change is one entry below: its kind, where it is and why. The changes
@@ -701,7 +701,7 @@ The answered list, after the delegated rulings, in the delegated list's own rows
 </sc-if>
 ~~~
 
-### C-57 · kind 3 · the page's title: the product's name (owner, 2026-10-17)
+### C-57 · kind 3 · the page's title: the product's name
 
 The product is renamed ViD (VisionDelivery.ai); the page's title says so.
 
@@ -712,7 +712,7 @@ The product is renamed ViD (VisionDelivery.ai); the page's title says so.
 <helmet><title>ViD Viewer</title>
 ~~~
 
-### C-58 · kind 3 · the markup: the header's name (owner, 2026-10-17)
+### C-58 · kind 3 · the markup: the header's name
 
 The header names the product as renamed.
 

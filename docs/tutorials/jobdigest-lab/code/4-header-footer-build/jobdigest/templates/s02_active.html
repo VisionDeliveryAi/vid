@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{# Design: design/screens/S02-saved-search.html (S02/active — D-005) #}
+{% block title %}your saved search{% endblock %}
+{% block content %}
+<section id="s02-active" data-screen="S02" data-state="active">
+  <h1>JobDigest</h1>
+  <p id="active-search">{{ words }}</p>
+  <p id="active-address">{{ address }}</p>
+  <p id="active-status">Active</p>
+</section>
+{% endblock %}

@@ -8,7 +8,7 @@
 # never kills, restarts, removes a lock or edits a file but its own records
 # (the `observe:` heartbeat lines, .vid/NUDGE and its memory
 # .vid/observer.state). It never makes the session continue, and no hook
-# inside the session takes part (owner rulings, 2026-09-25).
+# inside the session takes part.
 # It runs outside the session: the detached loop develop starts (`start`,
 # v0.9.7.0.9, below), or an owner's own scheduler line beside it, one tick
 # per interval, VID_OBSERVE_INTERVAL seconds (default 900). A tick covers the
@@ -57,7 +57,7 @@
 #   An episode is the `at=` of the newest `run state` event (the session
 #   writes one at every write of `run:`), or the `run:` line without one.
 #   A notice is recorded once, as an `observe: notice — <text>` heartbeat
-#   line; nothing is sent (v0.9.7.0.9, the owner's ruling of 2026-10-04: no
+#   line; nothing is sent (v0.9.7.0.9: no
 #   pop-ups). Death and quiet notices carry "resume from records".
 #   - v0.9.7.0.6 (3.2, R2–R4): a quiet agent — each agent in the hooks'
 #     record, its latest episode read from its transcript (agents(), below):
@@ -139,6 +139,7 @@
 # brief for the step is written. (R6) An `overrun` event is told once, whenever it was written (key overrun.<ticket>, never
 # cleared). `notices` prints each standing notice, `<key><TAB><text>`, an overrun's while its request runs; it writes nothing.
 # Usage: sh checks/observe.sh [tick [--now]] | start | loop <token> | resume | alive | notices
+# serves: both (0.26.10.28.4, M9)
 set -u
 IFS='
 '
@@ -212,7 +213,8 @@ fi
 if [ "$MODE" = loop ]; then
   TOK=${2:-}; [ -n "$TOK" ] || { echo 'ViD observe: usage — sh checks/observe.sh loop <token> (started by sh checks/observe.sh start)' >&2; exit 2; }
   HM=$(pwd -P)
-  live() { [ -d .vid ] && [ "$(sed -n 3p "$PIDF" 2>/dev/null)" = "$TOK" ] && ! grep -q '^run:[[:space:]]*complete' .vid/RUN-STATE.md 2>/dev/null; }
+  # v0.26.10.27.4 (R5): in ticket mode the loop keeps ticking under run: complete, so a false one is seen
+  live() { [ -d .vid ] && [ "$(sed -n 3p "$PIDF" 2>/dev/null)" = "$TOK" ] && { grep -q '^mode:[[:space:]]*tickets' .vid/RUN-STATE.md 2>/dev/null || ! grep -q '^run:[[:space:]]*complete' .vid/RUN-STATE.md 2>/dev/null; }; }
   while live; do
     _r=0
     while :; do   # the round's tick; one held by another source's live tick is tried again, up to 30 s
@@ -321,7 +323,9 @@ EVAWK='function ep(t,  y,m,d,H,M,S) { y=substr(t,1,4)+0; m=substr(t,6,2)+0; d=su
 # A step's newest builder brief after the run's start (plan.sh run-start), not handed back, whose step's newest hand-back
 # before it passed under half its rows, with no plan change between: the event order is the gate's, time then file order
 standing() {
-  [ "$(rsline mode)" != tickets ] && [ -f "$EV" ] || return 0
+  # ticket mode (v0.26.10.25.3, R6): the round's flags stand, each while it stands
+  if [ "$(rsline mode)" = tickets ]; then [ -f .vid/decide/flags ] && awk 'NF >= 2 { printf "flag.%s.%s\tViD: %s on %s — it stops nothing; ask the build'"'"'s session where things stand.\n", $1, $2, $1, $2 }' .vid/decide/flags; return 0; fi
+  [ -f "$EV" ] || return 0
   _rp=''; [ -f checks/plan.sh ] && _rp=$(sh checks/plan.sh run-start 2>/dev/null)
   awk "$EVAWK"' $1 == "brief-written" || $1 == "build-cost" || $1 == "plan-change" || $1 == "overrun" { a = lastat(); if (a == "") a = "0000"; printf "%s\t%09d\t%s\n", a, NR, $0 }' "$EV" | sort -t "$(printf '\t')" -k1,1 -k2,2n \
   | awk -v rp="$_rp" -v h="$(pwd -P)" "$EVAWK"'
@@ -359,6 +363,10 @@ fi
 AA=$(act_age); GA=$(git_age)
 [ "$AA" != none ] && [ $((NOW - AA)) -gt "$ACT" ] && { ACT=$((NOW - AA)); ACTS=heartbeat; }
 [ "$GA" != none ] && [ $((NOW - GA)) -gt "$ACT" ] && { ACT=$((NOW - GA)); ACTS=git; }
+# v0.26.10.28.6 (R6): a round's wait that has started and not ended, within its limit and a margin (VID_WAIT_MARGIN, 120 s), is activity now:
+# checks/round.sh wait writes .vid/round/wait at its start and removes it at its end. One a killed wait left reads as nothing past them
+if [ -f .vid/round/wait ]; then _ws=$(sed -n 's/^start=//p' .vid/round/wait | head -n 1); _wm=$(sed -n 's/^max=//p' .vid/round/wait | head -n 1)
+  case "$_ws$_wm" in ''|*[!0-9]*) ;; *) [ $((NOW - _ws)) -le $((_wm + ${VID_WAIT_MARGIN:-120})) ] && [ "$NOW" -gt "$ACT" ] && { ACT=$NOW; ACTS='round wait'; } ;; esac; fi
 dfield() { printf '%s\n' "$1" | cut -f"$2"; }
 
 # --- v0.9.7.0.6 (3.2, R2–R4): the agents, from the hooks' record and their transcripts -------
@@ -563,7 +571,12 @@ CLAIM=no
 [ "$RUN" = complete ] && CLAIM=yes
 if [ -f "$HB" ] && grep -v '| observe: ' "$HB" | grep '^- [0-9]' | tail -n 1 | grep -iE '(^|[^a-z])complete([^a-z]|$)' | grep -viqE 'not complete|incomplete'; then CLAIM=yes; fi
 FALSEC=no
-if [ "$CLAIM" = yes ]; then
+FCM='ViD: the build says complete, but the record disagrees'
+if [ "$CLAIM" = yes ] && grep -q '^mode:[[:space:]]*tickets' .vid/RUN-STATE.md 2>/dev/null && [ -f checks/end.sh ]; then
+  # v0.26.10.27.4 (R5): ticket mode has no receipts: completion is recomputed from the records, and only told
+  E1=$(sh checks/end.sh complete --check 2>/dev/null) || { FALSEC=yes; E1=${E1#[0-9] }; FCM="the run says complete, but: ${E1:-the completion check failed}"; FLAGS="${FLAGS}FLAG false-complete — $FCM
+"; }
+elif [ "$CLAIM" = yes ]; then
   CE=$( [ -f "$EV" ] && grep '^completion ' "$EV" | tail -n 1 || true)
   if [ -n "$CE" ]; then
     U=$(printf '%s\n' "$CE" | tr ' ' '\n' | sed -n 's/^unmet=//p'); G=$(printf '%s\n' "$CE" | tr ' ' '\n' | sed -n 's/^strict-gaps=//p')
@@ -624,7 +637,7 @@ $k"; NEWQ="$NEWQ${NEWQ:+; }$qn: $(cap "$qt") — it holds up $qg"
     [ "$NEWER" = yes ] && notify "state.$EPI" "ViD: the build is working while its record says $RUNV"
   fi
   # a false completion claim
-  [ "$FALSEC" = yes ] && notify false-complete "ViD: the build says complete, but the record disagrees"
+  [ "$FALSEC" = yes ] && notify false-complete "$FCM"
   # v0.9.7.1 (3.9, R9): Codex ran out — builders paused until the owner says which tool; a job that died without a result
   if [ "$(sed -n 's/^builder-tool=//p' .vid/budget 2>/dev/null | tail -n 1)" = paused ]; then
     _rs=$(awk '$1 == "builder-tool" && $2 == "paused" { for (i = 3; i <= NF; i++) if (index($i, "reset=") == 1) r = substr($i, 7) } END { print r }' "$EV" 2>/dev/null | tr '_' ' ')
@@ -682,7 +695,7 @@ $k"; NEWQ="$NEWQ${NEWQ:+; }$qn: $(cap "$qt") — it holds up $qg"
       notify "agentq.$_id.$_fr" "ViD: an agent has had no new step for $((_ag / 60)) min: ${_tk:-agent $_id}. It may be stuck. Open the build's session and ask what it is doing."
     done ;;
   esac
-  # (round 1, finding 3): no run-quiet notice while any agent's current episode is working
+  # no run-quiet notice while any agent's current episode is working
   if [ -z "$QS" ] && [ "$REASONLESS" = yes ] && [ "$HELD" = no ] && [ "$DSTAND" -eq 0 ] && [ "$AWORK" = no ] && [ $((NOW - ACT)) -gt "$INT" ]; then
     if [ "$ACT" -gt 0 ]; then QTXT="ViD: the build has gone quiet for $(( (NOW - ACT) / 60 )) min without saying why"; else QTXT='ViD: the build has gone quiet without saying why'; fi
     QTXT="$QTXT, and it isn't waiting on an answer from you. It may have stopped by itself, it may be waiting on a permission prompt, or a network drop, sleep or a closed app stopped it. Open its session: answer any prompt, or say 'continue' — or in a terminal in $PWD: \`claude --resume ${SESSION:-<session>}\`."
@@ -711,7 +724,10 @@ progress_tick() {
   _tr=''
   if [ "$_lp" -eq 0 ] || [ $((NOW - _lp)) -ge 3600 ]; then _tr=hourly; elif [ "$_pc" -gt "$_lp" ]; then _tr=plan-change; fi
   if [ -n "$_tr" ]; then
-    _hl=$(sh checks/progress.sh --record --trigger "$_tr" --by observer 2>/dev/null | tail -n 1)
+    if [ "$(rsline mode)" = tickets ] && [ -f checks/queue.sh ]; then   # ticket mode (v0.26.10.25.3, R6): the round's status, recorded with RUN-STATE's records
+      VID_STATUS_KEEP=1 sh checks/queue.sh status > .vid/decide/queue/status.txt 2>/dev/null; sh checks/event.sh "progress trigger=$_tr by=observer mode=tickets" > /dev/null 2>&1
+      _hl=$(sed -n 's/^rows: //p' .vid/decide/queue/status.txt 2>/dev/null | head -n 1); _hl=${_hl:+rows $_hl}
+    else _hl=$(sh checks/progress.sh --record --trigger "$_tr" --by observer 2>/dev/null | tail -n 1); fi
     _at=$(awk "$EVAWK"' $1 == "progress" { a = lastat(); n++ } END { if (a != "") print a "." n }' "$EV" 2>/dev/null)
     # v0.9.7.0.9 (3.8, R13): the headline is a notice line; nothing is sent
     if [ -n "$_hl" ] && [ -n "$_at" ]; then

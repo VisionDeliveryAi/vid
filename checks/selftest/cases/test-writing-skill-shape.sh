@@ -14,7 +14,7 @@ set -eu
 IFS='
 '
 R=$(cd "$CHECKS/.." && pwd)
-[ -f "$R/skills/vid-build/SKILL.md" ] || exit 0
+[ -f "$R/skills/vid-build/SKILL.md" ] || { echo 'needs skills/vid-build/SKILL.md'; exit 77; }
 fail() { echo "test-writing-skill-shape: $*" >&2; exit 1; }
 # shape <root>: one line per violation; returns 1 on any
 shape() {

@@ -72,6 +72,7 @@
 # v0.9.7.0.8 (T3): with IFS a newline only, `--expect` and its value are passed
 # to the request as two words (as one, `--expect 120`, every request was refused).
 # Usage: sh checks/testenv.sh measure --rows <ROW-id,…> [--expect <seconds>] -- <selector> | heaviest | pick | prove [-- <selector>] | record | leftovers | bound [--home <dir>] [--branch <b>]
+# serves: develop (0.26.10.28.4, M9)
 set -u
 IFS='
 '

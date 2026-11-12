@@ -70,8 +70,7 @@ providers: {{EACH_OUTSIDE_SERVICE_LIVE_RESTRICTED_OR_FAKE_ON_STAGING}}
 
 <!-- v0.26.10.9 (R8): only when the plan goes out as tickets (/vid plan): the
      code repository on GitHub, by name only — never a credential. repo: and
-     labels-prefix: (empty, or e.g. `vid:`) are written by /vid plan; the
-     test facts by /vid replan once the code skeleton is merged and checked.
+     labels-prefix: (empty, or e.g. `vid:`) are written by /vid plan.
      Committed alone. Delete this section in develop mode. -->
 
 ```vid-code

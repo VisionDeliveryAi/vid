@@ -1,6 +1,6 @@
 #!/bin/sh
 # Purpose: ViD PRD scorecard, the counted half (v0.9.5 part B, R1-R2, R5;
-# phase A). Scores a PRD on the nine qualities the owner agreed (2026-09-24)
+# phase A). Scores a PRD on the nine qualities the owner agreed
 # with counts only: exact, repeatable, no model. It never convicts, never
 # edits the PRD, and exits 0 whatever it finds; it is information for the
 # owner at pauses 2 and 3, not a gate. The judged half (the reader, phase B)
@@ -19,7 +19,7 @@
 # sentence; and one bar the owner approved in 0.9.4 (bar 4, builder
 # settings over 20% of ViD decisions), which is judged, so it is the
 # reader's. Every other number is shown, never ranged: no size is fixed
-# across projects (owner ruling B3).
+# across projects.
 # Rules are demand items (functional, nfr, ux_flow, data_entity) and
 # invariants. Tier order: T0 (must never break) above T1 above T2.
 # --candidates <file> also writes the reader's candidate list (phase C):
@@ -35,6 +35,7 @@
 # the plugin's skills/ sits beside this checks/. It judges nothing itself.
 # Usage: sh checks/scorecard.sh [PRD.md] [--previous <file>] [--candidates <file>]
 #        sh checks/scorecard.sh --tally <candidates> <reader output>
+# serves: develop (0.26.10.28.4, M9)
 set -u
 IFS='
 '

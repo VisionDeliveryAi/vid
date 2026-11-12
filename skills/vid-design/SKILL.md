@@ -367,7 +367,8 @@ DECISIONS entries of the dual-write.
 
 - **The amendment brief is closed.** `DESIGN-AMENDMENT-BRIEF.md` (§3)
   carries no `open` line and no `PRD wins` or `both change` line short of
-  `landed` — the court refuses commit A otherwise; a design change is
+  `landed` — the session runs `sh checks/design-join.sh` before commit A
+  and makes no commit A otherwise (no hook runs that court); a design change is
   re-imported and its pass re-run empty before this act.
 - **Dual-write.** Each read-back decision, and each `design wins` or
   `both change` row of the §3 brief → PRD.md `## Appends`, in the

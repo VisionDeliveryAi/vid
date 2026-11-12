@@ -1,0 +1,11 @@
+diff --git a/jobdigest/templates/s01_saved.html b/jobdigest/templates/s01_saved.html
+index 5ebb7e4..b718e84 100644
+--- a/jobdigest/templates/s01_saved.html
++++ b/jobdigest/templates/s01_saved.html
+@@ -6,6 +6,5 @@
+   <h1>JobDigest</h1>
+   <p id="saved-search">{{ words }}</p>
+   <p id="saved-address">{{ address }}</p>
+-  <p id="saved-note">Check your inbox to confirm</p>
+ </section>
+ {% endblock %}

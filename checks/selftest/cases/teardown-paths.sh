@@ -8,19 +8,18 @@
 # `--profile deployed … --remove-orphans --volumes`. A TERM arriving during
 # a pass runs exactly that pass's `down` once more, and nothing after; inside
 # the gate every `down` happens with the slot still held, and the slot and
-# the run folder are gone afterwards. Outside the gate the normal ends are
-# byte-identical to 0.9.5's checks/test.sh (fixtures/test-0.9.5.sh): the
-# same Compose calls, output, receipts and events — but for v0.9.7.0.1's
-# added `role=-` on a roleless run's event and v0.9.7.0.2's `form=legacy`
-# on every one (and inside the gate a scoped run names --role builder and
-# calls it directly, with VID_REQUEST set). The EXIT trap shares the
-# signal path's teardown (the trap calls it; a pass cannot end early
-# otherwise). Env: CHECKS.
+# the run folder are gone afterwards. Outside the gate the normal ends print
+# fixed lines, written below from a run at 92e0195: the Compose calls, the
+# output, the events and the receipts, every event carrying v0.9.7.0.2's
+# `form=legacy` and a roleless run's v0.9.7.0.1's `role=-` (the byte
+# comparison with 0.9.5's checks/test.sh went in 0.26.10.28.3, R5; inside
+# the gate a scoped run names --role builder and calls it directly, with
+# VID_REQUEST set). The EXIT trap shares the signal path's teardown (the
+# trap calls it; a pass cannot end early otherwise). Env: CHECKS.
 set -eu
 T=$(mktemp -d); trap 'set +e; rm -rf "$T" 2>/dev/null' EXIT
 . "$CHECKS/selftest/fixtures/gated-run.sh"
 fail() { echo "teardown-paths: $*" >&2; cat "$T/out" >&2 2>/dev/null; cat "$STUB_LOG" >&2 2>/dev/null; exit 1; }
-OLD="$CHECKS/selftest/fixtures/test-0.9.5.sh"
 DFILE='x-vid-harness:
   product: product
   completed: [0, 1]
@@ -82,23 +81,92 @@ for G in in out; do
   run d "$G" "$DEP" '' -- $RB --deployed -- 'tests/x'
   run d "$G" "$DEP" "$KD" -- $RB --deployed -- 'tests/x'
 done
-# outside the gate, normal ends are 0.9.5's, byte for byte
-norm() { sed -E 's#\.vid/export\.[A-Za-z0-9]+#.vid/export.X#g; s/seconds=[0-9]+/seconds=S/; s/ at=[0-9TZ:-]+$//' "$1"; }
+# outside the gate, the normal ends print the lines a run at 92e0195 printed: the temp folder read as T, the export
+# folder as X, a 12-character tree or commit name as H, the seconds as S, and an event's time left out
+TP=$(cd "$T" && pwd -P)
+norm() { sed -E "s#$TP#T#g; s#$T#T#g"'; s#\.vid/export\.[A-Za-z0-9]+#.vid/export.X#g; s/seconds=[0-9]+/seconds=S/; s/ at=[0-9TZ:-]+$//; s/[0-9a-f]{12}/H/g' "$1"; }
+expected() {
+  case $1 in
+    1) cat <<'EXP'
+# compose
+d||T/d/.vid/export.X||-f docker-compose.test.yml up --build --exit-code-from tests tests
+ctx-main=main v1 
+d||T/d/.vid/export.X||-f docker-compose.test.yml down --remove-orphans --volumes
+lease-at-down=held
+d||T/d/.vid/export.X|sel-dep|-f docker-compose.test.yml --profile deployed up -d --build product worker
+d||T/d/.vid/export.X|sel-dep|-f docker-compose.test.yml --profile deployed up --exit-code-from tests tests
+ctx-main=main v1 
+d||T/d/.vid/export.X|sel-dep|-f docker-compose.test.yml --profile deployed down --remove-orphans --volumes
+lease-at-down=held
+# output
+ViD test: report .vid/ledger-results/H.full.xml (full run, tree H, exit 0)
+ViD test: report .vid/ledger-results/H.deployed.xml (deployed run, tree H, exit 0)
+# events
+ledger-run seconds=S kind=full report=H.full.xml status=0 role=close form=legacy
+ledger-run seconds=S kind=deployed report=H.deployed.xml status=0 role=close form=legacy
+# receipts
+H.deployed.xml
+H.full.xml
+EXP
+    ;;
+    2) cat <<'EXP'
+# compose
+n||T/n/.vid/export.X||-f docker-compose.test.yml up --build --exit-code-from tests tests
+ctx-main=main v1 
+n||T/n/.vid/export.X||-f docker-compose.test.yml down --remove-orphans
+lease-at-down=held
+# output
+ViD test: report .vid/ledger-results/H.full.xml (full run, tree H, exit 0)
+# events
+ledger-run seconds=S kind=full report=H.full.xml status=0 role=close form=legacy
+# receipts
+H.full.xml
+EXP
+    ;;
+    3) cat <<'EXP'
+# compose
+n||.|tests/x|-f docker-compose.test.yml up --build --exit-code-from tests tests
+ctx-main=main v1 
+n||.|tests/x|-f docker-compose.test.yml down --remove-orphans
+lease-at-down=held
+# output
+ViD test: report .vid/ledger-results/H.live.sel-253296204.xml (scoped run, tree H, exit 0)
+# events
+ledger-run seconds=S kind=scoped report=H.live.sel-253296204.xml status=0 role=- form=legacy
+# receipts
+H.live.sel-253296204.xml
+EXP
+    ;;
+    4) cat <<'EXP'
+# compose
+d||.|tests/x|-f docker-compose.test.yml --profile deployed up -d --build product worker
+d||.|tests/x|-f docker-compose.test.yml --profile deployed up --exit-code-from tests tests
+ctx-main=main v1 
+d||.|tests/x|-f docker-compose.test.yml --profile deployed down --remove-orphans --volumes
+lease-at-down=held
+# output
+ViD test: report .vid/ledger-results/H.live.deployed.sel-253296204.xml (scoped run, tree H, exit 0)
+# events
+ledger-run seconds=S kind=scoped report=H.live.deployed.sel-253296204.xml status=0 role=- form=legacy
+# receipts
+H.live.deployed.sel-253296204.xml
+EXP
+    ;;
+  esac
+}
+K=0
 for shape in 'd|--role close' 'n|--role close' 'n|-- tests/x' 'd|--deployed -- tests/x'; do
-  r=${shape%%|*}; a=${shape#*|}
-  for v in old new; do
-    cd "$T/$r"; rm -f "$STUB_LOG"; rm -rf .vid/ledger-results .vid/metrics-events .vid/RUN-STATE.md
-    if [ "$v" = old ]; then S="$OLD"; else S=checks/test.sh; fi
-    # shellcheck disable=SC2086
-    sh "$S" $a > "$T/$v.out" 2>&1 || true
-    norm "$STUB_LOG" > "$T/$v.log"; norm "$T/$v.out" > "$T/$v.o"; norm .vid/metrics-events > "$T/$v.ev"; ls .vid/ledger-results > "$T/$v.ls"
-  done
-  # v0.9.7.0.2 (3.4, R5): every plain call outside a run adds form=legacy to its event, last, and nothing else
+  r=${shape%%|*}; a=${shape#*|}; K=$((K+1))
+  cd "$T/$r"; rm -f "$STUB_LOG"; rm -rf .vid/ledger-results .vid/metrics-events .vid/RUN-STATE.md
+  # shellcheck disable=SC2086
+  sh checks/test.sh $a > "$T/new.out" 2>&1 || true
+  norm .vid/metrics-events > "$T/new.ev"; ls .vid/ledger-results > "$T/new.ls"
+  # v0.9.7.0.2 (3.4, R5): every plain call outside a run adds form=legacy to its event, last
   [ -s "$T/new.ev" ] && [ -z "$(grep -v ' form=legacy$' "$T/new.ev")" ] || fail "outside the gate, '$a' in $r: an event does not carry form=legacy"
-  sed 's/ form=legacy$//' "$T/new.ev" > "$T/new.ev.x" && mv "$T/new.ev.x" "$T/new.ev"
-  # v0.9.7.0.1 (3.2, R5): a roleless ungated event adds role=- and nothing else
-  case "$a" in --role*) ;; *) grep -q ' role=-$' "$T/new.ev" || fail "outside the gate, '$a' in $r: the event does not carry role=-"
-    sed 's/ role=-$//' "$T/new.ev" > "$T/new.ev.x" && mv "$T/new.ev.x" "$T/new.ev" ;; esac
-  for f in log o ev ls; do cmp -s "$T/old.$f" "$T/new.$f" || { diff "$T/old.$f" "$T/new.$f" >&2 || true; fail "outside the gate, '$a' in $r differs from 0.9.5 ($f)"; }; done
+  # v0.9.7.0.1 (3.2, R5): a roleless ungated event adds role=-
+  case "$a" in --role*) ;; *) sed 's/ form=legacy$//' "$T/new.ev" | grep -q ' role=-$' || fail "outside the gate, '$a' in $r: the event does not carry role=-" ;; esac
+  { echo '# compose'; norm "$STUB_LOG"; echo '# output'; norm "$T/new.out"; echo '# events'; cat "$T/new.ev"; echo '# receipts'; norm "$T/new.ls"; } > "$T/got"
+  expected "$K" > "$T/exp"
+  cmp -s "$T/exp" "$T/got" || { diff "$T/exp" "$T/got" >&2 || true; fail "outside the gate, '$a' in $r: not the expected lines"; }
 done
 exit 0

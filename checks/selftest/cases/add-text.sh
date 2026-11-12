@@ -1,10 +1,10 @@
 #!/bin/sh
 # Purpose: selftest case — the /vid add refresh (v0.26.10.11 R1–R9) and the add guards (v0.26.10.24 R1, R2), in the plugin
-# repository: vid-add, vid-develop's completion grade and vid-replan's new-work row say what the spec says. Every failing check is named, then the case
+# repository: vid-add and vid-develop's completion grade say what the spec says (vid-replan's new-work row went with it, 0.26.10.28.1). Every failing check is named, then the case
 # fails. In a project ViD's skills are not beside checks/ and the case proves nothing. Env: CHECKS.
 set -eu
 A="$CHECKS/../skills/vid-add/SKILL.md"
-[ -f "$A" ] || exit 0
+[ -f "$A" ] || { echo 'needs skills/vid-add/SKILL.md'; exit 77; }
 BAD=''
 no() { BAD="$BAD
 add-text: $*"; }
@@ -40,14 +40,15 @@ has 'stage name=add state=start session=$CLAUDE_CODE_SESSION_ID records=30 base=
 for _t in '`sh checks/stages.sh hold --off`' '`stage-hold n=N state=on`' 'state=asked' "say 'continue' to build it with stage <its stage>" "sh checks/event.sh 'stage-hold n=N state=off'"; do
   printf '%s' "$P" | grep -qF -- "$_t" || no "the placement paragraph does not name $_t"
 done
-# R8: ticket mode — spec, placement and inventory delta, then /vid replan; replan's new-work: row names /vid add
-has '`mode: tickets`, run §1, §2 (the placement included) and §2b' || no 'vid-add does not say what it runs under mode: tickets'
-has "say '/vid replan' to put it in the plan as tickets" || no 'vid-add under mode: tickets does not hand back naming /vid replan'
-grep -E '^\| `new-work:`' "$CHECKS/../skills/vid-replan/SKILL.md" | grep -qF '/vid add' || no "vid-replan's new-work: row does not name /vid add"
+# v0.26.10.25.5 R1 (was R8): ticket mode — the add is a draft, counted and asked once, landed by the owner's yes in /vid run; no stage event
+has '`mode: tickets`, the add is a draft' || no 'vid-add does not say the add is a draft under mode: tickets'
+has 'it records no stage event' && has 'it commits nothing' || no 'vid-add under mode: tickets records a stage or commits'
+has 'sh checks/land.sh draft' && has 'sh checks/queue.sh ask draft <n>' || no 'vid-add under mode: tickets does not draft and ask'
+has 'names `/vid run` on both its lines' || no 'vid-add under mode: tickets does not hand back naming /vid run'
 # R9, moved to develop (v0.26.10.24 R2): without the standing authorization nothing deploys; the last line names "deploy to staging"
 printf '%s' "$G" | grep -qF "the completion report's last line is \"rule on the findings table, then say 'deploy to staging'\"" || no "develop's scoped grade does not end the report with rule on the findings table, then say 'deploy to staging'"
-# v0.26.10.24 R1: the ticket-mode paragraph is the base's, byte for byte
-[ "$(awk '/^\*\*Ticket mode/ { on = 1 } on && !NF { exit } on' "$A" | cksum)" = '3224359588 528' ] || no 'the ticket-mode paragraph is not the base'"'"'s, byte for byte'
+# v0.26.10.24 R1, v0.26.10.25.5 R1, v0.26.10.26.7 R3, R5: the ticket-mode paragraph, byte for byte
+[ "$(awk '/^\*\*Ticket mode/ { on = 1 } on && !NF { exit } on' "$A" | cksum)" = '1030555895 1385' ] || no 'the ticket-mode paragraph is not the base'"'"'s, byte for byte'
 # (a) the start's floor and the takeover
 has 'read `checks/records-version` first: absent or below 32' || no "vid-add's start does not stop below records 32"
 has 'whenever a session takes the add over, record it again with its first `base=`' || no "vid-add does not record the add's start again at a takeover"

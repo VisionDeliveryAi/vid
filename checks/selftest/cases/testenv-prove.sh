@@ -10,7 +10,7 @@
 # the serial receipt, prove fails, an `incident` is recorded, and record
 # keeps stacks=1 (testenv=one). With k=1 no proof runs. v0.9.7.0.1 (3.2,
 # R6; §6 B-3): the measure run and both proof runs are recorded
-# role=testenv. v0.9.8.1 (R2): the live project's race fix (its 916db80) — measure waits for its hold's
+# role=testenv. v0.9.8.1 (R2): the race fix — measure waits for its hold's
 # timer, and the cleanup never decides the verdict — and the first plain run is awaited at its own stub, not
 # at slot 1, which the measure's run still holds through its final teardown after its result. v0.26.10.12 (H2): the
 # testenv event is read as the last `testenv` line, since a proof run's late `teardown` event may follow it. Env: CHECKS.

@@ -1,6 +1,6 @@
 #!/bin/sh
 # Purpose: selftest case — a close never supplies its own denominator
-# (v0.9.6.1 spec 3.3, R3, review rounds 1–2; §6 case 9). The newest
+# (v0.9.6.1 spec 3.3, R3; §6 case 9). The newest
 # checkpoint ran ROW-003 in two variants. A close holding only its first
 # variant prints `not-run row=ROW-003 case=…-engine2]`, exits 2, prints no
 # `claim` line and closes no step. A failing case prints `failed row=…`

@@ -9,7 +9,7 @@
 # Env: CHECKS.
 set -eu
 D="$CHECKS/../skills/vid-design/SKILL.md"; I="$CHECKS/../skills/vid-init/SKILL.md"
-[ -f "$D" ] && [ -f "$I" ] || exit 0
+[ -f "$D" ] && [ -f "$I" ] || { echo 'needs skills/vid-design/SKILL.md and skills/vid-init/SKILL.md'; exit 77; }
 fail() { echo "design-question: $*" >&2; exit 1; }
 J=$(tr '\n' ' ' < "$D" | tr -s ' ')
 printf '%s\n' "$J" | grep -qF 'run the render-and-see gate **first**' || fail 'the gate does not come first'

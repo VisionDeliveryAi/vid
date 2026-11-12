@@ -30,7 +30,7 @@ Search with no results and filters with no results both have their own empty mes
 - Delivery: dataset is split into `viewer-data.js` and `canvases.js` for editing; bundle to one offline file for distribution.
 
 ## Architecture
-A fifth top-level section, between Product and Delivery. It reads `architecture` and the `architecture` change kind only. Tabs: System, Outside services, Stack. Anchors: `#architecture`, `#architecture/services`, `#architecture/stack`, each module at its path (`#apps/jobs`, `#core`, `#services/search`), each service at its id (`#SEAM-004`, which opens the Services tab and scrolls to it).
+A fifth top-level section, between Product and Delivery. It reads `architecture` and the `architecture` change kind only. Tabs: System, Outside services, Stack. Anchors: `#architecture`, `#architecture/services`, `#architecture/stack`, each module at its path (`#apps/jobs`, `#apps/mail`, `#services/search`), each service at its id (`#SEAM-004`, which opens the Services tab and scrolls to it).
 
 ### The system picture
 - One row per `level` (level 0 at the top), then the band "Open to every module" at the bottom. Rows come straight from `placement`/`level`; the caption says the arrangement is computed from the module table, not drawn by anyone.
@@ -51,7 +51,7 @@ A fifth top-level section, between Product and Delivery. It reads `architecture`
 ### Inside a module (brief 2)
 The module page is the picture, then five tabs. Each tab has its own address: `#apps/jobs` (Overview), `#apps/jobs/decisions`, `/health`, `/left`, `/files`. The picture and tabs stay at the top of every tab.
 - **Overview.** *What it is*: responsibility, the data it owns, and the rule "Only this module writes this data. Other modules go through its way in." *Its way in*: the surface as written. The entry point it leads with is shown first as code, then the rest of the cell as written, with "Other modules enter through the entry point." No claim is made about what VID checks. Below, side by side: every change to the way in, newest first, each with date, commit, and Before (struck through) / After. A first entry reads "Nothing: the row first appeared here". Next to it, *Decisions labelled for this module*. A missing `surfaceHistory` reads "Interface history: not recorded". *What a change affects*: the modules that may be used by it, with "VID's fixes re-check this module together with them". *Outside services it talks to*: each service that names the module, with purpose, contract test, probe and credentials. If no service names it, a line says the records don't link services to modules.
-- **Decisions linked to this module.** Listed in date order. Each row shows what was decided and why, how it is held, when (At spec / During the build, date, commit) and why it is listed ("Mentions" followed by the words its text uses (`match`) as code, "Labelled for this module", or "Labelled for its promises"). Some mentions aren't about the module (e.g. `core._domainkey`, a DNS name, on core), which is why the words are shown. A missing stage or date reads "Stage: not recorded" / "Date: not recorded". Convention rows get a warning pill ("Convention · nothing checks it") and a tinted row, and the intro counts them. Filter chips: All, Convention only, Labelled, At spec, During the build. Chips with no matches are hidden. Below the list, *Project-wide decisions* is one group, collapsed by default. It shows decisions whose `scope` is `project`; the sample has none, so it says so.
+- **Decisions linked to this module.** Listed in date order. Each row shows what was decided and why, how it is held, when (At spec / During the build, date, commit) and why it is listed ("Mentions" followed by the words its text uses (`match`) as code, "Labelled for this module", or "Labelled for its promises"). Some mentions aren't about the module (e.g. a DNS name that holds the module's name), which is why the words are shown. A missing stage or date reads "Stage: not recorded" / "Date: not recorded". Convention rows get a warning pill ("Convention · nothing checks it") and a tinted row, and the intro counts them. Filter chips: All, Convention only, Labelled, At spec, During the build. Chips with no matches are hidden. Below the list, *Project-wide decisions* is one group, collapsed by default. It shows decisions whose `scope` is `project`; the sample has none, so it says so.
 - **Health.** The usual summary bar. Then *Must-never-break rules its criteria prove* ("8 of 23"): each rule's meaning, a bar and the count of the module's criteria that serve it. Then the criteria list, with problems first (failing, stale, never run, broken on review) and then the rest by state. The tab count is the number of problems.
 - **Left to build.** Steps not closed, and criteria that are not built or are built but owed a test. Each criterion shows its step. The list shows 30 at a time.
 - **Files.** File paths grouped by folder (no code). Next to them, the test files its criteria use, also grouped, each with how many criteria it checks.
@@ -60,7 +60,7 @@ Null fields read "not recorded". Every empty part says so in one line.
 
 **Module states (Tweak `archSample`).**
 - 22 decisions: `apps/jobs`. 1 decision: `services/search`. A convention row is in `apps/jobs`.
-- A mention not about the module: core D-099 (`core._domainkey`), in the sample.
+- A mention not about the module: a decision naming it inside a DNS name, in the sample.
 - *edge states* also adds:
   - two decisions on `apps/jobs`: D-300 labelled for this module (so it appears under "Decisions about it") and D-301 labelled for its promises;
   - two example changes to its way in (`e1a2b3c`, `f4d5e6a`), so the way in has changed twice;
@@ -80,7 +80,7 @@ Screenshots:
 - 06 to 08: Health (summary, rules, criteria).
 - 09: Left to build. 10: Files.
 - 11: the way in changed twice, and a labelled decision (edge states).
-- 12: core decisions, including a mention not about the module (`core._domainkey`).
+- 12: a module's decisions, including a mention not about the module (a DNS name).
 - 13: a decision with no stage or date.
 - 14: the open Project-wide group.
 - 15: a service that names the module.

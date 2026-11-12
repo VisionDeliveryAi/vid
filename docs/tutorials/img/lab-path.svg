@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 860" width="1000" height="860" role="img" aria-label="The thirteen stops of the lab, and which seat each is done from">
+<rect x="0" y="0" width="1000" height="860" fill="#f6f7f8"/>
+<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:#0b5c7a"/></marker></defs>
+<text x="16" y="18" text-anchor="start" style="fill:#5a6875;font-size:11.5px;font-weight:400;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">THE LEAD&#x27;S SEAT: YOU AND VID</text>
+<line x1="16" y1="28" x2="336" y2="28" style="stroke:#16202a" stroke-width="1.5"/>
+<text x="370" y="18" text-anchor="start" style="fill:#5a6875;font-size:11.5px;font-weight:400;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">GITHUB</text>
+<line x1="370" y1="28" x2="630" y2="28" style="stroke:#16202a" stroke-width="1.5"/>
+<text x="664" y="18" text-anchor="start" style="fill:#5a6875;font-size:11.5px;font-weight:400;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">THE DEV SEAT: YOU, IN EVERY ROLE</text>
+<line x1="664" y1="28" x2="984" y2="28" style="stroke:#16202a" stroke-width="1.5"/>
+<rect x="370" y="34" width="260" height="816" rx="3" style="fill:#e2eff4;stroke:#e2eff4" stroke-width="1"/>
+<rect x="664" y="44" width="320" height="52" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
+<text x="674" y="63" text-anchor="start" style="fill:#0b5c7a;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">1</text>
+<text x="698" y="63" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">Two private repositories; a code folder</text>
+<text x="698" y="80" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">and a spec folder</text>
+<text x="500.0" y="74" text-anchor="middle" style="fill:#16202a;font-size:12px;font-weight:400;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">the code&#x27;s first commit</text>
+<line x1="662" y1="58" x2="612" y2="58" style="stroke:#0b5c7a" stroke-width="1.5" marker-end="url(#ah)"/>
+<rect x="16" y="106" width="320" height="52" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
+<text x="26" y="125" text-anchor="start" style="fill:#0b5c7a;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">2</text>
+<text x="50" y="125" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">Copy ViD&#x27;s checks into the spec folder,</text>
+<text x="50" y="142" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">and commit</text>
+<rect x="16" y="168" width="320" height="52" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
+<text x="26" y="187" text-anchor="start" style="fill:#0b5c7a;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">3</text>
+<text x="50" y="187" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">Plan. Ask for one change. Approve the</text>
+<text x="50" y="204" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">plan</text>
+<text x="500.0" y="198" text-anchor="middle" style="fill:#16202a;font-size:12px;font-weight:400;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">the spec, published</text>
+<line x1="338" y1="182" x2="388" y2="182" style="stroke:#0b5c7a" stroke-width="1.5" marker-end="url(#ah)"/>
+<rect x="16" y="230" width="320" height="52" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
+<text x="26" y="249" text-anchor="start" style="fill:#0b5c7a;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">4</text>
+<text x="50" y="249" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">Start the run</text>
+<text x="500.0" y="260" text-anchor="middle" style="fill:#16202a;font-size:12px;font-weight:400;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">ticket: the skeleton</text>
+<line x1="338" y1="244" x2="388" y2="244" style="stroke:#0b5c7a" stroke-width="1.5" marker-end="url(#ah)"/>
+<rect x="664" y="292" width="320" height="52" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
+<text x="674" y="311" text-anchor="start" style="fill:#0b5c7a;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">5</text>
+<text x="698" y="311" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">The skeleton ticket: tests, build, the</text>
+<text x="698" y="328" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">run, two breaks, the grade, the merge</text>
+<text x="500.0" y="322" text-anchor="middle" style="fill:#16202a;font-size:12px;font-weight:400;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">2 reports, decide, merge</text>
+<line x1="662" y1="306" x2="612" y2="306" style="stroke:#0b5c7a" stroke-width="1.5" marker-end="url(#ah)"/>
+<rect x="664" y="354" width="320" height="52" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
+<text x="674" y="373" text-anchor="start" style="fill:#0b5c7a;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">6</text>
+<text x="698" y="373" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">The stage&#x27;s full run, in two chunks</text>
+<text x="500.0" y="384" text-anchor="middle" style="fill:#16202a;font-size:12px;font-weight:400;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">2 reports</text>
+<line x1="662" y1="368" x2="612" y2="368" style="stroke:#0b5c7a" stroke-width="1.5" marker-end="url(#ah)"/>
+<rect x="16" y="416" width="320" height="52" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
+<text x="26" y="435" text-anchor="start" style="fill:#0b5c7a;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">7</text>
+<text x="50" y="435" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">No test site: leave the deploy open and</text>
+<text x="50" y="452" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">say continue</text>
+<text x="500.0" y="446" text-anchor="middle" style="fill:#16202a;font-size:12px;font-weight:400;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">ticket: ROW-006</text>
+<line x1="338" y1="430" x2="388" y2="430" style="stroke:#0b5c7a" stroke-width="1.5" marker-end="url(#ah)"/>
+<rect x="664" y="478" width="320" height="52" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
+<text x="674" y="497" text-anchor="start" style="fill:#0b5c7a;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">8</text>
+<text x="698" y="493" text-anchor="start" style="fill:#16202a;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">An ordinary ticket: a question, the red</text>
+<text x="698" y="508" text-anchor="start" style="fill:#16202a;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">run, build, a break with its control,</text>
+<text x="698" y="523" text-anchor="start" style="fill:#16202a;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">the grade, the merge</text>
+<text x="500.0" y="508" text-anchor="middle" style="fill:#16202a;font-size:12px;font-weight:400;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">question, 3 reports, merge</text>
+<line x1="662" y1="492" x2="612" y2="492" style="stroke:#0b5c7a" stroke-width="1.5" marker-end="url(#ah)"/>
+<rect x="16" y="540" width="320" height="52" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
+<text x="26" y="559" text-anchor="start" style="fill:#0b5c7a;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">9</text>
+<text x="50" y="559" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">Answer the question. Change the spec:</text>
+<text x="50" y="576" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">draft, count, yes</text>
+<text x="500.0" y="570" text-anchor="middle" style="fill:#16202a;font-size:12px;font-weight:400;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">answer; amended ticket; new ticket</text>
+<line x1="338" y1="554" x2="388" y2="554" style="stroke:#0b5c7a" stroke-width="1.5" marker-end="url(#ah)"/>
+<rect x="664" y="602" width="320" height="52" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
+<text x="674" y="621" text-anchor="start" style="fill:#0b5c7a;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">10</text>
+<text x="698" y="621" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">The reached-rows ticket: keep the test,</text>
+<text x="698" y="638" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">run, merge</text>
+<text x="500.0" y="632" text-anchor="middle" style="fill:#16202a;font-size:12px;font-weight:400;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">1 report, decide, merge</text>
+<line x1="662" y1="616" x2="612" y2="616" style="stroke:#0b5c7a" stroke-width="1.5" marker-end="url(#ah)"/>
+<rect x="664" y="664" width="320" height="52" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
+<text x="674" y="683" text-anchor="start" style="fill:#0b5c7a;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">11</text>
+<text x="698" y="683" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">The amended ticket: the red run, build,</text>
+<text x="698" y="700" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">the grade, the merge</text>
+<text x="500.0" y="694" text-anchor="middle" style="fill:#16202a;font-size:12px;font-weight:400;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">3 reports, decide, merge</text>
+<line x1="662" y1="678" x2="612" y2="678" style="stroke:#0b5c7a" stroke-width="1.5" marker-end="url(#ah)"/>
+<rect x="664" y="726" width="320" height="52" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
+<text x="674" y="745" text-anchor="start" style="fill:#0b5c7a;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">12</text>
+<text x="698" y="745" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">Two step closes, each at the commit it</text>
+<text x="698" y="762" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">names</text>
+<text x="500.0" y="756" text-anchor="middle" style="fill:#16202a;font-size:12px;font-weight:400;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">2 reports</text>
+<line x1="662" y1="740" x2="612" y2="740" style="stroke:#0b5c7a" stroke-width="1.5" marker-end="url(#ah)"/>
+<rect x="16" y="788" width="320" height="52" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
+<text x="26" y="807" text-anchor="start" style="fill:#0b5c7a;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">13</text>
+<text x="50" y="807" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">Ask where things stand. Stop</text>
+</svg>

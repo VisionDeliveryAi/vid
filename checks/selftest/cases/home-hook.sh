@@ -9,7 +9,7 @@
 # written. Env: CHECKS.
 set -eu
 HD="$CHECKS/../hooks"
-[ -f "$HD/stop-failure.sh" ] || exit 0
+[ -f "$HD/stop-failure.sh" ] || { echo 'needs hooks/stop-failure.sh'; exit 77; }
 T=$(mktemp -d); trap 'set +e; rm -rf "$T" 2>/dev/null' EXIT
 . "$CHECKS/selftest/fixtures/gated-run.sh"
 fail() { echo "home-hook: $*" >&2; cat "$HOMEP/.vid/metrics-events" >&2 2>/dev/null || true; exit 1; }

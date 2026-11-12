@@ -1,0 +1,35 @@
+# Purpose: the published set (0.26.10.28.1, stage 9 R3, S3): the paths of this repository a release
+# carries, one a line, and nothing else. checks/selftest/cases/release-set.sh reads it, skipping lines that begin with
+# `#` and blank ones, and the owner's publish step copies exactly these paths. devagent/, the full dev side, ships;
+# docs/RESULTS-FORMAT.md is the one file of docs/ it needs; this file lists itself, since the installed plugin's
+# self-test runs release-set.sh. 0.26.10.28.5 (R4): viewer/ by its parts, without viewer/page/screenshots, the design
+# pack's pictures, which the page does not use; a path may hold a space, one path a line.
+# docs/tutorials, the tutorials and their labs, ships for readers (0.26.10.28.6, R7).
+.claude-plugin
+.gitattributes
+.github
+README.md
+LICENSE
+NOTICE
+CONTRIBUTING.md
+DCO
+SECURITY.md
+RECORDS.md
+agents
+checks
+hooks
+seed
+skills
+templates
+viewer/DATA.md
+viewer/prices.tsv
+viewer/vendor
+viewer/view.sh
+viewer/page/CHANGES.md
+viewer/page/NOTE.md
+viewer/page/ViD Viewer v4.dc.html
+viewer/page/support.js
+devagent
+docs/RESULTS-FORMAT.md
+docs/PUBLISH-SET
+docs/tutorials

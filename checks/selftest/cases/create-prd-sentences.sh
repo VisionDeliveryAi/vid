@@ -8,7 +8,7 @@
 # Env: CHECKS.
 set -eu
 F="$CHECKS/../skills/vid-create-prd/SKILL.md"
-[ -f "$F" ] || exit 0
+[ -f "$F" ] || { echo 'needs skills/vid-create-prd/SKILL.md'; exit 77; }
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 fail() { echo "create-prd-sentences: $*" >&2; exit 1; }
 awk -v d="$T" '/^> \*\*One writer per step\*\*/ { n++; on = 1 } on && !/^>/ { on = 0 } on { print > (d "/copy" n) }' "$F"

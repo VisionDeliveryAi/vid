@@ -21,6 +21,8 @@ courts) check the law at every commit, and each court proves it still
 convicts on a known-bad fixture. Nothing framework-specific ships: what is
 stack-shaped is generated at init from your scaffold.
 
+New to ViD? The tutorials are in [docs/tutorials/](docs/tutorials/).
+
 ## Install
 
 ViD is a Claude Code plugin, distributed from this repository (which is
@@ -39,8 +41,24 @@ both.) Then, inside Claude Code:
 /plugin install vid@vid
 ```
 
-Then start Claude Code in an empty directory and say `vid init`. Each
-verb is also a slash command: type `/vid` to see them.
+Then start Claude Code in an empty directory and type `/vid:vid-init`. Every
+verb is a slash command of the plugin, `/vid:vid-<verb>`: type `/vid` to see them.
+
+## Three ways to work
+
+- **local auto** — ViD builds the whole product itself, on your machine, with no dev team: `/vid:vid-init`, then `/vid:vid-develop`.
+- **GitHub auto** — ViD builds your product through GitHub, with no outside team. Every piece of work is a ticket and a pull
+  request you can read, nothing merges without ViD's acceptance, and ViD's own DevAgent does the building, on your machine,
+  started by you: `/vid:vid-init`, then `/vid:vid-plan` and `/vid:vid-run`. The run prints DevAgent's job note, filled in, and
+  two ways to start it: first, in a new Claude Code conversation in its work folder, `/vid:vid-devagent <job note>`, which
+  shows each piece of DevAgent's work as it ends; or in the background, `sh <plugin>/devagent/dev-manager/dm.sh up <job note>`
+  (devagent/README.md says more).
+  Where its deploys end, today: DevAgent deploys staging, the rehearsal and production only as local copies on its own
+  machine. A deploy to a real host is done by your own DevAgent, in GitHub team, or comes in a later release.
+- **GitHub team** — ViD writes GitHub tickets for an outside team's DevAgent, which builds, tests and merges in its own pipeline:
+  `/vid:vid-init`, then `/vid:vid-plan` and `/vid:vid-run`.
+
+The two GitHub modes are what the verbs below call ticket mode.
 
 ## Getting started
 
@@ -56,8 +74,11 @@ project, check that your install works, as below.
   `gh auth setup-git`, or SSH).
 - Docker Desktop, installed and running — ViD's test harness is
   Docker-only; a project's ledger cannot run without it.
+- For GitHub auto: the `claude` command, signed in, since DevAgent's agents run on it; and, for a product
+  with screens in either GitHub mode, a browser already on the machine ViD runs on, for ViD's walk through
+  the screens (a container image that holds one, or an installed browser). ViD never installs one.
 - **On a PC: WSL2 is required.** Do everything — the clone, Claude Code,
-  git, `vid init` — inside a WSL2 distribution, with Docker Desktop's
+  git, `/vid:vid-init` — inside a WSL2 distribution, with Docker Desktop's
   WSL2 integration enabled for that distribution. Native Windows
   (PowerShell or Git Bash) is not supported.
 
@@ -70,23 +91,25 @@ The three commands in the Install section above.
 An install is checked the way ViD checks anything: the judges prove they
 convict, and one real init completes. Three steps, in order:
 
-1. **Version.** Say `vid help`. It must report **0.26.10.24**.
+1. **Version.** Type `/vid:vid-help`. It shows the installed version, which must be **0.26.10.28.9**.
 2. **Court self-test.** Ask Claude: *"Run ViD's court self-test suite —
    `checks/selftest/run.sh` under the installed plugin root — and report
-   the verdict line."* Expected: `selftest: 646/646 courts convict`.
-   One of the 646, view-page-diff, checks only in ViD's own repository
-   (it needs the design pack, which is not shipped); elsewhere it passes
-   without checking. A line ending "rescued by a
+   the verdict line."* Expected: every case that ran convicts, `selftest:
+   <n>/<n> courts convict, 1 skipped`. The skipped one is view-page-diff, which
+   checks only in ViD's own repository (it needs the design pack, which is not
+   shipped); a skipped case prints `skipped — <what it needs>` and fails
+   nothing. A case that hangs is stopped at its time limit and reported `TIMED
+   OUT`; a failed case's last 20 lines print under it. A line ending "rescued by a
    retry" is not a clean pass. A court that fails to convict its
    known-bad fixture is worth reporting before you trust the verb that
    court guards.
-3. **Toy init.** In a NEW empty directory, say `vid init` and describe a
+3. **Toy init.** In a NEW empty directory, type `/vid:vid-init` and describe a
    deliberately tiny product (a page or two of behavior; accept default
    answers freely). Expected: the interview completes, the Test
-   Inventory is ratified (its tests not written yet), init reports its
-   own court self-test green on your machine, the spec commit exists, and
-   init's last words say there is no code yet — /vid develop builds the
-   code skeleton as its first step.
+   Inventory is ratified (its tests not written yet), the spec commit
+   exists, and init's last words say there is no code yet — `/vid:vid-develop`
+   builds the code skeleton as its first step. Init does not run the self-test:
+   step 2 runs it, by its own command.
 
 Self-test green and toy init complete: your install works. If either
 fails, please report it.
@@ -94,7 +117,7 @@ fails, please report it.
 ### Updates
 
 To update: `/plugin marketplace update vid`, then `/plugin update vid@vid`,
-and confirm the version with `vid help`. Versions are numbered
+and confirm the version with `/vid:vid-help`. Versions are numbered
 major.year.month.release (0.26.10.1 is the first release of October 2026).
 
 ### Reporting issues — one GitHub issue per finding
@@ -109,7 +132,7 @@ per finding, in this shape:
 - **Evidence** — paste, never describe: court output, the selftest
   verdict line, ledger state, grade finding rows, the commit SHA.
 - **Repro** — the commands or prompts, in order.
-- **ViD version** — as reported by `vid help`, never from memory.
+- **ViD version** — as reported by `/vid:vid-help`, never from memory.
 - **Consequence** — what this blocks: the install, a verb, a court's
   verdict, or a specific claim the method makes.
 
@@ -124,10 +147,12 @@ specific corrections) → **deploy** (ship: the only verb that touches
 anything real). **stage** cuts the product into stages (inside init, or
 on request); **add** re-enters the loop for a new feature; **view** shows
 the project; **help** prints the installed version and the verb list. In
-ticket mode **plan** and **replan** take develop's place while a dev team
+ticket mode **plan** and **run** take develop's place while a dev team
 builds. A *stage* is a slice of the product; *staging* is the test site.
+Each verb is typed as Claude Code shows it, `/vid:vid-<verb>` (v0.26.10.26.7): the
+plugin is `vid`, and each verb is one of its skills.
 
-- **vid-init**: once, in an empty directory. Runs **vid-create-prd** inline
+- **vid-init** (`/vid:vid-init`): once, in an empty directory. Runs **vid-create-prd** inline
   (or adopts a PRD it already ratified), asks the technical-foundation
   questions — where the product runs and how ViD gets access among them,
   recorded by name, never a credential — and writes BASELINE.md,
@@ -141,7 +166,7 @@ builds. A *stage* is a slice of the product; *staging* is the test site.
   real scaffold, every ratified row written as a failing test, gated on red:
   a new test that passes against no implementation fails by name); or
   **vid-plan** sends the skeleton to a dev team as their first ticket.
-- **vid-create-prd**: authors the PRD. One interview batch where each
+- **vid-create-prd** (`/vid:vid-create-prd`): authors the PRD. One interview batch where each
   question must matter downstream, a content contract you ratify, typed
   requirements each carrying a Fail-if (a condition a wrong implementation
   breaks), a completeness audit and a whole-set review. You appear at the
@@ -149,14 +174,14 @@ builds. A *stage* is a slice of the product; *staging* is the test site.
   yours, or ViD's, shown to you for confirmation. One court
   (`checks/prd.sh`) checks the PRD's grammar at every commit. Runs inside
   init or on its own.
-- **vid-test-inventory**: owns the Test Inventory, every test the project
+- **vid-test-inventory** (`/vid:vid-test-inventory`): owns the Test Inventory, every test the project
   will ever have, routed by what can run it: rule rows counted over the
   whole code, ledger rows that execute, grading-checklist lines for what
   only judgment can see, and rows that record what is deliberately not
   tested and why. Derived from the PRD, the design and the routes, with a
   counterexample lens on every row. Runs inside init, and again after PRD
   changes, showing the row-set difference.
-- **vid-stage**: cuts the product into stages, at the end of init or on
+- **vid-stage** (`/vid:vid-stage`): cuts the product into stages, at the end of init or on
   request. Through four lenses (what each stage lets people do, what must
   be built first, your constraints, the risks) it finds the finest cut in
   which every stage is usable and safe to release, then coarser versions
@@ -167,13 +192,13 @@ builds. A *stage* is a slice of the product; *staging* is the test site.
   offers a technical stage 0, a thin working skeleton put on staging for
   real and never released, and asks once whether ViD may set up the test
   site and put each finished stage on it on its own.
-- **vid-design**: turns an owner-approved design into the visual half of
+- **vid-design** (`/vid:vid-design`): turns an owner-approved design into the visual half of
   the spec. It derives the screen-and-state brief from the PRD; you design
   from it in Claude Design or any tool (one canvas per screen for new
   projects); what comes back is imported and reconciled screen by screen
   by a fail-closed court. Product decisions the design embodies are read
   back into the PRD.
-- **vid-develop**: one command; makes the ledger green, end to end, with
+- **vid-develop** (`/vid:vid-develop`): one command; makes the ledger green, end to end, with
   no approvals. The orchestrator writes a plan of steps and changes it
   only with a recorded reason. Builders, fixers and test authors run as
   separate agents (Claude, or Codex for builders when you say so), and
@@ -190,24 +215,28 @@ builds. A *stage* is a slice of the product; *staging* is the test site.
   dies or goes quiet, or when an agent goes quiet, and says how to resume;
   nothing pops up, and ViD never restarts a build itself. "Complete"
   is computed, never asserted. Your controls: "pause", "continue".
-- **vid-grade**: the discovery verb, strictly read-only. Fresh-context
+- **vid-grade** (`/vid:vid-grade`): the discovery verb, strictly read-only. Fresh-context
   graders review every requirement against its Fail-if with file:line
   evidence, probing dead code, default configuration, fixtures and
   end-to-end journeys. Where a ratified design exists, a screenshot
   review against it is part of every grade (`--visual` forces it). Findings come as a ranked table and a dated report; nothing is
   changed. Works on any repository, any time.
-- **vid-fix**: the apply verb, targeted only: corrections you type, or the
+- **vid-fix** (`/vid:vid-fix`): the apply verb, targeted only: corrections you type, or the
   accepted rows of a grade report. A bug gets a spec append, a test seen
   red first, and the fix, in one commit; a rule gets a count over every
   site first. Then the changed modules and their dependents are graded
   again, because fixes inject defects.
-- **vid-add**: a feature after the fact: mini-interview, PRD appends,
+- **vid-add** (`/vid:vid-add`): a feature after the fact: mini-interview, PRD appends,
   develop scoped to the change, then grade and fix scoped to it.
-- **vid-view**: the project viewer: self-contained HTML snapshots of the
+- **vid-view** (`/vid:vid-view`): the project viewer: self-contained HTML snapshots of the
   project, now and at each milestone, with a change log across them, read
   from git and ViD's records. Progress, your open and answered questions,
   decisions and the design. Read-only; it opens offline.
-- **vid-deploy**: ship in two targets. **Deploy to staging** (a bare
+- **vid-share** (`/vid:vid-share`): send one run's logs to someone you choose without making
+  them public. It builds a redacted bundle, shows you what it holds, and on your yes pushes it
+  to a private repository in your own GitHub account (or an organisation you own), inviting
+  the person you name, or no one; or it keeps it as one file you send by hand.
+- **vid-deploy** (`/vid:vid-deploy`): ship in two targets. **Deploy to staging** (a bare
   deploy) is fast and repeatable: the rows changed since the last full
   pass run on a scoped run of the exact commit, then one real action
   through each live provider. **Deploy to production** takes the commit
@@ -220,29 +249,23 @@ builds. A *stage* is a slice of the product; *staging* is the test site.
   by anything but you, except a staging deploy at a stage close, or at
   "continue" while staging is being set up, under your standing staging
   authorization.
-- **vid-plan**: ticket mode, for a dev team with its own pipeline. ViD's
+- **vid-plan** (`/vid:vid-plan`): ticket mode, for a dev team with its own pipeline. ViD's
   repository keeps the spec, the plan and ViD's records; the code
   repository on GitHub gets only issues, milestones, labels and comments.
-  It publishes the whole plan — a milestone per stage, an issue per step,
-  tickets for the ready steps, the code skeleton first — after you approve
-  the plan page. Each ticket carries its own instructions and its
-  acceptance tests; nothing in the dev team's pipeline changes. ViD never
-  pushes, merges or deploys.
-- **vid-replan**: ticket mode, run when you ask (daily, or for a blocked
-  ticket). It reads what came back — merged pull requests, their return
-  blocks and the dev team's CI results per test, drafts holding questions —
-  checks ViD's tests are present and unchanged, grades the merged work
-  against each requirement's Fail-if, sends questions to the people you
-  named for each area, changes the plan, closes a stage when the dev team's
-  CI run on main passes it and every row is graded, and publishes the next
-  tickets. A readable report page each round.
-- **vid-ticket-implement** and **vid-ticket-approve**: for a trial of
-  ticket mode, the dev side's stand-ins, each in its own conversation and
-  its own clone of the code repository — a worker that claims tickets and
-  builds each with a fresh agent given only the ticket, and a reviewer that
-  checks each pull request and merges it at the reviewed head or sends it
-  back. They never touch ViD's repository.
-- **vid-help**: the installed version, read live from the plugin, and the
+  It writes the plan — every stage planned, the code skeleton first — and
+  shows you one plan page to ratify; `/vid:vid-run` publishes the tickets from
+  it. Each ticket carries its own instructions and the rows it must pass;
+  nothing in the dev team's pipeline changes. ViD never pushes, merges or
+  deploys.
+- **vid-run** (`/vid:vid-run`): ticket mode, after the plan: one long session
+  runs the tickets through to the end. It decides each ask, records each merge,
+  re-plans, publishes the next tickets, and asks you only what it must, each as a
+  numbered question.
+- **vid-devagent** (`/vid:vid-devagent <job note>`): GitHub auto's dev side, started in a Claude
+  Code conversation of its own, opened in DevAgent's work folder. It starts DevAgent and shows each
+  piece of its work as it ends, and its stop as soon as it comes; closing the conversation leaves
+  DevAgent running.
+- **vid-help** (`/vid:vid-help`): the installed version, read live from the plugin, and the
   verb list.
 
 **The review cycle is composition, not a verb:** grade discovers, you
@@ -267,8 +290,8 @@ checks/     the courts and tools: commit hooks, the PRD, inventory,
             (test.sh) and test environments, the plan and brief records,
             Codex jobs, evidence, metrics and progress, the observer and
             watchdog, the deploy gates, ticket mode's GitHub adapter
-            (github.sh, the one file that calls gh), the ticket grammar and
-            report reader (ticket.sh) and the page renderer (page.sh), and
+            (github.sh, the one file that calls gh) and the page renderer
+            (page.sh), and
             selftest/ (a known-bad fixture per court, the judge proven to
             convict)
 hooks/      plugin hooks: the session and agent record, the death

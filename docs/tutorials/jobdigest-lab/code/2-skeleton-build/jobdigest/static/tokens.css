@@ -1,0 +1,2 @@
+:root { --ink: #1a1a1a; --paper: #ffffff; --accent: #0b5cad; --line: #d0d0d0; --space: 16px; }
+body { color: var(--ink); background: var(--paper); font-family: sans-serif; margin: var(--space); }

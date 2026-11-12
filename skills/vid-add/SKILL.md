@@ -8,16 +8,27 @@ description: Add a feature to an existing ViD project — mini-interview, PRD ap
 The same loop, smaller. Requires an existing ViD project (CLAUDE.md law file
 with a ```vid-placement block) — otherwise point the owner at /vid init.
 
-**The start (v0.26.10.24 R1).** Outside ticket mode, read `checks/records-version` first: absent or below 32, tell the owner the project's checks/ needs the refresh and stop before any work; the refresh is vid-develop's ("Version skew"), run before the add is asked again. **Stage events (v0.9.5 3.11, R11; v0.26.10.11 R6; RECORDS.md).** In the project, record `sh checks/event.sh "stage name=add state=start session=$CLAUDE_CODE_SESSION_ID records=30 base=$(git rev-parse --short=12 HEAD)"` when this verb starts — `base=` is HEAD before the add's first commit, which develop's completion grade reads; outside ticket mode, whenever a session takes the add over, record it again with its first `base=` — and `sh checks/event.sh "stage name=add state=end session=$CLAUDE_CODE_SESSION_ID"` when it hands back or hands over (§3); develop writes its own. Every event this skill names is written the same way, `sh checks/event.sh '<event>'`, which appends it to `.vid/metrics-events` with its time.
+**The start (v0.26.10.24 R1).** Outside ticket mode, read `checks/records-version` first: absent or below 32, tell the owner the project's checks/ needs the refresh and stop before any work; the refresh is vid-develop's ("Version skew"), run before the add is asked again. **Stage events (v0.9.5 3.11, R11; v0.26.10.11 R6; RECORDS.md).** Outside ticket mode, in the project, record `sh checks/event.sh "stage name=add state=start session=$CLAUDE_CODE_SESSION_ID records=30 base=$(git rev-parse --short=12 HEAD)"` when this verb starts — `base=` is HEAD before the add's first commit, which develop's completion grade reads; outside ticket mode, whenever a session takes the add over, record it again with its first `base=` — and `sh checks/event.sh "stage name=add state=end session=$CLAUDE_CODE_SESSION_ID"` when it hands back or hands over (§3); develop writes its own. Every event this skill names is written the same way, `sh checks/event.sh '<event>'`, which appends it to `.vid/metrics-events` with its time.
 
-**Ticket mode (v0.26.10.11 R8).** While `.vid/RUN-STATE.md` says `mode:
-tickets`, run §1, §2 (the placement included) and §2b — append mode stops
-after the ratification, the new rows written `owed: spec-only — ticket` —
-then hand back (§5) naming /vid replan: its `new-work:` row takes the
-add's rows into the plan, and their tests and tickets follow its §6. No §3
-or §4: grading stays per ticket, and staging stays the dev team's. The
-hand-back's last line is "say '/vid replan' to put it in the plan as
-tickets".
+**Ticket mode (v0.26.10.25.5, R1).** While `.vid/RUN-STATE.md` says `mode:
+tickets`, the add is a draft, as `/vid fix`'s ticket-mode branch drafts
+(the vid-fix skill): it records no stage event, so the run's stage stays
+the newest and `plan.sh` stays on, and it commits nothing. Run §1, §2 (the
+placement in STAGES.md included) and §2b's derivation and ratification in
+the working tree, uncommitted, the new rows written `owed: spec-only —
+ticket`, with any checklist line in GRADING-CHECKLIST.md, and the plan
+block as it will stand in a file: the step each new row goes in, or a new
+step with its name, modules, lane, builds-on and `needs` line. Keep §4's
+count: first the whole-set review in delta mode by a fresh agent, its
+output (`none`, or `finding <row id> | <why>` lines) in a file; then `sh
+checks/land.sh draft --review <that file> --why "/vid add: <the add, in a line>"
+--plan <the block file>` prints it (refused, it names the check and keeps
+the tree: v0.26.10.26.7, R4, R5), and `sh checks/queue.sh ask draft <n>` asks the
+owner once. No §3: grading stays per ticket, and staging stays the dev
+team's. The owner's yes lands it in `/vid run`, which publishes its
+tickets. The hand-back (§5) names `/vid run` on both its lines: "the add
+is draft <n>, asked as Q<k>", and "say yes in /vid:vid-run to land it",
+then back to /vid run's loop at 2 (v0.26.10.26.7, R3).
 
 ## 1. Mini-interview
 
@@ -213,6 +224,8 @@ The first line is the rows headline (v0.9.2 3.11: `sh checks/metrics.sh`'s
 D (unmet …)` — over the whole inventory, the delta's rows named), then
 the delta's row-set diff counts, the deploy-owed rows and `later` items
 as their own two counts, and the open questions; counts never scores.
+
+In ticket mode the add ends as a draft asked of the owner, handing to `/vid run`, which lands it on their yes and publishes its tickets.
 
 The last lines: "nothing to build: the add brings no pilot item" (§2),
 "say 'continue' to build it with stage <its stage>" (a hold kept, §2), and

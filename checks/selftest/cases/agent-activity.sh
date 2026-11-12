@@ -1,6 +1,6 @@
 #!/bin/sh
 # Purpose: selftest case — agent transcript entries are the run's activity
-# (v0.9.7.0.6 spec 3.2, R4, round 1 finding 3; §6 A-4). The interval 60 s.
+# (v0.9.7.0.6 spec 3.2, R4; §6 A-4). The interval 60 s.
 # Convicts unless: with no agents, a run whose clocks are months old gets
 # its quiet notice (the expected-unchanged control); with one agent whose
 # newest entry is 17 min old — `working` under the 20-minute rule, past the

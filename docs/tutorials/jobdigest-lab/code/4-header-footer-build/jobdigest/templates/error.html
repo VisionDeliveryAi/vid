@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{# The design draws no such screen: an answer that is not a page of its own still wears the frame, ROW-006. #}
+{% block title %}{{ error.name|lower }}{% endblock %}
+{% block content %}
+<h1>JobDigest</h1>
+<p>{{ error.name }}. {{ error.description }}</p>
+{% endblock %}

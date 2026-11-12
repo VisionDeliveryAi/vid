@@ -5,7 +5,7 @@
 # S1 and S2; ROW-004 named by two returns; ROW-003 broken by two graders, then kept. Convicts unless S2's briefs,
 # returned, closed and tries, each row's briefs, broken and keptLast, and noAcceptance are as recorded. Env: CHECKS.
 set -eu
-[ -f "$CHECKS/../viewer/view.sh" ] || exit 0   # the viewer ships in the plugin, not in a project's checks/
+[ -f "$CHECKS/../viewer/view.sh" ] || { echo 'needs viewer/view.sh'; exit 77; }   # the viewer ships in the plugin, not in a project's checks/
 T=$(mktemp -d); trap 'set +e; rm -rf "$T" 2>/dev/null' EXIT
 . "$CHECKS/selftest/fixtures/gated-run.sh"
 . "$CHECKS/selftest/fixtures/plan-run.sh"

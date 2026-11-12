@@ -1,0 +1,78 @@
+# One test environment: the product, its two outside services as fakes (mail and the job feed), and the tests.
+# Nothing publishes a port and the network has no way out, so two runs never collide and nothing is fetched.
+networks:
+  default:
+    internal: true
+
+x-python: &python
+  pull_policy: never
+  init: true
+
+services:
+  mail:
+    <<: *python
+    image: python:3.12-slim-bookworm
+    command: python -I /fakes.py mail 8025
+    volumes: ["./fakes.py:/fakes.py:ro"]
+    healthcheck:
+      test: ["CMD", "python", "-Ic", "import urllib.request as u; u.urlopen('http://127.0.0.1:8025/healthz', timeout=1)"]
+      interval: 1s
+      timeout: 2s
+      retries: 30
+
+  feed:
+    <<: *python
+    image: python:3.12-slim-bookworm
+    command: python -I /fakes.py feed 8030
+    volumes: ["./fakes.py:/fakes.py:ro"]
+    healthcheck:
+      test: ["CMD", "python", "-Ic", "import urllib.request as u; u.urlopen('http://127.0.0.1:8030/healthz', timeout=1)"]
+      interval: 1s
+      timeout: 2s
+      retries: 30
+
+  product:
+    <<: *python
+    profiles: [product]
+    image: jobdigest-lab-product
+    command: sh /env/product.sh
+    depends_on:
+      mail: {condition: service_healthy}
+      feed: {condition: service_healthy}
+    environment:
+      PORT: "8000"
+      BASE_URL: http://product:8000
+      DATABASE_PATH: /data/jobdigest.sqlite3
+      MAIL_URL: http://mail:8025
+      FEED_URL: http://feed:8030/feed.json
+      DIGEST_EVERY_SECONDS: "2"
+    volumes:
+      - "${CHECKOUT:?}:/app:ro"
+      - "./product.sh:/env/product.sh:ro"
+    tmpfs: [/data]
+    healthcheck:
+      # any answer on the port counts: a 404 from a running product is a test's red, not a failed start
+      test: ["CMD", "python", "-Ic", "import socket; socket.create_connection(('127.0.0.1', 8000), 1)"]
+      interval: 1s
+      timeout: 2s
+      retries: 60
+
+  tests:
+    <<: *python
+    profiles: [tests]
+    image: jobdigest-lab-tests
+    command: sh /env/tests-in-container.sh
+    working_dir: /checkout
+    shm_size: 512m
+    environment:
+      ENGINE: ${ENGINE:-chromium}
+      SELECTION: ${SELECTION:-}
+      CASE_LIMIT: ${CASE_LIMIT:-60}
+      PRODUCT_URL: ${PRODUCT_URL:-}
+      MAIL_URL: http://mail:8025
+      FEED_URL: http://feed:8030
+    volumes:
+      - "${CHECKOUT:?}:/checkout:ro"
+      - "${OUT:?}:/out"
+      - "./tests-in-container.sh:/env/tests-in-container.sh:ro"
+      - "./finish_report.py:/env/finish_report.py:ro"

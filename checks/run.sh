@@ -25,6 +25,7 @@
 #                            decides that a trial ended.
 #   label team=<t> series=<s>   sets team= and series= (either or both).
 # Usage: sh checks/run.sh id | new | label team=<t> series=<s>
+# serves: both (0.26.10.28.4, M9)
 set -eu
 usage() { echo 'ViD run: usage — sh checks/run.sh id | new | label team=<t> series=<s>' >&2; exit 2; }
 TOP=$(git rev-parse --show-toplevel 2>/dev/null || pwd -P)

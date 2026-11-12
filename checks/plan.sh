@@ -211,6 +211,10 @@
 #   current rows and graded (metrics.sh step-state) — a split of charged rows
 #   too; a started step is never refused. A refusal names the rows and is
 #   recorded `refused … by=graded`.
+# v0.26.10.26.3 (R5) — breadth first in ticket mode: `breadth_checks` refuses an unstarted hardening step listed before a feature
+#   step (started or closed ones are passed over), so the round's in-order admission drains hardening last; `change edge` is
+#   refused for a row whose newest decision fails or holds it on a weak test (VE-12); the safeguard's breaches are the newest
+#   decisions' product failures, failing or held, whatever the handed line says; ticket-mode rule A leaves out parked rows.
 # v0.26.10.9 (R4, R5, R7, R9) — the code skeleton and ticket mode:
 #   skeleton           the code skeleton's state (vid-skeleton, develop mode): `done` (a `skeleton state=end`
 #                      event), `next part <k>` (a `skeleton` start with no end: the first of parts 1–3 with no
@@ -256,6 +260,7 @@
 #   run-start          (R5) the place, `<at> <line>` tab-separated, of the first develop start after the newest start of
 #                      any other verb and the newest develop end, in the gate's order; exit 1 when none.
 # Usage: sh checks/plan.sh gate | home-of | home --brief <f> | check | change <what> "<why>" [--trigger … --expect … ] [--not-needed-by <ids> "<why>"] | strategy <s> --by owner --words "<…>" | start <id> | admit --brief <f> | map [--all] | charged | base <id> | parse [<file>] | redstamp --staged | skeleton | guard --paths - | run-start
+# serves: both (0.26.10.28.4, M9)
 set -u
 IFS='
 '
@@ -300,15 +305,16 @@ gate_at() {
   [ "$_pk" = skeleton ] && { echo 'plan: skeleton — develop is building the code skeleton, outside the gate; rules off'; return 1; }   # v0.26.10.9 (R5)
   [ "$_pk" = required ] || { echo 'no plan: key — a 0.9.5 run, or not develop; rules off'; return 1; }
   # v0.26.10.9 (R9): with `mode: tickets` the planner's sessions hold the gate — stage name=plan or replan, in place of develop
-  _vb='develop'; [ "$(sed -n 's/^mode:[[:space:]]*//p' "$_rs" | head -n 1 | sed 's/[[:space:]]*$//')" = tickets ] && _vb='plan replan'
+  _vb='develop'; [ "$(sed -n 's/^mode:[[:space:]]*//p' "$_rs" | head -n 1 | sed 's/[[:space:]]*$//')" = tickets ] && _vb='plan replan run'
   _run=$(sed -n 's/^run:[[:space:]]*//p' "$_rs" | head -n 1 | awk '{ print $1 }')
+  grep -q '^run:[[:space:]]*stopped owner asked to hold after stage ' "$_rs" && _run=active   # v0.26.10.26.5 (R3): a hold's stop keeps the gate on: it stops only the next stage
   case "$_run" in active|waiting) ;; stopped) [ "${2:-}" = stopped ] || { echo "run: stopped — the gate needs active or waiting"; return 1; } ;; *) echo "run: ${_run:-none} — the gate needs active or waiting"; return 1 ;; esac
   [ -f "$_ev" ] || { echo 'no events — no develop stage has started'; return 1; }
   _st=$(stage_order "$_ev" | awk -F'\t' -v vb=" $_vb " '$3 != "stage" { next } $5 == "start" { last = $4; ended = 0; next } $5 == "end" && $4 == last && index(vb, " " last " ") { ended = 1 } END { if (!index(vb, " " last " ")) print "other:" last; else if (ended) print "ended:" last; else print "on" }')
   case "$_st" in
     on) return 0 ;;
     ended:*) echo "the ${_st#ended:} stage has ended"; return 1 ;;
-    *) if [ "$_vb" = develop ]; then echo "the verb in progress is ${_st#other:} — not develop"; else echo "the verb in progress is ${_st#other:} — not plan or replan (mode: tickets)"; fi; return 1 ;;
+    *) if [ "$_vb" = develop ]; then echo "the verb in progress is ${_st#other:} — not develop"; else echo "the verb in progress is ${_st#other:} — not plan or run (mode: tickets)"; fi; return 1 ;;
   esac
 }
 
@@ -500,6 +506,13 @@ prot_set() {
 }
 # breadth_checks: nothing builds on a hardening step (3.2); no protected row sits in one — every hardening row checked (R4)
 breadth_checks() {
+  # v0.26.10.26.3 (R5): in ticket mode hardening drains after the features — no unstarted hardening step is listed before a feature
+  # step; a started or closed one is passed over. The round admits in plan order, so this is the drain, with no refusal of its own
+  if tickets_mode; then started; { hand closed || true; } | sed 's/[[:space:]].*$//' > "$TMPD/closed"
+    _bad=$(awk -F'\t' -v sf="$TMPD/started" -v cf="$TMPD/closed" 'BEGIN { while ((getline l < sf) > 0) U[l] = 1; while ((getline l < cf) > 0) U[l] = 1 }
+      $1 == "step" { if ($7 == "hardening") { if (!($2 in U)) h = h (h == "" ? "" : " ") $2 } else if (h != "") print "    feature step " $2 " is listed after the unstarted hardening step " h }' "$TMPD/parsed")
+    if [ -n "$_bad" ]; then echo 'ViD plan: refused — under breadth first, in ticket mode, every unstarted hardening step comes after the feature steps in plan order:' >&2; printf '%s\n' "$_bad" >&2; return 1; fi
+  fi
   _bad=$(awk -F'\t' '$1 == "step" { K[$2] = $7; B[$2] = $5; O[++n] = $2 } END { for (i = 1; i <= n; i++) { s = O[i]; m = split(B[s], a, /[ \t]+/); for (k = 1; k <= m; k++) if ((a[k] in K) && K[a[k]] == "hardening") print "    step " s " builds on " a[k] ", a hardening step" } }' "$TMPD/parsed")
   if [ -n "$_bad" ]; then echo 'ViD plan: refused — under breadth first nothing builds on a hardening step:' >&2; printf '%s\n' "$_bad" >&2; return 1; fi
   prot_set || return 1
@@ -563,13 +576,17 @@ trules() {
   _s=$1; _nr=$2; GAP=''; trs
   for _b in $(awk -F'\t' -v s="$_s" '$1 == "step" && $2 == s { print $5 }' "$TMPD/parsed" | tr ' ' '\n' | grep -v '^-$' | grep -v '^$'); do
     hand closed | grep -qx "$_b" && continue
-    _o=$(awk -F'\t' -v b="$_b" 'FILENAME == ARGV[1] { S[$1] = $2; next } $1 == "row" && $3 == b && S[$2] !~ /^(owed|held|known-limit)$/ { printf "%s%s", (n++ ? " " : ""), $2 }' "$TMPD/rs" "$TMPD/parsed")
+    _o=$(awk -F'\t' -v b="$_b" 'FILENAME == ARGV[1] { S[$1] = $2; next } $1 == "row" && $3 == b && S[$2] !~ /^(owed|paid|held|known-limit)$/ { printf "%s%s", (n++ ? " " : ""), $2 }' "$TMPD/rs" "$TMPD/parsed")
     [ -z "$_o" ] || GAP="$GAP
     $_s builds on $_b, which is not closed, and its rows $_o are not owed, held or known limits"
   done
   if [ -n "$GAP" ]; then echo "ViD plan: refused — rule B (tickets):$GAP" >&2; refused_ev rule-B "$_s"; return 1; fi
-  _bud=$(budget)
-  _u=$(awk -F'\t' "$TOK"' FILENAME == ARGV[1] { S[$1] = $2; next } FILENAME == ARGV[2] { C[$1] = 1; next } { N[$1] = 1 } END { for (r in C) if (!ok(S[r])) n++; for (r in N) if (!(r in C) && !ok(S[r])) k++; print n + k, k + 0 }' "$TMPD/rs" "$TMPD/charged" "$_nr")
+  _bud=$(budget); _cf=$TMPD/charged
+  # v0.26.10.26.3 (R5): under breadth first, charged rows parked in an unstarted hardening step leave rule A's count, as develop's
+  if [ "$(strat)" = breadth-first ]; then
+    awk -F'\t' -v sf="$TMPD/started" 'BEGIN { while ((getline l < sf) > 0) S[l] = 1 } FILENAME == ARGV[1] { if ($1 == "step" && $7 == "hardening" && !($2 in S)) K[$2] = 1; else if ($1 == "row" && ($3 in K)) P[$2] = 1; next } !($1 in P)' "$TMPD/parsed" "$TMPD/charged" > "$TMPD/charged.a"; _cf=$TMPD/charged.a
+  fi
+  _u=$(awk -F'\t' "$TOK"' FILENAME == ARGV[1] { S[$1] = $2; next } FILENAME == ARGV[2] { C[$1] = 1; next } { N[$1] = 1 } END { for (r in C) if (!ok(S[r])) n++; for (r in N) if (!(r in C) && !ok(S[r])) k++; print n + k, k + 0 }' "$TMPD/rs" "$_cf" "$_nr")
   _tot=${_u% *}; _new=${_u#* }
   if [ "$_tot" -gt "$_bud" ]; then
     echo "ViD plan: refused — rule A (tickets): $_tot open rows would exceed the ceiling of $_bud ($((_tot - _new)) rows of started steps are not accepted, ruled, owed, paid, held or known limits; $_new of $_s's rows are new). Split $_s smaller, or let started rows be accepted." >&2; refused_ev rule-A "$_s"; return 1
@@ -591,8 +608,18 @@ tlimit() {
 # lines: a closed step (handed) is closed and graded (its rows' T5 is in their acceptance); a failing row a breach
 tstepstate() { trs; : > "$TMPD/ss"; for _x in $(printf '%s\n' "$1" | tr ',' '\n'); do
     if hand closed | grep -qx "$_x"; then _c=yes; _w=handed; else _c=no; _w=none; fi
-    printf 'step-state step=%s closed=%s graded=%s close=%s done=%s\n' "$_x" "$_c" "$_c" "$_w" "$_c" >> "$TMPD/ss"; done
-  awk -F'\t' '$2 == "failing" { print "breach row=" $1 }' "$TMPD/rs" >> "$TMPD/ss"; grep -q '^step-state ' "$TMPD/ss"; }
+    _d=$_c; [ "$_c" = no ] || ! awk -F'\t' -v s="$_x" 'FILENAME == ARGV[1] { S[$1] = $2; next } $1 == "row" && $3 == s && S[$2] == "held" { f = 1 } END { exit !f }' "$TMPD/rs" "$TMPD/parsed" 2>/dev/null || _d=no   # done: closed, with no held row (v0.26.10.25.3)
+    printf 'step-state step=%s closed=%s graded=%s close=%s done=%s\n' "$_x" "$_c" "$_c" "$_w" "$_d" >> "$TMPD/ss"; done
+  # v0.26.10.26.3 (R5): a breach is the row's newest decision failing or held on a product failure, whatever its handed line says; a
+  # handed failing line with no weak-test decision under it (a close's red) stays one
+  tdec; awk -F'\t' 'FILENAME == ARGV[1] { if ($3 == "product") P[$2] = 1; else W[$2] = 1; next } $2 == "failing" && !($1 in W) { P[$1] = 1 } END { for (r in P) print "breach row=" r }' "$TMPD/dec" "$TMPD/rs" >> "$TMPD/ss"; grep -q '^step-state ' "$TMPD/ss"; }
+# tdec (its names _d…, for it runs inside the admission's): $TMPD/dec, `<row or transition> TAB <its row> TAB product|weak` for each one whose newest decision (.vid/decide/state, its
+# rows file's words) fails or holds it on a failure (v0.26.10.26.3; decide.sh: a product failure, else a weak test)
+tdec() { : > "$TMPD/dec"; [ -f "$H/.vid/decide/state" ] || return 0
+  while IFS=$(printf '\t') read -r _dr _dfi _dst _dp _dh _dw; do case $_dfi in failing|held) ;; *) continue ;; esac; [ "$_dst" = failing ] || continue
+    _dtx=$(awk -F'\t' -v r="$_dr" '$1 == r { print $6; exit }' "$H/.vid/decide/pr-$_dp-$_dh.rows" 2>/dev/null)
+    _dtx=${_dtx%% — earlier:*}; _dtx=${_dtx%% — siblings:*}   # its own kind, never an earlier one's (decide.sh's words)
+    case $_dtx in *'failing, a product failure'*) _dk=product ;; *'failing, a weak test'*) _dk=weak ;; *) continue ;; esac; printf '%s\t%s\t%s\n' "$_dr" "${_dr%-T[0-9]*}" "$_dk" >> "$TMPD/dec"; done < "$H/.vid/decide/state"; }
 # rules <step> <tree-ish> <new rows file> [dirty-check yes|no]: rules A and B for a step whose rows are new; prints the refusal, exit 1
 rules() {
   _s=$1; _at=$2; _nr=$3
@@ -642,8 +669,12 @@ admit_step() {
     _cur=$( cd "$H" && sh checks/stages.sh current )
     # v0.26.10.12.3 (R6): in ticket mode the next stage too once the current has its candidate (handed); a seam is stage 1;
     # each row's stage, a seam's too, is planner.sh rows' where it gives one (its moved: counts), else stages.sh's;
-    # a started step passes, its rows moved since or not (a started step is never refused; review 2)
-    if tickets_mode; then { hand candidate || true; } | grep -qx "$_cur" && _cur=$((_cur + 1)); _pl=$(cd "$(dirname "$0")" && pwd)/planner.sh
+    # a started step passes, its rows moved since or not (a started step is never refused)
+    # v0.26.10.26.2 (R2): the setup hold — the next stage waits for a first passed D1 (`staged`) or the owner's `setup-hold off`
+    # v0.26.10.26.5 (R3): with `held-after: <N>` recorded, no step of stage N+1 more is admitted
+    _ha=$(sed -n 's/^held-after:[[:space:]]*//p' "$H/.vid/RUN-STATE.md" 2>/dev/null | head -n 1)
+    [ -z "$_ha" ] || [ "$_cur" -le "$_ha" ] || _cur=$_ha   # the close moved stage: on, the hold keeps N+1 out
+    if tickets_mode; then { hand candidate || true; } | grep -qx "$_cur" && [ "$_ha" != "$_cur" ] && { { hand staged || true; } | grep -q . || { hand setup-hold || true; } | grep -qx off; } && _cur=$((_cur + 1)); _pl=$(cd "$(dirname "$0")" && pwd)/planner.sh
       ( cd "$H" && sh checks/stages.sh scope --upto "$_cur" ) > "$TMPD/st0" 2>/dev/null; ( cd "$H" && sh "$_pl" rows ) > "$TMPD/plr" 2>/dev/null || : > "$TMPD/plr"; [ "$_cur" -lt 1 ] || tinvids | grep '^SEAM-' >> "$TMPD/st0"
       awk -F'\t' -v c="$_cur" 'FILENAME == ARGV[1] { if ($1 !~ /^#/ && ($5 ~ /^[0-9]+$/ || $5 == "later")) P[$1] = ($5 != "later" && $5 + 0 <= c); next } !($1 in P) || P[$1] { print } END { for (r in P) if (P[r]) print r }' "$TMPD/plr" "$TMPD/st0" > "$TMPD/stscope"
       started; ! grep -qx "$_s" "$TMPD/started" || cut -f2 "$TMPD/parsed" >> "$TMPD/stscope"; fi
@@ -783,6 +814,9 @@ change_body() {
       if [ -s "$TMPD/newh" ] && [ "$WHAT" != edge ]; then
         echo "ViD plan: refused — this $WHAT change places rows in a hardening step: $(cut -f1 "$TMPD/newh" | paste -sd ' ' -). A move into hardening is its own recorded change: sh checks/plan.sh change edge \"<why>\" …" >&2; exit 1
       fi
+      # v0.26.10.26.3 (R5, VE-12): in ticket mode a row whose newest decision fails or holds it on a weak test is never deferred
+      if [ -s "$TMPD/newh" ] && tickets_mode; then tdec; _wk=$(awk -F'\t' 'FILENAME == ARGV[1] { if ($3 == "weak") W[$2] = 1; next } ($1 in W) { print $1 }' "$TMPD/dec" "$TMPD/newh" | sort -u | paste -sd ' ' -)
+        [ -z "$_wk" ] || { echo "ViD plan: refused — a row failing or held on a weak test is never moved to hardening: $_wk. A test-class breach never waits: its test is fixed where it stands." >&2; exit 1; }; fi
       if [ -s "$TMPD/newh" ]; then dep_safeguard || exit 1; fi
     fi
   fi
@@ -1015,7 +1049,7 @@ case "${1:-}" in
     write_decision accepted
     W1=$(printf '%s' "$WHY" | tr '"' "'")
     PLANHASH=$CAND   # the accepted block is the candidate: load_plan hashed the same lines
-    printf 'plan-change what=%s hash=%s decision=%s%s why="%s" at=%s\n' "$WHAT" "$PLANHASH" "$DID" "${NNB:+ not-needed-by=$NNB}" "$W1" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >> "$H/.vid/metrics-events"
+    printf 'plan-change what=%s hash=%s decision=%s%s why="%s" at=%s\n' "$WHAT" "$PLANHASH" "$DID" "${NNB:+ not-needed-by=$NNB}" "$W1" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >> "$H/.vid/metrics-events"   # fields: not-needed-by=
     echo "ViD plan: change recorded — what=$WHAT hash=$PLANHASH decision=$DID (kept in .vid/plans/$PLANHASH.plan)"
     exit 0 ;;
   start)

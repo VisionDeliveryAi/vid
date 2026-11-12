@@ -4,7 +4,7 @@
 # and codes>` or `| scope: project` (checks/hooks/pre-commit 4c); a brief quotes
 # it where its label applies (checks/brief.sh, R2). The pass labels the lines
 # that have none, once: an agent proposes, and `apply` writes them — with no
-# question to the owner (the owner, 2026-10-14): a label the agent is unsure
+# question to the owner: a label the agent is unsure
 # of, or one no brief could join, is written `scope: project`, so the decision
 # still reaches every builder brief as an unlabelled one does today.
 #   propose [--all]   the unlabelled decisions of DECISIONS.md citing no ROW,
@@ -49,7 +49,9 @@
 #                     order. Every writer of a new D-number takes it here.
 # Reads the working tree; writes only DECISIONS.md, the record (apply), the brief
 # (propose), the reservations (next) and the event. Usage: sh checks/decisions.sh propose [--all] | apply [<file>] [--no-commit] | next [--try <try>]
+# serves: both (0.26.10.28.4, M9)
 set -eu
+HERE=$(cd "$(dirname "$0")" && pwd); . "$HERE/lib.sh"   # 0.26.10.28.4 (9.3 R4): the lock, lib.sh beside this file
 IFS='
 '
 usage() { echo "ViD decisions: usage — sh checks/decisions.sh propose [--all] | apply [<file>] [--no-commit] | next [--try <try>]" >&2; exit 2; }
@@ -64,9 +66,9 @@ if [ "$CMD" = next ]; then
   NH=''; [ -f checks/plan.sh ] && NH=$(sh checks/plan.sh home-of 2>/dev/null | head -n 1) || true
   [ -n "$NH" ] && [ -d "$NH/.vid" ] || NH=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
   mkdir -p "$NH/.vid"
-  NL="$NH/.vid/decision-ids.lock"; _i=0
-  until mkdir "$NL" 2>/dev/null; do _i=$((_i + 1)); [ "$_i" -lt 300 ] || refuse "the home's lock $NL is held for 30 s — another reservation is under way, or a stale lock is left; remove it if no ViD process holds it"; sleep 0.1; done
-  trap 'rmdir "$NL" 2>/dev/null' EXIT
+  # 0.26.10.28.4 (9.3 R4): lib.sh's lock, which names its holder, so a dead holder's lock is taken over and needs no person
+  NL="$NH/.vid/decision-ids.lock"; lock_take "$NL" 30 || refuse "the home's lock $NL is held by a live process for 30 s — another reservation is under way"
+  trap 'lock_free "$NL"' EXIT
   dnum() { awk '{ s = $0; while (match(s, /D-[0-9]+/)) { x = (RSTART > 1) ? substr(s, RSTART - 1, 1) : ""; if (x !~ /[A-Za-z0-9_-]/) { v = substr(s, RSTART + 2, RLENGTH - 2) + 0; if (v > m) m = v } s = substr(s, RSTART + RLENGTH) } } END { print m + 0 }'; }
   M1=$(git show HEAD:DECISIONS.md 2>/dev/null | dnum)
   M2=$(git -C "$NH" show HEAD:DECISIONS.md 2>/dev/null | dnum)

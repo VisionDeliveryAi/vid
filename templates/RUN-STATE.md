@@ -64,7 +64,7 @@ held: {{HELD_ROW_IDS_OR_-}}
      `sh checks/plan.sh change <what> "<why>"` (what: create add drop split
      merge reorder lanes rows other edge); an unrecorded edit refuses every
      admission. One line per step, and one shared: line:
-       step <id> | name: <the step in plain product words> | modules: <path prefixes> | builds-on: <step ids or -> | rows: <ROW ids and ROW-a..ROW-b ranges> | lane: builder|orchestrator (<why>) [| kind: hardening]
+       step <id> | name: <the step as a sentence in plain product words, its punctuation kept (no `|`)> | modules: <path prefixes> | builds-on: <step ids or -> | rows: <ROW ids and ROW-a..ROW-b ranges> | lane: builder|orchestrator (<why>) [| kind: hardening]
        shared: <the paths every step depends on — the harness, the fakes, the compose file, migrations>
        protected: <ROW ids and ranges>   (optional, one line; it only grows)
      An id is never reused; every row must exist in INVENTORY.md, and in one

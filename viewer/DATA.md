@@ -23,7 +23,7 @@ it.
 
 **Never included:** transcripts, source code, credentials. Test file paths
 and reviewers' prose are included; they name code files and lines.
-**Figures:** *(v0.26.10.6 R16, the owner's ruling of 2026-10-20)* counts,
+**Figures:** *(v0.26.10.6 R16)* counts,
 durations, token counts and dollar estimates labelled "API-equivalent, not
 your bill" — never a percentage, a ratio or a score; a cache share is two
 counts side by side. Times are elapsed, never compute time.

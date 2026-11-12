@@ -15,6 +15,8 @@ deploys each closed stage to it at its close, and retries the setup
 when the owner says "continue". Nothing else may invoke it. Production
 always needs the owner's word, and the owner's yes at gate 3.
 
+**In the GitHub modes, this verb refuses (0.26.10.28.8).** First of all, read `.vid/RUN-STATE.md`: when it says `mode: tickets`, refuse in plain words and do nothing else — no event, no question, no run. In the GitHub modes (GitHub auto and GitHub team) deploys go through the run: the staging okay and the production okay, which `/vid:vid-run` gives when a stage is ready; tell the owner to answer those in the run. In local auto, this verb is as below.
+
 **Stage events (v0.9.5 3.11, R11; RECORDS.md).** In the project, record `sh checks/event.sh "stage name=deploy state=start session=$CLAUDE_CODE_SESSION_ID records=28"` when this verb starts and `sh checks/event.sh "stage name=deploy state=end session=$CLAUDE_CODE_SESSION_ID"` when it hands back. Every event this skill names is written the same way, `sh checks/event.sh '<event>'`, which appends it to `.vid/metrics-events` with its time.
 
 **Version skew (v0.26.10.7 R17; v0.26.10.8 R13).** Read `checks/records-version` first.

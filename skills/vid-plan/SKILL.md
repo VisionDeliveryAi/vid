@@ -6,7 +6,7 @@ description: Plan a ViD project for ticket mode — PL, ViD's planner. It asks t
 # /vid plan — PL, the planner (v0.26.10.12.2.2; the setup, lanes and needs v0.26.10.12.3.1)
 
 Ticket mode's planner, in ViD's repository alone (the project's spec repository, on the owner's machine). It never
-writes to GitHub; its one call there is the setup's read-only access check. It never clones or reads a code repository, and names no file path, test or runner command in what it
+writes to GitHub; its one call there is the setup's read-only access check. ViD never writes, reads or runs DevAgent's code (vid-run, 'DevAgent's code'), and names no file path, test or runner command in what it
 writes: a row is a promise and a fail-if in plain words. It writes PLAN.md
 (`${CLAUDE_PLUGIN_ROOT}/templates/PLAN.md`), its own rows appended to INVENTORY.md (`origin: plan`), the plan in
 RUN-STATE (through `plan.sh change`), and the review, page and ratification under `.vid/plan/`; never another
@@ -15,14 +15,21 @@ spec). `sh checks/planner.sh` judges it all (its header names each subcommand).
 
 ## Before any work
 
+0. **The refresh** (v0.26.10.26.7, R1). `sh "${CLAUDE_PLUGIN_ROOT}/checks/refresh.sh"`, the plugin's copy, before
+   anything reads `checks/`. It prints `refresh: current`, or copies the plugin's `checks/` and commits it alone. A
+   project with no `checks/` at all is refreshed the same way. On exit 3 it has listed local edits it would
+   overwrite: show the owner that list in plain words and ask once; on a yes run it again with `--yes`, on a no
+   refuse in one line, "checks/ needs the refresh", and plan nothing.
 1. **The stage event.** `sh checks/event.sh "stage name=plan state=start
    session=$CLAUDE_CODE_SESSION_ID records=29"`.
 2. **One planner per project.** Refuse in one line while a develop run has
    recorded a plan and is not complete (`.vid/RUN-STATE.md` with a `## The
    plan` block and `run:` not `complete`, no `mode: tickets`).
 3. **Prerequisites, each failure one line naming it:**
-   `checks/records-version` 29 or later and `checks/planner.sh` present
-   (otherwise the project's checks/ needs the refresh); the PRD ratified —
+   `checks/records-version` 32 or later and `checks/planner.sh` present
+   (step 0 has refreshed them); the PRD in the enriched form — `sh
+   checks/planner.sh prd-form` refuses a legacy block-form PRD in one line,
+   naming /vid create-prd's import door (0.26.10.28.1, CK-R-006); the PRD ratified —
    `sh checks/prd.sh PRD.md --report` gives `gaps=0`, else name the gaps
    and send the owner to /vid create-prd; INVENTORY.md committed with no
    change since outside its `origin: plan` rows (`planner.sh check` flags
@@ -35,17 +42,23 @@ spec). `sh checks/planner.sh` judges it all (its header names each subcommand).
    required`, and `stage:` as `sh checks/stages.sh current` gives it before any `stage:` line (0 with a STAGE-0).
    With step 1's start, the plan gate is on (`sh checks/plan.sh gate` prints `on`).
 5. **The setup** (v0.26.10.12.3.1), before any planning, asked once and kept in `.vid/tw/settings` (`key: value`
-   lines; the keys the ticket writer reads too). Ask, in plain words, only the questions whose key is missing, and
-   write each answer as its key:
+   lines; the keys the ticket writer reads too). Ask, in plain words, only the questions no `setup-answered` line of `.vid/plan/setup`
+   covers, and record each answer only through `sh checks/planner.sh setup <key> <the answer> --words "<the owner's
+   words>"` (v0.26.10.26.7, R11), never by writing the key yourself: a default you write is no answer, and `planner.sh
+   check` flags each unanswered key until the first ratify. **A session that cannot ask** (headless, or no owner to
+   answer) puts the questions in its answer, in plain words, and plans nothing:
    - **Where the code lives and the specs go.** `layout: separate` (the default: the code repository and ViD's
      private spec repository) or `layout: one` (one repository, ViD's specs under `docs/specs`); the code repository
      as `repo: <owner>/<name>`; with `separate`, `spec-repo:` (default `<repo>-spec`); with `one`, no `spec-repo:`
      (publishing waits for a later build, which exports into `docs/specs`); an empty `labels-prefix:` when none is
-     there. "Not yet" is offered for the repositories alone: their keys stay out, and a later `/vid plan` asks again.
+     there. "Not yet" is offered for the repositories alone: their keys stay out, and a later `/vid:vid-plan` asks again.
    - **The teams.** One line each, `team: <name> | <area in words> | strict|core | <people>`: a name of lower-case
      letters and digits, starting with a letter; *strict* when the team does only its area, *core* when the area is
-     its main one but it may help elsewhere. The default answer is written too, `team: devagent | the whole product |
-     core | 1`. A team of one person has one lane, its name; a team of *n* has the lanes `<name>-1` … `<name>-<n>`.
+     its main one but it may help elsewhere. The default is offered, `devagent | the whole product | core | 1`, and
+     recorded like any answer once the owner takes it. A team of one person has one lane, its name; a team of *n* has the lanes `<name>-1` … `<name>-<n>`.
+   - **Who works the tickets** (v0.26.10.28.8, R3). `github-mode: auto` (ViD's own DevAgent, which the owner starts on
+     their machine: GitHub auto) or `github-mode: team` (an outside team's DevAgent: GitHub team). No default is
+     offered: only the owner's answer counts. Both write `mode: tickets`; this key alone tells them apart.
    - **The step size.** `split: journey` (the default: steps by journey, as now) or `split: fine` (finer steps,
      technical ones allowed, by passes/split.md).
    - **The open-ticket limit.** No question: when `open-tickets:` is absent, write `open-tickets: <the number of
@@ -101,10 +114,10 @@ appended rows' too.
 
 ## The plan
 
-Write the plan as develop does, in RUN-STATE. Develop's planning, word for word (develop's skill, lines 217–241;
+Write the plan as develop does, in RUN-STATE. Develop's planning, word for word (skills/vid-develop/SKILL.md § "Plan, decompose, and sequence the PRD";
 the substitutions: "builder step" → "step", "one builder" → "DevAgent", "the builder spends its context" → "DevAgent
 spends its time", "the cost of starting an agent and writing its brief" → "the cost of starting a ticket", the
-`build-cost` sentence → "Once tickets come back, their cost shows what your past steps cost; use it", and "is never
+`build-cost` sentence → "Once tickets come back, their cost shows what your past steps cost (`sh checks/queue.sh cost`); use it", and "is never
 put to the owner for approval — no epics, checkpoints, or approval pauses; the owner sees it only through the progress
 update" → "is put to the owner once, as the first plan; after that, no epics, checkpoints, or approval pauses: the
 owner sees each change on the plan page"):
@@ -120,17 +133,17 @@ owner sees each change on the plan page"):
 > pass together without holding the rest of the product. Not so big that DevAgent spends its time finding its way
 > before it changes anything; not so small that the cost of starting a ticket dominates. Within that, choose the
 > grouping most likely to pass whole at the hand-back. Once tickets come back, their cost shows what your past steps
-> cost; use it. The decomposition is yours and is put to the owner once, as the first plan; after that, no epics,
+> cost (`sh checks/queue.sh cost`); use it. The decomposition is yours and is put to the owner once, as the first plan; after that, no epics,
 > checkpoints, or approval pauses: the owner sees each change on the plan page. The inventory remains the
 > completeness floor under any decomposition: shell, reachability, and journey rows have an owner even when no slice
 > claims them.
 
-Then lines 243–250, with "(the harness, the fakes, the compose file, migrations)" → "(the modules of
+Then skills/vid-develop/SKILL.md § "The plan is a record", with "(the harness, the fakes, the compose file, migrations)" → "(the modules of
 ARCHITECTURE.md's table every step needs, which the skeleton supplies)":
 
 > **The plan is a record (v0.9.6 3.1–3.5, R1–R6).** Before building, write the plan into RUN-STATE's `## The plan` as
-> one ```` ```vid-plan ```` block (the template shows the grammar): a line per step — its `name:` in plain product
-> words, the `modules:` it builds, the steps it `builds-on:`, its `rows:`, its `lane:` — and one `shared:` line naming
+> one ```` ```vid-plan ```` block (the template shows the grammar): a line per step — its `name:`, the step as a
+> sentence in plain product words, its punctuation kept (no `|`; v0.26.10.26.7, R15), the `modules:` it builds, the steps it `builds-on:`, its `rows:`, its `lane:` — and one `shared:` line naming
 > what every step depends on (the modules of ARCHITECTURE.md's table every step needs, which the skeleton supplies).
 > Say in the prose below it which steps run side by side and why they won't collide.
 
@@ -202,7 +215,7 @@ close until that surface exists (the pull-forward rule). A protection row whose 
 what its `protects:` names carries one more question: is its `protects:` aimed at the wrong thing (a re-point is the
 owner's, by `/vid test-inventory`)? Write no `moved:` line for these.
 
-The pull-forward rule, develop's skill lines 1003–1020, as written; before the ratification its change is part of the
+The pull-forward rule, skills/vid-develop/SKILL.md § "The pull-forward rule", as written; before the ratification its change is part of the
 first plan, `--trigger initial` in place of `discovered-dependency`:
 
 > **The pull-forward rule (R7).** You may bring forward the minimum technical work needed to deliver the current
@@ -268,4 +281,6 @@ and page again. After the ratification, `planner.sh ratified` holds through reco
 `sh checks/event.sh "stage name=plan state=end
 session=$CLAUDE_CODE_SESSION_ID"`; one line to the owner: the stages, steps
 and rows counted, the waves, the ratification or what is open, and that
-the ticket writer publishes from the ratified plan.
+`/vid run` publishes from the ratified plan: it makes the spec repository at
+its start and exports the spec at its first round (v0.26.10.26.7, R12). The
+plan publishes nothing.

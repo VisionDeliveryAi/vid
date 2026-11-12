@@ -133,9 +133,8 @@ The `vacuity` shapes are law (§3.1); their concrete realization is
 generated at init for the ledger's own harness: `or True` / or-constant,
 literal-vs-literal comparisons, bare catch-all exception assertions,
 status tuples spanning success and error, skip-on-the-condition-under-test
-— **rebuilt from the measured classes** (v0.8.1d; the five above fired
-nothing across a whole field run while the ledger carried the shapes they
-could not see): a status assertion spanning success codes with no error
+— **rebuilt from the measured classes** (v0.8.1d; the five above can fire
+on nothing while the ledger carries the shapes they cannot see): a status assertion spanning success codes with no error
 code; a presence-only browser assertion keyed to a static wrapper that
 renders even in the empty state; a substring filter matching nothing; a
 zero-population loop; a placeholderless format string inside an
@@ -312,8 +311,8 @@ honest limit the join court reports.
 
 ## Worked example (documentation only — never installed)
 
-The v0.6 field run's tree (a Django job board) is the evidence the classes
-are mechanically enumerable on a real codebase: 133 settings keys, 64 URL
+A real codebase's tree (a Django job board) is the evidence the classes
+are mechanically enumerable: 133 settings keys, 64 URL
 names, 119 dynamic hrefs. The dead-path config-keys extractor for that
 stack, in full — the shape init should produce for whatever stack it
 actually scaffolds:

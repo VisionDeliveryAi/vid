@@ -5,7 +5,7 @@
 # own marker already stands (before its early exits); an agent whose transcript names no brief, and one with no
 # transcript, are recorded `brief=unavailable`; the main session records nothing. Env: CHECKS.
 set -eu
-[ -f "$CHECKS/../hooks/stop-failure.sh" ] || exit 0
+[ -f "$CHECKS/../hooks/stop-failure.sh" ] || { echo 'needs hooks/stop-failure.sh'; exit 77; }
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 cd "$T"; CASE=agent-brief-recorded
 . "$CHECKS/selftest/fixtures/reread-lib.sh"

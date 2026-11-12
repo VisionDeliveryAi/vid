@@ -28,7 +28,7 @@
 # a Tier-0 row whose test asserts only existence) are report-only until
 # their false-positive rates are measured, then promoted to fail-closed or
 # deleted on the number. A census command must be SILENT on standard error
-# (v0.8.1d, G-08): a diagnostic from any arm of a compound command, or from
+# (v0.8.1d): a diagnostic from any arm of a compound command, or from
 # a single enumeration, fails the rule naming it — a failing arm must never
 # silently shrink a population (measured: a syntax error in one arm took a
 # rule from 72 sites to 18 with zero orphans and exit 0).
@@ -61,14 +61,17 @@
 # and rule context: execution is deduplicated, not judgement. Output, counters
 # and exit status are the 0.9.7.2 census's (selftest/fixtures/census-0.9.7.2.sh,
 # case census-oracle).
-# v0.26.10.9 (R1, found by the trial): a spec-only tree holds rule rows whose
+# v0.26.10.9 (R1): a spec-only tree holds rule rows whose
 # census command is an extractor path while checks/extractors/ holds no
 # extractor yet (the skeleton's Part 2 writes them). While it holds none —
 # memory.sh, the observer's reader, is no census and does not count — such a
 # row whose extractor is missing reports pending ("extractor owed to the
 # skeleton"), counted in pending=, never a failure; once any extractor
 # exists, a missing one is refused as before.
+# v0.26.10.25.5.1: a rule row owed `spec-only — ticket` (a ticket-mode row, the planner's, its census in words for the dev side)
+# reports pending and is never run: in ticket mode the dev side counts its places (V2 §3.2).
 # Usage: sh checks/census.sh [--report]   (--report always exits 0) | --measure <fixture dir>   (v0.9.8, advisory)
+# serves: both (0.26.10.28.4, M9)
 set -eu
 IFS='
 '
@@ -321,6 +324,9 @@ owedx() { # $1=rule id $2=census command
 while IFS="$US" read -r id cmd test stmt <&3; do
   RI=$((RI + 1))
   debt=active; case "$test" in owed*|OWED*) debt=owed ;; esac
+  # v0.26.10.25.5.1: a ticket-mode rule row (`owed: spec-only — ticket`, the planner's) names its places in words for the dev side,
+  # which counts them and reports `covers:` (V2 §3.2): ViD's repository holds no code, so its census is never run and never fails
+  case "$test" in 'owed: spec-only — ticket'*) echo "PEND  $id  a ticket-mode rule row: its places are counted by the dev side, never run here"; TPEND=$((TPEND + 1)); continue ;; esac
   if [ -z "$cmd" ]; then
     echo "FAIL  $id  rule row has no census command — a rule without a denominator is a hand-list." >&2
     FAILS=$((FAILS + 1)); continue

@@ -31,7 +31,7 @@ cp .vid/RUN-STATE.md "$T/rs"; pt_rs 's/rows: ROW-017 /rows: ROW-017 ROW-020 /'
 refused S01 unrecorded-plan 'with the block changed' 'the plan changed without a recorded change'; cat "$T/rs" > .vid/RUN-STATE.md
 admitted S01 'in stage 0'
 refused S02 stage 'in stage 0' 'S02 holds rows outside stages 0 to 0'
-tw_hand 'candidate 0'
+tw_hand 'candidate 0'; tw_hand 'staged 0'
 refused S02 rule-B 'with S01 open' 'S02 builds on S01, which is not closed, and its rows ROW-003 ROW-004 are not owed'
 tw_hand 'row ROW-003 accepted'; tw_hand 'row ROW-004 accepted'; tw_hand 'closed S01'
 log 'published 1 kind=skeleton step=S01 rows=ROW-003,ROW-004'; log 'sync main=abc open=1'
@@ -46,7 +46,7 @@ pt_rs 's/^\(step S05 .*rows: ROW-017\)/\1 ROW-020/'
 if sh "$P" change rows 'ROW-020 into S05' --trigger test-evidence --evidence ticket:9 --expect 'S05 holds it' > "$T/out" 2>&1; then fail 'ticket:9, never published, resolved'; fi
 sh "$P" change rows 'ROW-020 into S05' --trigger test-evidence --evidence ticket:3 --expect 'S05 holds it' > "$T/out" 2>&1 || fail 'ticket:3, published, did not resolve'
 # rule A, its ceiling, the split and rows added — a fresh toy at unverified-rows=15
-cd "$T"; rm -rf "$T/gh" "$T/code.git" "$T/dev"; tw_toy "$T/b"; mkdir -p checks; cp "$CHECKS/stages.sh" "$CHECKS/prd.sh" checks/; tw_hand 'candidate 0'; sed 's/^open-tickets: 2/open-tickets: 9/' .vid/tw/settings > "$T/s" && cat "$T/s" > .vid/tw/settings
+cd "$T"; rm -rf "$T/gh" "$T/code.git" "$T/dev"; tw_toy "$T/b"; mkdir -p checks; cp "$CHECKS/stages.sh" "$CHECKS/prd.sh" checks/; tw_hand 'candidate 0'; tw_hand 'staged 0'; sed 's/^open-tickets: 2/open-tickets: 9/' .vid/tw/settings > "$T/s" && cat "$T/s" > .vid/tw/settings
 admitted S01 'in a fresh toy'; tw_hand 'closed S01'; admitted S02 'with S01 closed'
 printf 'unverified-rows=15\n' > .vid/budget
 refused S03 rule-A 'over the ceiling' 'rule A (tickets): 25 open rows would exceed the ceiling of 15 (13 rows of started steps'
@@ -60,7 +60,7 @@ pt_rs 's/^\(step S04 .*\)rows: ROW-002 /\1rows: /'; pt_rs 's/^\(step S02 .*rows:
 if sh "$P" change rows 'ROW-002 into the started S02' --trigger cost --evidence step:S02 --expect 'S02 holds it' > "$T/out" 2>&1; then fail 'rows added to a started step over the ceiling were accepted'; fi
 grep -q 'rows added to the started step S02 are admitted like a new step' "$T/out" || fail 'the added rows are not refused by rule A'
 # the stage: S05 waits for stage 1's candidate
-cd "$T"; rm -rf "$T/gh" "$T/code.git" "$T/dev"; tw_toy "$T/c"; mkdir -p checks; cp "$CHECKS/stages.sh" "$CHECKS/prd.sh" checks/; tw_hand 'candidate 0'
+cd "$T"; rm -rf "$T/gh" "$T/code.git" "$T/dev"; tw_toy "$T/c"; mkdir -p checks; cp "$CHECKS/stages.sh" "$CHECKS/prd.sh" checks/; tw_hand 'candidate 0'; tw_hand 'staged 0'
 admitted S01 'in the third toy'; tw_hand 'closed S01'; admitted S02 'in the third toy'; tw_hand 'closed S02'
 pt_rs 's/^stage: 0$/stage: 1/'
 refused S05 stage 'in stage 1' 'S05 holds rows outside stages 0 to 1'
@@ -70,12 +70,12 @@ pt_after 'standing work' 'ROW-002 | moved: STAGE-2 A-005'; pt_rs 's/^\(step S04 
 pt_rs 's/^\(step S05 .*\)$/\1\nstep S06 | name: the saved-search limit | modules: digest | builds-on: S02 | rows: ROW-002 | lane: devagent/'
 sh "$P" change split 'ROW-002 moved to stage 2' --trigger scope-change --evidence step:S04 --expect 'S06 waits for stage 2' > "$T/out" 2>&1 || fail 'the move was refused'
 tw_ratify 'Yes, ROW-002 to stage 2' || fail 'the move was not ratified'; refused S06 stage 'with ROW-002 moved to stage 2' 'S06 holds rows outside stages 0 to 1 (the current stage): ROW-002.'
-# review 2: a seam moved: to stage 2 and split into S07 is refused in stage 1
+# a seam moved: to stage 2 and split into S07 is refused in stage 1
 pt_after 'standing work' 'SEAM-001 | moved: STAGE-2 A-005'; pt_rs 's/^\(step S03 .*\) SEAM-001 /\1 /'
 pt_rs 's/^\(step S06 .*\)$/\1\nstep S07 | name: the mail seam | modules: mail | builds-on: S01 | rows: SEAM-001 | lane: devagent/'
 sh "$P" change split 'SEAM-001 moved to stage 2' --trigger scope-change --evidence step:S03 --expect 'S07 waits for stage 2' > "$T/out" 2>&1 || fail 'the seam move was refused'
 tw_ratify 'Yes, SEAM-001 to stage 2' || fail 'the seam move was not ratified'; refused S07 stage 'with SEAM-001 moved to stage 2' 'S07 holds rows outside stages 0 to 1 (the current stage): SEAM-001.'
-# review 2: ROW-018 split into S08 and S08 admitted, then ROW-018 moved: to stage 2 — S08 is admitted again
+# ROW-018 split into S08 and S08 admitted, then ROW-018 moved: to stage 2 — S08 is admitted again
 pt_rs 's/^\(step S04 .*\) ROW-018 /\1 /'; pt_rs 's/^\(step S07 .*\)$/\1\nstep S08 | name: the failure log | modules: digest | builds-on: S02 | rows: ROW-018 | lane: devagent/'
 sh "$P" change split 'ROW-018 in its own step' --trigger scope-change --evidence step:S04 --expect 'S08 ships it' > "$T/out" 2>&1 || fail 'the split of ROW-018 was refused'
 tw_ratify 'Yes, ROW-018 alone' || fail 'the split of ROW-018 was not ratified'; admitted S08 'in stage 1'
@@ -85,7 +85,7 @@ tw_ratify 'Yes, ROW-018 to stage 2' || fail 'the move of ROW-018 was not ratifie
 st S08 || fail 'the started S08 was refused once its ROW-018 moved to stage 2'; grep -q 'S08 already started' "$T/out" || fail 'the started S08 is not said to be started'
 tw_hand 'candidate 1'; admitted S05 "once stage 1 has its candidate"
 # breadth first: the graded gate reads the handed closed steps
-cd "$T"; rm -rf "$T/gh" "$T/code.git" "$T/dev"; tw_toy "$T/d"; mkdir -p checks; cp "$CHECKS/stages.sh" "$CHECKS/prd.sh" checks/; tw_hand 'candidate 0'
+cd "$T"; rm -rf "$T/gh" "$T/code.git" "$T/dev"; tw_toy "$T/d"; mkdir -p checks; cp "$CHECKS/stages.sh" "$CHECKS/prd.sh" checks/; tw_hand 'candidate 0'; tw_hand 'staged 0'
 pt_rs 's/^plan: required$/plan: required\nstrategy: breadth-first/'
 admitted S01 'under breadth first'
 refused S02 graded 'under breadth first with S01 open' 'S01 is not closed: never closed'

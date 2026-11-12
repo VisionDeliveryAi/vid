@@ -47,6 +47,7 @@
 #   sh checks/watchdog.sh check <op>     exit 0 within · 2 exceeded, probe answered · 3 exceeded, probe failed or timed out · 1 law violation
 #   sh checks/watchdog.sh claim <op> (--evidence '<observation>' | --unverified) <text>
 #   sh checks/watchdog.sh done <op> · note <text> · report
+# serves: both (0.26.10.28.4, M9)
 set -eu
 
 DIR=.vid/watchdog

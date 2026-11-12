@@ -3,7 +3,7 @@
 # beside checks/. The reread fixture: after a compaction's page, a Bash call is refused, and the refusal names the
 # debt's `since` as recorded in .vid/reread-owed.<session>. Env: CHECKS.
 set -eu
-[ -f "$CHECKS/../hooks/stop-failure.sh" ] || exit 0
+[ -f "$CHECKS/../hooks/stop-failure.sh" ] || { echo 'needs hooks/stop-failure.sh'; exit 77; }
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 cd "$T"; CASE=reread-deny-since
 . "$CHECKS/selftest/fixtures/reread-lib.sh"

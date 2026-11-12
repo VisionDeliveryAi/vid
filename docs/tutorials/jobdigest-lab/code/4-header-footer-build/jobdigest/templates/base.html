@@ -1,0 +1,8 @@
+<!doctype html>
+{# ROW-006, REQ-012, D-004: the frame of every page. The design draws no shell, so it takes tokens.css alone. The header and footer stand outside the marker's section, as the page's banner and contentinfo. #}
+<html lang="en"><head><meta charset="utf-8"><title>JobDigest — {% block title %}{% endblock %}</title><link rel="stylesheet" href="{{ url_for('static', filename='tokens.css') }}"></head>
+<body>
+<header><p>JobDigest</p></header>
+{% block content %}{% endblock %}
+<footer><p>Support: support@jobdigest.example</p><p><a href="{{ url_for('unsubscribe_help') }}">Unsubscribe help</a></p></footer>
+</body></html>

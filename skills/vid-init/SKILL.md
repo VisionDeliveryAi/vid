@@ -59,6 +59,14 @@ step 1 record
 it creates `.vid/`, which is how create-prd, design and test-inventory,
 run inside init, know they are in a ViD project and record their own
 stages. At the hand-back (step 8) record its end with `made=spec` (R6).
+Right after it, pin the line endings (0.26.10.28.1, 9.1 R4):
+`sh "${CLAUDE_PLUGIN_ROOT}/checks/eol.sh" write` — the plugin's copy too —
+writes `.gitattributes` (or adds the pins it lacks), so the spec files,
+the scripts and `checks/` keep LF line endings on every checkout, Git for
+Windows' included. The project's first commit carries it: create-prd's
+first ratification commit when create-prd runs inside init, else the
+adoption commit below, else (create-prd ran standalone and its file is
+already committed here) the spec commit, step 7.
 
 **Init makes the spec only (v0.26.10.9 R1, VS-3).** What init still does:
 steps 1 to 4, with the inventory at call point 1 only; from step 6 only the
@@ -116,7 +124,7 @@ findings, and ratification shas — adopt it instead of delegating:
   init naming the gaps — the owner repairs by append or re-runs the verb;
   init never edits a ratified base;
 - `git init` if the directory is not a repository, and commit the file
-  as it is — summary "adopt PRD.md ratified by /vid create-prd", body
+  as it is, with `.gitattributes` beside it — summary "adopt PRD.md ratified by /vid create-prd", body
   naming the court result and the three Ratifications lines verbatim
   (their shas name the standalone repository's commits; they are carried,
   not resolved here — the receiving repo's first commit of the file
@@ -153,9 +161,9 @@ Always ask the two optional hint questions, verbatim:
    prescription. Record whatever is said verbatim in BASELINE.md's Owner
    hints section. Skipped → you choose the stack and log it
    (`origin: proposal`). When you choose: convention-heavy frameworks are a
-   **scaling decision, not a taste preference** — a field run that hand-rolled
-   framework equivalents spent 798 lines per requirement against 219 with
-   framework leverage. Say so when recommending.
+   **scaling decision, not a taste preference** — hand-rolled framework
+   equivalents cost several times the lines per requirement that framework
+   leverage does. Say so when recommending.
 
 **Where it runs (v0.26.10.8 R4).** With hint 2, for every project, invoke
 the `vid-staging-setup` skill's Part 1 (the Skill tool): where the product
@@ -291,8 +299,8 @@ ticket mode the skeleton is the dev team's first ticket (/vid plan).
   design-cite, prd — the enriched-PRD court, presence-gated, green on the
   ratified PRD from step 1 before the spec commit — metrics, watchdog,
   test runner, lawfiles, the event helper `event.sh` and
-  `records-version` — the record contract this checks/ writes, RECORDS.md
-  version 1 (v0.9.5 3.10) — selftest/ with its fixtures: the whole
+  `records-version` — the record contract this checks/ writes, the RECORDS.md
+  version its `records:` line names (v0.9.5 3.10) — selftest/ with its fixtures: the whole
   directory, verbatim), then
   `chmod +x checks/*.sh checks/hooks/* checks/selftest/run.sh checks/selftest/cases/*.sh`
 - `git init` (if needed), then `git config core.hooksPath checks/hooks` —
@@ -303,7 +311,8 @@ ticket mode the skeleton is the dev team's first ticket (/vid plan).
   reports it), `claims-per-slice=60`, `wall-hours-per-slice=8`,
   `court-seconds=300`, `builder-context-tokens=400000` (v0.9.7.0.7 3.7:
   the context at which a builder or fixer is told, once, to finish) — each line recorded in DECISIONS.md `origin:
-  proposal`. It is not a law path.
+  proposal`, with the mark `| about: vid-settings` beside its label (0.26.10.28.5): a decision about ViD's own settings, which no ticket
+  quotes. It is not a law path.
 - **the observer** (v0.9.3 3.9; v0.9.7.0.9 3.8) — develop starts the
   watcher itself (`sh checks/observe.sh start`, a detached loop tied to the
   run); the owner installs nothing.
@@ -335,7 +344,8 @@ the hook's label rule sees a fully labelled file.
 
 **The spec commit** is the former initial commit without code: the
 technical foundation's artifacts, INVENTORY.md and GRADING-CHECKLIST.md,
-the design when there is one, `checks/`, under `VID_ROLE=fix` and the
+the design when there is one, `checks/`, and `.gitattributes` when no
+earlier commit carries it (0.26.10.28.1, R4), under `VID_ROLE=fix` and the
 template message:
 
     VID_ROLE=fix git commit -m "..."

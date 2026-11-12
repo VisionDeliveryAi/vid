@@ -69,12 +69,14 @@
 # v0.26.10.8 (R13, R14): checks/ is 28 and RECORDS.md says so; develop and vid-fix write records=28, their floors
 # unchanged but for a project whose STAGES.md holds STAGE-0, which stops develop below 28; vid-deploy and vid-stage
 # write records=28, and vid-deploy stops below 28.
-# v0.26.10.9 (R5, R28): checks/ is 29 and RECORDS.md says so; develop, init, plan and replan write records=29; develop
+# v0.26.10.9 (R5, R28): checks/ is 29 and RECORDS.md says so; develop, init and plan write records=29 (replan removed in 0.26.10.28.1); develop
 # stops below 29 only for a made=spec or adopted project (its floor paragraph); vid-fix, vid-deploy and vid-stage keep
 # records=28.
 # v0.26.10.11 (R6): checks/ is 30 and RECORDS.md says so; vid-add writes records=30 with base= on its start event; the
 # other verbs keep what they write.
 # v0.26.10.12 (R1): checks/ is 31 and RECORDS.md says so; every verb keeps what it writes.
+# v0.26.10.27.4 (R8): checks/ is 33 and RECORDS.md says so (the ticket flow's files and fields); every verb keeps
+# what it writes, and the readers' gates stay below 32.
 # In a project neither file exists and the case proves
 # nothing. Env: CHECKS.
 set -eu
@@ -99,7 +101,7 @@ if [ -f "$D" ]; then
   has 'Record the stop as `run: stopped checks/ needs the refresh`' || fail 'develop does not record the refresh stop'
   grep -q 'name=develop state=start session=$CLAUDE_CODE_SESSION_ID records=29"`' "$D" || fail 'develop does not write records=29'
   has 'With `checks/records-version` below 29, `sh checks/plan.sh skeleton` doesn'"'"'t exist there and is never called' || fail "develop does not keep a pre-29 project off plan.sh skeleton"
-  for _v in vid-init vid-plan vid-replan; do grep -q 'records=29"`' "$CHECKS/../skills/$_v/SKILL.md" || fail "$_v does not write records=29"; done
+  for _v in vid-init vid-plan; do grep -q 'records=29"`' "$CHECKS/../skills/$_v/SKILL.md" || fail "$_v does not write records=29"; done
   has 'and one whose STAGES.md holds STAGE-0 with checks/ below 28' || fail 'develop does not stop a project with stage 0 on a checks/ older than records: 28'
   has '**The harness upgrade (v0.9.7.0.10 3.6, R13; v0.9.7.0.11 3.2, R2).** Right after the version check, run `sh checks/harness.sh rules`.' || fail "develop does not run harness.sh rules right after the version check"
   grep -q 'name=fix state=start session=$CLAUDE_CODE_SESSION_ID records=28"`' "$FX" || fail 'vid-fix does not write records=28'
@@ -113,7 +115,7 @@ if [ -f "$D" ]; then
   printf '%s' "$F" | grep -qE 'If it says `records: [0-9]+`|`records: [0-9]+` or later' && fail 'develop still carries a rule for an older checks/'
   printf '%s' "$F" | grep -qF 'until the refresh' && fail 'develop still builds on an older checks/ until the refresh'
   grep -q 'name=add state=start session=$CLAUDE_CODE_SESSION_ID records=30 base=$(git rev-parse --short=12 HEAD)"`' "$CHECKS/../skills/vid-add/SKILL.md" || fail 'vid-add does not write records=30 with base='
-  [ "$(sed -n 's/^records: //p' "$CHECKS/records-version")" = 32 ] || fail 'checks/records-version is not 32'
-  [ "$(sed -n 's/^records: //p' "$CHECKS/../RECORDS.md")" = 32 ] || fail 'RECORDS.md does not say records: 32'
+  [ "$(sed -n 's/^records: //p' "$CHECKS/records-version")" = 34 ] || fail 'checks/records-version is not 34'
+  [ "$(sed -n 's/^records: //p' "$CHECKS/../RECORDS.md")" = 34 ] || fail 'RECORDS.md does not say records: 34'
 fi
 exit 0

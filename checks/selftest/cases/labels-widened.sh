@@ -1,6 +1,6 @@
 #!/bin/sh
-# Purpose: selftest case — what the labeller is unsure of stays visible everywhere (v0.9.7.3 spec 3.3, R3; the owner,
-# 2026-10-14: no question to the owner). `decisions.sh apply` writes `scope: project` — the decision still reaches
+# Purpose: selftest case — what the labeller is unsure of stays visible everywhere (v0.9.7.3 spec 3.3, R3;
+# no question to the owner). `decisions.sh apply` writes `scope: project` — the decision still reaches
 # every builder brief, as an unlabelled one does — for a proposal marked unsure (D-002, D-003), one naming an item no
 # brief joins on (D-005: P07, no row marks it), and a malformed line (D-006); a sure label to a real item is written
 # as proposed (D-001 is not proposed: left alone). The record names each widened label and why; the event counts

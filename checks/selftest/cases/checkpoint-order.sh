@@ -1,6 +1,6 @@
 #!/bin/sh
 # Purpose: selftest case — a late checkpoint never overwrites a newer result
-# (v0.9.6.1 spec 3.4, 3.8, R4, review round 2 finding 2; §6 case 13). A
+# (v0.9.6.1 spec 3.4, 3.8, R4; §6 case 13). A
 # checkpoint frozen at commit A passes ROW-001; a close at descendant B,
 # published first, failed it; the checkpoint is published after. The row
 # stays red — results are ordered by the commit they tested. Two receipts

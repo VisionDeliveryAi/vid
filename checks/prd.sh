@@ -1,8 +1,9 @@
 #!/bin/sh
 # Purpose: ViD court — the enriched PRD grammar (v0.8.1a skill, installed
 # at init since v0.8.1b).
-# Reads the four machine blocks in a PRD.md (```vid-prd items,
-# ```vid-prd-contract, ```vid-prd-answers, ```vid-prd-mechanisms) and runs
+# Reads the five machine blocks in a PRD.md (```vid-prd items,
+# ```vid-prd-contract, ```vid-prd-answers, ```vid-prd-mechanisms,
+# ```vid-prd-findings; under grammar 0.9.4 ```vid-prd-features too) and runs
 # the twelve joins of the vid-create-prd spec §5: grammar, closed enums,
 # Fail-if two-way, serves, authority routing, pending-claims-no-covers,
 # no-pending-with-live-answer, answer tracing, contract closure/legality
@@ -68,6 +69,7 @@
 # --pause adds `plain sentences`: every demand item and invariant's
 # sentence beside its statement, which the owner approves together.
 # Usage: sh checks/prd.sh [PRD.md] [--report] [--pause] · sh checks/prd.sh --effective|--failifs [PRD.md]
+# serves: both (0.26.10.28.4, M9)
 set -eu
 IFS='
 '

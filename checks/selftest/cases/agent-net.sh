@@ -7,7 +7,7 @@
 # call gets nothing; a grader agent over the budget, the main session and an agent with no
 # transcript get nothing; with no budget line the default 400000 applies (5000: nothing). Env: CHECKS.
 set -eu
-[ -f "$CHECKS/../hooks/stop-failure.sh" ] || exit 0
+[ -f "$CHECKS/../hooks/stop-failure.sh" ] || { echo 'needs hooks/stop-failure.sh'; exit 77; }
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 cd "$T"; CASE=agent-net
 . "$CHECKS/selftest/fixtures/reread-lib.sh"

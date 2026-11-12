@@ -16,6 +16,7 @@
 # under tests/invariants/ not named test* (fixtures, helpers) and the
 # non-law tier tests/scaffolding/ are exempt. Same mode switch as the rest.
 # Usage: sh checks/imports.sh [--report [dir]]
+# serves: both (0.26.10.28.4, M9)
 set -eu
 IFS='
 '

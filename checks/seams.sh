@@ -13,6 +13,7 @@
 # (*.lock, *lock.json, *lock.yaml, *.sum) are toolchain records, not app
 # outbound calls, and are excluded. Presence-gated: inactive without an
 # INVENTORY.md machine block. Usage: sh checks/seams.sh
+# serves: both (0.26.10.28.4, M9)
 set -eu
 IFS='
 '

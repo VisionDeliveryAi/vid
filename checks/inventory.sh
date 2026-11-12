@@ -28,8 +28,8 @@
 # the citation-order court), and must be a file, not a directory; (2) the
 # proved-red stamp is JOINED, not merely present — the sha resolves, the
 # cited file exists at it, and the file there names the row (its id or its
-# REQ) — H-17 measured 22 rows citing a file absent at the stamped sha and
-# 34 citing a file that never names the row; default mode joins the rows
+# REQ) — a row can cite a file absent at the stamped sha, or one that
+# never names the row; default mode joins the rows
 # this commit stages, --strict/--report join every row; (3) a golden-set
 # row's `divergence: DIF-NNN` must name a difference row that exists and
 # carries `paying-step:`, and its `golden:` fixture must exist at the commit.
@@ -76,6 +76,7 @@
 # its detail is exactly `first stage`, or `ticket` for a row appended under ticket mode (any other detail is
 # unclassed). Legitimate on the par line; the per-class split shows `spec-only=S` after `prerequisite=`.
 # Usage: sh checks/inventory.sh [--strict|--report|protected] | sh checks/inventory.sh impact [--base <commit>] [--prd <file>] [--inventory <file>] [--detail]
+# serves: both (0.26.10.28.4, M9)
 set -eu
 IFS='
 '
@@ -84,7 +85,7 @@ MODE=default
 case "${1:-}" in --strict) MODE=strict ;; --report) MODE=report ;; protected) MODE=protected ;; esac
 
 # v0.26.10.3 (R4): impact — what a change to the law would do, by post-commit's rule (R1), read-only, exit 0.
-#   sh checks/inventory.sh impact [--base <commit>] [--prd <file>] [--inventory <file>] [--detail]
+#   sh checks/inventory.sh impact [--base <commit>] [--prd <file>] [--inventory <file>] [--detail] [--tickets]
 # The before is PRD.md and INVENTORY.md at --base (default HEAD); the after the files given (default the working
 # tree's). Under an after inventory block whose first fence line is `grammar: 0.9.3`, for each ROW row present in both:
 # its own obligation column changed → RESET (post-commit's `amended … by=obligation`, the wipe); else an item in its
@@ -98,10 +99,13 @@ case "${1:-}" in --strict) MODE=strict ;; --report) MODE=report ;; protected) MO
 # --detail prints only the sets, `reset<TAB><row>` and `confirm<TAB><row><TAB><changed items>` a line, no states:
 # checks/hooks/post-commit's reading (HEAD~1 as the before, HEAD's committed files as the after), so a question's count
 # and what lands come from this one calculation.
+# --tickets (v0.26.10.25.5, R2): every inventory line by its id: `impact reset= added= reached= records=`, then `reset|added|
+# reached|record <ids|->` and `state <id> <state>` (.vid/decide/state, else the handed record, else planned); with --detail
+# `reset|added<TAB><id>[<TAB>transition]`, `reached|record<TAB><id>[<TAB><the changed items it cites>]`.
 if [ "${1:-}" = impact ]; then
-  shift; IMB=HEAD; IMP=PRD.md; IMI=INVENTORY.md; IMD=no
-  imusage() { echo 'ViD inventory impact: usage — sh checks/inventory.sh impact [--base <commit>] [--prd <file>] [--inventory <file>] [--detail]' >&2; exit 2; }
-  while [ $# -gt 0 ]; do case "$1" in --base) [ $# -ge 2 ] || imusage; IMB=$2; shift 2 ;; --prd) [ $# -ge 2 ] || imusage; IMP=$2; shift 2 ;; --inventory) [ $# -ge 2 ] || imusage; IMI=$2; shift 2 ;; --detail) IMD=yes; shift ;; *) imusage ;; esac; done
+  shift; IMB=HEAD; IMP=PRD.md; IMI=INVENTORY.md; IMD=no; IMK=no
+  imusage() { echo 'ViD inventory impact: usage — sh checks/inventory.sh impact [--base <commit>] [--prd <file>] [--inventory <file>] [--detail] [--tickets]' >&2; exit 2; }
+  while [ $# -gt 0 ]; do case "$1" in --base) [ $# -ge 2 ] || imusage; IMB=$2; shift 2 ;; --prd) [ $# -ge 2 ] || imusage; IMP=$2; shift 2 ;; --inventory) [ $# -ge 2 ] || imusage; IMI=$2; shift 2 ;; --detail) IMD=yes; shift ;; --tickets) IMK=yes; shift ;; *) imusage ;; esac; done
   git rev-parse -q --verify "$IMB^{commit}" > /dev/null 2>&1 || { echo "ViD inventory impact: --base $IMB names no commit" >&2; exit 2; }
   IMT=$(mktemp -d); trap 'rm -rf "$IMT"' EXIT
   git show "$IMB:INVENTORY.md" > "$IMT/inv.old" 2> /dev/null || : > "$IMT/inv.old"
@@ -109,6 +113,47 @@ if [ "${1:-}" = impact ]; then
   if [ -f "$IMI" ]; then cp "$IMI" "$IMT/inv.new"; else : > "$IMT/inv.new"; fi
   if [ -f "$IMP" ]; then cp "$IMP" "$IMT/prd.new"; else : > "$IMT/prd.new"; fi
   imblk() { sed -n '/^```vid-inventory/,/^```$/p' "$1" | sed '1d;$d'; }
+  # v0.26.10.25.5 (R2): --tickets, the count of a ticket-mode draft (checks/land.sh): every line by its id, of any kind; a journey's transitions follow their row; the
+  # states from .vid/decide/state and the handed record. A difference with no paying-step: is a record: counted, owes nothing
+  if [ "$IMK" = yes ]; then
+    IMR=checks/prd.sh; [ -f "$IMR" ] || IMR=$(dirname "$0")/prd.sh
+    { sh "$IMR" --failifs "$IMT/prd.old" 2> /dev/null || true; } > "$IMT/f.old"; { sh "$IMR" --failifs "$IMT/prd.new" 2> /dev/null || true; } > "$IMT/f.new"
+    awk -F'\t' 'FILENAME == ARGV[1] { o[$1] = $2; next } { n[$1] = 1; if (!($1 in o) || o[$1] != $2) print $1 } END { for (k in o) if (!(k in n)) print k }' "$IMT/f.old" "$IMT/f.new" > "$IMT/reqs"
+    # an item that is no REQ (an INV, whose fail-if is its statement) reaches by its whole effective line
+    for w in old new; do { sh "$IMR" --effective "$IMT/prd.$w" 2> /dev/null || true; } | awk -F'|' '{ k = $1; gsub(/[ \t]/, "", k); sub(/AMENDED$/, "", k) } k ~ /^[A-Z]+-[0-9]+$/ && k !~ /^REQ-/ { l = $0; sub(/^[^|]*\|/, "", l); print k "\t" l }' > "$IMT/e.$w"; done
+    awk -F'\t' 'FILENAME == ARGV[1] { o[$1] = $2; next } { if (($1 in o) && o[$1] != $2) print $1 }' "$IMT/e.old" "$IMT/e.new" >> "$IMT/reqs"
+    imblk "$IMT/inv.old" > "$IMT/old"; imblk "$IMT/inv.new" > "$IMT/new"
+    { awk -F'\t' '{ print $1 "\t" $2 }' .vid/decide/state 2> /dev/null || true; sed -n 's/^row \([^ ]*\) \([^ |]*\).*/\1	\2/p' .vid/tw/handed 2> /dev/null || true; } > "$IMT/st"
+    awk -F'|' -v OLD="$IMT/old" -v RQ="$IMT/reqs" -v ST="$IMT/st" -v OUT="$IMT/sets" '
+      function trim(s) { gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
+      function key(l,   a, k) { split(l, a, "|"); k = trim(a[1]); return (k ~ /^(rule|difference|exception|suppression|hostility|seam)$/) ? trim(a[2]) : k }
+      function norm(l) { gsub(/[ \t]+/, " ", l); return trim(l) }
+      function tcount(l,   p, r, t, q) { p = index(l, "transitions:"); if (!p) return 0; r = " " substr(l, p + 12); t = 0; while ((q = index(r, " " (t + 1) ". ")) > 0) { r = substr(r, q + 1); t++ } return t }
+      function cites(l,   a, n, i, k, o, m, b, j, x) { n = split(l, a, "|"); k = trim(a[1]); o = ""
+        if (k ~ /^ROW-[0-9]+$/) o = trim(a[7])
+        for (i = 3; i <= n; i++) { x = trim(a[i]); if (x ~ /^(protects|origin):/) { sub(/^[a-z]+:[ \t]*/, "", x); o = o " " x } }
+        gsub(/,/, " ", o); return o }
+      BEGIN { while ((getline l < OLD) > 0) { if (l ~ /^[ \t]*(#|$|grammar:)/) continue; k = key(l); if (k == "" || (k in O)) continue; O[k] = norm(l); OT[k] = tcount(l) }
+        while ((getline l < RQ) > 0) C[l] = 1; while ((getline l < ST) > 0) { split(l, x, "\t"); S[x[1]] = x[2] } }
+      /^[ \t]*(#|$|grammar:)/ { next }
+      { k = key($0); if (k == "" || (k in seen)) next; seen[k] = 1; L[++n] = k; T[k] = $0; NT[k] = tcount($0)
+        rec[k] = (trim($1) == "difference" && $0 !~ /\|[ \t]*paying-step:/)
+        if (!(k in O)) kind[k] = "added"; else if (O[k] != norm($0)) kind[k] = "reset" }
+      END { for (i = 1; i <= n; i++) { k = L[i]; if (kind[k] == "") continue; if (rec[k]) { print "record\t" k > OUT; continue }
+          print kind[k] "\t" k > OUT; m = (NT[k] > OT[k]) ? NT[k] : OT[k]; for (j = 1; j <= m; j++) print kind[k] "\t" k "-T" j "\ttransition" > OUT }
+        for (i = 1; i <= n; i++) { k = L[i]; if (kind[k] != "") continue; m = split(cites(T[k]), a, " "); it = ""
+          for (j = 1; j <= m; j++) if (a[j] != "" && ((a[j] in C) || kind[a[j]] != "") && !index(" " it " ", " " a[j] " ")) it = it (it == "" ? "" : " ") a[j]
+          if (it != "") { print (rec[k] ? "record" : "reached") "\t" k "\t" it > OUT } }
+        for (k in S) if ((k in kind) || index(k, "-T")) print "state\t" k "\t" S[k] > OUT }' "$IMT/new"
+    touch "$IMT/sets"
+    if [ "$IMD" = yes ]; then grep -v '^state	' "$IMT/sets"; exit 0; fi
+    cnt() { awk -F'\t' -v k="$1" '$1 == k && $3 != "transition"' "$IMT/sets" | grep -c . || true; }
+    ids() { awk -F'\t' -v k="$1" '$1 == k && $3 != "transition" { o = o (o == "" ? "" : ",") $2 } END { print (o == "" ? "-" : o) }' "$IMT/sets"; }
+    echo "impact reset=$(cnt reset) added=$(cnt added) reached=$(cnt reached) records=$(cnt record)"
+    for k in reset added reached record; do echo "$k $(ids $k)"; done
+    awk -F'\t' '$1 == "state" { S[$2] = $3 } $1 == "reset" || $1 == "reached" { if ($3 != "transition") o[++n] = $2 } END { for (i = 1; i <= n; i++) print "state " o[i] " " ((o[i] in S) ? S[o[i]] : "planned") }' "$IMT/sets"
+    exit 0
+  fi
   : > "$IMT/sets"
   case "$(imblk "$IMT/inv.new" | grep -v '^[[:space:]]*$' | head -n 1 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')" in
     'grammar: 0.9.3')
@@ -149,7 +194,9 @@ fi
 # Presence-gated: silent when inactive — courts speak only to reject or report.
 [ -f INVENTORY.md ] || exit 0
 PREFIXES=''
-if [ "$MODE" != protected ]; then
+# v0.26.10.26.7 (R5 a, W-6): a ticket-mode spec repository holds no app source, so no placement is read; the other checks run
+TMODE=no; grep -q '^mode:[[:space:]]*tickets' .vid/RUN-STATE.md 2>/dev/null && TMODE=yes
+if [ "$MODE" != protected ] && [ "$TMODE" = no ]; then
 [ -f CLAUDE.md ] || { echo 'ViD inventory: CLAUDE.md missing — failing closed.' >&2; exit 1; }
 PREFIXES=$(sed -n '/^```vid-placement/,/^```$/p' CLAUDE.md | sed '1d;$d' | sed 's/[[:space:]]*$//' | grep -v '^$' || true)
 [ -n "$PREFIXES" ] || { echo 'ViD inventory: no ```vid-placement block in CLAUDE.md — failing closed.' >&2; exit 1; }
@@ -157,7 +204,11 @@ fi
 
 BLOCK=$(sed -n '/^```vid-inventory/,/^```$/p' INVENTORY.md | sed '1d;$d' || true)
 GRAMMAR=legacy; G93=no
-case "$(printf '%s\n' "$BLOCK" | grep -v '^[[:space:]]*$' | head -n 1 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')" in 'grammar: 0.9.2') GRAMMAR=0.9.2 ;; 'grammar: 0.9.3') GRAMMAR=0.9.2; G93=yes ;; esac
+GL=$(printf '%s\n' "$BLOCK" | grep -v '^[[:space:]]*$' | head -n 1 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+case "$GL" in 'grammar: 0.9.2') GRAMMAR=0.9.2 ;; 'grammar: 0.9.3') GRAMMAR=0.9.2; G93=yes ;; esac
+# 0.26.10.28.1 (9.1 R5, F2): the court refuses a grammar line it does not know, which it would read as the oldest; a block
+# with no grammar: line keeps the oldest reading, and the flags read the line as before
+case "$MODE:$GL" in default:'grammar: 0.9.2'|default:'grammar: 0.9.3') ;; default:grammar:*) echo "ViD inventory: refused — '$GL' is no inventory grammar: the known ones are 0.9.2 and 0.9.3 (the newest)." >&2; exit 1 ;; esac
 # v0.9.3 (3.13, R17): a --report run under 0.9.3 appends `court
 # name=inventory seconds=<s>`; a caller that is itself a court or a reporter
 # sets VID_COURT_EVENT=off.

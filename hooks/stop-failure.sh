@@ -1,5 +1,5 @@
 #!/bin/sh
-# Purpose: ViD's death record (v0.9.5 spec 3.4, R4; owner ruling 9.1) — the
+# Purpose: ViD's death record (v0.9.5 spec 3.4, R4) — the
 # plugin's StopFailure hook, and its Notification hook for a usage-limit
 # pause left waiting (`quota_auto_resume_stale`, `quota_auto_resume_disabled`).
 # It only records: it never changes how the session ends, never restarts
@@ -60,7 +60,7 @@ main() {
   EV="$RUN/.vid/metrics-events"
   DQ=''
   if [ -n "$DET" ]; then DQ=$(printf '%s' "$DET" | tr '"' "'" | awk '{ s = $0; if (length(s) > 200) s = substr(s, 1, 200); printf "%s", s }'); DQ=" details=\"$DQ\""; fi
-  printf 'died reason=%s session=%s%s at=%s\n' "$REASON" "$SID" "$DQ" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >> "$EV"
+  printf 'died reason=%s session=%s%s at=%s\n' "$REASON" "$SID" "$DQ" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >> "$EV"   # fields: details=
 }
 main 2>/dev/null
 exit 0

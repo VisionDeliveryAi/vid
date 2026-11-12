@@ -1,6 +1,5 @@
 #!/bin/sh
-# Purpose: selftest case — the hex-colour court excludes the ledger tests (v0.9.7.3 spec 3.9, R9; owner-accepted on
-# the live project since 2026-09-26). With a ratified design (design/tokens.css): a ledger test under
+# Purpose: selftest case — the hex-colour court excludes the ledger tests (v0.9.7.3 spec 3.9, R9). With a ratified design (design/tokens.css): a ledger test under
 # tests/invariants/ whose expected value is a raw hex colour passes conformance; the same colour in app source is
 # still refused. Env: CHECKS.
 set -eu

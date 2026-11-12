@@ -19,7 +19,7 @@
 # PLAN.md and RUN-STATE's block, `pt_del <id>` deletes it (and its id from a needs line), `pt_after <id> <line>` adds a line after it; `pt_nogate1`
 # removes the gate-1 row ROW-009 (and its place in step S04); `pt_nostage0` removes stage 0, the skeleton becoming
 # ROW-004 alone and ROW-003 joining S02; `pt_rs <sed expression>` edits RUN-STATE; `pt_record` records the block as it
-# stands (plan.sh change create); `pt_teams <line>…` appends `team: <line>` lines to .vid/tw/settings; `pt_check` runs `planner.sh check` into $T/out (its status in $PT_RC); `pt_has <flag start>` fails
+# stands (plan.sh change create); `pt_teams <line>…` appends `team: <line>` lines to .vid/tw/settings; `pt_check` runs `planner.sh check` into $T/out (the toy's five setup answers recorded in .vid/plan/setup, v0.26.10.26.7) (its status in $PT_RC); `pt_has <flag start>` fails
 # unless a flag line starts so. Reads only files under checks/. Env: CHECKS, T, fail().
 pt_toy() {
   mkdir -p "$1" && cd "$1"
@@ -159,7 +159,8 @@ shared: web
 S02 and S03 run side by side: the feeds and the mail share no module. S04 builds on S02 for the listings and on S03
 for the mail; S05 builds on S02 for the listings. Stage 2 is a draft, planned again at stage 1's close.
 EOF
-  printf 'stage name=plan state=start session=S1 records=29 at=2026-11-03T09:00:00Z\n' > .vid/metrics-events
+  printf 'stage name=plan state=start session=S1 records=29 at=2026-11-03T09:00:00Z\ncontext-window requested=declined at=2026-11-03T09:00:00Z\n' > .vid/metrics-events   # v0.26.10.26.7 (R13): the compaction question answered
+  mkdir -p .vid/plan; for k in layout team split repo spec-repo github-mode; do printf 'setup-answered key=%s value="the toy" words="the toy, answered" at=2026-11-03T09:00:00Z\n' "$k"; done > .vid/plan/setup   # v0.26.10.26.7 (R11): the toy's setup answered; github-mode (v0.26.10.28.8, R3) too
   pt_record
 }
 pt_rs() { sed "$1" .vid/RUN-STATE.md > R.x && cat R.x > .vid/RUN-STATE.md && rm R.x; }   # a sed of RUN-STATE's block

@@ -1,7 +1,7 @@
 #!/bin/sh
 # Purpose: selftest case — the check refuses what no ticket may hold, W4 and F1 (v0.26.10.12.3
 # R8). On TW's toy every ticket of every kind written passes `writer.sh check`, the ratified lines holding a path in
-# their quoted sections included (S01/saved in Rows, a census path in Rules). Refused, by line and word: in TW's own
+# their quoted sections included (S01/saved in Rows, a census path in Rules, written as a pointer: v0.26.10.24.2). Refused, by line and word: in TW's own
 # words (a planted History line) code or a test (a backtick, { and =), a file path and a runner command; a `> ` line
 # outside the quoted sections; a step's name: naming a file (after a recorded rename); a fix's reason holding code and a
 # runner command; PL's own row (HOS-005, origin: plan) whose free text names a file and a command, while its schema
@@ -19,8 +19,8 @@ has() { grep -qF -- "$1" "$T/out" || fail "not refused: $1"; }
 ck "$SK"; [ "$RC" = 0 ] || fail 'the skeleton ticket is refused'; grep -q '^> ROW-003 .*S01/saved' "$SK" || fail 'the skeleton does not quote ROW-003 with its marker'
 tw_start S02 || fail 'S02 was refused'; tw_start S03 || fail 'S03 was refused'
 tw_post step S02 || fail "S02's ticket was refused"; P=$TW_F
-F3=$(sh "$W" write step S03 2> "$T/werr") || fail "S03's ticket was refused"; grep -q '^> rule | RULE-002 | .* | checks/extractors/invariant.unsubscribe.sh | ' "$F3" || fail 'the Rules section does not quote the census path'
-ck "$F3"; [ "$RC" = 0 ] || fail 'a census path quoted in Rules was refused'
+F3=$(sh "$W" write step S03 2> "$T/werr") || fail "S03's ticket was refused"; grep -q "^> rule | RULE-002 | .* | (ViD's records) | " "$F3" || fail 'the Rules section does not quote the census path as a pointer (v0.26.10.24.2)'
+ck "$F3"; [ "$RC" = 0 ] || fail 'a rule whose census path was rewritten was refused'
 # a PL ROW row's schema words (n/a, the owed: field naming its deploy gate) pass; its obligation is checked
 pl() { awk -v l="> ROW-021 | behavior | REQ-005 | n/a | n/a | $1 | REQ-005 | owed: paid by /vid deploy gate 1 — the rehearsal | origin: plan REQ-005" '{ print } $0 == "## Rows" { getline; print; print l }' "$F3" > "$T/p.md"; ck "$T/p.md"; }
 pl 'Saved searches survive the move. Fails if one is missing'; [ "$RC" = 0 ] || fail "a PL row's schema words were refused"

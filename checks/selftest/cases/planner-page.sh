@@ -43,8 +43,9 @@ for l in '| S01 | save a search and read the first digest | skeleton | devagent 
   sec 'The plan' | grep -qxF -- "$l" || fail "the plan section lacks: $l"; done
 [ "$(sec 'The plan' | grep -c '^| S0')" = 5 ] || fail 'the plan section does not hold the five steps'
 sec 'The plan' | grep -q '^### The lanes' && fail 'one lane shows a lanes section'
-sec 'The setup' | grep -qxF '| devagent | the whole product | core | 1 | devagent |' && sec 'The setup' | grep -qF 'Still to ask at the next /vid plan: layout, repo, split, team, labels-prefix, spec-repo' || fail 'the default setup is not shown'
+sec 'The setup' | grep -qxF '| devagent | the whole product | core | 1 | devagent |' && sec 'The setup' | grep -qF 'Still to ask at the next /vid:vid-plan: layout, repo, split, team, github-mode, labels-prefix, spec-repo' || fail 'the default setup is not shown'
 sec 'The setup' | grep -qxF -- '- **The open-ticket limit:** not set' || fail 'no open-ticket limit is not said'   # v0.26.10.12.3.2 (R4)
+sec 'The setup' | grep -qxF -- '- **Who works the tickets:** not asked yet' || fail 'no GitHub mode is not said'   # v0.26.10.28.8 (R3)
 sec 'The plan' | grep -q '^- \*\*create\*\* (decision .*): why — the first plan; trigger — initial; evidence — -; expected — the skeleton ticket goes first\.$' || fail 'the recorded create is not shown'
 pt_set 'step S05' 'step S05 | name: synonym-aware search, at last | modules: search | builds-on: S02 | rows: ROW-017 | lane: devagent'
 sh "$CHECKS/plan.sh" change other 'S05 renamed' --trigger initial --expect 'the same plan' > "$T/out" 2>&1 || fail 'the second change was refused'; pg
@@ -80,11 +81,11 @@ flags | grep -q '^- protection INV-002 — ' || fail 'a check flag is not on the
 flags | grep -q '^- finding 1 on RULE-004, not answered: 1: vague$' || fail 'an unanswered finding is not on the page'
 flags | grep -q '^- none$' && fail 'a flagged page says none'
 # v0.26.10.12.3.1 (R4, R9): the setup kept, two teams' lanes and the links between them, R9's prose heading
-fresh; mkdir -p .vid/tw; printf 'layout: separate\nrepo: toy/jd\nspec-repo: toy/jd-spec\nlabels-prefix:\nsplit: fine\nopen-tickets: 4\naccess: 2026-11-03 ok\n' > .vid/tw/settings
+fresh; mkdir -p .vid/tw; printf 'layout: separate\nrepo: toy/jd\nspec-repo: toy/jd-spec\nlabels-prefix:\nsplit: fine\ngithub-mode: team\nopen-tickets: 4\naccess: 2026-11-03 ok\n' > .vid/tw/settings
 pt_teams 'india | stages 0 and 1 | strict | 3' 'usa | the data pipeline | core | 1'; pt_rs 's/lane: devagent/lane: india-2/'; pt_rs 's/^\(step S05 .*\)lane: india-2/\1lane: usa | fakes: S03/'
 printf '\nProvable only at a later stage: none in stage 1; none in stage 2.\n' >> .vid/RUN-STATE.md; pg
-for l in '- **The spec repository:** toy/jd-spec' '- **The open-ticket limit:** 4' '- **Access:** 2026-11-03 ok' '- **The step size:** finer steps, technical ones allowed (split: fine)' '| usa | the data pipeline | core | 1 | usa |' \
-  'Asked once, at the start of /vid plan, and kept in .vid/tw/settings. Nothing is missing: a later /vid plan asks nothing.'; do sec 'The setup' | grep -qxF -- "$l" || fail "the setup lacks: $l"; done
+for l in '- **The spec repository:** toy/jd-spec' '- **Who works the tickets:** an outside team (github-mode: team)' '- **The open-ticket limit:** 4' '- **Access:** 2026-11-03 ok' '- **The step size:** finer steps, technical ones allowed (split: fine)' '| usa | the data pipeline | core | 1 | usa |' \
+  'Asked once, at the start of /vid plan, and kept in .vid/tw/settings. Nothing is missing: a later /vid:vid-plan asks nothing.'; do sec 'The setup' | grep -qxF -- "$l" || fail "the setup lacks: $l"; done
 for l in '- **india-2** (india): S01 (2 rows), S02 (11 rows), S03 (12 rows), S04 (7 rows)' '- **india-1** (india): no step' '- **usa** (usa): S05 (1 rows)' '- S05 (usa) → S02 (india), solid' '- S05 (usa) → S03 (india), dashed' \
   '| S05 | synonym-aware search | feature | usa | search | 1 of 60 | 0 | S02 | S03 |' 'Provable only at a later stage: none in stage 1; none in stage 2.'; do sec 'The plan' | grep -qxF -- "$l" || fail "the plan lacks: $l"; done
 # an indented stage line (stages.sh takes it) is still a stage

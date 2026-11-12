@@ -34,7 +34,7 @@ tw_close() { echo CLOSED > "$T/gh/issues/$1/state"; }
 tw_post() { TW_F=$(sh "$CHECKS/writer.sh" write "$@" 2> "$T/werr") || return 1; _a=''; [ "$1" != amend ] || _a="--amend $2"
   sh "$CHECKS/github.sh" tw-post $_a "$TW_F" > "$T/post" 2>&1 || return 1; TW_N=$(sed -n 's/^ViD github: [a-z]* ticket #\([0-9]*\).*/\1/p' "$T/post"); }
 # tw_skel: the skeleton round done — spec-setup, tw-sync, S01 admitted, its ticket written and posted (#1), then the
-# stand-in's records (two engines, S01's rows accepted, S01 closed, stage 0's candidate) and #1 closed, synced
+# stand-in's records (two engines, S01's rows accepted, S01 closed, stage 0's candidate, and its passed D1 (`staged 0`, v0.26.10.26.2's setup hold)) and #1 closed, synced
 tw_skel() { sh "$CHECKS/github.sh" spec-setup > "$T/sk" 2>&1 && sh "$CHECKS/github.sh" tw-sync >> "$T/sk" 2>&1 && tw_start S01 && tw_post skeleton || return 1
-  tw_hand 'engines chromium firefox'; tw_hand 'row ROW-003 accepted'; tw_hand 'row ROW-004 accepted'; tw_hand 'closed S01'; tw_hand 'candidate 0'
+  tw_hand 'engines chromium firefox'; tw_hand 'row ROW-003 accepted'; tw_hand 'row ROW-004 accepted'; tw_hand 'closed S01'; tw_hand 'candidate 0'; tw_hand 'staged 0'
   tw_close "$TW_N"; sh "$CHECKS/github.sh" tw-sync >> "$T/sk" 2>&1; }

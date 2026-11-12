@@ -3,7 +3,7 @@
 # hooks/ beside checks/. The reread fixture, .vid/budget builder-context-tokens=6000: over the budget, a grader, a
 # test-author and an analyst — each with its brief recorded — get no reminder; a builder and a fixer get it. Env: CHECKS.
 set -eu
-[ -f "$CHECKS/../hooks/stop-failure.sh" ] || exit 0
+[ -f "$CHECKS/../hooks/stop-failure.sh" ] || { echo 'needs hooks/stop-failure.sh'; exit 77; }
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 cd "$T"; CASE=net-guard-builders-only
 . "$CHECKS/selftest/fixtures/reread-lib.sh"
