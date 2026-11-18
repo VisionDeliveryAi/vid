@@ -9,7 +9,7 @@ user-invocable: false
 Init makes the spec only; the code skeleton is develop's first step, built
 here by the run itself, as init built it before 0.26.10.9. In ticket mode
 none of this is ViD's: the dev team builds the skeleton as its first ticket
-(vid-plan), and ViD writes the tests ticket by ticket (vid-replan). The text
+(vid-plan), and ViD writes the tests ticket by ticket. The text
 below is init's, moved, not rewritten.
 
 **When.** vid-develop invokes this skill (the Skill tool) after its start

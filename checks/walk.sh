@@ -8,7 +8,8 @@
 #                           return refused, the first refusal
 #   pending                 `walk-read <N>` for each stage whose newest start's recorded pid is gone and its return unread
 #   brief --stage <N>       the newest candidate's brief, in a fresh folder outside the project (brief.md and the canvases it
-#                           names), recorded as the next start, <c>/w1/<s>/ (folder, brief.md); prints the folder
+#                           names), recorded as the next start, <c>/w1/<s>/ (folder, brief.md); prints the folder; for a staging on
+#                           production data (its D1 read's seed), a sentence: real people's data, send nothing to anyone (0.26.11.1.1, R6)
 #   start --stage <N>       runs the walker (checks/walker.md, its role) as a session of its own on claude-opus-5-5, its working
 #                           directory the brief's folder, its pid recorded in <c>/w1/<s>/pid; prints `started <pid>`
 #   read --stage <N>        reads the newest start's walk.txt, copied into <c>/w1/<s>/: `w1 done`, `w1 not-done <why>` (an item for
@@ -95,7 +96,10 @@ cmd_brief() { [ "${1:-}" = --stage ] && [ -n "${2:-}" ] || die 'usage — brief 
   grep -vxF -f "$SX/g" "$SX/scope" | sort -u > "$SX/rs" || true
   promise() { awk -F'\t' -v r="$1" '$1 == r { p = $8; if (p ~ /^[ \t]*(never|fail-if|fails if)[: ]/ || tolower(p) ~ /fails? if /) p = "(walk it as a user would, by its screen)"; print p; exit }' "$SX/plr"; }   # the planner's promise; a clause in fail-if form is kept from the walker
   { printf '# The walk\n\ncandidate: %s\nstaging: %s\n' "$X" "$A"; awk -F'\t' '$1 == "signin" { print "signin: " $2 " " $3 }' "$F/d1/read"
-    printf '\nUse the product at the address above as a user would, signed in through the lines above. Walk each item below, then wander. Write walk.txt in this folder, in the form your instructions give, one line for each item here.\n\n## The golden path\n\n'
+    printf '\nUse the product at the address above as a user would, signed in through the lines above. Walk each item below, then wander. Write walk.txt in this folder, in the form your instructions give, one line for each item here.\n'
+    # 0.26.11.1.1 (R6): a staging on production data
+    ! grep -q "^seed${TAB}production\$" "$F/d1/read" 2>/dev/null || printf '\nThis staging holds real people'"'"'s data, copied from production: send nothing to anyone, and use no real person'"'"'s address or number.\n'
+    printf '\n## The golden path\n\n'
     while read -r r; do printf -- '- %s: %s\n' "$r" "$(promise "$r")"; done < "$SX/g"
     [ ! -s "$SX/rs" ] || { printf '\n## The rows\n\n'; while read -r r; do printf -- '- %s: %s\n' "$r" "$(promise "$r")"; done < "$SX/rs"; }
     cat "$SX/g" "$SX/rs" | grep -xF -f "$SX/sc" | while read -r r; do awk -F'\t' -v r="$r" '$1 == r { print $3 }' "$SX/inv"; done | sort -u > "$SX/scr"

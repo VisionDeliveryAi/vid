@@ -47,6 +47,14 @@ printf 'silent-seconds: 2\n' >> "$T/w3/dev-setup.txt"; holder "$T/fake/a"; holde
 D=$(sh "$R" start --setup "$T/w3/dev-setup.txt" --ask "pr-4-$H" --commit "$C" --select ROW-014 --engines alpha --no-product)
 sleep 6; grep -q '^waiting for a test environment' "$D/log" && [ ! -f "$D/exit" ] && kill -0 "$(cat "$D/pid")" 2>/dev/null || fail "a run waiting past its silent-seconds was stopped: $(cat "$D/result" 2>/dev/null)"
 kill "$(cat "$T/fake/a/pid")"; ends "$D" || fail "a holder's death did not free its slot: $(cat "$D/result" 2>/dev/null)"
+# 0.26.10.29.1 (R4): the cap raised while a run waits: the run reads the record again at its next tick and comes up, with no restart
+rm -rf "$DEVAGENT_ENVIRONMENTS"; rec w9 'max-environments: 2'; holder "$T/fake/g"; holder "$T/fake/h"
+sh "$R" slot take "$T/w9/dev-setup.txt" fg run "$T/fake/g" && sh "$R" slot take "$T/w9/dev-setup.txt" fh run "$T/fake/h" || fail 'two live holders could not take two slots'
+D9=$(sh "$R" start --setup "$T/w9/dev-setup.txt" --ask "pr-19-$H" --commit "$C" --select ROW-014 --engines alpha --no-product)
+i=0; until grep -q '^waiting for a test environment' "$D9/log" 2>/dev/null || [ "$i" -ge 30 ]; do sleep 1; i=$((i + 1)); done; grep -q '^waiting for a test environment' "$D9/log" || fail 'at the cap of 2, the run did not wait'
+chmod 000 "$T/w9/dev-setup.txt"; sleep 7; chmod 644 "$T/w9/dev-setup.txt"; ! grep -q '^== alpha' "$D9/log" && [ ! -f "$D9/exit" ] || fail 'the record unreadable for a tick, the waiting run came up past its cap of 2'
+sed -i.b 's/^max-environments: 2$/max-environments: 3/' "$T/w9/dev-setup.txt"; ends "$D9" || fail "the cap raised to 3 while it waited, the run did not come up: $(cat "$D9/result" 2>/dev/null)"
+kill "$(cat "$T/fake/g/pid")" "$(cat "$T/fake/h/pid")" 2>/dev/null || true
 # the default is 3; a word or 0 is refused
 rec w5; holder "$T/fake/c"; holder "$T/fake/d"; holder "$T/fake/a"; rm -rf "$DEVAGENT_ENVIRONMENTS"
 for x in a b c; do sh "$R" slot take "$T/w5/dev-setup.txt" "f$x" run "$T/fake/$x" || fail "with no max-environments: line, slot $x of 3 was refused"; done

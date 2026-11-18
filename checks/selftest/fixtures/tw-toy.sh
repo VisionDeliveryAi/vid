@@ -7,7 +7,7 @@
 # publish it", with its publish-approved event; TW's settings (.vid/tw/settings: repo owner/code, spec-repo
 # owner/code-spec, an empty labels-prefix:, open-tickets 2); the code repository, a local bare one at $T/code.git with
 # one commit on main; the fake gh (tickets.sh's gh_fake) serving it. Helpers: `tw_hand <line>` adds a handed line,
-# labelled a stand-in; `tw_ratify <words>` reviews, pages and ratifies the plan again with its publish-approved event;
+# labelled a stand-in; `tw_closed <step> [<state>]` closes a step, its rows with no state accepted or <state> (0.26.10.29.2, R9); `tw_ratify <words>` reviews, pages and ratifies the plan again with its publish-approved event;
 # `tw_start <step>` admits a step (plan.sh start); `tw_close <n>` closes issue n in the fake gh; `tw_post <write
 # args…>` writes a ticket and posts it, `amend <n>` in place (its file in $TW_F, its number in $TW_N); `tw_skel`, the
 # skeleton's round (below). Reads only files under checks/. Env: CHECKS, T.
@@ -29,6 +29,10 @@ tw_toy() {
 tw_ratify() { printf 'none\n' > "$T/none"; sh "$CHECKS/planner.sh" review --in "$T/none" > /dev/null && sh "$CHECKS/planner.sh" page > /dev/null 2>&1 && sh "$CHECKS/planner.sh" ratify --words "$1" > /dev/null || return 1
   printf 'publish-approved words="%s" at=%s\n' "$1" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >> .vid/metrics-events; }
 tw_hand() { mkdir -p .vid/tw; printf '%s | stand-in: the self-test\n' "$1" >> .vid/tw/handed; }
+# 0.26.10.29.2 (R9): tw_closed <step> [<state>]: the step closed as a close leaves it, each row it holds in the plan with no handed
+# state yet in that state (accepted, or another settled one), then its closed line (rule B reads a closed step at its current rows)
+tw_closed() { sh "$CHECKS/plan.sh" parse 2>/dev/null | awk -F'\t' -v s="$1" '$1 == "row" && $3 == s { print $2 }' | while read -r _r; do
+    grep -q "^row $_r " .vid/tw/handed 2>/dev/null || tw_hand "row $_r ${2:-accepted}"; done; tw_hand "closed $1"; }
 tw_start() { sh "$CHECKS/plan.sh" start "$1" > "$T/start" 2>&1; }
 tw_close() { echo CLOSED > "$T/gh/issues/$1/state"; }
 tw_post() { TW_F=$(sh "$CHECKS/writer.sh" write "$@" 2> "$T/werr") || return 1; _a=''; [ "$1" != amend ] || _a="--amend $2"

@@ -42,13 +42,13 @@ I0=$(issues); amend 2; [ "$(issues)" = "$I0" ] || fail 'an amendment made an iss
 ls "$T/gh/issues/2/comments" | grep -q . && grep -rq "^vid: amended by plan change $D1" "$T/gh/issues/2/comments" || fail "#2's amendment is not named on the issue"
 grep -q '^amended 2 kind=step step=S02 ' .vid/tw/log || fail 'the amendment is not logged'
 # a split: S03 keeps its ROW rows, S06 takes the rest
-pt_rs 's/^\(step S03 .*rows: ROW-006 ROW-007 ROW-010 ROW-014 ROW-019\) [^|]*|/\1 |/'
-pt_rs 's/^shared: web$/step S06 | name: the footer rules and protections | modules: web mail | builds-on: S01 | rows: RULE-001..RULE-003 HOS-002 HOS-004 SEAM-001 HOS-005 | lane: devagent\nshared: web/'
+pt_rs 's/^\(step S03 .*rows: ROW-006 ROW-007 ROW-010 ROW-014 ROW-019 RULE-001..RULE-003\) [^|]*|/\1 |/'   # 0.26.10.29.2 (R11): S03 keeps more than half, so it is amended
+pt_rs 's/^shared: web$/step S06 | name: the footer rules and protections | modules: web mail | builds-on: S01 | rows: HOS-002 HOS-004 SEAM-001 HOS-005 | lane: devagent\nshared: web/'
 chg split 'S03 split in two' step:S03 'each half ships alone'
 sed 's/^open-tickets: 2$/open-tickets: 3/' .vid/tw/settings > "$T/s" && cat "$T/s" > .vid/tw/settings
 tw_start S06 || { cat "$T/start" >&2; fail 'S06 was refused'; }; grep -q 'neither rule applies' "$T/start" || fail 'the split is not admitted without rules A and B'
 due; owes 'amend 3'; owes 'new step S06'; amend 3; A3=$(hrows "$TW_F"); tw_post step S06 || fail "S06's ticket failed"; [ "$TW_N" = 4 ] || fail "S06's ticket is #$TW_N"
-[ "$A3" = 'ROW-006 ROW-007 ROW-010 ROW-014 ROW-019' ] && [ "$(hrows "$TW_F")" = 'RULE-001 RULE-002 RULE-003 HOS-002 HOS-004 SEAM-001 HOS-005' ] || fail "the split's tickets hold $A3 and $(hrows "$TW_F")"
+[ "$A3" = 'ROW-006 ROW-007 ROW-010 ROW-014 ROW-019 RULE-001 RULE-002 RULE-003' ] && [ "$(hrows "$TW_F")" = 'HOS-002 HOS-004 SEAM-001 HOS-005' ] || fail "the split's tickets hold $A3 and $(hrows "$TW_F")"
 # a withdrawal: S06 leaves the plan, its rows to S07
 pt_rs 's/^step S06 | name: the footer rules and protections | modules: web mail/step S07 | name: the footer rules, again | modules: web mail/'
 chg other 'S06 withdrawn, its rows planned again as S07' step:S03 'S07 goes out instead'; D2=$(sed -n 's/.*decision=\([^ ]*\).*/\1/p' "$T/out" | head -n 1)
@@ -71,7 +71,7 @@ due; owes 'amend 2'; owes 'amend 3'; amend 3; E=$(git -C "$T/gh/repos/owner%code
 grep -qx -- "- export: $E" "$TW_F" && grep -q 'the owner chose' "$TW_F" && grep -q "^- amended: at the spec export $E" "$TW_F" || fail '#3 is not re-pointed at the new export'
 amend 2; tw_post amend "$S7" || fail "#$S7 could not be amended"
 # an amended row of a closed ticket goes out again; a closed ticket is never amended
-tw_close 3; tw_hand 'closed S03'; sed 's/opens the unsubscribe page with no sign-in/opens the unsubscribe page, with no sign-in/' INVENTORY.md > "$T/i" && cat "$T/i" > INVENTORY.md; g commit -qam 'ROW-007 amended'
+tw_close 3; tw_closed S03; sed 's/opens the unsubscribe page with no sign-in/opens the unsubscribe page, with no sign-in/' INVENTORY.md > "$T/i" && cat "$T/i" > INVENTORY.md; g commit -qam 'ROW-007 amended'
 tw_ratify 'Yes, ROW-007 amended' || fail 'ROW-007 was not ratified'; due; owes 'new step S03'
 if sh "$W" write amend 3 > "$T/out" 2>&1; then fail 'a closed ticket was amended'; fi; grep -q 'is not open' "$T/out" || fail 'the closed ticket is not named'
 tw_post step S03 || fail "S03's second ticket failed"; [ "$(hrows "$TW_F")" = ROW-007 ] || fail "S03's second ticket holds $(hrows "$TW_F")"
@@ -92,7 +92,7 @@ tw_hand 'reached ROW-004 REQ-001'; due; owes 'new reached'; tw_post reached || f
 grep -qx -- '- kind: reached' "$TW_F" && sec "$TW_F" 'Rows a ruling reached' | grep -q '^- ROW-004, its requirement REQ-001 changed' || fail 'the reached rows ticket does not hold ROW-004'
 sec "$TW_F" Asks | grep -qF 'When every test is kept, commit nothing but one empty commit naming the kept rows, so the pull request has a head.' || fail 'the reached T1 does not say how a kept test returns'   # v0.26.10.26.7 (R6)
 due; ! grep -q 'new reached' "$T/due" || fail 'a listed reached row is owed again'
-tw_hand 'reached ROW-003 REQ-001'; tw_close 2; tw_close "$RT"; tw_close "$S7"; tw_hand 'closed S02'; sh "$GS" tw-sync > /dev/null 2>&1
+tw_hand 'reached ROW-003 REQ-001'; tw_close 2; tw_close "$RT"; tw_close "$S7"; tw_closed S02; sh "$GS" tw-sync > /dev/null 2>&1
 tw_start S04 || { cat "$T/start" >&2; fail 'S04 was refused'; }; tw_post step S04 || fail "S04's ticket failed"
 sec "$TW_F" 'Rows a ruling reached' | grep -q '^- ROW-003, its requirement REQ-001 changed' || fail 'the reached row did not ride into the next ticket'
 # a second ruling on a listed row: S04's ticket closed, REQ-001 reworded and ratified, ROW-003 goes out again, quoted

@@ -16,7 +16,7 @@ sh "$GS" spec-setup > "$T/out" 2>&1 || fail 'spec-setup failed'; sh "$CHECKS/eve
 rd next; grep -q '^published 1$' "$T/out" || fail 'the skeleton ticket was not published'
 W=$T/w; git clone -q "$T/code.git" "$W" 2>/dev/null
 br() { git -C "$W" checkout -q -B "$1" origin/main 2>/dev/null; git -C "$W" -c user.name=a -c user.email=a@b commit -q --allow-empty -m "$1"; git -C "$W" push -q -f origin "$1"; git -C "$W" rev-parse HEAD; }
-pr() { gh pr create -R $R --head "$1" --base main --title t --body "ticket: #$2" | sed 's/.*\///'; }
+pr() { gh pr create -R $R --head "$1" --base main --title t --body "$(printf 'ticket: #%s\n\nDecisions: none' "$2")" | sed 's/.*\///'; }
 ask() { printf 'vid: decide %s\nby: MR\n' "$2" > "$T/c"; gh pr comment "$1" -R $R --body-file "$T/c" > /dev/null; }
 send() { rm -rf "$T/x"; mkdir -p "$T/x"; cp -R "$T/r/$1" "$T/x/"; git -C "$T/x" init -q; git -C "$T/x" add -A; git -C "$T/x" -c user.name=a -c user.email=a@b commit -qm "$1"; git -C "$T/x" push -q -f "$T/code.git" "HEAD:refs/heads/vid-results/$1"; }
 rep() { Q=$1; H=$2; shift 2; rr_put "$Q" results.txt "$(printf 'by: TM\ncommit: %s\nengines: alpha\nenvironments: 2' "$H")"; rr_put "$Q" cases-alpha.xml "$(rr_cases "$@")"; send "$Q"; }

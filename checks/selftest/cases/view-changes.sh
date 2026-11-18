@@ -13,6 +13,8 @@ T=$(mktemp -d); trap 'set +e; rm -rf "$T" 2>/dev/null' EXIT
 . "$CHECKS/selftest/fixtures/viewer.sh"
 fail() { echo "view-changes: $*" >&2; exit 1; }
 view_project "$T/repo"
+# 0.26.10.29.3 (R2): the mark asks for `delegated: yes` on the answer's row; the working tree's row is given it
+sed 's/^\(A-002 | human | .*\)$/\1 | delegated: yes/' PRD.md > "$T/prd" && cp "$T/prd" PRD.md
 sh checks/metrics.sh delegated --answer A-002 > /dev/null
 vview . --out "$T/out" > "$T/r" 2>&1 || fail "the run failed: $(cat "$T/r")"
 vdata "$T/out/index.html" > "$T/i"

@@ -818,7 +818,14 @@ build() {
   scanfolder "$NB" "$W/known" > "$W/scan"
   manifest
   for f in MANIFEST.json MANIFEST.md; do SHARE_MODE=scan SHARE_KNOWN=$W/known LC_ALL=C awk "$RED" "$NB/$f" | awk -F'\t' -v f="$f" '{ print f "\t" $1 "\t" $2 }' >> "$W/scan"; done
-  rm -rf "$B"; mv "$NB" "$B"
+  # 0.26.10.29.3 (R9, F55): a folder a cloud drive syncs can refuse the rename while it syncs; then the bundle is copied
+  # into place and the building folder removed, and the build says so
+  rm -rf "$B"
+  if ! mv "$NB" "$B" 2> "$W/mv.err"; then
+    cp -R "$NB" "$B" || die "the bundle could not be moved or copied into place ($(head -n 1 "$W/mv.err"))"
+    rm -rf "$NB"
+    echo "ViD share: the rename into place failed ($(head -n 1 "$W/mv.err")); the bundle was copied into place and the building folder removed." >&2
+  fi
   # the personal values the scan needs, beside the bundle and never in it, readable by the user alone
   ( umask 077; cp "$W/known" "$OUTROOT/$RUN.known" )
   summary

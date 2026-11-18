@@ -33,7 +33,7 @@ admitted S01 'in stage 0'
 refused S02 stage 'in stage 0' 'S02 holds rows outside stages 0 to 0'
 tw_hand 'candidate 0'; tw_hand 'staged 0'
 refused S02 rule-B 'with S01 open' 'S02 builds on S01, which is not closed, and its rows ROW-003 ROW-004 are not owed'
-tw_hand 'row ROW-003 accepted'; tw_hand 'row ROW-004 accepted'; tw_hand 'closed S01'
+tw_hand 'row ROW-003 accepted'; tw_hand 'row ROW-004 accepted'; tw_closed S01
 log 'published 1 kind=skeleton step=S01 rows=ROW-003,ROW-004'; log 'sync main=abc open=1'
 admitted S02 'with S01 closed, one ticket open'
 refused S03 open-tickets 'at the limit' 'the open-ticket limit: 2 tickets open or owed'
@@ -47,9 +47,9 @@ if sh "$P" change rows 'ROW-020 into S05' --trigger test-evidence --evidence tic
 sh "$P" change rows 'ROW-020 into S05' --trigger test-evidence --evidence ticket:3 --expect 'S05 holds it' > "$T/out" 2>&1 || fail 'ticket:3, published, did not resolve'
 # rule A, its ceiling, the split and rows added — a fresh toy at unverified-rows=15
 cd "$T"; rm -rf "$T/gh" "$T/code.git" "$T/dev"; tw_toy "$T/b"; mkdir -p checks; cp "$CHECKS/stages.sh" "$CHECKS/prd.sh" checks/; tw_hand 'candidate 0'; tw_hand 'staged 0'; sed 's/^open-tickets: 2/open-tickets: 9/' .vid/tw/settings > "$T/s" && cat "$T/s" > .vid/tw/settings
-admitted S01 'in a fresh toy'; tw_hand 'closed S01'; admitted S02 'with S01 closed'
+admitted S01 'in a fresh toy'; tw_closed S01; admitted S02 'with S01 closed'
 printf 'unverified-rows=15\n' > .vid/budget
-refused S03 rule-A 'over the ceiling' 'rule A (tickets): 25 open rows would exceed the ceiling of 15 (13 rows of started steps'
+refused S03 rule-A 'over the ceiling' 'rule A (tickets): 23 open rows would exceed the ceiling of 15 (11 rows of started steps'   # 0.26.10.29.2 (R9): S01's 2 rows accepted at its close
 printf 'stacks=2\nunverified-rows=150\n' > .vid/budget; admitted S03 'at unverified-rows=150, capped at 60 × 2'
 grep -q 'admitting under 120' "$T/out" || fail 'the ceiling is not capped at 60 × stacks=2'; printf 'unverified-rows=15\n' > .vid/budget
 pt_rs 's/^\(step S02 .*\)rows: ROW-001 ROW-005 ROW-008 /\1rows: /'
@@ -61,7 +61,7 @@ if sh "$P" change rows 'ROW-002 into the started S02' --trigger cost --evidence 
 grep -q 'rows added to the started step S02 are admitted like a new step' "$T/out" || fail 'the added rows are not refused by rule A'
 # the stage: S05 waits for stage 1's candidate
 cd "$T"; rm -rf "$T/gh" "$T/code.git" "$T/dev"; tw_toy "$T/c"; mkdir -p checks; cp "$CHECKS/stages.sh" "$CHECKS/prd.sh" checks/; tw_hand 'candidate 0'; tw_hand 'staged 0'
-admitted S01 'in the third toy'; tw_hand 'closed S01'; admitted S02 'in the third toy'; tw_hand 'closed S02'
+admitted S01 'in the third toy'; tw_closed S01; admitted S02 'in the third toy'; tw_closed S02
 pt_rs 's/^stage: 0$/stage: 1/'
 refused S05 stage 'in stage 1' 'S05 holds rows outside stages 0 to 1'
 log 'published 1 kind=skeleton step=S01'; log 'published 2 kind=step step=S02'; log 'sync main=abc open=-'
@@ -89,5 +89,5 @@ cd "$T"; rm -rf "$T/gh" "$T/code.git" "$T/dev"; tw_toy "$T/d"; mkdir -p checks; 
 pt_rs 's/^plan: required$/plan: required\nstrategy: breadth-first/'
 admitted S01 'under breadth first'
 refused S02 graded 'under breadth first with S01 open' 'S01 is not closed: never closed'
-tw_hand 'closed S01'; admitted S02 'under breadth first with S01 closed'
+tw_closed S01; admitted S02 'under breadth first with S01 closed'
 exit 0

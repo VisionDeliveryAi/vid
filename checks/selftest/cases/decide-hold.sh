@@ -14,7 +14,7 @@ RS=$CHECKS/results.sh; DS=$CHECKS/decide.sh; rr_project; : > .vid/RUN-STATE.md; 
 git init -q --bare "$T/code.git"; gh_fake; mv "$T/bin/gh" "$T/bin/gh-fake"
 cat > "$T/bin/gh" <<'G'
 #!/bin/sh
-case "$1 $2 ${7:-}" in 'pr view labels') echo; exit 0 ;; esac
+case "$1 $2 ${7:-}" in 'pr view labels') echo; exit 0 ;; 'pr view body') printf 'ticket: #x\n\nDecisions: none\n'; exit 0 ;; esac
 exec "$(dirname "$0")/gh-fake" "$@"
 G
 chmod +x "$T/bin/gh"; for n in 3 5; do mkdir -p "$T/gh/issues/$n/comments"; echo OPEN > "$T/gh/issues/$n/state"; done; mkdir -p "$T/gh/prs/4/comments"

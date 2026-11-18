@@ -7,6 +7,8 @@
 # begin close: rehearsal-<N> and close: production-<N>, get their chunks' lines as any close run. The dev manager's file says who does each: DP the okays and the
 # recovery by deploy.sh, TM the CR and CP chunks, CP's sign-ins from the record. The row grader's file is as at 00109a8, the second reviewer's as at aa6e610.
 # Skips where devagent/ is absent (a project's layout). Env: CHECKS.
+# 0.26.11.1.1 (R2): a hosted okay, the record's host: or a `> platform:` line in its hosting, and every recovery of a hosted production, go to the
+# deployer, started by `sh dm.sh start deployer`; with `deploy: local` the dev manager deploys as before, its stand-in seam: lines written first.
 set -eu
 [ -d "$CHECKS/../devagent" ] || { echo 'needs devagent/'; exit 77; }
 RT=$(cd "$CHECKS/.." && pwd -P); DM=$RT/devagent/dev-manager/dm.sh
@@ -70,6 +72,8 @@ for l in '## A rehearsal okay, RH' 'okay: rehearsal' '--target rehearsal' 'vid: 
   'vid: recovered <the commit production runs now, or none> — <what you did>' 'close: rehearsal-<N>' 'close: production-<N>' 'production-signin:' 'ViD never sees them' '--plant-red' \
   'backup:' 'restore:' 'migrate:' '| A recovery |' '| A rehearsal okay, RH |' '| A production okay, D2 |'; do
   grep -qF -- "$l" "$RT/devagent/agents/dev-manager.md" || fail "the dev manager's file lacks: $l"; done
-! git -C "$RT" cat-file -e 00109a8 2> /dev/null || [ "$(git -C "$RT" rev-parse 00109a8:standin/agents/grader.md 2>/dev/null)" = "$(git -C "$RT" hash-object devagent/agents/grader.md)" ] || fail "the row grader's file changed since 00109a8"
+for l in 'sh dm.sh start deployer' '`deploy: local`' 'each recovery'; do
+  grep -qF -- "$l" "$RT/devagent/agents/dev-manager.md" || fail "the dev manager's file lacks: $l"; done
+! git -C "$RT" cat-file -e 00109a8 2> /dev/null || [ "$(git -C "$RT" rev-parse 00109a8:standin/agents/grader.md 2>/dev/null)" = "$(sed -f "$CHECKS/selftest/fixtures/grader-dp1-r3.sed" "$RT/devagent/agents/grader.md" | git hash-object --stdin)" ] || fail "the row grader's file changed since 00109a8, beyond DP-1 R3's two sentences"
 ! git -C "$RT" cat-file -e aa6e610 2> /dev/null || [ "$(git -C "$RT" rev-parse aa6e610:standin/agents/second-reviewer.md 2>/dev/null)" = "$(git -C "$RT" hash-object devagent/agents/second-reviewer.md)" ] || fail "the second reviewer's file changed since aa6e610"
 exit 0

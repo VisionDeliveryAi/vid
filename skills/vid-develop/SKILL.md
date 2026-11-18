@@ -15,7 +15,7 @@ narrated.
 
 **Ticket mode refuses develop (v0.26.10.9 R9).** Before anything else,
 read `.vid/RUN-STATE.md`: while it says `mode: tickets`, refuse in one line
-— "this project's plan is published as tickets; /vid replan continues it" —
+— "this project's plan is published as tickets; /vid:vid-run continues it" —
 and record nothing. One planner per project.
 
 **The stage event (v0.9.5 3.11, R11).** First of all, record
@@ -72,7 +72,9 @@ the refresh (no `delegated` event in `.vid/metrics-events` yet), if the
 owner has ever delegated decisions to ViD's recommendation, mark each
 existing answer you took under that delegation, by hand, from your own
 record of the run (the run's log of delegated rulings, the answers you
-wrote): one `sh checks/metrics.sh delegated --answer <A-id>` each. Nothing
+wrote): one `sh checks/metrics.sh delegated --answer <A-id>` each (from
+0.26.10.29.3 the mark asks for `delegated: yes` on the answer's row: restate
+such an answer `A-NNN AMENDED` with the field first). Nothing
 is inferred from an answer's wording; an answer you are not sure of stays
 unmarked. The mark says how an answer was made, so it reaches every past
 snapshot the viewer makes.
@@ -922,20 +924,43 @@ accordingly.
   record `sh checks/event.sh 'question n=<n> state=answered'`, and
   continue. **The delegated mark (v0.9.7.4 3.9, R10):** when the owner has
   delegated decisions to ViD's recommendation, each answer ViD writes under
-  that delegation is marked in the same step that commits it — `sh
+  that delegation is marked before its commit (0.26.10.29.3 R2: a refused
+  mark then comes in time) — `sh
   checks/metrics.sh delegated --answer <A-id>` — so the viewer lists it for
   the owner to confirm; an answer the owner gave in their own words is never
-  marked. The answer's append goes to PRD.md
+  marked. **The owner's words (0.26.10.29.3, R2):** the answer is `human`
+  only with the owner's yes, and its commit quotes the owner's words in an
+  `Owner:` trailer — `Owner: "<words>"`, or `Owner: A-NNN "<words>"` per
+  answer; an answer written under a delegation quotes the delegation — and
+  commit-msg refuses a human answer added without one (vid-create-prd,
+  "The owner's words"). A delegated answer's row carries the field
+  `delegated: yes` (the mark asks for it), and the owner's confirmation
+  restates the answer `A-NNN AMENDED | human` without it; while the row
+  carries it, the court holds any arm withdrawn under the answer, whatever
+  the order. One answer is never the owner's by delegation: one
+  that an `arms:` entry `withdrawn A-NNN` would cite. It is written
+  `model_proposed`, never `human`, and its withdrawing amendment is not
+  committed (join 14 holds it as a gap; the mark is refused for an answer a
+  withdrawn arm cites); its question goes to the owner at the next
+  sitting, and on their yes the answer is restated `human` with the
+  owner's own words in the trailer, not the delegation's, is not marked
+  delegated, and the withdrawal then lands. The answer's append goes to PRD.md
   `## Appends` (under a PRD headed `grammar: 0.9.4` or later, a new or
   amended item carries `feature:`; under one headed `grammar: 0.9.5` or later every new or AMENDED demand item and invariant also carries `plain:` — one sentence of at most 30 words saying the rule in the owner's words, no ids, every number in it taken from its own statement or fail-if (v0.9.5 3.13)); spawn
   `${CLAUDE_PLUGIN_ROOT}/skills/vid-create-prd/passes/whole-set-review.md`
   in `mode: delta` on that append against the effective set (v0.9.1
-  3.2) — its findings are the next questions or `fix_from_record`
+  3.2) before the append is committed, and write its record in the append
+  (0.26.10.29.3 R3: its findings, ruled, as rows of the section's own ```vid-prd-findings block (pass `review`), and the line `review: delta, round <r>, <n> findings` (`<r>` the round the review ended on, `<n>` the rows of the section's findings block, every round's; one round and no findings: `round 1, 0 findings`; vid-create-prd, "The findings record"); pre-commit refuses a new append section holding
+  rows without it) — its findings are the next questions or `fix_from_record`
   amendments in the same sitting (v0.9.8.1 R29: every `needs_owner`
   finding that narrows or withdraws a fail-if arm goes to the owner as one
   question per review, listing each row, its arm and the answer it
-  follows; the answer settles every row it names), and the run records `sh checks/event.sh 'tokens slice=N
+  follows; the answer settles every row it names); what the repairs and
+  the rulings land is read again by the same pass (vid-create-prd, "Reviews converge", in Pass mechanics: every repaired round is read again by the same pass, up to three rounds, and what remains goes to the owner as one list; 0.26.10.29.3 phase 2, R1), and the run records `sh checks/event.sh 'tokens slice=N
   phase=review n=T'`; add a ledger test if testable, continue.
+- **A question an agent raises (0.26.10.29.3 R4)** — a builder's, a
+  fixer's, a grader's or an analyst's: a question an agent's report raises that ViD cannot settle from the record (a ruling, the seed, or an owner answer it can cite) becomes an open carrier at once, `VID-QUESTION: (OQ-n) <the question>` in a dated append, raised with the owner at the next sitting; one ViD settles from the record is answered in the message to the owner with the record line that settles it (vid-create-prd, "The owner's words, and the questions raised") — besides its `Q<n>` line when it gates work.
+  Never call it settled, or defer it to a later stage, without one or the other.
 - **A question that would change the law (v0.26.10.3 R5).** When the
   recommended answer would change a fail-if or a row's obligation, draft
   the change first in a scratch copy of PRD.md and INVENTORY.md and run

@@ -31,7 +31,7 @@ sec "$F" History | grep -qx -- '- ROW-001: its earlier tickets #2; its failing d
 [ "$(asks "$F")" = 'T1 T2 T3 T4 T5' ] && sec "$F" Asks | grep -q 'TM may name the base as the tests-first commit' || fail "the fix ticket asks $(asks "$F")"
 sh "$W" due > "$T/due" 2>&1; ! grep -q "new fix $K1" "$T/due" || fail 'a published fix ask is still owed'
 grep -q "^published $N kind=fix step=S02 rows=ROW-001 .* fix=$K1 " .vid/tw/log || fail 'the fix ticket is not logged with its key'
-grep -q '^2\. GR is .* In a fix ticket, GR reads the ticket without its failed: lines, its History and the why: of each decision' "$F" || fail 'rule 2 does not keep the history from the grader'
+grep -q '^2\. GR is .* GR reads the ticket without the why: of each decision, and a fix ticket also without its failed: lines and its History' "$F" || fail 'rule 2 does not keep the history from the grader'
 # a second ask links the fix ticket; a stage-0 row's fix stays the skeleton step's
 tw_close "$N"; sh "$GS" tw-sync > /dev/null 2>&1; tw_hand 'fix ROW-001 | it failed again in the staging run | staging run 4200'
 tw_post fix ROW-001 || fail 'the second fix ticket was refused'; sec "$TW_F" History | grep -q "^- ROW-001: its earlier tickets #2, #$N; " || fail 'the second fix does not link the first fix ticket'

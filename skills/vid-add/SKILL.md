@@ -48,7 +48,14 @@ mini-interview asks it (checks/prd.sh join 18 refuses a T0 item resting on
 a ViD decision unless it waits on that decision's own open question), and
 the answer lands `human` with `importance: priority`. Every answer's `A:`
 restates the value decided — values in the new items are traced against
-the `A:` texts they cite.
+the `A:` texts they cite. **The owner's words (0.26.10.29.3, R2):** an
+answer is `human` only with the owner's yes, given at this
+mini-interview; one ViD proposes that the owner has not seen is
+`model_proposed`. The append commit quotes the owner's words in an
+`Owner:` trailer — `Owner: "<words>"`, or `Owner: A-NNN "<words>"` per
+answer — and commit-msg refuses a human answer added without one
+(vid-create-prd, "The owner's words"); in ticket mode the landing quotes
+the owner's yes. **Raised questions (0.26.10.29.3 R4):** a question an agent's report raises that ViD cannot settle from the record (a ruling, the seed, or an owner answer it can cite) becomes an open carrier at once, `VID-QUESTION: (OQ-n) <the question>` in a dated append, raised with the owner at the next sitting; one ViD settles from the record is answered in the message to the owner with the record line that settles it (vid-create-prd, "The owner's words, and the questions raised").
 
 ## 2. Append the spec
 
@@ -118,8 +125,8 @@ the `A:` texts they cite.
     "say 'continue' to build it with stage <its stage>". Develop's scoped
     grade holds until that build's completion. (Owner decision D2 (a).)
 
-  The placement is its own law commit, right after the append commit and
-  before the whole-set review: the feature joins a `STAGE-` line of
+  The placement is its own law commit, right after the append commit
+  (which follows the whole-set review, below): the feature joins a `STAGE-` line of
   STAGES.md's ```vid-stages block (or a `split:` line places its
   requirements), the message citing the answer (`Stages: A-NNN`) —
   commit-msg refuses a membership change without one. Until it lands,
@@ -131,7 +138,8 @@ the `A:` texts they cite.
   `plan:`). `sh checks/stages.sh current`, admission, the close of
   STAGE-<k+1> (the final stage: tagged `vid/stage-<k+1>`, no next stage)
   and develop's staging step at that close then read it unchanged.
-- After the append commit (and its placement, above) and before §2b: spawn
+- Before the append commit (0.26.10.29.3 R3: no append is committed
+  without its review), on the prepared append: spawn
   `${CLAUDE_PLUGIN_ROOT}/skills/vid-create-prd/passes/whole-set-review.md`
   in `mode: delta` on the append against the effective set (v0.9.1 3.2),
   once per add (v0.26.10.24 R1). Its findings are ruled now, one line
@@ -139,8 +147,13 @@ the `A:` texts they cite.
   question goes back to the mini-interview (v0.9.8.1 R29: every finding
   that narrows or withdraws a fail-if arm, one question for the review,
   listing each row, its arm and the answer it follows; the answer settles
-  every row it names), and what the rulings land is not reviewed again, as
-  in vid-fix and vid-test-inventory; the run records `sh checks/event.sh 'tokens slice=0 phase=review n=T'`.
+  every row it names), and what the repairs and the rulings land is read
+  again by the same pass (vid-create-prd, "Reviews converge", in Pass mechanics: every repaired round is read again by the same pass, up to three rounds, and what remains goes to the owner as one list; 0.26.10.29.3 phase 2, R1); the run records `sh checks/event.sh 'tokens slice=0 phase=review n=T'`.
+  Write its record in the append — its findings, ruled, as rows of the
+  section's own ```vid-prd-findings block (pass `review`), and the line
+  `review: delta, round <r>, <n> findings` (`<r>` the round the review ended on, `<n>` the rows of the section's findings block, every round's; one round and no findings: `round 1, 0 findings`; vid-create-prd, "The findings record"); pre-commit
+  refuses a new append section holding rows without it. Then the append
+  commit, its placement (above), and §2b.
 - BASELINE/ARCHITECTURE changes only if the feature genuinely adds a seam,
   stack element, or Tier-0 row — rare; prefer existing seams.
 
@@ -223,7 +236,9 @@ The first line is the rows headline (v0.9.2 3.11: `sh checks/metrics.sh`'s
 `rows: kept K · unverdicted U · breached B · red R · owed O · deploy-owed
 D (unmet …)` — over the whole inventory, the delta's rows named), then
 the delta's row-set diff counts, the deploy-owed rows and `later` items
-as their own two counts, and the open questions; counts never scores.
+as their own two counts, and the open questions as the court's count — the
+`open-OQs=` field of `sh checks/prd.sh --report PRD.md`, never a number or
+"none" of your own (0.26.10.29.3 R4); counts never scores.
 
 In ticket mode the add ends as a draft asked of the owner, handing to `/vid run`, which lands it on their yes and publishes its tickets.
 

@@ -14,7 +14,7 @@ P=$CHECKS/plan.sh; D=.vid/decide; TAB=$(printf '\t')
 pc() { sh "$P" change "$1" "$2" --trigger test-evidence --evidence step:S02 --expect 'the plan holds' ${3:+--not-needed-by "$3" "$4"} > "$T/out" 2>&1; }
 tw_toy "$T/a"; mkdir -p checks "$D"; cp "$CHECKS/stages.sh" "$CHECKS/prd.sh" "$CHECKS/inventory.sh" checks/; tw_hand 'candidate 0'; tw_hand 'staged 0'
 sed 's/^open-tickets: 2/open-tickets: 9/' .vid/tw/settings > "$T/s" && cat "$T/s" > .vid/tw/settings
-tw_start S01 || fail "S01 was refused: $(cat "$T/start")"; tw_hand 'closed S01'; tw_start S02 || fail "S02 was refused: $(cat "$T/start")"
+tw_start S01 || fail "S01 was refused: $(cat "$T/start")"; tw_closed S01; tw_start S02 || fail "S02 was refused: $(cat "$T/start")"
 # depth first: a hardening step before a feature step is recorded
 pt_rs 's/^\(step S04 .*\)ROW-018 \(.*\)$/\1\2/'
 pt_rs 's/^\(step S05 .*\)$/step S06 | name: the edge cases | modules: digest | builds-on: - | rows: ROW-018 | lane: devagent | kind: hardening\n\1/'
@@ -40,10 +40,11 @@ cat "$T/drained" > .vid/RUN-STATE.md; mv_row ROW-016
 if pc edge 'defer ROW-016'; then fail 'the safeguard missed the held product failure'; fi
 grep -q 'ROW-016, needed by S04 (not done)' "$T/out" && grep -q 'ROW-016, needed by S05 (not done)' "$T/out" || fail 'the safeguard does not name the dependents'
 pc edge 'defer ROW-016' S04,S05 'they read no partner feed' || fail "the deferral was refused: $(cat "$T/out")"
-# rule A: the started S01's 2 rows and S02's 11, less the parked ROW-016, and S03's 12 new rows not yet owed
-printf 'unverified-rows=24\n' > .vid/budget
+# rule A: the started S02's 11 rows, less the parked ROW-016, and S03's 12 new rows not yet owed (0.26.10.29.2, R9: S01's 2 rows
+# are accepted at its close, tw_closed, as its dependents need)
+printf 'unverified-rows=22\n' > .vid/budget
 sh "$P" strategy depth-first --by owner --words 'depth again' > /dev/null 2>&1 || fail 'the switch back was refused'
-if tw_start S03; then fail 'S03 was admitted under depth first with the parked row counted'; fi; grep -q 'rule A (tickets): 25 open rows' "$T/start" || fail "rule A under depth first: $(cat "$T/start")"
+if tw_start S03; then fail 'S03 was admitted under depth first with the parked row counted'; fi; grep -q 'rule A (tickets): 23 open rows' "$T/start" || fail "rule A under depth first: $(cat "$T/start")"
 sh "$P" strategy breadth-first --by owner --words 'breadth again' > /dev/null 2>&1 || fail 'breadth first was refused again'
 tw_start S03 || fail "S03 was refused under breadth first, the parked row counted: $(cat "$T/start")"
 # depth first untouched: a weak-test row moves by an edge change

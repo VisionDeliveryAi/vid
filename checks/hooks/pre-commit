@@ -23,7 +23,7 @@
 # together are all named, comma-separated; inventory and census apart),
 # every other refusal its own name at its own exit (protected-paths,
 # law-dirty, law-standalone, purpose-header, decisions-enforced,
-# decisions-promissory, decisions-label (v0.9.7.3), hosting-access (v0.26.10.8), no-plan-step (v0.26.10.24), line-endings and decisions-ticket (0.26.10.28.1), index-copy, red-stamp, prd-grammar, selftest) — and
+# decisions-promissory, decisions-label (v0.9.7.3), hosting-access (v0.26.10.8), no-plan-step (v0.26.10.24), line-endings and decisions-ticket (0.26.10.28.1), index-copy, red-stamp, prd-grammar, append-review and final-review (0.26.10.29.3), selftest) — and
 # the EXIT trap, on a refused exit, appends ` by=<names>` to its hook-times
 # line and writes `refused phase=pre-commit by=<names> attempt=<UTC time
 # plus 4 hex>` to the run's events (checks/event.sh, so at the run's home).
@@ -279,7 +279,13 @@ fi
 
 # 4b. Enforcement refs must not be promissory: a named ledger test must exist,
 # and "future/planned/TBD" is not enforcement.
-for p in $(printf '%s\n' "$DJUDGE" | grep -oE 'tests/invariants/[A-Za-z0-9_./-]+' | sed 's/[.,;]*$//' | sort -u); do
+# 0.26.10.29.5 (DP-1 R2): in ticket mode a line marked `origin: dev-side` (checks/decisions.sh record) is enforced by its ticket or
+# deploy ref, and its words are the dev side's, where a path names the dev side's own tests: the ledger-path test does not read it
+D4B=$DJUDGE
+if grep -q '^mode:[[:space:]]*tickets' .vid/RUN-STATE.md 2>/dev/null; then
+  D4B=$(printf '%s\n' "$DJUDGE" | grep -vE '\|[[:space:]]*origin:[[:space:]]*dev-side[[:space:]]*(\||$)' || true)
+fi
+for p in $(printf '%s\n' "$D4B" | grep -oE 'tests/invariants/[A-Za-z0-9_./-]+' | sed 's/[.,;]*$//' | sort -u); do
   if [ ! -f "$p" ]; then
     echo "ViD pre-commit: rejected — DECISIONS.md cites '$p' as enforcement, but no such file exists." >&2
     echo 'Write the ledger test first; promissory refs are invalid.' >&2
@@ -320,38 +326,12 @@ fi
 # module table — the first table with a Module column, a dotted label read
 # as a path, as the viewer reads it. Nothing requires a module item.
 if [ -n "$DLINES" ]; then
-  DJF=$(mktemp)
-  git show :INVENTORY.md 2>/dev/null | sed -n '/^```vid-inventory/,/^```$/p' | sed '1d;$d' | awk -F'|' '
-    function tr(s) { gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
-    { id = tr($1)
-      if (id ~ /^ROW-[0-9]+$/) { print id
-        n = split(tr($7), a, /[ ,]+/); for (k = 1; k <= n; k++) if (a[k] ~ /^REQ-[0-9]+$/) print a[k]
-        n = split(tr($5), a, /[ ,]+/); for (k = 1; k <= n; k++) if (a[k] != "n/a" && index(a[k], "/") > 1) print substr(a[k], 1, index(a[k], "/") - 1)
-        for (i = 8; i <= NF; i++) { f = tr($i); if (f ~ /^divergence:/) { sub(/^divergence:[ \t]*/, "", f); n = split(f, a, /[ ,]+/); for (k = 1; k <= n; k++) if (a[k] ~ /^DIF-[0-9]+$/) print a[k] } } }
-      else if (id == "rule" && tr($2) ~ /^RULE-[0-9]+$/) print tr($2) }' | sort -u > "$DJF" 2>/dev/null || : > "$DJF"
-  git show :ARCHITECTURE.md 2>/dev/null | awk -F'|' 'function tr(s) { gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
-      /^[ \t]*\|/ { if (done) next; if (!intab) { intab = 1; if (!col) { n = split($0, c, "|"); for (k = 2; k < n; k++) if (tr(c[k]) == "Module") col = k } next }
-        if (!col || $0 ~ /^[ \t]*\|[ \t:|-]*$/) next; split($0, c, "|"); m = c[col]; gsub(/`/, "", m); m = tr(m)
-        if (m == "" || index(m, "{{") == 1 || m == "Module") next; if (m !~ /\// && m ~ /\./) gsub(/\./, "/", m); print m; next }
-      { if (intab && col) done = 1; intab = 0 }' >> "$DJF" 2>/dev/null || true
-  LBAD=$(printf '%s\n' "$DLINES" | grep -v '^$' | awk -F'|' -v jf="$DJF" '
-    function tr(s) { gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
-    BEGIN { while ((getline l < jf) > 0) { J[l] = 1; if (l ~ /^DIF-/) dif = 1 } }
-    { line = substr($0, 2); a2 = ""; sc = ""; na = 0; ns = 0
-      for (i = 2; i <= NF; i++) { f = tr($i)
-        if (f ~ /^applies-to:/) { na++; sub(/^applies-to:[ \t]*/, "", f); a2 = f }
-        else if (f ~ /^scope:/) { ns++; sub(/^scope:[ \t]*/, "", f); sc = f } }
-      if (na + ns == 0) { print "    " line "\n      no label: add `| applies-to: <ids and codes>` or `| scope: project`"; next }
-      if (na + ns > 1) { print "    " line "\n      more than one label: a decision carries one"; next }
-      if (ns) { if (sc != "project") print "    " line "\n      scope: takes only `project`"; next }
-      n = split(a2, it, /[ ,]+/); bad = ""; k2 = 0
-      for (k = 1; k <= n; k++) { x = it[k]; if (x == "") continue; k2++
-        if (x in J) continue
-        if (x ~ /^DIF-[0-9]+$/ && !dif) bad = bad "\n      " x ": no INVENTORY row carries a divergence: field, so nothing could join a DIF label"
-        else if (x ~ /^(ROW|REQ|RULE|DIF)-[0-9]+$/) bad = bad "\n      " x ": not an id a brief joins on (INVENTORY row ids, their derived-from REQ ids, rule-row ids, divergence: DIF ids)"
-        else bad = bad "\n      " x ": not a screen code any INVENTORY row marks, nor a ROW, RULE, REQ or DIF id, nor a module id of ARCHITECTURE.md" }
-      if (!k2) bad = "\n      applies-to: names nothing"
-      if (bad != "") print "    " line bad }')
+  # 0.26.10.29.3 (R7): the join is checks/labels.sh's, which checks/decisions.sh's labelling pass uses too
+  [ -f checks/labels.sh ] || { echo 'ViD pre-commit: rejected — checks/labels.sh, the decision-label join, is missing: refresh checks/ from the plugin.' >&2; BY=decisions-label; exit 1; }
+  . checks/labels.sh
+  DJF=$(mktemp); git show :INVENTORY.md > "$DJF.i" 2>/dev/null || : > "$DJF.i"; git show :ARCHITECTURE.md > "$DJF.a" 2>/dev/null || : > "$DJF.a"
+  label_items "$DJF.i" "$DJF.a" > "$DJF"; rm -f "$DJF.i" "$DJF.a"
+  LBAD=$(printf '%s\n' "$DLINES" | sed 's/^+//' | label_bad "$DJF")
   rm -f "$DJF"
   if [ -n "$LBAD" ]; then
     echo 'ViD pre-commit: rejected — DECISIONS.md lines without a label a brief can join on (v0.9.7.3 R1):' >&2
@@ -554,6 +534,63 @@ if git diff --cached --name-only | grep -qxF PRD.md; then
     mkdir -p .vid
     printf 'failif-amendment n=%s at=%s\n' "$AMEND" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >> .vid/metrics-events
     echo "ViD pre-commit: note — $AMEND Fail-if amendment(s) counted (F9: legitimate, and counted)."
+  fi
+fi
+
+# 6c. 0.26.10.29.3 (R3): no append is committed without its review. Each append section the staged PRD.md adds — a
+# `### ` heading under `## Appends`, to the next heading, occurring more often there than in HEAD's PRD.md (during a
+# merge, than in HEAD's or MERGE_HEAD's) — that holds a row block (```vid-prd, -answers, -features, -mechanisms or
+# -contract) carries its delta review's record: one line `review: delta, <n> findings` outside any fence (the
+# consolidation review's own append, 7b: `review: whole, <n> findings`) and n rows in the section's
+# ```vid-prd-findings block(s); with 0 findings, the line alone. A section of carriers or prose alone has no rows to
+# review. Appends already committed are never judged, and nothing but the tracked PRD.md is read; a PRD.md that HEAD
+# does not hold yet (its first commit here, an adopted file's included) brings appends committed where it was written.
+# 0.26.10.29.3 (phase 2 R2): this phase's line is taken too, `review: <delta|whole|final>, round <r>, <n> findings`,
+# with a final review's `, read: <files>` or a repair append's `, 0 findings, see <heading>` (its rows are under that
+# heading of ## Findings, so the section holds none); its exact form and its count are checks/prd.sh's join 13, which
+# this hook runs on the staged PRD.md. Phase 1's line keeps passing here as before.
+if git diff --cached --name-only | grep -qxF PRD.md && git rev-parse -q --verify HEAD:PRD.md >/dev/null 2>&1; then
+  _ap() { git show "$1" 2>/dev/null | awk '/^## / { on = ($0 == "## Appends") } on' || true; }
+  _rvm=$(git rev-parse -q --verify MERGE_HEAD 2>/dev/null || true)
+  RVBAD=$( { _ap HEAD:PRD.md | grep '^### ' | sed 's/^/H /'; [ -z "$_rvm" ] || _ap "$_rvm:PRD.md" | grep '^### ' | sed 's/^/M /'; _ap :PRD.md | sed 's/^/S /'; } | awk '
+    function judge() { if (cur == "" || !isnew || !rows) return
+      if (rv == 0) out = out "    " cur "\n      no review: line — the delta review'"'"'s record is `review: delta, round <r>, <n> findings` (0 findings: the line alone)\n"
+      else if (rv > 1) out = out "    " cur "\n      " rv " review: lines — one per section\n"
+      else if (rn != nf) out = out "    " cur "\n      review: says " rn " finding(s); the section'"'"'s vid-prd-findings block holds " nf "\n" }
+    { k = substr($0, 1, 1); l = substr($0, 3) }
+    k == "H" { H[l]++; next }
+    k == "M" { M[l]++; next }
+    l ~ /^### / { judge(); cur = l; S[l]++; old = (H[l] > M[l]) ? H[l] : M[l]; isnew = (S[l] > old); rows = 0; rv = 0; rn = 0; nf = 0; fence = ""; next }
+    cur == "" { next }
+    fence != "" { if (l ~ /^```[ \t]*$/) fence = ""; else if (fence == "vid-prd-findings" && l !~ /^[ \t]*(#|$)/) nf++; next }
+    l ~ /^```/ { fence = substr(l, 4); sub(/[ \t]+$/, "", fence); if (fence ~ /^vid-prd(-answers|-features|-mechanisms|-contract)?$/) rows = 1; if (fence == "") fence = "-"; next }
+    l ~ /^review: (delta|whole), [0-9]+ findings?[ \t]*$/ || l ~ /^review: (delta|whole|final), round [0-9]+, [0-9]+ findings?(, (read:|see) .*)?[ \t]*$/ { rv++; t = l; sub(/^review: [a-z]+, (round [0-9]+, )?/, "", t); rn = t + 0 }
+    END { judge(); printf "%s", out }')
+  if [ -n "$RVBAD" ]; then
+    echo 'ViD pre-commit: rejected — a new append section carries no record of its delta review (0.26.10.29.3 R3):' >&2
+    printf '%s\n' "$RVBAD" >&2
+    echo 'Before the commit, spawn vid-create-prd'"'"'s passes/whole-set-review.md in mode: delta on the append, and write its findings, ruled, in the section'"'"'s own ```vid-prd-findings block and the line `review: delta, round <r>, <n> findings` (0 findings: the line alone; a whole or final review'"'"'s repair append: `review: <whole|final>, round <r>, 0 findings, see <its heading under ## Findings>`). Appends already committed are never judged.' >&2
+    BY=append-review; exit 1
+  fi
+fi
+
+# 6d. 0.26.10.29.3 (phase 2 R4): the spec commit carries its final review. A commit that adds INVENTORY.md, beside a
+# staged PRD.md in the enriched grammar (it holds a ```vid-prd-answers block), must bring a new line beginning
+# `review: final` in the staged PRD.md: more such lines than HEAD's PRD.md holds (none when HEAD holds no PRD.md).
+# Only that is read here; the line's form and its count are the PRD court's (join 13). A bare-items PRD is exempt.
+# The final pass after the stage cut is held by vid-stage's text: by then INVENTORY.md exists, so no commit adds it. Only while
+# HEAD carries no checks/ (the spec commit, which installs them): later, adding INVENTORY.md is a law commit that may
+# touch nothing else, so it could never bring the line. Read with --no-renames: an INVENTORY.md renamed from a file the
+# commit removes is added all the same, whatever diff.renames says.
+if ! git rev-parse -q --verify HEAD:checks >/dev/null 2>&1 \
+   && git diff --cached --no-renames --name-only --diff-filter=A | grep -qxF INVENTORY.md \
+   && git show :PRD.md 2>/dev/null | grep -qE '^```vid-prd-answers[[:space:]]*$'; then
+  _frs=$(git show :PRD.md 2>/dev/null | grep -cE '^review: final([,[:space:]]|$)' || true)
+  _frh=$(git show HEAD:PRD.md 2>/dev/null | grep -cE '^review: final([,[:space:]]|$)' || true)
+  if [ "${_frs:-0}" -le "${_frh:-0}" ]; then
+    echo 'ViD pre-commit: rejected — this commit adds INVENTORY.md, and the staged PRD.md holds no new `review: final` line (0.26.10.29.3 phase 2 R4).' >&2
+    echo 'Before the spec commit, run vid-create-prd'"'"'s passes/final-review.md over the whole spec (vid-init, "6b. The final review"), and write its record under a dated `## Findings` heading: `review: final, round <r>, <n> findings, read: <files>`, its rows in that heading'"'"'s one ```vid-prd-findings block.' >&2
+    BY=final-review; exit 1
   fi
 fi
 

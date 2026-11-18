@@ -8,7 +8,9 @@
 # landed lines, counts, limits, halted, record, state and the handed row line gone, a reset ruling, a fix line not yet published
 # without the row and its close's key moved, reached lines keyed by the landing (the same requirement reached twice), and the
 # writer: the open ticket amended to drop the reset rows and gaining none, the new rows' ticket owed at once beside it, the skeleton's
-# step ticketed for its landed row alone. R5: the closed step reopened and its close ask withdrawn, its issue closed. Env: CHECKS.
+# step ticketed for its landed row alone. R5: the closed step reopened and its close ask withdrawn, its issue closed. 0.26.10.29.5
+# (DP-1 R7): each landing commit's Decisions: line states what it admits, the draft's why and its count line, a why holding a per cent
+# sign, quotes and a backslash kept whole. Env: CHECKS.
 set -eu
 unset CLAUDE_CODE_SESSION_ID 2>/dev/null || true
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
@@ -55,12 +57,15 @@ H0=$(git rev-parse HEAD); printf 'unverified-rows=11\n' > .vid/budget; ld 1 --wo
 ok 'dry run'; [ "$(git rev-parse HEAD)" = "$H0" ] && [ ! -s .vid/decide/landed ] || fail 'a refused dry run landed something'; rm -f .vid/budget
 # a module-table edit, drafted on the same base: zero rows, one yes; it lands first, so draft 1 is stale
 sed 's/^| web | the pages |/| web | the pages and the operator pages |/' ARCHITECTURE.md > "$T/a"; ! cmp -s "$T/a" ARCHITECTURE.md || fail 'no module-table edit'; cp "$T/a" ARCHITECTURE.md
-ld draft --why 'the module table as the merge of S01 shows it'; ok '^impact reset=0 added=0 reached=0 records=0$'
+# 0.26.10.29.5 (DP-1 R7): its why holds a per cent sign, a printf directive, both quotes and a backslash, which the Decisions: line keeps
+W2='the module table as the merge of S01 shows it, 100% "as is", the owner'"'"'s %s \n'
+ld draft --why "$W2"; ok '^impact reset=0 added=0 reached=0 records=0$'
 ld 2 --words 'Yes, the module table'; [ "$RC" = 0 ] || fail "the module-table edit did not land ($RC)"; ok '^landed 2 at '
-[ "$(git log -1 --format=%s)" = 'Land draft 2, the law: the module table as the merge of S01 shows it' ] || fail "the module-table commit: $(git log -1 --format=%s)"
+[ "$(git log -1 --format=%s)" = "Land draft 2, the law: $W2" ] || fail "the module-table commit: $(git log -1 --format=%s)"
+[ "$(git log -1 --format=%B | grep '^Decisions:')" = "Decisions: admits $W2 (impact reset=0 added=0 reached=0 records=0) — the owner's yes" ] || fail "the landing's Decisions: line: $(git log -1 --format=%B | grep '^Decisions:')"
 sh "$CHECKS/writer.sh" gate > "$T/out" 2>&1 || fail 'the gate is shut after the module-table landing'
 ld 1 --words 'Yes, land it'; [ "$RC" = 4 ] || fail "a stale draft was not refused ($RC)"; ok 'stale'
-# redrafted on the new HEAD, through the hooks, PLAN.md too (a standing line): S01 reopens, so rule B refuses S02's new row; nothing lands
+# redrafted on the new HEAD, through the hooks, PLAN.md too (a standing line): S01's ROW-003 is reset, so rule B refuses S02's new row; nothing lands
 mkdir -p "$T/hk"; printf '#!/bin/sh\necho "pre-commit $(pwd)" >> "%s/hooks.log"\n[ ! -f "%s/refuse" ] || { echo "a stub hook refuses" >&2; exit 1; }\n' "$T" "$T" > "$T/hk/pre-commit"; chmod +x "$T/hk/pre-commit"
 git config core.hooksPath "$T/hk"; H1=$(git rev-parse HEAD)
 amend; sed 's/^standing work | RULE-005$/standing work | RULE-005, ROW-021/' PLAN.md > "$T/pl" && cp "$T/pl" PLAN.md
@@ -77,6 +82,10 @@ qs ask draft 3; QN=$(sed -n 's/^asked \(Q[0-9]*\) draft 3$/\1/p' "$T/out"); qs a
 ok '^landed 3 at '; L=$(sed -n 's/^landed 3 at \([0-9a-f]*\):.*/\1/p' "$T/out"); ! grep -q "^- $QN " .vid/RUN-STATE.md || fail 'the landed draft stays a Q line'
 [ "$(git log --format=%s "$H1..HEAD" | paste -sd '|' -)" = 'Land draft 3, the plan file: REQ-001 amended, and ROW-021 added to S02, in the owner words|Land draft 3, the law: REQ-001 amended, and ROW-021 added to S02, in the owner words|Land draft 3, the PRD: REQ-001 amended, and ROW-021 added to S02, in the owner words' ] || fail "the commits: $(git log --oneline "$H1..HEAD")"
 [ "$(grep -c '/sc$' "$T/hooks.log")" = 3 ] && [ "$(grep -vc '/sc$' "$T/hooks.log")" = 3 ] || fail "the hooks did not run on the scratch copy's and the real commits: $(cat "$T/hooks.log")"
+# 0.26.10.29.5 (DP-1 R7): each of the landing's commits states what it admits: the draft's why and its count line, the owner's yes
+DL3="Decisions: admits REQ-001 amended, and ROW-021 added to S02, in the owner words ($(sed -n 1p .vid/decide/drafts/3/count)) — the owner's yes"
+[ "$(git log --format=%B "$H1..HEAD" | grep -c '^Decisions:')" = 3 ] && [ "$(git log --format=%B "$H1..HEAD" | grep '^Decisions:' | sort -u)" = "$DL3" ] || fail "the landing's Decisions: lines: $(git log --format=%B "$H1..HEAD" | grep '^Decisions:')"
+! git log --format=%B "$H1..HEAD" | grep -q '^Decisions: none' || fail "a landing's commit says Decisions: none"
 [ "$(git rev-parse --short=12 HEAD)" = "$L" ] || fail "the landing names $L, not HEAD"; grep -q 'plan-change what=rows .*why="the owner.s yes to draft 3' .vid/metrics-events || fail 'no plan change'
 sh "$CHECKS/planner.sh" ratified > "$T/out" 2>&1 || fail 'not ratified after the landing'; sh "$CHECKS/writer.sh" gate > "$T/out" 2>&1 || fail 'the gate is shut after the landing'
 grep -q "^ratified hash=.* base=$(printf %.12s "$H1") to=$L words=Yes, land it$" .vid/plan/ratified || fail 'no reratification'
@@ -93,15 +102,27 @@ F2='fix ROW-012 | ROW-012: the newest first in chromium | close #9 of S02: req-9
 grep -qx "reached ROW-001 REQ-001 $L | stand-in: SP" .vid/tw/handed && grep -qx "reached ROW-008 REQ-001 $L | stand-in: SP" .vid/tw/handed || fail "no reached lines: $(grep '^reached' .vid/tw/handed)"
 # the writer: S02's open ticket drops the reset rows and gains none; the landed rows owe their own ticket at once; the skeleton's step for its row
 sh "$CHECKS/github.sh" spec-export > /dev/null 2>&1 || fail 'no export'; sh "$CHECKS/writer.sh" due > "$T/out" 2>&1 || fail 'due failed'
-ok "^amend $N2$"; ok '^new step S02$'
+ok "^amend $N2$"; ! grep -q '^new step S02$' "$T/out" || fail "the landed rows are owed beside the open ticket #$N2: $(cat "$T/out")"   # 0.26.10.28.10 (R1): they wait for it
 sh "$CHECKS/writer.sh" write amend "$N2" > "$T/out" 2>&1 || fail 'the amendment was refused'; M=$(sed -n 1p .vid/tw/out/amend-$N2.meta)
 case ",$(printf '%s' "$M" | tr ' ' '\n' | sed -n 's/^rows=//p')," in *,ROW-005,*|*,HOS-001,*|*,ROW-021,*) fail "the open ticket keeps or gains a landed row: $M" ;; esac
-tw_post amend "$N2" || fail "the amendment: $(cat "$T/werr")"; tw_post step S02 || fail "the landed rows' ticket: $(cat "$T/werr")"
+tw_post amend "$N2" || fail "the amendment: $(cat "$T/werr")"
+# R1: once #N2 is merged the landed rows are owed, on main as it now is, as a follow-up of #N2: its own title, no T5
+tw_close "$N2"; sh "$CHECKS/github.sh" tw-sync > /dev/null 2>&1; sh "$CHECKS/writer.sh" due > "$T/out" 2>&1 || fail 'due failed'; ok '^new step S02$'
+tw_post step S02 || fail "the landed rows' ticket: $(cat "$T/werr")"
+grep -qx -- "- follows: #$N2" "$TW_F" || fail "the landed rows' ticket names no follows: #$N2: $(sed -n '/^## Header/,/^## The step/p' "$TW_F")"
+sed -n 1p "$TW_F" | grep -q '^# Follow-up ticket S02: ' || fail "the follow-up's title: $(sed -n 1p "$TW_F")"
+grep -q "This step had its grade at its first ticket, #$N2" "$TW_F" || fail "the follow-up does not name the ticket that had the grade: $(grep 'This ticket follows' "$TW_F")"   # the step's grade was at its first ticket
+! grep -q '^- T5 ' "$TW_F" && grep -q '^- T4 ' "$TW_F" || fail "the follow-up's asks: $(sed -n '/^## Asks/,$p' "$TW_F")"
+N3=$TW_N; sh "$CHECKS/writer.sh" write amend "$N3" > "$T/out" 2>&1 || fail "the follow-up's amendment was refused"; grep -qx -- "- follows: #$N2" ".vid/tw/out/amend-$N3.md" && ! grep -q '^- T5 ' ".vid/tw/out/amend-$N3.md" || fail 'an amended follow-up lost its follows: line, or asks T5'
 [ "$(sed -n 's/^- rows: //p' "$TW_F" | head -n 1)" = 'ROW-005, HOS-001, ROW-021' ] || [ "$(sed -n 1p "${TW_F%.md}.meta" | tr ' ' '\n' | sed -n 's/^rows=//p')" = 'HOS-001,ROW-005,ROW-021' ] || [ "$(sed -n 1p "${TW_F%.md}.meta" | tr ' ' '\n' | sed -n 's/^rows=//p')" = 'ROW-005,HOS-001,ROW-021' ] || fail "the new ticket's rows: $(sed -n 1p "${TW_F%.md}.meta")"
 grep -q " reached=[^ ]*ROW-004" "${TW_F%.md}.meta" && grep -q " reached=[^ ]*ROW-001" .vid/tw/out/amend-$N2.meta || fail "the reached rows are not carried: $(sed -n 1p "${TW_F%.md}.meta"); $(sed -n 1p .vid/tw/out/amend-$N2.meta)"
-# R5: ROW-003, S01's, reset alone: S01 reopened, its ask withdrawn, its issue closed with a comment, its handed row line dropped
+# R5: ROW-003, S01's, reset alone: S01 reopened, its ask withdrawn, its issue closed with a comment, its handed row line dropped.
+# 0.26.10.29.2 (R9): only a step of a stage with no candidate reopens, so stage 0's candidate is out for this landing
+# (land-closed-kept.sh holds the other path)
 awk '/^ROW-003 \|/ { sub(/ shows the saved search/, " shows the saved search at once") } { print }' INVENTORY.md > "$T/i" && cp "$T/i" INVENTORY.md
+grep -v '^candidate 0 ' .vid/tw/handed > "$T/hc" && cp "$T/hc" .vid/tw/handed
 ld draft --why 'ROW-003 says at once'; ok '^impact reset=1 added=0 '; ld 4 --words 'Yes, S01 too'; [ "$RC" = 0 ] || fail "draft 4 did not land ($RC)"; ok '^reopened S01$'; ok '^withdrawn S01 1$'
+tw_hand 'candidate 0'
 L5=$(sed -n 's/^landed 4 at \([0-9a-f]*\):.*/\1/p' "$T/out"); ! grep -q '^row ROW-003 ' .vid/tw/handed || fail 'the handed row line stayed'
 ! grep -q '^closed S01 ' .vid/tw/handed || fail 'S01 stayed closed'; [ -f .vid/decide/close/S01/1/withdrawn ] || fail 'the ask was not withdrawn'
 grep -q CLOSED "$T/gh/issues/$I1/state" 2>/dev/null || fail 'the ask issue stayed open'; grep -rq "vid: withdrawn. The landing $L5" "$T/gh/issues/$I1/comments" || fail 'no withdrawal comment'

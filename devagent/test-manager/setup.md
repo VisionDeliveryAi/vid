@@ -13,8 +13,9 @@ must not receive:
   - any other session's reasoning, plans or verdicts
 ```
 
-Everything below is guidance, apart from one firm point: the record exists before the first reported run, and every
-head report of the skeleton declares its engines and environments.
+Everything below is guidance, apart from two firm points. The record exists before the first reported run, and every
+head report of the skeleton declares its engines and environments. And the engines cover every browser the spec names as
+supported: leaving one out is a product question, asked on the ticket, never a choice made for speed (0.26.10.29.1).
 
 ## When it runs
 
@@ -102,6 +103,17 @@ silent-seconds: 1200                       optional, as are the next three: the 
 startup-seconds: 3600
 run-seconds: 86400
 service-seconds: 15
+host: <platform>                           0.26.11.1.1 (R1), the deployer's, all optional: the hosting's platform: word, which turns on deploy.sh's
+                                           hosted mode; with none, staging, the rehearsal and production are local copies, for a test
+staging-address: <address>                 the hosted staging's, http:// or https://; production-address: <address> the hosted production's
+production-address: <address>
+host-login: <command>                      exits 0 while the host's tool is logged in, printing nothing secret; run before any hosted step
+deploy: <command>                          deploys the checkout it runs in to TARGET (staging or production) on the host
+production-logs: <words>                   where production's logs are read on the host
+duty: <duty> — done|not needed|not done — <words>   (R3) one a duty of the okay, as the set-up stands when the deploy starts
+seam: <row> real                           (R4) or seam: <row> stand-in — <why>, one a row of the staging okay's outside-service rows: line
+kept: <command>                            (R5) the rehearsal's check that permanent records survive the migration: sees DUMP and DATA_DIR,
+                                           prints kept: <table> — <n> rows or kept: none — <why>, exits non-zero on a row lost or changed
 ```
 
 Below that head, in plain words: what was found and the choice, with why; how the environment starts and stops; how the

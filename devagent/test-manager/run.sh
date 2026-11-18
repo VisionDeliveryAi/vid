@@ -272,9 +272,10 @@ PLANTX="$XF"'
 # (--against), which starts nothing; then, with another run in its environment, this one waits for the measured memory plus 2 GB; the first is never held back
 SLOT=''
 admit() { [ -n "$AGAINST$SLOT" ] || { SLOT=run-$$-$(printf %s "$D" | cksum | cut -d' ' -f1); _w=''
-    while :; do _rc=0; stake "$MAXE" "$SLOT" run "$D" || _rc=$?; [ "$_rc" != 0 ] || break; [ "$_rc" = 1 ] || finish 1 "not run: the machine's environments could not be counted in $SL"
+    while :; do _m=$(sed -n 's/^max-environments: *//p' "$SETUP" 2>/dev/null | head -n 1 | tr -d ' \r'); case $_m in ''|*[!0-9]*|0*) ;; *) MAXE=$_m ;; esac   # 0.26.10.29.1 (R4): the record's own line, read once a tick, so a cap raised while it waits counts at once; no whole number read keeps the cap it had
+      _rc=0; stake "$MAXE" "$SLOT" run "$D" || _rc=$?; [ "$_rc" != 0 ] || break; [ "$_rc" = 1 ] || finish 1 "not run: the machine's environments could not be counted in $SL"
       [ ! -f "$W/stop-failed" ] || finish 1 "not run: $(cat "$W/stop-failed")"; [ -z "$HALT" ] || finish 3 'stopped: by stop, while it waited for a test environment'
-      [ -n "$_w" ] || { echo "waiting for a test environment: $MAXE are up on this machine (max-environments: $MAXE)" >> "$LOG"; _w=1; }; sleep 5; done; }
+      [ "$_w" = "$MAXE" ] || { echo "waiting for a test environment: $MAXE are up on this machine (max-environments: $MAXE)" >> "$LOG"; _w=$MAXE; }; sleep 5; done; }
   m=$(key measured | awk '{ print $2 }'); f=''; if [ -n "$m" ] && [ -n "$(key free-memory)" ]; then while :; do o=''; for r in "$W"/runs/*/; do [ "${r%/}" != "$D" ] && [ -f "$r/admitted" ] && [ ! -f "$r/exit" ] && same "$r" && o=1; done
       [ ! -f "$W/stop-failed" ] || finish 1 "not run: $(cat "$W/stop-failed")"; [ -n "$o" ] && [ -z "$HALT" ] || break; [ "$(sh -c "$(key free-memory)" 2>/dev/null || echo 0)" -lt $((m + 2048)) ] || break; [ -n "$f" ] || { echo 'waiting for memory' >> "$LOG"; f=1; }; sleep 5; done; fi; : > "$D/admitted"; }
 # one_run <engine> <results>: a clean tree with $PATCH on it, environment up, selection, down, once more if no report; GONE says why none, EC its exit

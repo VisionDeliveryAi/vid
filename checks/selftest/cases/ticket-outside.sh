@@ -17,7 +17,7 @@ tw_hand 'candidate 1'
 tk() { n=$(gh issue create -R $R --title "t $1" --body b --label ticket | sed 's/.*\///'); printf 'published %s kind=step step=%s rows=%s at=2026-11-10T10:00:00Z\n' "$n" "$1" "$2" >> .vid/tw/log; echo "$n"; }
 W=$T/w; git clone -q "$T/code.git" "$W" 2>/dev/null
 br() { git -C "$W" checkout -q -B "$1" origin/main 2>/dev/null; git -C "$W" -c user.name=a -c user.email=a@b commit -q --allow-empty -m "$1"; git -C "$W" push -q -f origin "$1"; git -C "$W" rev-parse HEAD; }
-pr() { gh pr create -R $R --head "$1" --base main --title t --body "ticket: #$2" | sed 's/.*\///'; }
+pr() { gh pr create -R $R --head "$1" --base main --title t --body "$(printf 'ticket: #%s\n\nDecisions: none' "$2")" | sed 's/.*\///'; }
 # a ticket closed on GitHub with no merge: withdrawn closed-outside, once, its line and event
 A=$(tk S02 ROW-001); gh issue close "$A" -R $R > /dev/null; rd step; ok "^closed-outside $A S02\$"
 grep -q "^withdrawn $A decision=closed-outside at=" .vid/tw/log || fail 'no withdrawn line'; grep -q "^ticket issue=$A state=closed-outside" .vid/metrics-events || fail 'no event'

@@ -10,12 +10,18 @@
 #       retested. Every head report of the pull request also feeds .vid/results/stand-in.txt: <head12> TAB <the line>, each once
 #   page <evidence>                              a page of that file: <evidence less .txt>.html, by page.sh
 #   declare --pr <p> --head <commit>             that head report's engines and environments, into .vid/tw/handed and .vid/budget
+#       (0.26.10.29.2 R10: the budget's stacks= and unverified-rows= only when the count differs from stacks=, so a raise stands)
 #   close --step <s>                             the step close (v0.26.10.25.3 R9): each chunk of the step's newest ask, .vid/decide/close/<s>/<k>/ask
 #       (v0.26.10.25.4 R3), by its newest report req-<issue>-<chunk>-<k>; prints, and writes to the ask's read, tab-separated: chunk <name>
 #       green|red|incomplete|absent <k or ->; row <chunk> <engine> <row> passed|failed <its first failing case>|could not run|not run; split <row>
 #       <passed in> <failed in>; engine <e> <n> could not run; refused <id> <why>. Exit 0 however broken a report is
 #   close --cs <N> (v0.26.10.26.2)              CS, the staging run, as C3, from <c>/cs/ask; a rule row reads by its covers: line
 #   deploy --stage <N> (v0.26.10.26.2)          the okay's newest D1 report, deploy-<issue>-<k>, on its form alone, into <c>/d1/read
+#                                                0.26.10.29.5 (DP-1 R2): each kind refused with no decision: line, nor decisions: none
+#                                                0.26.11.1.1 (R1, R3 to R6): a passed D1 refused without duties.txt, a staging duty missing or
+#                                                not done (but a known one), a seam: line for a row of the okay's, or the okay's seed:; its
+#                                                read gains seed, stays, seam and duty lines; a passed RH refused without a kept: line or the
+#                                                kept step, its kept lines read; a passed D2's duty lines read, never refused for them
 #   grade --ask <n> (v0.26.10.27.2)             an owner's grade ask's newest report, grade-<issue>-<k>, its commit the ask's own, into
 #                                                .vid/decide/grade/<n>/read; a `vs` ask's second word checked
 # v0.26.10.25.3 R11–R13: a head report's every cases file is read; once .vid/tw/handed has an engine-split line every declared engine is asked;
@@ -243,7 +249,13 @@ cmd_declare() { P=''; HD=''; while [ $# -ge 2 ]; do case $1 in --pr) P=$2 ;; --h
   HD=$(G rev-parse -q --verify "$HD^{commit}" 2>/dev/null || echo "$HD"); H=$(printf %s "$HD" | cut -c1-12); k=$(newest "pr-$P-$H"); [ -n "$k" ] || { echo "no head report at $H"; return 0; }; i=pr-$P-$H-$k; KIND=''
   form "$i" "$HD" || { echo "refused $WHY"; return 0; }; E=$(sl "$i" engines | head -n 1); M=$(sl "$i" environments | head -n 1)
   if [ -n "$E" ]; then mkdir -p .vid/tw; { grep -v '^engines ' .vid/tw/handed 2>/dev/null || true; printf 'engines %s | stand-in: results reader\n' "$E"; } > "$T/h" || exit 1; put .vid/tw/handed < "$T/h" || exit 1; fi
-  case $M in ''|*[!0-9]*) ;; *) { grep -vE '^(stacks|unverified-rows)=' .vid/budget 2>/dev/null || true; printf 'stacks=%s\nunverified-rows=%s\n' "$M" "$((60 * M))"; } > "$T/b" || exit 1; put .vid/budget < "$T/b" || exit 1 ;; esac
+  # 0.26.10.29.2 (R10): stacks= and unverified-rows= are rewritten only when the declared count differs from stacks=; the same
+  # count leaves a recorded raise (plan-change what=other naming unverified-rows=<n>) standing, as develop re-measures only on a
+  # change; a budget with no unverified-rows= line is written whole
+  # both read as numbers (02 is 2, written 2), and no stacks= line is one environment, as the planner and admission read it
+  case $M in ''|*[!0-9]*) ;; *) M=$(printf '%s' "$M" | sed 's/^0*//'); M=${M:-0} ;; esac
+  OS=$(sed -n 's/^stacks=0*\([0-9][0-9]*\).*/\1/p' .vid/budget 2>/dev/null | head -n 1); OS=${OS:-1}; NM=$M; [ "$OS" != "$M" ] || ! grep -q '^unverified-rows=' .vid/budget 2>/dev/null || NM=''
+  case $NM in ''|*[!0-9]*) ;; *) { grep -vE '^(stacks|unverified-rows)=' .vid/budget 2>/dev/null || true; printf 'stacks=%s\nunverified-rows=%s\n' "$M" "$((60 * M))"; } > "$T/b" || exit 1; put .vid/budget < "$T/b" || exit 1 ;; esac
   echo "declared engines=${E:--} environments=${M:--}"; }
 # the close's reading of one chunk, from the stream: c <engine> <attempt> <name> <status> <first line>; u <row> <transitions>; h <engine> <row> <name>,
 # a case of the row's newest accepted head report. Each row in each engine of the chunk: passed, failed, could not run, not run, or, in phase 2
@@ -357,6 +369,7 @@ cmd_deploy() { ST=''; KD=d1; DCA=''; while [ $# -ge 2 ]; do case $1 in --stage) 
   [ ! -f "$CD/closed" ] || { printf '%s\tclosed\t-\n' "$KD" > "$T/g" || exit 1; put "$CD/read" < "$T/g" || exit 1; cat "$T/g"; return 0; }   # a closed okay's report is not read
   if [ -z "$k" ]; then printf '%s\tabsent\t-\n' "$KD" > "$T/g"
   elif ! form "deploy-$I-$k" "$C"; then printf '%s\trefused\t%s\t%s\n' "$KD" "$k" "$WHY" > "$T/g"
+  elif ! G show "$R:deploy-$I-$k/report.txt" | tr -d '\r' | grep -qE '^(decision: *[^ ]|decisions: *none[[:space:]]*$)'; then printf '%s\trefused\t%s\t%s\n' "$KD" "$k" 'report.txt has no decision: line, nor decisions: none' > "$T/g"   # 0.26.10.29.5 (DP-1 R2)
   elif [ "$KD" != d1 ]; then deploy2 "$KD" "deploy-$I-$k" "$k" > "$T/g"
   else i=deploy-$I-$k; o=$(G show "$R:$i/report.txt" | sed -n 's/^outcome: *//p' | head -n 1); pc=$(G show "$R:$i/report.txt" | sed -n 's/^product change: *//p' | head -n 1 | tr -d ' \r')
     case $o in
@@ -364,11 +377,45 @@ cmd_deploy() { ST=''; KD=d1; DCA=''; while [ $# -ge 2 ]; do case $1 in --stage) 
         else G show "$R:$i/staging.txt" | awk -v k="$k" '/^staging: *[^ ]/ { a = $2 } /^signin: / { if (NF >= 3) S[++ns] = $2 "\t" $3; else bad = "a signin: line lacks its role or address" }
             /^differs: *none[ \t]*$/ { none = 1; next } /^differs: / { x = $0; sub(/^differs: */, "", x); n = split(x, p, / — /); if (n != 3) bad = "a differs: line is not <what> — <on staging> — <on production>: " x; else D[++nd] = p[1] "\t" p[2] "\t" p[3] }
             END { if (a == "") bad = "staging.txt has no staging: line"; else if (!none && !nd && bad == "") bad = "staging.txt has no differs: line, nor differs: none"
-              if (bad != "") { printf "d1\trefused\t%s\t%s\n", k, bad; exit } printf "d1\tpassed\t%s\nstaging\t%s\n", k, a; for (i = 1; i <= ns; i++) print "signin\t" S[i]; for (i = 1; i <= nd; i++) print "differs\t" D[i] }' > "$T/g"; fi ;;
+              if (bad != "") { printf "d1\trefused\t%s\t%s\n", k, bad; exit } printf "d1\tpassed\t%s\nstaging\t%s\n", k, a; for (i = 1; i <= ns; i++) print "signin\t" S[i]; for (i = 1; i <= nd; i++) print "differs\t" D[i] }' > "$T/g"
+          if [ "$(head -n 1 "$T/g" | cut -f2)" = passed ]; then d1x "$i" "$CD/ask" > "$T/g2"
+            if [ "$(head -n 1 "$T/g2" | cut -f1)" = refused ]; then printf 'd1\trefused\t%s\t%s\n' "$k" "$(head -n 1 "$T/g2" | cut -f2-)" > "$T/g"; else cat "$T/g2" >> "$T/g"; fi; fi; fi ;;
       failed\ ?*) case $pc in yes|no) printf 'd1\tfailed\t%s\t%s\t%s\n' "$k" "${o#failed }" "$pc" > "$T/g" ;; *) printf 'd1\trefused\t%s\ta failed deploy has no product change: yes or no line\n' "$k" > "$T/g" ;; esac ;;
       *) printf 'd1\trefused\t%s\treport.txt has no outcome: passed, nor outcome: failed <step>\n' "$k" > "$T/g" ;;
     esac; fi
   put "$CD/read" < "$T/g" || exit 1; cat "$T/g"; }
+# 0.26.11.1.1 (R3): the duties an okay names, by target; duties <id> <list>: the report's duties.txt, `duty TAB <duty> TAB done|not
+# needed|not done|missing TAB <words>` for each duty of the list, `bad TAB <line>` for a line of a listed duty in no form, `none` with
+# no duties.txt. A line of another duty is not read
+DUT1='log-in environments outside-services sending-domain deploy-notes captures'
+DUT2='service-switch-on backups point-in-time-recovery storage-versioning dns https monitoring'
+duties() { G cat-file -e "$R:$1/duties.txt" 2>/dev/null || { echo none; return 0; }
+  G show "$R:$1/duties.txt" | tr -d '\r' | awk -v L="$2" -v DA=' — ' 'BEGIN { n = split(L, d, " "); for (i = 1; i <= n; i++) W[d[i]] = 1 }
+    /^[ \t]*$/ { next } { x = $0; p = index(x, ": "); if (!p) next; k = substr(x, 1, p - 1); if (!(k in W)) next; r = substr(x, p + 2); q = index(r, DA); s = q ? substr(r, 1, q - 1) : ""; w = q ? substr(r, q + length(DA)) : ""
+      if ((s != "done" && s != "not needed" && s != "not done") || w ~ /^[ \t]*$/) { print "bad\t" x; next } if (!(k in S)) { S[k] = s; T[k] = w } }
+    END { for (i = 1; i <= n; i++) print "duty\t" d[i] "\t" ((d[i] in S) ? S[d[i]] : "missing") "\t" T[d[i]] }'; }
+# d1x <id> <the okay's ask> (0.26.11.1.1, R1, R3, R4, R6): a passed D1's further lines, or `refused TAB <why>`: staging.txt's `seed:`
+# as the okay's (`seed` in its ask, synthetic when none), one `seam:` line for each row of the okay's `rows`, `stays: up` carried;
+# duties.txt, every staging duty answered, none `not done` but one the owner ruled a known limit (.vid/decide/duties-known)
+d1x() { sk=$(sed -n "s/^seed$TAB//p" "$2" | head -n 1); rw=$(sed -n "s/^rows$TAB//p" "$2" | head -n 1)
+  { G show "$R:$1/staging.txt" | tr -d '\r' | sed 's/^/S	/'; duties "$1" "$DUT1" | sed 's/^/D	/'; } | awk -F'\t' -v seed="${sk:-synthetic}" -v rows="$rw" -v L="$DUT1" -v KF=.vid/decide/duties-known -v DA=' — ' '
+    BEGIN { while ((getline l < KF) > 0) { split(l, y, "\t"); K[y[1]] = 1 } n = split(L, d, " "); m = split(rows, rw, " ") }
+    function why(s) { if (bad == "") bad = s }
+    $1 == "S" { x = substr($0, 3); if (x ~ /^seed:/) { v = x; sub(/^seed: */, "", v); sub(/[ \t]+$/, "", v); if (sd == "") sd = v }
+        else if (x ~ /^stays: *up[ \t]*$/) st = 1
+        else if (x ~ /^seam: /) { v = x; sub(/^seam: */, "", v); r = v; sub(/ .*/, "", r); t = substr(v, length(r) + 2)
+          if (t ~ /^real[ \t]*$/) { SM[r] = "real"; SW[r] = "" } else if (index(t, "stand-in" DA) == 1 && t !~ ("^stand-in" DA "[ \t]*$")) { SM[r] = "stand-in"; SW[r] = substr(t, length("stand-in" DA) + 1) }
+          else why("a seam: line is not <row> real, nor <row> stand-in — <why>: " x) } next }
+    $1 == "D" && $2 == "none" { nod = 1; next } $1 == "D" && $2 == "bad" { why("a duties.txt line is not <duty>: done, not needed or not done — <words>: " $3); next }
+    $1 == "D" && $2 == "duty" { DS[$3] = $4; DW[$3] = $5; next }
+    END { if (sd == "") why("staging.txt has no seed: line"); else if (sd != seed) why("staging.txt says seed: " sd ", where the okay says seed: " seed)
+      for (i = 1; i <= m; i++) if (!(rw[i] in SM)) why("staging.txt has no seam: line for the outside-service row " rw[i])
+      if (nod) why("a passed deploy has no duties.txt")
+      for (i = 1; i <= n; i++) { k = d[i]; if (DS[k] == "missing") why("duties.txt has no line for the duty " k); else if (DS[k] == "not done" && !(k in K)) why("the duty " k " is not done: " DW[k]) }
+      if (bad != "") { print "refused\t" bad; exit }
+      print "seed\t" sd; if (st) print "stays\tup"; for (r in SM) print "seam\t" r "\t" SM[r] "\t" SW[r]; for (i = 1; i <= n; i++) print "duty\t" d[i] "\t" DS[d[i]] "\t" DW[d[i]] }'; }
+# 0.26.10.29.5 (DP-1 R2): every deploy report, D1, RH and D2, whatever its outcome, states its decisions: `decision: <what> | why: <why>`
+# lines, or the one line `decisions: none`; with neither it is refused, as a rehearsal with no drops: line is, and so never read for them
 # deploy2 <rh|d2> <id> <k>: the rehearsal's or production deploy's report, its form alone
 deploy2() { i=$2; k=$3; G show "$R:$i/report.txt" > "$T/rp"; o=$(sed -n 's/^outcome: *//p' "$T/rp" | head -n 1 | sed 's/[[:space:]]*$//'); pc=$(sed -n 's/^product change: *//p' "$T/rp" | head -n 1 | tr -d ' \r')
   steps=$(G show "$R:$i/deploy.xml" 2>/dev/null | awk 'BEGIN { RS = "<" } /^testcase[ \t\n]/ { n = $0; sub(/.*[ \t\n]name="/, "", n); sub(/".*/, "", n); print n }')
@@ -378,13 +425,16 @@ deploy2() { i=$2; k=$3; G show "$R:$i/report.txt" > "$T/rp"; o=$(sed -n 's/^outc
     [ -n "$bad" ] || bad=$(awk '/^migrates: *(yes|no)[ \t]*$/ { m = 1 } /^drops: *[^ ]/ { d = 1 } /^services: *[^ ]/ { s = 1 } END { if (!m) print "change.txt has no migrates: yes or no line"; else if (!d) print "change.txt has no drops: line, nor drops: none"; else if (!s) print "change.txt has no services: line, nor services: none" }' "$T/ch")
     case $o in
       passed) [ -n "$bad" ] || grep -qx 'sealed: *yes' "$T/rp" || bad='a passed rehearsal is not sealed: yes'; [ -n "$bad" ] || grep -q '^copy: *[^ ]' "$T/rp" || bad='a passed rehearsal has no copy: line'
-        for x in restore migrate boot; do [ -n "$bad" ] || printf '%s\n' "$steps" | grep -qx "$x" || bad="deploy.xml has no $x step"; done ;;
+        for x in restore migrate kept boot; do [ -n "$bad" ] || printf '%s\n' "$steps" | grep -qx "$x" || bad="deploy.xml has no $x step"; done   # 0.26.11.1.1 (R5): the kept step
+        [ -n "$bad" ] || bad=$(awk -v DA=' — ' '/^kept:/ { n++; x = $0; sub(/^kept: */, "", x); sub(/[ \t]+$/, "", x); q = index(x, DA); l = q ? substr(x, 1, q - 1) : ""; r = q ? substr(x, q + length(DA)) : ""
+            if (b == "" && (l == "" || r == "" || (l != "none" && r !~ /^[0-9]+ rows?$/))) b = "a kept: line is not <table> — <n> rows, nor none — <why>: " $0 }
+          END { if (b == "" && !n) b = "a passed rehearsal has no kept: line"; print b }' "$T/rp") ;;
       'no backup yet') [ -z "$P" ] || [ "$P" = none ] || bad="no backup yet, though production runs $P" ;;
       failed\ ?*) case $pc in yes|no) ;; *) bad=${bad:-a failed rehearsal has no product change: yes or no line} ;; esac ;;
       *) bad=${bad:-report.txt has no outcome: passed, failed <step>, nor no backup yet} ;;
     esac
     [ -z "$bad" ] || { printf 'rh\trefused\t%s\t%s\n' "$k" "$bad"; return 0; }
-    case $o in passed) printf 'rh\tpassed\t%s\n' "$k"; sed -n 's/^copy: *\([^ ]*\).*/copy\t\1/p' "$T/rp"; awk '/^signin: / && NF >= 3 { print "signin\t" $2 "\t" $3 }' "$T/rp" ;;
+    case $o in passed) printf 'rh\tpassed\t%s\n' "$k"; sed -n 's/^copy: *\([^ ]*\).*/copy\t\1/p' "$T/rp"; awk '/^signin: / && NF >= 3 { print "signin\t" $2 "\t" $3 }' "$T/rp"; sed -n 's/^kept: *\(.*[^[:space:]]\)[[:space:]]*$/kept\t\1/p' "$T/rp" ;;
       'no backup yet') printf 'rh\tno-backup\t%s\n' "$k" ;; *) printf 'rh\tfailed\t%s\t%s\t%s\n' "$k" "${o#failed }" "$pc" ;; esac
     awk '/^migrates: / { print "migrates\t" $2 } /^(drops|rewrites|services): / { w = $1; sub(/:$/, "", w); x = $0; sub(/^[a-z]+: */, "", x); if (x != "none") print w "\t" x }' "$T/ch"; return 0; fi
   # d2: backup the first step; production: on a passed one; logs: on the first D2 ever
@@ -396,7 +446,8 @@ deploy2() { i=$2; k=$3; G show "$R:$i/report.txt" > "$T/rp"; o=$(sed -n 's/^outc
     *) bad=${bad:-report.txt has no outcome: passed, nor failed <step>} ;;
   esac
   [ -z "$bad" ] || { printf 'd2\trefused\t%s\t%s\n' "$k" "$bad"; return 0; }
-  case $o in passed) printf 'd2\tpassed\t%s\n' "$k"; sed -n 's/^production: *\([^ ]*\).*/production\t\1/p' "$T/rp"; sed -n 's/^logs: *\(.*\)/logs\t\1/p' "$T/rp" ;;
+  case $o in passed) printf 'd2\tpassed\t%s\n' "$k"; sed -n 's/^production: *\([^ ]*\).*/production\t\1/p' "$T/rp"; sed -n 's/^logs: *\(.*\)/logs\t\1/p' "$T/rp"
+      dd=$(duties "$i" "$DUT2"); if [ "$dd" = none ]; then for x in $DUT2; do printf 'duty\t%s\tmissing\t\n' "$x"; done; else printf '%s\n' "$dd" | grep '^duty' || true; fi ;;   # 0.26.11.1.1 (R3): never refused for its duties; a line in no form, or no duties.txt, reads as none
     *) printf 'd2\tfailed\t%s\t%s\t%s\n' "$k" "${o#failed }" "${pc:--}"; sed -n 's/^production: *\([^ ]*\).*/production\t\1/p' "$T/rp" ;; esac; }
 CMD=${1:-}; [ $# -gt 0 ] && shift
 case $CMD in

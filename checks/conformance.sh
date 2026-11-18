@@ -2,6 +2,8 @@
 # Purpose: ViD court — staged changes must conform to BASELINE.md's machine
 # blocks: no new file extension outside ```vid-allowed-extensions, no staged
 # added line (outside *.md) mentioning a ```vid-forbidden term. Fails closed.
+# 0.26.10.29.3 (R7, F32): both read the project's own files only — checks/, ViD's installed courts, fixtures and self-test,
+# is skipped, as checks/placement.sh skips it; a forbidden term in ViD's own files is never a reason to narrow the block.
 # serves: both (0.26.10.28.4, M9)
 set -eu
 IFS='
@@ -23,7 +25,7 @@ fi
 FAIL=0
 
 # 1. New files may not introduce an extension outside the allowed list.
-for f in $(git diff --cached --name-only --diff-filter=A); do
+for f in $(git diff --cached --name-only --diff-filter=A -- . ':(exclude)checks/'); do
   base=${f##*/}
   case "$base" in .*) continue ;; esac
   case "$base" in *.*) ext=".${base##*.}" ;; *) continue ;; esac
@@ -39,7 +41,7 @@ done
 
 # 2. Staged added lines (outside *.md) may not mention a forbidden term.
 for t in $FORBIDDEN; do
-  HITS=$(git diff --cached -U0 -- . ':(exclude)*.md' | grep '^+' | grep -v '^+++' | grep -iF -- "$t" || true)
+  HITS=$(git diff --cached -U0 -- . ':(exclude)*.md' ':(exclude)checks/' | grep '^+' | grep -v '^+++' | grep -iF -- "$t" || true)
   if [ -n "$HITS" ]; then
     echo "ViD conformance: rejected — staged additions mention forbidden term '$t' (BASELINE.md):" >&2
     printf '%s\n' "$HITS" | head -n 5 | sed 's/^/    /' >&2

@@ -19,6 +19,7 @@ transition for a journey, each case's name carrying its row's id (ViD results fo
   value is a test value, named as one in the test argument and asked as a question.
 - A test makes its state through the paths production uses, or, where none yet exists, the door table's set-up door, never by a set flag. Apart from a measuring tool, it never reads source as text.
 - A state-machine rule row's test fails on any state or move outside its table. A fixture a fix was built from says `Provenance: regression`.
+- An outside-service test saves the real answer it gets on staging in the work folder's `captures/`, never committed (0.26.11.1.1 R2). Your later tests of that service build on the saved answers.
 
 **Tests and test helpers only.** No product code and no environment file: ask the test manager for an environment
 change. Commit them alone, as one commit ending with the trailer `Role: TA`, on the ticket's branch, and push. You never

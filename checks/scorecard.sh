@@ -143,7 +143,9 @@ awk -F'|' -v npc="$NPC" -v npp="$NPP" -v hasprev="$HASPREV" -v prev="$PREV" -v n
       (hasprev == "yes") ? ADD + 0 : none, (hasprev == "yes") ? PRO + 0 : none, (hasprev == "yes") ? CHG + 0 : none, untraced
     printf "honest        | counted | ViD decisions=%d (new since the previous version=%s) · owner answers=%d\n", VD, (hasprev == "yes") ? VDN + 0 : none, NH
     printf "complete      | counted | features with no demand item=%s · previous rules gone=%s · previous rules weaker=%s\n", fnoitem, (hasprev == "yes") ? GONE + 0 : none, (hasprev == "yes") ? WEAK + 0 : none
-    printf "coherent      | counted | near-duplicate pairs=%s\n", near
+    # 0.26.10.29.3 (phase 2 R7): near-duplicate pairs are all this line counts; it says so, so it never reads as a check
+    # for contradictions, which only the reviews find
+    printf "coherent      | counted | near-duplicate pairs=%s (contradictions are the reviews'"'"' to find)\n", near
     printf "product-level | judged  | the reader classes each requirement\n"
     printf "right-grained | counted | demand items whose fail-if has more than one clause=%d\n", MULTI
     printf "testable      | counted | demand items with no fail-if=%d\n", NOFI

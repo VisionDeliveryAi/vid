@@ -196,6 +196,12 @@ will read, **as constraints, never as illustrative literals** (v0.9.1
 test-inventory's surface-row derivation writes each row's obligation
 from its pins; the consistency pass (§3) reads the pins column.
 
+**The brief goes out only from a settled PRD (0.26.10.29.4, phase 3 R6).**
+Hand the brief to whoever makes the design only after pause 3, and after
+every open PRD review loop has ended (vid-create-prd, "Reviews converge");
+no brief goes out while an append's review is open. No inventory row is
+derived from an append whose review has not ended.
+
 ## 1b. Who makes the design — asked once, after the gate (v0.9.5 3.14, R13)
 
 After the brief and its manifest are written — the brief is derived either
@@ -212,6 +218,38 @@ look at the pixels.
 - **The gate fails.** Ask nothing. Say once, plainly, that ViD cannot see
   its own drawings here, and take (a).
 
+**The design's sittings (0.26.10.29.6, S1).** Each of the four pauses of
+this verb (this question, the gaps, the disagreements and the
+ratification) is written for the panel before it is asked. Where `.vid/`
+exists:
+1. write it: `sh "${CLAUDE_PLUGIN_ROOT}/checks/face.sh" write <sitting> <file>`,
+   the file in `face.sh`'s line form (its head); a refused line is
+   rewritten and the call made again, and a line the script names as
+   holding an id or one of ViD's own words is rewritten in plain words
+   and written again before you ask;
+2. give the owner what the script printed about pages first: the link,
+   or the file's path;
+3. ask in the chat as this skill says, in the sitting's order, whether or
+   not a panel is there. An answer typed in the chat answers the items it
+   names, one by one, as a send from the panel does. A yes to the
+   recommendations covers only the items shown with one, and no item
+   asked on its own: say what it covered, as counts by section, and ask
+   what it did not. Never offer one yes for items of different kinds.
+   One question settles one thing: when answering it would change
+   something else (a rule, a name used elsewhere), that is a second
+   question, asked after the first.
+
+Once its answers are recorded: `sh "${CLAUDE_PLUGIN_ROOT}/checks/face.sh"
+end <sitting>`. Where the map has already passed the design's stop (a
+design repair the final review sends back after the test list, a later
+design round), the script writes nothing and says so in one line: ask in
+the chat all the same, item by item, with the page.
+
+Here, when the gate passes, the sitting is `design-who`, written with
+`sh "${CLAUDE_PLUGIN_ROOT}/checks/face.sh" write design-who <file>`:
+`section who` with one item, the question above, its two `choice` lines,
+(a) then (b), and a `recommend` line with (a)'s words.
+
 (a) runs §2 as written; (b) runs the session-drafted flow (Gated
 alternates) under the same return contract. Record the answer as a
 DECISIONS.md entry in the existing form, with no `origin: proposal`:
@@ -220,7 +258,13 @@ DECISIONS.md entry in the existing form, with no `origin: proposal`:
 ## 2. The owner authors — the recommended path
 
 The owner designs from the brief in Claude Design or any tool they
-prefer, with that tool's own options and revisions. This verb waits.
+prefer, with that tool's own options and revisions. This verb waits for
+the pack, and only the parts that need it wait (0.26.10.29.4, phase 3 R6):
+inside init, ViD meanwhile derives every inventory row that does not need
+the design, says once what it is waiting for, and holds the screen rows,
+the strength pass (vid-test-inventory §3) and the sitting until the pack
+is imported and `sh checks/design-join.sh` exits clean (vid-init §3, "The
+order").
 What comes back: **HTML canvases plus tokens.css** — the field-verified
 handoff. Ask what the owner can produce; screenshots alone cannot pass
 the join and are stored only as supplementary reference. A DesignSync
@@ -247,6 +291,18 @@ Never assumed, never promised in the skill's name.
 
 ## 3. The import gate — the join court, then the delta sitting
 
+**The wait's parts (0.26.10.29.6, S11).** Where `.vid/` exists, when the
+pack comes back, name the wait before the design's sittings: `sh
+"${CLAUDE_PLUGIN_ROOT}/checks/face.sh" wait parts "Reading the design"
+"Checking it against the brief" "Checking it against the PRD"`. Then
+`sh "${CLAUDE_PLUGIN_ROOT}/checks/face.sh" wait at <n>` as each step
+starts: 1 at the snapshot, 2 at `design-join.sh`, 3 at the consistency
+pass. A sitting's write clears them, and `design-gaps` is written before
+the consistency pass can start: when a sitting's write has cleared the
+parts and a step of the same list remains, name the list again (`face.sh
+wait parts`, the same three parts) and then call `wait at <n>` for the
+step you start.
+
 Snapshot the returned pack into design/screens/ (verbatim — see §4), then
 run the court, not judgment:
 
@@ -265,11 +321,35 @@ in the manifest row:
 | Extra (no REQ behind it) | adopt → new REQ + Fail-if + tier · drop · fence — never ratified silently |
 | Untraceable (marker, no REQs) | owner names it · session proposes, owner confirms |
 
+**The `design-gaps` sitting (0.26.10.29.6, S1, S2).** The delta table is
+put to the owner as this sitting, `sh "${CLAUDE_PLUGIN_ROOT}/checks/face.sh"
+write design-gaps <file>`, every row an item (its id the row's marker,
+its words the surface or state in plain words), each with the resolution you would take as its `recommend`
+line, in the button's own words, or `recommend | none` where the
+evidence supports none:
+- `section brief-only` (in the brief, not in the design): the missing
+  surfaces and states, Draw it · Leave it out · Owe it (with words);
+- `section design-only` (in the design, not in the brief): the extras,
+  Adopt it · Drop it · Fence it off;
+- `section unknown` (ViD cannot tell what this is): the untraceable
+  markers, ViD's guess is right · Name it (with words), your guess as a
+  `detail` line.
+
+A gap whose recommendation is "Leave it out" removes a requirement:
+`face.sh` asks it on its own, and you ask it in the chat as its own
+question. A state or
+a screen you add yourself is a gap here too, never ratified silently. An
+empty section is `empty <section> | <why>`.
+
 The resolved table IS the inventory's surface-row input. Because the gate
 forced every gap on day one, the decision to rebuild or approximate can
 never be made silently mid-develop.
 
-**Consistency pass (after `design-join.sh` exits clean).** A fresh
+**Consistency pass (after `design-join.sh` exits clean).** A pack's first
+consistency pass starts only once `sh checks/design-join.sh` exits 0, the
+court run on its own and never piped (vid-create-prd, "While a pass runs";
+0.26.10.29.4, phase 3 R6); the re-run that lands ruled corrections follows
+the landing rule below (`landed`). A fresh
 context receives each canvas section with its marker, the effective
 rows its marker serves (from the manifest's marker→REQ join), the
 `## Actors and journeys` section, and the rulings ledger. It reports
@@ -297,7 +377,27 @@ finding's target on its own. Record `sh "${CLAUDE_PLUGIN_ROOT}/checks/event.sh" 
 
 **The sitting.** Present the lines as returned — one per disagreement,
 never a count — and the owner rules each: `design wins` · `PRD wins` ·
-`both change` · `not a disagreement`. The `not a disagreement` count is
+`both change` · `not a disagreement`.
+
+**The `design-lines` sitting (0.26.10.29.6, S1, S3).** The lines are this
+sitting's `section lines`, `sh "${CLAUDE_PLUGIN_ROOT}/checks/face.sh"
+write design-lines <file>`, every line an item (its id the line's `D-NN`,
+its words what the canvas says and what the PRD says, in plain words),
+each with your recommended ruling as its `recommend` line (Design wins,
+PRD wins, Both change or Not a disagreement), or `recommend | none`
+where the evidence supports none, and one `detail` line of why. The
+owner rules each line, one by one:
+- **A theme** typed in the chat ("the design wins on spacing") rules
+  nothing by itself. Write the sitting again with every line the theme
+  covers set to that ruling as its recommendation, say how many lines
+  that is, and ask again. Those lines are ruled when the owner answers
+  that sitting, not before; a theme is never applied to a line the owner
+  was not shown.
+- **No line is ruled by ViD.** Mark no line ruled that was not an item of
+  an answered sitting: the brief's `ruling:` for a line is written only
+  from the owner's answer.
+
+The `not a disagreement` count is
 the measure of over-flagging; record it with the round. **A class-(c)
 line — a canvas asserting a configuration value the PRD makes an input
 (v0.9.2 3.13, R22) — is ruled with the same four values and no other;
@@ -323,6 +423,11 @@ under one machine block:
     D-01 | P03/default | REQ-006 | canvas says: an Edit target control beside Remove | row says: one Remove control; NG-001 forbids editing a target | ruling: PRD wins | status: ruled
     ```
 
+    ## The return contract (the same in every change list)
+    - Every element keeps its marker.
+    - Every identifier stays unique within its marker section.
+    - `design/screens/index.json` lists every screen.
+
     ## (a) Design changes
     - D-01 — P03: remove the Edit target control; the deletion page carries one Remove control only.
 
@@ -338,7 +443,11 @@ re-imported and the pass re-run empty; the PRD amendment in commit B; a
 — every `PRD wins` and `both change` line as an instruction to the
 designer, per canvas and marker, in the designer's terms, handed back
 before ratification; the pack is re-imported and the pass re-run
-(expected empty) when the changes land. **(b) PRD amendments** — every
+(expected empty) when the changes land. The return contract part is
+fixed (0.26.10.29.4, phase 3 R7): restate it, word for word, in every
+change list, so a designer working from the change list alone keeps the
+brief's markers (§1), its identifiers unique within each marker section
+(rule 5) and its index. **(b) PRD amendments** — every
 `design wins` and `both change` line as an AMENDED row plus its A-row
 (`source: design <date> <marker>`), carrying the `arms:` accounting of
 the wording lens (§4), landing in ratification's commit B with the
@@ -365,6 +474,22 @@ bookkeeping, checks refresh — all law-eligible paths, one standalone law
 commit. **Commit B (spec, immediately after)** — the PRD appends and
 DECISIONS entries of the dual-write.
 
+**The `design-approval` sitting (0.26.10.29.6, S1, S2).** The approval is
+asked as this sitting, `sh "${CLAUDE_PLUGIN_ROOT}/checks/face.sh" write
+design-approval <file>`, after the review of the prepared append (below)
+has run:
+- `section decides`, the text of what the design decides: one item, its
+  `detail` lines the decisions embodied, in plain words;
+- `section findings`, the review's findings on the changes, each with
+  your recommendation, Fix it or Leave it, in the button's own words, or
+  `recommend | none`; a finding that proposes a looser bound is followed
+  by `alone`;
+- `section alone`, what is asked on its own: the review's one question on
+  the failure clauses it would narrow or withdraw, one item, its `detail`
+  lines each row, its clause and the answer it follows (every item of the
+  section is asked on its own, so it takes no `alone` line); or `empty
+  alone | <why>`.
+
 - **The amendment brief is closed.** `DESIGN-AMENDMENT-BRIEF.md` (§3)
   carries no `open` line and no `PRD wins` or `both change` line short of
   `landed` — the session runs `sh checks/design-join.sh` before commit A
@@ -383,15 +508,24 @@ DECISIONS entries of the dual-write.
   or later each new row carries `feature:`, and a new feature is an
   appended ```vid-prd-features row; under a PRD headed `grammar: 0.9.5` or later every new or AMENDED demand item and invariant also carries `plain:` — one sentence of at most 30 words saying the rule in the owner's words, no ids, every number in it taken from its own statement or fail-if (v0.9.5 3.13). checks/prd.sh judges the effective
   set at commit B — an amendment that drops its Fail-if fails the commit.
+  Inside init, the inventory rows that cite what the append amends are
+  found and rewritten by vid-test-inventory §5, "Rows that cite an
+  amended item", and read again by the strength pass's next round
+  (0.26.10.29.4, phase 3 R6).
   Surprising technical choices → DECISIONS.md. This keeps the spec's two
   halves agreeing by construction. Before commit B, spawn
   `${CLAUDE_PLUGIN_ROOT}/skills/vid-create-prd/passes/whole-set-review.md`
   in `mode: delta` on the prepared append — the §3 brief's amendment
   rows and the decisions-embodied rows — against the effective set
-  (v0.9.1 3.2, R14-ii) — a design-wins amendment can contradict an item
+  (v0.9.1 3.2, R14-ii), its record written in the append before commit B
+  (0.26.10.29.3 R3: its findings, ruled, as rows of the section's own ```vid-prd-findings block (pass `review`), and the line `review: delta, round <r>, <n> findings` (`<r>` the round the review ended on, `<n>` the rows of the section's findings block, every round's; one round and no findings: `round 1, 0 findings`; vid-create-prd, "The findings record"); pre-commit refuses a new append section
+  holding rows without it) — a design-wins amendment can contradict an item
   outside the marked screens (the consistency pass sees only
-  marker-linked rows), and only the affected-set review sees that; its findings are ruled in this ratification sitting, the run
+  marker-linked rows), and only the affected-set review sees that; its findings are ruled in this ratification sitting, what the repairs and the rulings land read again by the same pass (vid-create-prd, "Reviews converge", in Pass mechanics: every repaired round is read again by the same pass, up to three rounds, and what remains goes to the owner as one list; 0.26.10.29.3 phase 2, R1), the run
   recording `sh "${CLAUDE_PLUGIN_ROOT}/checks/event.sh" 'tokens slice=0 phase=review n=T'`.
+  An answer the append adds is `human` only after the owner's yes at this sitting, and commit B quotes the owner's
+  words in an `Owner:` trailer (0.26.10.29.3 R2; vid-create-prd, "The owner's words").
+  Raised questions (0.26.10.29.3 R4): a question an agent's report raises that ViD cannot settle from the record (a ruling, the seed, or an owner answer it can cite) becomes an open carrier at once, `VID-QUESTION: (OQ-n) <the question>` in a dated append, raised with the owner at the next sitting; one ViD settles from the record is answered in the message to the owner with the record line that settles it (vid-create-prd, "The owner's words, and the questions raised").
 - **Snapshot verbatim** into `design/screens/` — markers preserved
   exactly; nothing tidied, renamed, or improved in transit. The ONLY
   permitted transformation: extracting `design/tokens.css` VERBATIM from
@@ -411,7 +545,9 @@ DECISIONS entries of the dual-write.
   in **append mode** with the resolved surfaces as the delta (it derives
   the surface rows per auth state, presents the row-set diff, and
   materialises what is newly expressible as failing ledger tests, stamped
-  at the parent sha).
+  at the parent sha). A surface row that guards or forbids — a state that
+  must refuse, a screen a role must never reach — is written with its
+  control sibling, by vid-test-inventory §4.4's step (0.26.10.29.3, R5).
 - **Bookkeeping**, same commit: `design/` into CLAUDE.md's
   ```vid-placement block; the design's extensions (`.css` `.html` as
   applicable) into BASELINE's allowed list.
@@ -457,6 +593,18 @@ DECISIONS entries of the dual-write.
   names the target, so a spot-check ("compare `.jt-header` to P01's
   header section") is a 30-second grader task. `/vid grade --visual`
   adds the stochastic screenshot review — findings, never a gate.
+- **ViD's own design edits go through the design round** (0.26.10.29.4,
+  phase 3 R7). When ViD changes a screen itself — the owner chose ViD to
+  make the design, or a correction asks for it — each changed screen is
+  drawn and seen through the render-and-see gate (§2, Gated alternates),
+  logged in DESIGN-AMENDMENT-BRIEF.md's design changes, and imported
+  through `sh checks/design-join.sh` like any pack. No script edits
+  `design/` in place, and copying a screen to make another counts as
+  drawing it.
+- **A cut feature stays cut** (0.26.10.29.4, phase 3 R7). Once a feature
+  is cut, out of scope or a non-goal, ViD never proposes bringing it back
+  in a brief, a change list or a ruling; it is re-opened only when the
+  owner asks.
 - design/ changes only through another /vid design round or an
   owner-sanctioned /vid fix correction — and modifying or deleting
   anything under design/ is a law change (standalone commit,

@@ -43,6 +43,8 @@
 #                issue state). v0.26.10.28.2 (R3): main=none for an empty repository alone, main=absent for heads with no main; a failed read
 #                is refused and records nothing.
 #   decide-blocked <issue> <pr>, decide-post <pr> <file>   v0.26.10.24.6: the blocked label, and the decision's comment, for checks/decide.sh
+#   pr-body <pr>   0.26.10.29.5 (DP-1 R2, R8): the pull request's description, printed whole, read only (gh pr view), for checks/decide.sh's
+#                Decisions section and checks/decisions.sh record
 #   results-fetch   v0.26.10.24.5: .vid/code, the copy checks/results.sh reads: 0.26.10.28.4 (M5), the vid-results/* reports and every other head's commits, no file of the code;
 #                0.26.10.28.1 (S5): a working clone found there is moved aside to .vid/code.old-<UTC>, saying so, and the bare copy cloned
 #   tw-post [--amend <n>] <ticket>   refused when writer.sh check refuses it, writer.sh fresh finds it stale (the plan,
@@ -55,6 +57,12 @@
 #                naming the newest change (`withdrawn <n> decision=<id>`), or, 0.26.10.28.6 (R2), a fix ticket whose rows were all ruled
 #                known limits, its comment saying so (`withdrawn <n> decision=known-limit rows=<rows>`).
 #   tw-outside <n>  a published ticket closed outside ViD, read once: withdrawn (`withdrawn <n> decision=closed-outside`), or nothing changed.
+#   0.26.10.29.2: tw-close's comment names the change's why and where each row went, on the issue and each open pull request (R3, R11),
+#                and logs `handover`; tw-post --amend's names the cause and each row added, removed or changed, there too (R11);
+#   tw-tell <n>  (R11) a known-limit fix ticket a pull request names, told so on the issue and the pull request (`told <n> limits=`);
+#   tw-handovers (R3) the handovers of what writer.sh due owes, logged before any ticket is written (the round and tw-hand call it);
+#   tw-hand …    (R12) the ticket writer called by hand: the lock, the saved records, the post and the save, in the run's order.
+#                tw-post, tw-close and tw-tell, outside the round (VID_CALLER=round), refuse while .vid/state-at is not the saved head.
 # The planner's setup (v0.26.10.12.3.1 R3), read only — gh auth status and gh repo view alone:
 #   access       one line each: `access gh — signed in` (or not, then it stops); for repo: and, with layout: separate
 #                (the default), spec-repo: of .vid/tw/settings — not set yet, reached (its permission, private or
@@ -67,8 +75,8 @@
 # Usage, one line a group (the usage message says the same):
 #   sh checks/github.sh access
 #   sh checks/github.sh spec-setup [--make-only] | spec-export
-#   sh checks/github.sh tw-sync | tw-post [--amend <n>] <ticket> | tw-outside <n> | tw-close <n>
-#   sh checks/github.sh decide-blocked <issue> <pr> | decide-post <pr> <file> | results-fetch | round-read
+#   sh checks/github.sh tw-sync | tw-post [--amend <n>] <ticket> | tw-outside <n> | tw-close <n> | tw-tell <n> | tw-handovers | tw-hand write <writer.sh write's arguments>|close <n>|tell <n>
+#   sh checks/github.sh decide-blocked <issue> <pr> | decide-post <pr> <file> | pr-body <pr> | results-fetch | round-read
 #   sh checks/github.sh deploy-ask|grade-ask --stage <N> --commit <c> --title <t> --body-file <f> | run-ask --step <s> --commit <c> --title <t> --body-file <f>
 #   sh checks/github.sh state-save | state-restore [<repo>] | lock-take [<session>] | lock-renew | lock-free
 #   sh checks/github.sh comment <issue> --body-file <f> | label <issue> [--add <l>]… [--remove <l>]… | close <issue> | close --milestone <stage> --commit <sha>
@@ -180,6 +188,29 @@ exptree() {
 # stpriv <repo>: ST and SU, its URL, or a refusal unless it is private (R6). sturl: the same for state-repo:, or the spec repository
 stpriv() { ST=$1; [ "$(ghc repo view "$ST" --json isPrivate --jq .isPrivate 2>/dev/null)" = true ] || gref "$ST is not a private repository: ViD's records never go there"; SU=$(ghc repo view "$ST" --json url --jq .url) && [ -n "$SU" ] || gref "no access to $ST"; }
 sturl() { _s=$(twkey state-repo); stpriv "${_s:-$SPEC}"; }
+# 0.26.10.29.2 (R3, R11): oprs <n>, the open pull requests naming ticket n (the body's first line `ticket: #<n>`), one a line, from the
+# list of open pull requests, as the round's read takes it (no search, which GitHub indexes late), read whole: a list as long as
+# the limit (VID_OPRS_LIMIT, 1000) is a refusal, never a short list
+oprs() { _lm=${VID_OPRS_LIMIT:-1000}; ghc pr list -R "$REPO" --state open --limit "$_lm" --json number,headRefName,isDraft,headRefOid,labels,body,comments,updatedAt --jq "$RPQ" > "$W/op" || gref "the open pull requests naming #$1 could not be read — nothing posted"
+  [ "$(grep -c . "$W/op")" -lt "$_lm" ] || gref "the open pull requests could not be read whole ($_lm or more), so those naming #$1 are not known — nothing posted"
+  awk -F'\t' -v n="$1" '{ t = $6; if (t !~ /^ticket: #/) next; sub(/^ticket: #/, "", t); sub(/[^0-9].*$/, "", t); if (t == n) print $1 }' "$W/op"; }
+# rhd: the saved records' head (empty while none is saved); a failed read is a refusal, never "none"
+rhd() { _o=$(git ls-remote "$SU" refs/heads/vid-state/records 2>/dev/null) || gref "the saved records' head could not be read (git ls-remote) — nothing posted"; printf '%s' "$_o" | cut -f1; }
+# 0.26.10.29.2 (R12): rhead, outside the round (which marks its calls VID_CALLER=round), a post, amendment, withdrawal or telling refuses
+# while another live session holds the run's lock, and while .vid/state-at is not the saved records' head (with no state-at: only while
+# none is saved), so a folder behind them never sends a row twice and nothing goes out unrecorded beside a run
+rhead() { [ "${VID_CALLER:-}" != round ] || return 0; sturl; _h=$(rhd) || exit 1
+  _ll=$(git ls-remote "$SU" refs/heads/vid-state/lock 2>/dev/null) || gref 'the lock could not be read — nothing posted'
+  if [ -n "$(printf '%s' "$_ll" | cut -f1)" ]; then rm -rf "$W/rl"; git init -q "$W/rl" && git -C "$W/rl" fetch -q "$SU" refs/heads/vid-state/lock && _lb=$(git -C "$W/rl" show FETCH_HEAD:lock) || gref 'the lock could not be read — nothing posted'
+    _ls=$(printf '%s\n' "$_lb" | sed -n 's/^session: //p'); _la=$(printf '%s\n' "$_lb" | sed -n 's/^at: //p'); _ag=$(($(date +%s) - ${_la:-0})); _me=${CLAUDE_CODE_SESSION_ID:-$(cat .vid/lock-session 2>/dev/null)}
+    [ "$_ls" = "$_me" ] || [ "$_ag" -ge "${VID_LOCK_COLD:-900}" ] || gref "the run's lock is held by $_ls, ${_ag}s old: this goes out through that run, or by sh checks/github.sh tw-hand once the lock is free — nothing posted"; fi
+  if [ -f .vid/state-at ]; then [ "$_h" = "$(cat .vid/state-at)" ] || gref "this folder's records are not the saved records' head (${_h:-none}): another folder saved since. sh checks/github.sh tw-hand restores them first — nothing posted"
+  else [ -z "$_h" ] || gref "this folder holds no saved state while records are saved ($(printf %.12s "$_h")): sh checks/github.sh tw-hand restores them first — nothing posted"; fi; }
+# hov <n> <rows> (0.26.10.29.2, R3): the log already holds ticket n's handover of these rows since its newest writing
+hov() { awk -v n="$1" -v r="rows=$2" '($1 == "published" || $1 == "amended") && $2 == n { f = 0 } $1 == "handover" && $2 == n { for (i = 3; i <= NF; i++) if ($i == r) f = 1 } END { exit !f }' .vid/tw/log 2>/dev/null; }
+# tell <n> <file>: the comment on issue n and on each of its open pull requests (0.26.10.29.2, R3, R11), whoever claimed it or not; OP
+# their numbers. The pull requests are read first ($W/opn, unless the caller read them already), so a failed read posts nothing
+tell() { [ -f "$W/opn" ] || oprs "$1" > "$W/opn"; OP=$(paste -sd , "$W/opn"); ghc issue comment "$1" -R "$REPO" --body-file "$2" > /dev/null || return 1; for _p in $(cat "$W/opn"); do ghc pr comment "$_p" -R "$REPO" --body-file "$2" > /dev/null || return 1; done; }
 # specgit: .vid/spec.git, a bare repository whose objects borrow ViD's (alternates) — the export is built and pushed
 # there; SG its path, SURL the spec repository's URL, SM its main (fetched), or empty (main 404–411)
 specgit() {
@@ -235,10 +266,11 @@ case "$CMD" in
     twlog "sync main=${M:-none} open=${O:--} at=$(now)"; echo "ViD github: synced — main ${M:-none}, open tickets ${O:-none}"; exit 0 ;;
 
   tw-post)   # v0.26.10.12.3 (R3, R7–R9): a written ticket published, or open ticket <n> amended in place
-    tw; A=''; if [ "${1:-}" = --amend ]; then A=${2:-}; shift 2; fi; F=${1:-}; [ -f "$F" ] && [ -f "${F%.md}.meta" ] || usage
+    tw; A=''; if [ "${1:-}" = --amend ]; then A=${2:-}; shift 2; fi; F=${1:-}; [ -f "$F" ] && [ -f "${F%.md}.meta" ] || usage; rhead   # 0.26.10.29.2 (R12)
     { sh "$HERE/writer.sh" gate && sh "$HERE/writer.sh" check "$F" && sh "$HERE/writer.sh" fresh "$F" $A; } > "$W/ck" 2>&1 || { sed 's/^/    /' "$W/ck" >&2; gref "the gate is shut, the check refuses $F, or it is stale — nothing posted"; }
     X=$(sed -n 's/^- export: //p' "$F" | head -n 1); exptree; specgit
     [ -n "$SM" ] && [ "$X" = "$SM" ] && [ "$(git --git-dir="$SG" rev-parse "$SM^{tree}")" = "$TR" ] || gref "the ticket's export ${X:-none} is not the spec repository's main at ViD's HEAD: sh checks/github.sh spec-export, then write it again"
+    [ -z "$A" ] || oprs "$A" > "$W/opn"   # 0.26.10.29.2 (R11): its pull requests read whole before anything is posted
     ghc label create "${PFX}ticket" -R "$REPO" --force --description 'ViD: a ticket' > /dev/null || gref "the label ${PFX}ticket could not be made"
     ghc label create "${PFX}blocked" -R "$REPO" --force --description 'ViD: a question stops this' > /dev/null || gref "the label ${PFX}blocked could not be made"
     TT=$(sed -n '1s/^# //p' "$F"); if [ -n "$A" ]; then N=$A; else printf 'ViD is writing this ticket; its body follows in a moment.\n' > "$W/ph"
@@ -246,12 +278,16 @@ case "$CMD" in
     sed "s/^- number: .*/- number: $N/" "$F" > "$W/t.md"; sh "$HERE/writer.sh" parts "$W/t.md" "$N" "$W/p" > "$W/pl" || gref "the parts of $F could not be made"
     ghc issue edit "$N" -R "$REPO" --title "$TT" --body-file "$(sed -n 1p "$W/pl")" > /dev/null || gref "the body of #$N could not be written"
     : > "$W/cu"; for p in $(sed 1d "$W/pl"); do ghc issue comment "$N" -R "$REPO" --body-file "$p" >> "$W/cu" || gref "a part of #$N could not be posted"; done
-    [ -z "$A" ] || { printf 'vid: amended %s. Earlier results for its changed rows do not count.\n' "$(sed -n 's/^why //p' "${F%.md}.meta")" > "$W/am"; ghc issue comment "$N" -R "$REPO" --body-file "$W/am" > /dev/null || gref "the amendment of #$N could not be named"
+    # 0.26.10.29.2 (R11): the amendment's cause and each row added, removed or changed (the meta's `tell` lines), on the issue and each open pull request
+    [ -z "$A" ] || { { printf 'vid: amended %s. Earlier results for its changed rows do not count.\n' "$(sed -n 's/^why //p' "${F%.md}.meta")"; ! grep -q '^tell ' "${F%.md}.meta" || { echo; sed -n 's/^tell //p' "${F%.md}.meta"; }; } > "$W/am"; tell "$N" "$W/am" || gref "the amendment of #$N could not be named"
       CU=$(paste -sd ' ' "$W/cu" | sed 's/ /, /g'); printf 'vid: replaced. This comment held a part of an earlier writing of this ticket. The current writing, %s, is this issue'"'"'s body%s.\n' "$(sed -n '1s/.*, writing \([0-9a-f]*\)\.$/\1/p' "$(sed -n 1p "$W/pl")")" "${CU:+, then its part comments $CU}" > "$W/rp"
       for c in $(ghc issue view "$N" -R "$REPO" --json comments --jq '.comments[] | .url + "\t" + (.body | split("\n") | .[0])' | tr -d '\r' | awk -F'\t' -v CU="$W/cu" 'BEGIN { while ((getline l < CU) > 0) K[l] = 1 } !($1 in K) && ($2 ~ /^Ticket #[0-9]+, part [0-9]+ of [0-9]+, writing [0-9a-f]+\.$/ || index($2, "vid: replaced.") == 1) { sub(/.*issuecomment-/, "", $1); print $1 }'); do
         ghc api -X PATCH "repos/$REPO/issues/comments/$c" -F "body=@$W/rp" > /dev/null || gref "the earlier part comment $c of #$N could not be marked replaced"; done; }
+    # 0.26.10.29.2 (R3): the rows an amendment takes out of a ticket whose pull request is open, handed over (`handover`, after its amended line)
+    HO=''; if [ -n "$A" ]; then awk -v n="$N" '($1 == "published" || $1 == "amended") && $2 == n { l = $0 } END { print l }' .vid/tw/log | tr ' ' '\n' | sed -n 's/^rows=//p' | tr , '\n' | grep -v '^-*$' > "$W/r0" || true
+      kv "$(sed -n 1p "${F%.md}.meta")" rows | tr , '\n' > "$W/r1"; HR=$(grep -vxF -f "$W/r1" "$W/r0" | paste -sd , -); [ -z "$HR" ] || [ ! -s "$W/opn" ] || hov "$N" "$HR" || HO="handover $N pr=$(paste -sd , "$W/opn") rows=$HR"; fi
     K1=published; [ -z "$A" ] || K1=amended; twlog "$K1 $N $(sed -n 1p "${F%.md}.meta") parts=$(grep -c . "$W/pl") at=$(now)"
-    awk -v n="$N" -v t="$(now)" '$1 == "sent" { print "sent " $2 " ticket=" n " hash=" $3 " at=" t }' "${F%.md}.meta" >> .vid/tw/log
+    awk -v n="$N" -v t="$(now)" '$1 == "sent" { print "sent " $2 " ticket=" n " hash=" $3 " at=" t }' "${F%.md}.meta" >> .vid/tw/log; [ -z "$HO" ] || twlog "$HO at=$(now)"
     mkdir -p .vid/tw/out; put ".vid/tw/out/issue-$N.md" < "$W/t.md" || exit 1; echo "ViD github: $K1 ticket #$N ($(grep -c . "$W/pl") parts)"; exit 0 ;;
 
   tw-outside)   # v0.26.10.27.3 (8.1b R1): tw-outside <n>, a published ticket neither open in the round's read nor merged by ViD's
@@ -266,13 +302,96 @@ case "$CMD" in
     twlog "withdrawn $N decision=closed-outside at=$(now)"; ev "ticket issue=$N state=closed-outside"; echo "closed-outside $N"; exit 0 ;;
   tw-close)   # v0.26.10.12.3 (R7): open ticket <n> withdrawn when writer.sh due owes it, by the change due names; never merged
     # 0.26.10.28.6 (R2): or, owed `withdraw <n> limits=<rows>`, a fix ticket whose rows were all ruled known limits, its comment saying so, `decision=known-limit`
-    tw; N=${1:-}; case "$N" in ''|*[!0-9]*) usage ;; esac; grep -q "^published $N " .vid/tw/log 2>/dev/null || gref "#$N is no ticket TW published"
+    tw; N=${1:-}; case "$N" in ''|*[!0-9]*) usage ;; esac; grep -q "^published $N " .vid/tw/log 2>/dev/null || gref "#$N is no ticket TW published"; rhead   # 0.26.10.29.2 (R12)
     { sh "$HERE/writer.sh" gate && sh "$HERE/writer.sh" due; } > "$W/ck" 2>&1 || { sed 's/^/    /' "$W/ck" >&2; gref "the gate is shut, or writer.sh due failed — #$N not withdrawn"; }
-    PC=$(grep -E "^withdraw $N( |$)" "$W/ck") && [ "$(ghc issue view "$N" -R "$REPO" --json state,labels --jq '.state + "\t" + ([.labels[].name] | join(","))' | cut -f1)" = OPEN ] || gref "the round owes no withdrawal of #$N, or it is not open: a merged or closed ticket is never changed"; D=$(kv "$PC" decision); LR=$(kv "$PC" limits)
+    PC=$(grep -E "^withdraw $N( |$)" "$W/ck") && [ "$(ghc issue view "$N" -R "$REPO" --json state,labels --jq '.state + "\t" + ([.labels[].name] | join(","))' | cut -f1)" = OPEN ] || gref "the round owes no withdrawal of #$N, or it is not open: a merged or closed ticket is never changed"; D=$(kv "$PC" decision); LR=$(kv "$PC" limits); KS=$(kv "$PC" kept)
+    # 0.26.10.29.2 (R11): its pull requests read fresh and whole first; a known-limit fix ticket a pull request names merges as it is, never withdrawn
+    oprs "$N" > "$W/opn"; [ -z "$LR" ] || [ ! -s "$W/opn" ] || gref "a pull request names #$N ($(paste -sd , "$W/opn")): a fix ticket whose rows are all known limits is told (tw-tell) and merges as it is — #$N not withdrawn"
     if [ -n "$LR" ]; then D=known-limit; printf 'vid: withdrawn. Its rows %s were ruled known limits or taken out of the plan, so nothing in it is left to build. This ticket is not to be merged.\n' "$(printf '%s' "$LR" | sed 's/,/, /g')" > "$W/wd"
-    else printf 'vid: withdrawn by plan change %s, what %s. This ticket is not to be merged; its rows are planned again.\n' "${D:-none}" "$(kv "$PC" what)" > "$W/wd"; fi
-    ghc issue comment "$N" -R "$REPO" --body-file "$W/wd" > /dev/null && ghc issue close "$N" -R "$REPO" --reason 'not planned' > /dev/null || gref "#$N could not be withdrawn"
-    twlog "withdrawn $N decision=${D:-none}${LR:+ rows=$LR} at=$(now)"; echo "ViD github: withdrew ticket #$N"; exit 0 ;;
+    elif [ -n "$D" ]; then printf 'vid: withdrawn by plan change %s, what %s. This ticket is not to be merged; its rows are planned again.\n' "$D" "$(kv "$PC" what)" > "$W/wd"
+    # 0.26.10.29.2 (R11): no plan change behind it (a landing or a ruling took its rows): named as an amendment names its cause
+    else { printf 'vid: withdrawn. This ticket is not to be merged; its rows are planned again.\n\n'; sh "$HERE/writer.sh" cause "$N" 2>/dev/null; } > "$W/wd"; fi
+    if [ -z "$LR" ]; then
+      # 0.26.10.29.2 (R3, R11): its cause, the change's why, and where each row went, on the issue and on each open pull request naming it
+      WY=''; [ -z "$D" ] || WY=$(grep "^plan-change .* decision=$D " .vid/metrics-events 2>/dev/null | tail -n 1 | sed -n 's/.* why="\(.*\)" at=[^ ]*$/\1/p')
+      { [ -z "$WY" ] || printf '\nWhy: %s\n' "$WY"
+        # 0.26.10.29.2 (R11): a big change, its step kept: more than half of its rows gone or replaced
+        [ -z "$KS" ] || printf '\nMore than half of the rows it held are gone or replaced, so it is withdrawn rather than amended; the rows step %s keeps go out in a new ticket that names this one.\n' "$KS"
+        printf '\nWhere its rows went:\n\n'; sh "$HERE/writer.sh" where "$N"; } >> "$W/wd" 2> "$W/we" || { sed 's/^/    /' "$W/we" >&2; gref "where the rows of #$N went could not be read — #$N not withdrawn"; }; fi
+    tell "$N" "$W/wd" && ghc issue close "$N" -R "$REPO" --reason 'not planned' > /dev/null || gref "#$N could not be withdrawn"
+    twlog "withdrawn $N decision=${D:-none}${LR:+ rows=$LR}${KS:+ kept=$KS} at=$(now)"
+    # 0.26.10.29.2 (R3): its rows handed over, so the ticket that next carries any of them names it (writer.sh's `- earlier work:`)
+    HR=$(awk -v n="$N" '($1 == "published" || $1 == "amended") && $2 == n { l = $0 } END { print l }' .vid/tw/log | tr ' ' '\n' | sed -n 's/^rows=//p'); [ -n "$LR" ] || hov "$N" "$HR" || twlog "handover $N pr=${OP:--} rows=$HR at=$(now)"
+    echo "ViD github: withdrew ticket #$N"; exit 0 ;;
+  tw-tell)   # 0.26.10.29.2 (R11): a fix ticket whose every row is a known limit while a pull request names it, owed `tell <n> limits=<rows>`: not
+    # withdrawn, as it merges as it is (0.26.10.28.6 R2), but told, on the issue and each open pull request, its rows named as known limits; `told <n> limits=`
+    tw; N=${1:-}; case "$N" in ''|*[!0-9]*) usage ;; esac; grep -q "^published $N " .vid/tw/log 2>/dev/null || gref "#$N is no ticket TW published"; rhead   # 0.26.10.29.2 (R12)
+    { sh "$HERE/writer.sh" gate && sh "$HERE/writer.sh" due; } > "$W/ck" 2>&1 || { sed 's/^/    /' "$W/ck" >&2; gref "the gate is shut, or writer.sh due failed — #$N not told"; }
+    PC=$(grep -E "^tell $N " "$W/ck") || gref "the round owes #$N no telling"; LR=$(kv "$PC" limits)
+    { printf 'vid: amended. Its rows %s were ruled known limits, so nothing in it is left to build; it is not withdrawn, as a pull request names it: it merges as it is.\n\n' "$(printf '%s' "$LR" | sed 's/,/, /g')"
+      sh "$HERE/writer.sh" where "$N"; } > "$W/tl" 2> "$W/we" || { sed 's/^/    /' "$W/we" >&2; gref "the rows of #$N could not be read — #$N not told"; }
+    tell "$N" "$W/tl" || gref "#$N could not be told"; twlog "told $N limits=$LR at=$(now)"; echo "ViD github: told ticket #$N"; exit 0 ;;
+  tw-handovers)   # 0.26.10.29.2 (R3): the handovers of everything writer.sh due owes now (a withdrawal's rows; the rows an amendment
+    # takes out of a ticket a pull request names), logged before any ticket is written, so a ticket receiving rows names the ticket they
+    # left whatever order the tickets are written in; each once (hov): tw-close and tw-post --amend log none a second time
+    tw; rhead; sh "$HERE/writer.sh" handovers > "$W/hw" 2> "$W/he" || { sed 's/^/    /' "$W/he" >&2; gref 'writer.sh handovers failed — no handover logged'; }   # no gate: it posts nothing, and a shut gate refuses each line in its turn
+    while IFS="$(printf '\t')" read -r n k rows; do [ -n "$rows" ] || continue; ! hov "$n" "$rows" || continue; rm -f "$W/opn"; oprs "$n" > "$W/opn"; [ "$k" = w ] || [ -s "$W/opn" ] || continue
+      P=$(paste -sd , "$W/opn"); twlog "handover $n pr=${P:--} rows=$rows at=$(now)"; done < "$W/hw"; rm -f "$W/opn"; echo 'ViD github: handovers logged'; exit 0 ;;
+  tw-hand)   # 0.26.10.29.2 (R12): the ticket writer called outside /vid run — tw-hand write <writer.sh write's arguments> | close <n> | tell <n> —
+    # does what the run does at its start, in order: the run's lock taken (refused, naming the holder, while another live session holds
+    # it), or borrowed when this session holds it (renewed, the restore skipped, left held); the folder brought to the saved records (a
+    # restore, or a refusal naming the records not yet saved while they are behind, this call's own lock-taken event apart); the export
+    # and the sync; the ticket written and posted, withdrawn or told; the records saved; the lock freed only when this call took it.
+    # 0.26.10.29.2 (R12): a borrowed lock needs the folder at the saved head; a take that found this session's own lock keeps it;
+    # the round's read is taken afresh; the records are saved only when the act wrote to the log, and only at the saved head
+    tw; K=${1:-}; case "$K" in write) [ $# -ge 2 ] || usage ;; close|tell) case "${2:-}" in ''|*[!0-9]*) usage ;; esac ;; *) usage ;; esac
+    ST=$(twkey state-repo); [ -n "$ST" ] || ST=$SPEC; SU=$(ghc repo view "$ST" --json url --jq .url) || gref "no access to $ST"
+    LL=$(git ls-remote "$SU" refs/heads/vid-state/lock 2>/dev/null) || gref 'the lock could not be read'; LO=$(printf '%s' "$LL" | cut -f1); LS=''
+    if [ -n "$LO" ]; then git init -q "$W/hl"; git -C "$W/hl" fetch -q "$SU" refs/heads/vid-state/lock && LS=$(git -C "$W/hl" show FETCH_HEAD:lock | sed -n 's/^session: //p') || gref 'the lock could not be read'; fi
+    HM=${CLAUDE_CODE_SESSION_ID:-$(cat .vid/lock-session 2>/dev/null)}; FR=''; HS=''
+    hfail() { [ -z "$FR" ] || sh "$0" lock-free > /dev/null 2>&1 || echo "ViD github: the lock this call took could not be freed" >&2; gref "$1"; }
+    BR=''; if [ -n "$LO" ] && [ -n "$HM" ] && [ "$LS" = "$HM" ]; then sh "$0" lock-renew > "$W/hk" 2>&1 || { sed 's/^/    /' "$W/hk" >&2; gref "the run's lock could not be renewed — nothing written"; }; BR=1
+    else HS=${CLAUDE_CODE_SESSION_ID:-hand-$$-$(date +%s)}; sh "$0" lock-take "$HS" > "$W/hk" 2>&1 || { sed 's/^/    /' "$W/hk" >&2; gref "the run's lock is another live session's — nothing written"; }
+      # freed at the end only when this take found no holder, or a cold one: a lock this session already held (taken since the read) stays
+      FM=$(grep "^lock-taken session=$HS " .vid/metrics-events 2>/dev/null | tail -n 1 | sed -n 's/.* from=\([^ ]*\).*/\1/p'); if [ "$FM" = "$HS" ]; then BR=1; else FR=1; fi; fi
+    SA=$(cat .vid/state-at 2>/dev/null || true); T0=$(rhd) || hfail 'the saved records could not be read — nothing written'
+    # 0.26.10.29.2 (R12): a borrowed lock skips the restore, so its folder must be at the saved head already
+    [ -z "$BR" ] || [ "$T0" = "$SA" ] || [ -z "$T0$SA" ] || hfail "this folder's records are not the saved records' head (${T0:-none}) while this session holds the run's lock: nothing is restored under a run — nothing written"
+    if [ -z "$BR" ]; then
+      if [ -n "$T0" ] && [ "$T0" != "$SA" ]; then
+        # the records here against the last save this folder knows (its state-at, else the saved head): any that differ would be lost
+        git init -q "$W/hr" && git -C "$W/hr" fetch -q "$SU" refs/heads/vid-state/records || hfail 'the saved records could not be read — nothing written'
+        B0=$T0; [ -z "$SA" ] || ! git -C "$W/hr" cat-file -e "$SA^{commit}" 2>/dev/null || B0=$SA; mkdir -p "$W/hb" "$W/hc/results"
+        git -C "$W/hr" archive "$B0" | tar -x -C "$W/hb" || hfail 'the saved records could not be read — nothing written'; rm -f "$W/hb/home.head" "$W/hb/home.bundle"
+        for f in RUN-STATE.md budget metrics-events decide tw plans plan VID-FINDINGS.md; do [ ! -e ".vid/$f" ] || cp -R ".vid/$f" "$W/hc/$f"; done; rm -rf "$W/hc"/decide/tmp.*; cp .vid/results/*.txt "$W/hc/results/" 2>/dev/null || true
+        [ ! -f "$W/hc/metrics-events" ] || { awk -v s="lock-taken session=$HS " 'index($0, s) == 1 { k = NR } { a[NR] = $0 } END { for (i = 1; i <= NR; i++) if (i != k) print a[i] }' "$W/hc/metrics-events" > "$W/hm" && cat "$W/hm" > "$W/hc/metrics-events"; }
+        find "$W/hb" "$W/hc" -mindepth 1 -depth -type d -empty -exec rmdir {} \; 2>/dev/null || true   # git keeps no empty folder
+        diff -rq "$W/hb" "$W/hc" 2>/dev/null | awk -v B="$W/hb" -v C="$W/hc" '{ if ($1 == "Files") p = $2; else { p = substr($0, 9); i = index(p, ": "); p = substr(p, 1, i - 1) "/" substr(p, i + 2) }
+          if (index(p, B) == 1) p = substr(p, length(B) + 1); else if (index(p, C) == 1) p = substr(p, length(C) + 1); sub(/^\/+/, "", p); print ".vid/" p }' > "$W/hd"
+        [ ! -s "$W/hd" ] || hfail "this folder holds records not yet saved while the saved ones are newer: $(paste -sd ' ' "$W/hd"). A save from here would replace the newer ones, and a restore drops these: keep what you need of them elsewhere, then restore (sh checks/github.sh state-restore) — nothing written"
+        sh "$0" state-restore > "$W/hs" 2>&1 || { sed 's/^/    /' "$W/hs" >&2; hfail 'the saved records could not be restored — nothing written'; }; fi; fi
+    # the export, the sync and (0.26.10.29.2) the round's read of the pull requests, fresh, so the writer owes what GitHub holds now
+    mkdir -p .vid/round; { sh "$0" spec-export && sh "$0" tw-sync && sh "$0" round-read > "$W/hq" && put .vid/round/read < "$W/hq"; } > "$W/hx" 2>&1 || { sed 's/^/    /' "$W/hx" >&2; hfail 'the export, the sync or the read failed — nothing written'; }
+    NL=$(grep -c . .vid/tw/log 2>/dev/null || true)
+    sh "$0" tw-handovers > "$W/hx" 2>&1 || { sed 's/^/    /' "$W/hx" >&2; hfail 'the handovers could not be logged — nothing written'; }   # 0.26.10.29.2 (R3): before any ticket is written
+    rc=0; case $K in
+      write) shift; F=$(sh "$HERE/writer.sh" write "$@" 2> "$W/he") || { sed 's/^/    /' "$W/he" >&2; hfail 'the ticket could not be written — nothing posted'; }
+        if [ "$1" = amend ]; then sh "$0" tw-post --amend "$2" "$F" > "$W/ho" 2>&1 || rc=$?; else sh "$0" tw-post "$F" > "$W/ho" 2>&1 || rc=$?; fi ;;
+      close) sh "$0" tw-close "$2" > "$W/ho" 2>&1 || rc=$? ;;
+      tell) sh "$0" tw-tell "$2" > "$W/ho" 2>&1 || rc=$? ;;
+    esac
+    # 0.26.10.29.2 (R12): saved only when the act wrote to the log, and only from a folder at the saved head. An act that
+    # failed with nothing in the log may still have changed the issue, and the message says so; the save itself refuses when the head it
+    # rereads is not the one checked here (VID_SAVE_AT), so the check and the save are one step
+    if [ "$rc" != 0 ] && [ "$(grep -c . .vid/tw/log 2>/dev/null || true)" = "$NL" ]; then sed 's/^/    /' "$W/ho" >&2; hfail 'nothing was recorded and nothing saved; if the act failed part way (the lines above say where), the issue may already be changed on GitHub'; fi
+    T1=$(rhd) || hfail 'posted, but the saved records could not be read, so nothing is saved: sh checks/github.sh state-save once they can be'
+    [ "$T1" = "$(cat .vid/state-at 2>/dev/null)" ] || [ -z "$T1$(cat .vid/state-at 2>/dev/null)" ] || hfail "posted, but the saved records moved meanwhile (${T1:-none}): nothing saved over them"
+    VID_SAVE_AT=${T1:-none} sh "$0" state-save > "$W/hv" 2>&1 || { cat "$W/ho"; sed 's/^/    /' "$W/hv" >&2
+      if grep -q 'nothing saved over them' "$W/hv"; then hfail 'posted, but another folder saved meanwhile: nothing is saved over its records, and the post is in this folder alone'; fi
+      hfail 'the records could not be saved: run sh checks/github.sh state-save before anything else'; }
+    [ "$rc" = 0 ] || { sed 's/^/    /' "$W/ho" >&2; hfail 'the act failed part way (the lines above say where); what it recorded is saved'; }; cat "$W/ho"
+    if [ -n "$FR" ]; then sh "$0" lock-free > /dev/null 2>&1 || gref 'posted and saved, but the lock this call took could not be freed'; echo 'ViD github: the records saved; the lock freed'
+    else echo "ViD github: the records saved; the run's lock kept"; fi; exit 0 ;;
 
   spec-setup)   # v0.26.10.12.3 (R2, main 436–448): the private spec repository, made once, then an export
     tw
@@ -308,6 +427,9 @@ case "$CMD" in
     tw; [ -n "${1:-}" ] && [ -n "${2:-}" ] || usage; L=$(ghc issue view "$1" -R "$REPO" --json state,labels --jq '.state + "\t" + ([.labels[].name] | join(","))') || gref "the labels of #$1 could not be read"
     M=$(ghc pr view "$2" -R "$REPO" --json labels --jq '[.labels[].name] | join(",")') || gref "the labels of pull request $2 could not be read"
     case ",$(printf %s "$L" | cut -f2),$M," in *",${PFX}blocked,"*) echo blocked ;; esac; exit 0 ;;
+
+  pr-body)   # 0.26.10.29.5 (DP-1 R2, R8): the pull request's description, whole; a description that cannot be read is refused, never empty
+    tw; [ -n "${1:-}" ] || usage; ghc pr view "$1" -R "$REPO" --json body --jq .body || gref "the description of pull request $1 could not be read"; exit 0 ;;
 
   decide-post)   # v0.26.10.24.6 (R2): the decision, a comment on the pull request
     tw; [ -n "${1:-}" ] && [ -f "${2:-}" ] || usage; ghc pr comment "$1" -R "$REPO" --body-file "$2" > /dev/null || gref "the decision on pull request $1 could not be posted"; exit 0 ;;
@@ -376,6 +498,9 @@ case "$CMD" in
 
   state-save)   # v0.26.10.25.1 (R6): ViD's records and project on vid-state/records of the state repository, as files and a bundle; nothing to push when nothing changed
     tw; sturl; RP=$W/sr; git init -q "$RP"; T0=$(git ls-remote "$SU" refs/heads/vid-state/records 2>/dev/null | cut -f1); HD=$(git rev-parse HEAD) || gref 'no commit at HEAD'; rm -f "$RP/.git/hooks"/* 2>/dev/null
+    # 0.26.10.29.2 (R12): a hand-call's save names the head it checked (VID_SAVE_AT, `none` for no records yet); when the head read
+    # here, the parent of this save, is another, another folder saved meanwhile and nothing is saved over it. The run's own save names none
+    [ -z "${VID_SAVE_AT:-}" ] || [ "${T0:-none}" = "$VID_SAVE_AT" ] || gref "the saved records' head (${T0:-none}) is not the one this call checked ($VID_SAVE_AT): nothing saved over them"
     for f in RUN-STATE.md budget metrics-events decide tw plans plan VID-FINDINGS.md; do [ ! -e ".vid/$f" ] || cp -R ".vid/$f" "$RP/$f"; done; rm -rf "$RP"/decide/tmp.*; mkdir "$RP/results"; cp .vid/results/*.txt "$RP/results/" 2>/dev/null
     if [ -n "$T0" ]; then git -C "$RP" fetch -q "$SU" refs/heads/vid-state/records || gref "$ST could not be fetched"; fi; printf '%s\n' "$HD" > "$RP/home.head"
     if [ -n "$T0" ] && [ "$(git -C "$RP" show FETCH_HEAD:home.head 2>/dev/null)" = "$HD" ]; then git -C "$RP" show FETCH_HEAD:home.bundle > "$RP/home.bundle"; else git bundle create -q "$RP/home.bundle" --all 2>/dev/null || gref 'the project could not be bundled'; fi

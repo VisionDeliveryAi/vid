@@ -32,7 +32,7 @@ D56='**D-056** REQ-006 the name confirmed by the owner as "Sparrow" | why: brand
 printf -- '- %s | enforced: convention\n- %s | enforced: convention\n' "$D56" "$D42" >> DECISIONS.md
 printf -- '- **D-013** REQ-006 the row is counted by checks/extractors/invariant.cap.sh, as `checks/test.sh` runs it | why: cost | enforced: convention\n- **D-014** REQ-006 the product'"'"'s src/checks/cap.py runs the health checks/alarms. | why: cost | enforced: convention\n' >> DECISIONS.md
 g commit -qam 'owner words and records planted'; tw_ratify 'Yes, with D-005' || fail 'the toy was not ratified again'
-tw_skel || fail 'the skeleton round failed'; tw_hand 'closed S02'; tw_hand 'closed S03'; tw_start S04 || fail 'S04 was refused'
+tw_skel || fail 'the skeleton round failed'; tw_closed S02; tw_closed S03; tw_start S04 || fail 'S04 was refused'
 F=$(sh "$W" write step S04 2> "$T/werr") || fail "S04's ticket was refused"
 grep -qxF '> ROW-002 | behavior | REQ-006 | anonymous | n/a | A subscriber can keep up to ten saved searches, and an eleventh is refused with a message that states the limit of ten. | REQ-006 | origin: REQ-006' "$F" || fail 'ROW-002 is not quoted without its prerequisite note'
 grep -q 'owed: prerequisite' "$F" && fail 'a prerequisite note is written'

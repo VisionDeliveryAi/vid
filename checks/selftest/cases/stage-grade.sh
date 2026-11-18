@@ -60,6 +60,7 @@ G2=$(sed -n 's/^issue\t//p' .vid/decide/stage/1/2/s1ask 2>/dev/null); if [ -n "$
   sh "$QS" sync > /dev/null 2>&1; grep -q 'the close of stage-1, its grade S1, lost twice · answer again' .vid/RUN-STATE.md || fail 'the lost S1 reached no Q line'
   QN=$(sed -n 's/^- \(Q[0-9]*\) · .*its grade S1, lost twice.*/\1/p' .vid/RUN-STATE.md); RC=0; sh "$QS" answer "$QN" limit 'no' > "$T/out" 2>&1 || RC=$?; [ "$RC" != 0 ] || fail 'a limit was taken for S1'
   sh "$QS" answer "$QN" again 'once more' > "$T/out" 2>&1 || fail 'again refused'; fetch; cs decide --stage 1; ok '^close-again stage-1 s1$'
+  grep -rlx 'why: once more' "$T"/gh/issues/*/comments/ > /dev/null 2>&1 || fail "the S1 again carries no words"   # 0.26.10.29.1 (R2): an again's words reach the dev side
   # a new candidate while that S1 is out: it is withdrawn, and its requirements join the new S1
   X2=$(sed -n 's/^commit\t//p' .vid/decide/stage/1/2/ask); N=$(sed -n 's/^issue\t//p' .vid/decide/stage/1/2/ask)
   for c in p1c1 p2c1; do e=alpha; [ $c = p1c1 ] || e=beta; rq "$c-1" "$X2" "$e" ROW-001=pass ROW-003=pass ROW-006=pass ROW-002=pass ROW-005=pass; done; rq p1cx-1 "$X2" alpha test_other=pass; fetch; cs decide --stage 1; ok '^stage-c3 1 passed$'

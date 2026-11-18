@@ -21,7 +21,7 @@ grep -q '^F-05 | lens | ' G.md || fail 'the 0.9.4 fixture carries no lens row'
 sh "$COURT" G.md >/dev/null 2>&1 || fail 'the 0.9.4 lens row convicts'
 sed 's/^F-05 | lens | /F-05 | lenz | /' G.md > U.md
 if sh "$COURT" U.md >/dev/null 2>&1; then fail 'an unknown pass acquits on 0.9.4'; fi
-sh "$COURT" U.md --report 2>&1 | grep -qF "GAP  join 13 (F-05): unknown pass 'lenz' — red-team | audit | review | lens." || fail 'the unknown pass is not named on 0.9.4'
+sh "$COURT" U.md --report 2>&1 | grep -qF "GAP  join 13 (F-05): unknown pass 'lenz' — red-team | audit | review | lens | final | strength." || fail 'the unknown pass is not named on 0.9.4'
 to091 "$FIXTURES/prd-known-good.md" B.md
 awk '{ print } /^F-05 \| audit/ { print "F-06 | lens | advisory | REQ-012 | repaired | evidence: arms: 1 retained, 2 retained — now: the footer lacks a support address, or mail to it bounces" }' B.md > L.md
 grep -q '^F-06 | lens ' L.md || fail 'the lens plant did not apply'

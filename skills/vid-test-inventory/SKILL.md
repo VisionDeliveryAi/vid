@@ -41,11 +41,11 @@ verb: checks/inventory.sh, checks/census.sh and checks/seams.sh read what
 it writes.
 
 **The owner surface — the whole of it.** One ratification sitting per
-invocation: a table, presented at recognition level, attention on the
-exceptions. The owner ratifies ROWS, not test code, and never authors by
+invocation (§5): the owner rules what needs them one by one, "Look here
+first", and approves the rest as a whole, on ViD's checks (0.26.10.29.6,
+S9). The owner approves ROWS, not test code, and never authors by
 default — every row, golden query, and checklist line is PROPOSED by the
-derivation or by a fresh-context lens and confirmed, struck, or amended
-by the owner at recognition speed. No other approval point exists.
+derivation or by a fresh-context lens. No other approval point exists.
 Narration is position updates ("deriving surfaces", "lens 3 of 6, round
 2"), never approval-seeking.
 
@@ -67,9 +67,10 @@ is the extractor contract the caller's generated extractors must meet).
 Three modes, chosen by what exists and who called:
 
 - **init mode** — no INVENTORY.md; called by vid-init in place at
-  **call point 1** (init's step 4), which runs §§1–5 below — derive,
-  deliberate, challenge, the governance rows, the ratification sitting —
-  and hands back (v0.26.10.9 R3: init makes the spec only). A row that
+  **call point 1** (init's step 4), which runs §§1–5 below — derive (§1),
+  deliberate (§2), the governance rows (§4), then the strength pass last
+  (§3, mode whole, after the design rows when there is a design), the
+  ratification sitting (§5) — and hands back (v0.26.10.9 R3: init makes the spec only). A row that
   would be materialised gets the `test` field `owed: spec-only — first
   stage`; every other `test` field is written as before — the deploy-gate
   form (`owed: paid by /vid deploy gate <n>`) and the legitimate deferral
@@ -83,20 +84,29 @@ Three modes, chosen by what exists and who called:
   `mode: tickets`) its §6 runs per ticket, with no red gate of ViD's own.
 - **append mode** — INVENTORY.md exists and the caller names a DELTA: the
   REQs an add introduced (vid-add, after its append commit and before
-  develop) or the resolved surfaces a standalone design round produced
-  (vid-design §4). Derivation runs over the delta with every axis of §1;
-  genus lenses run scoped to the delta (one round each unless a lens is
-  not dry); the row-set diff (§5) is presented; ratification;
+  develop), the resolved surfaces a standalone design round produced
+  (vid-design §4), or the rows a stage cut writes (vid-stage, "The doors
+  the cut uses": a stage's own journey row, `origin: domain`).
+  Derivation runs over the delta with every axis of §1; genus lenses run
+  scoped to the delta (their rounds end by §2, "Loop until dry"); every
+  new guard or never row is written with its control sibling (§4.4); then the strength pass last (§3, mode delta: the
+  delta's rows and the rows sharing a subject with them); the row-set
+  diff (§5) is presented; ratification;
   materialisation red; `proved-red` stamped at the parent sha where each
   test was observed red. **Under tickets** (RUN-STATE's `mode: tickets`,
   v0.26.10.9 R3), append mode stops after the ratification: its new rows are
   written `owed: spec-only — ticket`; nothing is materialised or run in
-  ViD's repository.
+  ViD's repository. **Before the code skeleton** (0.26.10.29.4 phase 4
+  R5: `sh checks/plan.sh skeleton` says `not started
+  provenance=spec-only`), there is no code yet, so append mode stops after
+  the ratification the same way: its new rows are written `owed: spec-only
+  — first stage`, and the skeleton materialises them with the rest (§6).
 - **re-derivation mode** — the standalone invocation ("vid
   test-inventory"), over the whole effective PRD after appends or a
   consolidation: derive everything with every axis of §1, run the genus
-  and counterexample lenses (one round each unless a lens is not dry),
-  diff against the existing block, present the four buckets (§5), ratify,
+  lenses (their rounds end by §2, "Loop until dry") and the governance rows,
+  then the strength pass last (§3, mode whole), diff against the
+  existing block, present the four buckets (§5), ratify,
   materialise the new rows red.
   Brownfield adoption and a reverse-PRD import arrive through this door
   when their callers exist; they are not verbs of this release.
@@ -108,12 +118,14 @@ Three modes, chosen by what exists and who called:
     ↓
  genus — fresh-context expert lenses, loop until dry         §2  fresh passes
     ↓
- counterexample challenge — the distinguishing-power lens    §3  fresh pass
-    ↓
  governance rows — rules, DIF/EXC/SUP, seams, hostility,
    controls, golden sets, property-form rows, checklist      §4  mechanical + proposals
     ↓
- RATIFICATION SITTING — one table, recognition speed         §5  ← the owner
+ the design rows, when there is a design (the resolved join)
+    ↓
+ strength pass — the counterexample-challenge lens, last     §3  fresh passes, in rounds
+    ↓
+ RATIFICATION SITTING — look here first, the rest as a whole §5  ← the owner
     ↓
  materialise — failing ledger tests, two tiers               §6  (call point 2: the code skeleton;
     ↓                                                              per ticket in ticket mode)
@@ -121,6 +133,19 @@ Three modes, chosen by what exists and who called:
     ↓
  hand-back — counts, never scores                            §8
 ```
+
+**The wait's parts (0.26.10.29.6, S11).** Where `.vid/` exists, at the
+start of the chain, before §1, name the wait's parts: `sh
+"${CLAUDE_PLUGIN_ROOT}/checks/face.sh" wait parts "Deriving the tests"
+"The expert reviews" "What is not tested" "The strength check"`. Then
+`sh "${CLAUDE_PLUGIN_ROOT}/checks/face.sh" wait at <n>` as each step
+starts: 1 at §1, 2 at §2's lenses, 3 at §4's governance rows, 4 at §3's
+strength pass. A sitting's write clears them: the `tests` sitting's
+(§5), and before it, inside init, the design's sittings, written while
+the strength pass waits for the pack. When a sitting's write has cleared
+the parts and a step of the same list remains, name the list again
+(`face.sh wait parts`, the same four parts) and then call `wait at <n>`
+for the step you start.
 
 ## 1. Derive — three enumerable sets, then the joins
 
@@ -241,6 +266,24 @@ independently be wrong; the Fail-if stays the observable failure
 statement of the item and is never the whole source denominator. No
 sub-ids, no new schema: rows are rows.
 
+**The actor — a role only where the behaviour depends on who acts**
+(0.26.10.29.4, phase 4 R1). A row's actor is a role only when its
+obligation depends on who acts: a permission, a visibility, an
+ownership. Behaviour that is the same whoever triggers it — an engine
+rule, a calculation, a pipeline step — is tested as the simplest actor
+that can trigger it, usually the first actor in `## Actors and
+journeys`. Such a row's derived-from names the requirements its
+behaviour comes from, never the one that only introduces the roles: a
+row's stage is read from that column (`checks/stages.sh`, its header's
+reading of a ROW), so a row tied to the roles requirement follows it
+into whatever stage the roles land in, and the cut cannot spread it.
+The strength pass (§3) asks this of every row before the sitting, and
+while a row is unratified its repair is ViD's: the actor and the
+derived-from are corrected. A ratified row is not reworked for it: its
+derived-from is part of the key the row-set diff matches on (§5), so a
+changed derived-from would retire the row and make a new one with no
+test. A re-cut places such a row by a `row:` line, as for any row.
+
 **The enumeration-join principle.** Derivation saturates where it is a
 join of two enumerations and starves where it depends on recall. For
 every category below, both enumerations already exist in the artifacts;
@@ -262,7 +305,7 @@ categories where more is worse.
 | divergences | every knob the harness substitutes — provider fakes, engine stand-ins, thresholds, toggles | the harness's own configuration, at materialisation | one `difference` row per fake: every fake is a divergence by construction, derived, never waited for |
 | operational guards | configuration fields the product collects, validates, and stores | reader sites other than validation and display | the collected-fields dead-path census instance (§4.1) — an empty right side is the finding |
 | cross-cutting | items marked `cross-cutting:` | the surfaces named | one row per surface |
-| Tier-0 | Tier-0 items and rule rows | the hostility shapes | one sibling per protection (§4.3) plus its control sibling (§4.4) |
+| Tier-0 | Tier-0 items and rule rows | the hostility shapes | one sibling per Tier-0 rule or invariant, and for a Tier-0 demand item one per fail-if arm and, per arm, one per way in (§4.3); each with its control sibling (§4.4) |
 
 **Bounded interaction examples (Tier-0 interacting factors).** Where a
 Tier-0 promise has interacting factors — caller identity × entry path ×
@@ -292,9 +335,17 @@ the universal floor live there; the session derives WHICH lenses (at least
 **Loop until dry.** Per lens, round by round: the session dedups the
 round's candidates against stated REQs, existing rows, and every earlier
 candidate — the same forbidden effect on the same subject is one
-candidate — and records two counts, candidates returned and candidates
-kept. A round that adds zero surviving candidates is DRY and ends the
-lens; a hard cap of 3 rounds per lens ends it regardless. A later round
+candidate — and keeps only a candidate that clears the bar
+(`passes/genus-lens.md`, "The bar": a believable wrong build that no
+existing row, item or earlier candidate fails, with a consequence for a
+user, their data or a release); it records two counts, candidates
+returned and candidates kept. A lens stops at the first of: a round that
+keeps no candidate (DRY); a round that keeps no fewer than the round
+before; the end of round 3 — the stop tests of vid-create-prd's
+"Reviews converge" (0.26.10.29.4 phase 3, R5). No caller caps a round's
+count, in the brief, the prompt or the reading of its return. A round's
+lenses start together, in one message (vid-create-prd, "While a pass
+runs"). A later round
 is a fresh context given the accepted candidate list so far (so it can go
 beyond it) — never the dedup verdicts on rejected candidates, never the
 previous round's reasoning: a re-run pass that knows the last answer is
@@ -314,6 +365,11 @@ pinning one remembered site. Tag every proposal `origin: domain`. The
 owner vetoes or confirms at recognition speed — expertise capture as
 multiple choice, not essay. A vetoed proposal leaves no residue.
 
+**Every guard is written with its partner (0.26.10.29.3, R5).** A genus
+row that guards or forbids — a guard row, a never row — is written
+together with its control sibling, by §4.4's step: the allowed case shown
+working. Never leave it to the derivation to add later.
+
 The floor's numbered shapes live in `passes/genus-lens.md`; the sitting reads them by number.
 
 Shapes 15–20 are the **universal-protection group** — present them
@@ -330,16 +386,69 @@ behavior across DST/timezone boundaries. **Domain layer** — the owner's
 expertise + `seed/rules.md`, the promoted library, may be empty on a
 fresh install — mined, not veto-only:
 
-**The genus-domain interrogation (at the sitting, one screen).** Nouns
+**The genus-domain interrogation (at the sitting, in its `kinds` section, §5).** Nouns
 (the `data_entity` items) × lifecycles (the state-machine rows) × "what
 must never happen to a <noun> in <state>?", with the lenses' candidate
 answers pre-filled — the owner ticks, strikes, or adds one line per cell.
 Recognition speed, never an essay, never veto-only.
 
-## 3. The counterexample-challenge lens
+## 3. The counterexample-challenge lens — the strength pass
 
-Spawn `passes/counterexample-lens.md` over the WHOLE derived table, after the
-other lenses.
+The strength pass (0.26.10.29.4, phase 3 R1) is `passes/counterexample-lens.md`.
+It reads every row, and it runs **last, before every ratification, in all
+three modes**: after the genus lenses (§2), after the governance rows
+(§4, the control siblings included) and after the design rows (the surface
+rows of the resolved join, when a design exists); the sitting (§5) follows
+it. While the owner designs elsewhere at init, it waits with the screen
+rows and the sitting until the pack is imported and `design-join.sh` exits
+clean (vid-init §3).
+
+**How it is spawned.** The per-row question runs in batches by REQ domain
+and axis, one fresh reader each, as §6 batches its test-author passes, so
+each reader holds its batch whole; one table pass runs beside the batches
+with the four table questions, the weakened-arm question and the role
+question (§1, "The actor"). Each gets
+what the brief's `receives:` lists, as files: BASELINE.md's test
+environment, ARCHITECTURE.md's seam rows, and, for the table pass, the
+open entries `sh "${CLAUDE_PLUGIN_ROOT}/checks/prd.sh" --arms` lists (in
+append mode, those for the delta's own rows), run on its own,
+never piped. All of a round's readers start together (vid-create-prd,
+"While a pass runs"). The pass is `mode: whole` in init and re-derivation
+modes; in append mode it is `mode: delta`, and its round 1 reads the
+delta's rows and the rows sharing a subject with them.
+
+**Its rounds.** They follow vid-create-prd, "Reviews converge": round 1
+reads the whole table (in append mode, the delta and its neighbours), with
+no count limit; each later round reads what the repairs changed; the same
+stop tests end the loop, and what remains goes to the owner as one list at
+the sitting. Anything written after round 1 is a change for the next round
+to read: the design delta rows, the rows from the owner's rulings at the
+sitting, fix rows, and the lines rewritten after an amendment (§5, "Rows that
+cite an amended item"). In
+`mode: whole`, the table pass has the second reader beside the fresh agent
+(vid-create-prd, "The second reader"); the row batches keep one reader.
+
+**The repairs.** ViD repairs what it can by the rule of §5 (new rows
+continue the id sequence; a ratified row is never deleted or weakened):
+it strengthens a row, adds the missing row, rewrites unmeasurable words,
+and corrects a census. **A duplicate pair:** ViD drops the unratified row
+of the pair and keeps the ratified one untouched; the dropped row's
+provenance goes in the finding's evidence, never on the kept row's line,
+since editing that line would reset the row. A pair of two ratified rows
+is the owner's question, and retiring one is a law change by §5's rule.
+**The owner's questions:** a repair that would weaken or remove a ratified
+row; a contradiction only a product decision settles; a weakened arm,
+blocking, in the one owner question of §5's R29 rule, never closed as
+`fix_from_record`.
+
+**The record.** Its findings go in PRD.md by vid-create-prd, "The findings
+record": rows of pass `strength`, under a dated `## Findings` sub-heading
+of their own, with targets such as `INVENTORY.md:ROW-12`, and the line
+`review: whole, round <r>, <n> findings` in init and re-derivation modes,
+`review: delta, round <r>, <n> findings` in append mode, under that same
+heading. INVENTORY.md is law: once `checks/` is installed (append and
+re-derivation modes, §6), the findings heading is never in a commit that
+changes INVENTORY.md; it goes in a commit of its own.
 
 ## 4. Governance rows and the proposals the sitting rules on
 
@@ -450,8 +559,19 @@ initial commit on.
 Tier-0 protection, each attempting the forbidden thing against the running
 app through its real public surface. The set is DERIVED from the Tier-0
 rules and items (T0 demand rows and T0 invariants) the owner has just
-ratified, never invented: ~one
-probe apiece (10–15 for a mid-sized product), from the behavior shapes in
+ratified, never invented. A Tier-0 rule or invariant, which carries no
+fail-if, keeps its one sibling row. A Tier-0 **demand item** derives one
+row per fail-if arm (the arms as `checks/prd.sh` splits them, join 14's
+split) and, for each arm, one per way in that reaches the arm's subject
+(0.26.10.29.4 phase 3, R3). The ways in are a join, not recall: the
+union of the design's screens (the manifest), each journey's entry
+control (§1's journeys axis) and every external input boundary
+ARCHITECTURE.md declares (§1's machine-journeys axis). Each row names its
+way in inside its `attempt` sentence; the grammar is unchanged. A way in
+that none of these lists is the strength pass's to find (§3).
+`checks/inventory.sh` prints `NOTE  REQ-n — <a> arms, <p> probes` for a
+Tier-0 demand item that fewer hostility rows protect than its fail-if has
+arms: a NOTE, never owed. The rows take the behavior shapes in
 templates/INVENTORY.md — concurrent double-submit, replayed one-time link,
 cross-actor resource request, transition out of a forbidding state,
 rotated client-identity header against a bound, stale-state resubmit,
@@ -487,6 +607,16 @@ claims nothing about one-path bypasses (a protected scheduled send beside
 an unguarded retry passes both arms): those belong to the path
 enumerations of §1, the everywhere routing of §2, and the hostility
 siblings above.
+
+Every step that writes rows names this step (0.26.10.29.3, R5): the genus
+rows (§2), the design delta (vid-design), the sitting's rows (§5), append
+mode and the fix verb's corrections (vid-fix). Guard and never rows carry
+no marker a court could read, so the writing step is the mechanism. The
+court reads the one case it can: a ROW a hostility row's `protects:` names
+by its ROW id, with no row whose obligation opens "control of" that ROW,
+prints `NOTE  ROW-n — no control sibling: the allowed case is never shown
+working (§4.4)` in `sh checks/inventory.sh`, counted on its own line and
+never owed (a REQ or rule target is not resolved to rows).
 
 ### 4.5 Property-form rows
 
@@ -540,20 +670,78 @@ one without the owner striking it.
 
 ## 5. The ratification sitting
 
-The owner ratifies ROWS, not test code: present the table for review at
-recognition level in one sitting, attention on the exceptions. Ratification
+The owner approves ROWS, not test code, in one sitting, attention on the
+exceptions. Ratification
 fails closed on the four delta classes (when a design exists, run
 `sh checks/design-join.sh` — unresolved deltas mean the sitting cannot
 close; with no brief and no pack there is nothing to join and the court
 is not run) and on any row without a falsifiable obligation.
 
-Before the table: the visible debt (pending and blocking-provisional
-items by id); the deferrals listed by class (v0.9.2 3.2 — every row whose
-test field reads `owed: <class> — <detail>`, one list per class of the
-closed vocabulary with its detail, the unclassed list first and expected
-empty: the gate fails on it); the proposed Fail-if amendments from §3
-(proposed, not applied); the genus-domain interrogation screen (§2); the
-counts per lens per round.
+Nothing is presented at this pause outside the sitting's sections and
+their order (below); what used to come before the table goes into them
+(0.26.10.29.6, S1):
+- the visible debt, the pending and blocking-provisional items, each in
+  plain words: "Look here first", since each waits on a decision of the
+  owner's;
+- the deferrals (v0.9.2 3.2 — every row whose test field reads `owed:
+  <class> — <detail>`): the unclassed ones in "Look here first" (expected
+  none: the gate fails on one);
+- the proposed Fail-if amendments from §3 (proposed, not applied): "Look
+  here first", as open findings of the strength pass with their rows;
+  one that narrows or withdraws a clause goes into the one question of
+  "Asked on their own";
+- the genus-domain interrogation (§2): its candidate answers, a line a
+  cell, in "Kinds of failure ViD proposes to test for".
+
+**The `tests` sitting (0.26.10.29.6, S1, S2, S9).** Where `.vid/` exists,
+before you ask (the script makes the test list's page as it writes):
+1. write the sitting: `sh "${CLAUDE_PLUGIN_ROOT}/checks/face.sh" write tests <file>`,
+   the file in `face.sh`'s line form (its head); a refused line is
+   rewritten and the call made again, and a line the script names as
+   holding an id or one of ViD's own words is rewritten in plain words and
+   written again before you ask;
+2. give the owner what the script printed about pages first: the link,
+   or the file's path;
+3. present the same sections in the chat, in the same order, whether or
+   not a panel is there.
+
+Its sections:
+- `section counted`, figures: the counts the page's head gives, each an
+  `item` with its `value` line, copied from the page, and nothing else;
+- `section look`, "Look here first": what the page's part of the same
+  name holds — every row whose test waits on a decision of the owner's,
+  every owed row with no class, and every open finding of the strength
+  pass with its row — each with your recommendation, Keep it, Remove it
+  or Change it, in the button's own words, or `recommend | none`, and no
+  `look` line (this sitting takes none). A row whose recommendation is
+  "Remove it" is asked on its own by `face.sh` itself. A row that
+  is only not written yet (`owed: spec-only — first stage`, say) is not
+  here: it is part of the list approved as a whole;
+- `section kinds`, the kinds of failure the genus lenses propose to test
+  for, one item each, the genus-domain interrogation's candidate answers
+  among them, a line a cell (§2);
+- `section alone`, what is asked on its own: the review's one question on
+  the failure clauses it would narrow or withdraw, one item, its `detail`
+  lines each row, its clause and the answer it follows (every item of the
+  section is asked on its own, so it takes no `alone` line); or `empty
+  alone | <why>`.
+
+An empty section is `empty <section> | <why>`.
+
+**What ViD says.** The owner rules "Look here first" one by one; the rest
+is approved as a whole, on ViD's checks, and you say so in those words.
+A yes to the recommendations covers only the items shown with one, and
+no item asked on its own: say what it covered, as counts by section, and
+ask what it did not; never offer one yes for items of different kinds.
+One question settles one thing: when answering it would change something
+else, that is a second question, asked after the first. No message, hand-back or record of this skill says the owner reviewed,
+read or ratified each test, and the approval is recorded in the owner's
+own words (the `Owner:` trailer). Once the answers are recorded: `sh
+"${CLAUDE_PLUGIN_ROOT}/checks/face.sh" end tests`.
+
+Where the map has passed the test list's stop (append and re-derivation
+modes, after init), the script writes nothing and says so in one line:
+present the same items in the chat, one by one as above, with the page.
 
 **Append and re-derivation modes present a row-set DIFF, never the whole
 block.** Match each derived row to the existing block by kind + subject
@@ -574,10 +762,17 @@ row's source; the row's test deletion rides the same commit. Rows are
 otherwise never deleted or weakened — a row that seems wrong is a product
 question.
 
+A NEW row that guards or forbids is presented with its control sibling
+beside it (§4.4), and a row the owner adds at the sitting that guards or
+forbids gets its sibling before the table is ratified (0.26.10.29.3, R5).
+
 **The sitting's rulings are an append, reviewed before ratification 3
 commits.** Every owner ruling taken here (a Fail-if amendment accepted, a
 debt item decided, a proposal ruled) lands as one dated append — `A-NNN`
-rows, `AMENDED` rows — and before the ratification commits, spawn
+rows, `AMENDED` rows; each ruling is `human` only after the owner's yes
+here, and the commit that carries them quotes the owner's words in an
+`Owner:` trailer (0.26.10.29.3 R2; vid-create-prd, "The owner's words")
+— and before the ratification commits, spawn
 `${CLAUDE_PLUGIN_ROOT}/skills/vid-create-prd/passes/whole-set-review.md`
 in `mode: delta` on that append against the effective set (v0.9.1 3.2).
 Its findings are ruled in this sitting, one line each: a
@@ -585,12 +780,42 @@ Its findings are ruled in this sitting, one line each: a
 is the owner's — and every finding that narrows or withdraws a fail-if
 arm (v0.9.8.1 R29) is one owner question for the review, listing each
 row, its arm and the answer it follows; the answer settles every row it
-names. Record `sh "${CLAUDE_PLUGIN_ROOT}/checks/event.sh" 'tokens slice=N phase=review n=T'`
+names. What the repairs and the rulings land is read again by the same
+pass (vid-create-prd, "Reviews converge", in Pass mechanics: every repaired round is read again by the same pass, up to three rounds, and what remains goes to the owner as one list; 0.26.10.29.3 phase 2, R1). Record `sh "${CLAUDE_PLUGIN_ROOT}/checks/event.sh" 'tokens slice=N phase=review n=T'`
 (`slice=0` before develop's first slice). No
-append, no review. In init mode, consolidation follows this sitting and
+append, no review: the review's record goes in the append itself before
+the commit — its findings, ruled, as rows of the section's own ```vid-prd-findings block (pass `review`), and the line `review: delta, round <r>, <n> findings` (`<r>` the round the review ended on, `<n>` the rows of the section's findings block, every round's; one round and no findings: `round 1, 0 findings`; vid-create-prd, "The findings record"); pre-commit refuses a new append section holding rows
+without it (0.26.10.29.3 R3). In init mode, consolidation follows this sitting and
 precedes the initial commit (§7): the scheduled event of vid-create-prd's
 "Consolidation" — 7a `sh checks/prd-consolidate.sh`, 7b's review, one
 row-set-diff sitting, two commits.
+
+**The `tests-review` sitting (0.26.10.29.6, S1, S2),** the append's
+review, written (`sh "${CLAUDE_PLUGIN_ROOT}/checks/face.sh" write
+tests-review <file>`), given with its page lines first and ended as the `tests`
+sitting is: `section findings`, each finding with your recommendation,
+Fix it or Leave it, in the button's own words, or `recommend | none`, a
+finding that proposes a looser bound followed by `alone`; and `section
+alone`, the review's one question on the failure clauses it narrows or
+withdraws, as in `tests`, or `empty alone | <why>`. The consolidation
+writes its own sitting (vid-create-prd, "Consolidation"), and this skill
+adds none.
+
+**Rows that cite an amended item (0.26.10.29.4 phase 3, R2).** At init,
+after each PRD amendment (a sitting ruling, an append from a design
+round, a review repair), run
+`sh "${CLAUDE_PLUGIN_ROOT}/checks/inventory.sh" cites <id> …` on the
+amended ids, from the project's root. It reads the working INVENTORY.md
+and needs no commit: it prints every line that depends on one of the ids
+(a ROW derived from it, a line whose `protects:` or `origin:` names it,
+an exception or suppression of a rule it names), then every line that
+depends on one of those, until nothing new is added. Rewrite the printed
+lines against the new wording; they are changes, handed to the strength
+pass's next round (§3). Append and re-derivation modes keep
+`checks/inventory.sh impact` and the row-set diff above.
+
+**Raised questions (0.26.10.29.3 R4).** In this skill's passes and sittings
+alike, a question an agent's report raises that ViD cannot settle from the record (a ruling, the seed, or an owner answer it can cite) becomes an open carrier at once, `VID-QUESTION: (OQ-n) <the question>` in a dated append, raised with the owner at the next sitting; one ViD settles from the record is answered in the message to the owner with the record line that settles it (vid-create-prd, "The owner's words, and the questions raised").
 
 ## 6. Materialise — two tiers, one rhythm
 
@@ -604,6 +829,20 @@ vid-code block's test facts), ViD commits them unchanged as its copy, then
 the rows' `test` fields alone as a standalone law commit — and nothing is
 run: no `proved-red:` stamp, no red gate (red shows only as
 `red-observed … pr= commit=` from the dev team's CI).
+
+**One more strength round at materialisation (0.26.10.29.4, phase 3
+R1).** When materialisation derives the `difference` rows from the
+harness configuration (§4.1, "DIF rows derive from the harness"), run one
+more round of the strength pass (§3), `mode: delta`, over the rows that
+depend on each new stand-in, read as changes: does the stand-in now let
+a row pass that the real component would fail? Its repairs are read again
+by §3's rounds. Everything is committed by then, so each INVENTORY.md
+repair is a standalone law commit of its own, and the findings heading
+(`review: delta, round <r>, <n> findings` under it) is a commit of its
+own. In ticket mode this round does not run: ViD writes no tests there
+and the team's harness holds the stand-ins, so with no `difference` row
+from ViD every seam stays counted as replaced, and the rows that depend
+on one are already flagged at the strength pass.
 
 Then **materialise**: every row that can be expressed pre-code becomes a
 FAILING ledger test in tests/invariants/ — reachability, shell, journey
@@ -787,7 +1026,10 @@ proposals kept per lens per round, the counterexample lens's kept rows,
 proposed Fail-if amendments, the checklist lines added, the diff buckets
 in append and re-derivation modes, the deploy-owed rows and the `later`
 items as their own two counts (v0.9.1 3.6), and the red-ledger count —
-proved red at the gate. Then return to the caller (init continues at its step 6
+proved red at the gate. Say how the list was approved (0.26.10.29.6,
+S9): "Look here first" ruled one by one, the rest approved as a whole on
+ViD's checks; never that the owner reviewed or read each test. Then
+return to the caller (init continues at its step 6
 after call point 1, with the `spec-only` rows counted; the code skeleton
 continues after call point 2; add continues to develop, or under tickets to
 its draft, which /vid run lands) or, standalone, name the next verb.
@@ -795,15 +1037,15 @@ its draft, which /vid run lands) or, standalone, name the next verb.
 ## Pass mechanics — what each fresh context receives
 
 Fresh-context passes are spawned exactly where the chain marks them (the
-genus lenses, the counterexample lens, the delta coherence review of §5,
+genus lenses, the strength pass (the counterexample lens, run last), the delta coherence review of §5,
 the test-author passes of §6).
 Each brief names what the sub-session receives — and what it must not:
 
 | Pass | File | Receives | Must not receive |
 |---|---|---|---|
 | Genus lens (§2) | `passes/genus-lens.md` | the effective PRD; the derived rows as ids and obligations; the universal floor; the seed proposals; the one-question brief; a later round additionally the accepted candidate list so far | the other lenses' output (blind to them); the rejected candidates; the verdicts; this session's reasoning; any previous verdict |
-| Counterexample lens (§3) | `passes/counterexample-lens.md` | the whole derived table; the effective PRD; the two-question brief | the build or tuning context — which is also why it, and never this session, proposes golden queries; this session's reasoning; any previous verdict |
-| Delta coherence review (§5) | `skills/vid-create-prd/passes/whole-set-review.md` in `mode: delta` | the effective PRD; the sitting's append verbatim; the seed; the contract | this session's reasoning; any previous verdict |
+| Counterexample lens, the strength pass (§3, §6's round) | `passes/counterexample-lens.md` | a row batch's rows verbatim with the items they derive from, or (the table pass) the whole derived table — in mode delta the delta's rows and the rows sharing a subject with them, a later round the rows that changed; the effective PRD; BASELINE.md's test environment; ARCHITECTURE.md's seam rows; the table pass, the open entries of `prd.sh --arms`; the two-question brief | the build or tuning context — which is also why it, and never this session, proposes golden queries; this session's reasoning; any previous verdict |
+| Delta coherence review (§5) | `skills/vid-create-prd/passes/whole-set-review.md` in `mode: delta` | the effective PRD; the sitting's append verbatim; the seed; the contract; the open entries `sh checks/prd.sh --arms` lists for the append's own rows (0.26.10.29.4, phase 3 R4) | this session's reasoning; any previous verdict |
 | Test author — behavior, journeys, shell/reachability batches (§6; v0.9.2 3.1, 3.5) | `passes/test-author.md` | the batch's rows verbatim (for journeys the `transitions:` list); the effective items they derive from; the harness client contract (its public surface, the actor kinds, the fixture law, the Provenance rule); every existing file under tests/; the route table; the boundary rule | any application source, template, stylesheet or migration; the build session's plan, slice decomposition or reasoning; another batch's output; a previous author's verdict |
 | Test author, surface batch (§6; v0.9.2 3.4) | `passes/test-author.md` | the surface rows with their `pins:`; the effective items they derive from; the harness client contract; every existing file under tests/; the route table; the canvases and the manifest; the shell rows' markers; the measure module's contract; the boundary rule | any application source, template, stylesheet or migration; the build session's plan or reasoning; another batch's output; a previous author's verdict |
 

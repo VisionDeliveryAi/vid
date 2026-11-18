@@ -14,13 +14,19 @@
 #       any stop (it waits for continue); exit 4 when HEAD is not the draft's base (stale: SP redrafts); exit 1 when the dry
 #       run on a scratch copy refuses (a court, plan.sh change, rule A or B, planner.sh check). Then: the records (R4, R5),
 #       the commits as develop makes them (the PRD with GRADING-CHECKLIST.md and DECISIONS.md; one law commit of
-#       INVENTORY.md, STAGES.md and ARCHITECTURE.md; PLAN.md alone), the plan change, planner.sh reratify in the owner's
+#       INVENTORY.md, STAGES.md and ARCHITECTURE.md; PLAN.md alone; each with `Decisions: admits <the draft's why> (<its count
+#       line>) — the owner's yes`, 0.26.10.29.5, DP-1 R7), the plan change, planner.sh reratify in the owner's
 #       words, and last each withdrawn ask's issue closed on GitHub
 # Records: .vid/decide/landed (`<id> <the landing, 12> <time>`, each reset or added line, a journey's transitions with it);
 # for each: its counts, limits, halted, record and state lines gone, a `reset` ruling, its handed row line dropped, every
 # unpublished fix line without it; `reached <row> <item> <landing> | stand-in: SP` for a reached row a ticket holds; a
 # reopened step's closed line dropped and its newest ask withdrawn (.vid/decide/close/<step>/<k>/withdrawn). v0.26.10.26.7 (R9): a
 # reached row a published ticket holds withdraws every newest live close whose rows hold it, recorded in <k>/reached.
+# 0.26.10.29.2 (R2): /vid stage's re-cut, a draft whose why begins `/vid stage:`, carries a deleted STAGES.md (<n>/deleted) and the
+# owner's answer row (refused without one); the dry run refuses it when it changes a stage closed (its stage-closed line) or deployed
+# (a candidate's D1 passed, or a production line covering it) or leaves a stage with no row; its landing withdraws every candidate
+# of each stage it changes (.vid/decide/stage/<N>/<c>/withdrawn, with its C3, S1 and D1 okay still out), its plan change is a
+# scope-change, RUN-STATE's stage: moves to the new cut's current stage, and it records the stage-cut event.
 # Usage: sh checks/land.sh draft --review <file> [--why "<…>"] [--plan <file>] [--for <keys>] [--replaces <n>] | count <n> | <n> --words "<the owner's yes>"
 # serves: tickets (0.26.10.28.4, M9)
 set -u
@@ -49,6 +55,38 @@ stepsof() { awk -v IDS="$1" "$RNG"' function tr(s) { gsub(/^[ \t]+|[ \t]+$/, "",
       for (j = 1; j <= m; j++) { y = t[j]; if (y == "") continue; q = split(rng(y), e, " "); for (k = 1; k <= q; k++) if (e[k] in W) print e[k], id } } }' "$2"; }
 # the draft's block: its plan, else RUN-STATE's
 dblock() { if [ -s "$1/plan" ]; then cat "$1/plan"; else plan_block; fi; }   # RUN-STATE's by plan.sh's form (lib.sh); a draft's own plan file keeps pblock
+# 0.26.10.29.2 (R2): the owner's re-cut of the stages, /vid stage's ticket-mode draft, its why beginning `/vid stage:` (as /vid add's
+# begins `/vid add:`). gone <draft dir> <file>: the draft deletes the file; recut <draft dir>: the draft is a re-cut
+SD=$D/stage
+gone() { grep -qxF "$2" "$1/deleted" 2>/dev/null; }
+recut() { head -n 1 "$1/why" 2>/dev/null | grep -q '^/vid stage:'; }
+# cutd <draft dir> <base>: each stage the draft's cut changes, one number a line: a stage whose rows or PRD items differ between the base's
+# STAGES.md and the draft's (none: one stage), read by stages.sh scope, as every court reads them. 0.26.10.29.4 (phase 4 R5): the base cut
+# over the base's PRD.md and INVENTORY.md, the draft cut over the draft's (the base's where the draft carries none), so a requirement the
+# draft adds to a closed stage's feature and splits to an open stage changes the open stage alone; a move of an existing one still changes both
+cutd() { for s in a b; do rm -rf "$T/c$s"; mkdir -p "$T/c$s"; for f in PRD.md INVENTORY.md; do if [ "$s" = b ] && [ -f "$1/files/$f" ]; then cp "$1/files/$f" "$T/c$s/"; else git show "$2:$f" > "$T/c$s/$f" 2>/dev/null || true; fi; done; done
+  git show "$2:STAGES.md" > "$T/ca/STAGES.md" 2>/dev/null || rm -f "$T/ca/STAGES.md"; if [ -f "$1/files/STAGES.md" ]; then cp "$1/files/STAGES.md" "$T/cb/"; elif ! gone "$1" STAGES.md; then cp "$T/ca/STAGES.md" "$T/cb/" 2>/dev/null || true; fi
+  for s in a b; do ( cd "$T/c$s" || exit 1; m=1; [ ! -f STAGES.md ] || m=$(sed -n '/^```vid-stages/,/^```$/p' STAGES.md | sed -n 's/^[[:space:]]*STAGE-0*\([0-9][0-9]*\)[[:space:]]*|.*/\1/p' | sort -n | tail -n 1); [ -n "$m" ] || m=1
+      k=0; while [ "$k" -le "$m" ]; do sh "$HERE/stages.sh" scope --upto "$k" --reqs 2>/dev/null | sed "s/\$/ $k/"; k=$((k + 1)); done ) | awk '!s[$1]++' > "$T/m$s" || return 1; done
+  awk 'FILENAME == ARGV[1] { A[$1] = $2; next } { B[$1] = $2 } END { for (i in A) if (!(i in B) || A[i] != B[i]) { print A[i]; if (i in B) print B[i] } for (i in B) if (!(i in A)) print B[i] }' "$T/ma" "$T/mb" | sort -nu; }
+# deployed <N>: any candidate of stage N, not withdrawn, has its D1 passed, or a production line covers stage N; closed <N>: its stage-closed line.
+# The `staged <N>` line is no test: only the run's first passed D1 writes one
+deployed() { for c in $(ls "$SD/$1" 2>/dev/null | grep -E '^[0-9]+$'); do [ -f "$SD/$1/$c/d1/passed" ] && [ ! -f "$SD/$1/$c/withdrawn" ] && return 0; done
+  sed -n 's/^production \([0-9][0-9]*\) .*/\1/p' "$HAND" 2>/dev/null | awk -v n="$1" '$1 >= n { f = 1 } END { exit !f }'; }
+sclosed_() { grep -q "^stage-closed $1 " "$HAND" 2>/dev/null; }
+# cutn <STAGES.md>: its stage numbers, lowest first; none, with no file (one stage: 1)
+cutn() { if [ -f "$1" ]; then sed -n '/^```vid-stages/,/^```$/p' "$1" | sed -n 's/^[[:space:]]*STAGE-0*\([0-9][0-9]*\)[[:space:]]*|.*/\1/p' | sort -n; else echo 1; fi; }
+# hollow <stages file>: each stage it names that the landed cut holds and that holds no row by its effective stage, planner.sh rows'
+# (a PLAN.md `moved:` counted), as close.sh's sstages and admission read it; run where the cut has landed (the dry run's copy)
+hollow() { sh "$HERE/planner.sh" rows 2>/dev/null | grep -v '^#' > "$T/hr" || : > "$T/hr"; cutn STAGES.md > "$T/hn"
+  for k in $(cat "$1"); do grep -qx "$k" "$T/hn" || continue; awk -F'\t' -v k="$k" '$5 ~ /^[0-9]+$/ && $5 + 0 == k + 0 { f = 1 } END { exit !f }' "$T/hr" || echo "$k"; done; }
+# curst: the new cut's current stage, as close.sh's stage close moves RUN-STATE's stage: on — its lowest stage with no stage-closed
+# line, the final one when each is closed
+curst() { k=''; for n in $(cutn STAGES.md); do k=$n; sclosed_ "$n" || break; done; echo "${k:-1}"; }
+# stmove: RUN-STATE's stage: moved to curst, printing `stage <k>` when it moved; run where the cut has landed, before its plan change,
+# so the re-cut's own change is judged at the stage it lands in
+stmove() { k=$(curst); grep -q '^stage:' .vid/RUN-STATE.md || return 0; ! grep -q "^stage:[[:space:]]*$k\$" .vid/RUN-STATE.md || return 0
+  rs_edit sed "s/^stage:[[:space:]]*[0-9][0-9]*/stage: $k/" && echo "stage $k"; }
 
 # v0.26.10.26.5: --for records the items a draft answers, in <draft>/for
 # v0.26.10.26.7 (R4, W-5): the landing's dry run runs at draft time, the re-ratifying in its check-only form (placeholder words, in
@@ -63,7 +101,8 @@ cmd_draft() { WHY=''; PL=''; FOR=''; RPL=''; RV=''; while [ $# -ge 2 ]; do case 
   [ -n "$CH" ] || ref 'no spec file differs from HEAD: draft the change in the working tree first'
   mkdir -p "$DR"; n=$(( $(ls "$DR" 2>/dev/null | grep -E '^[0-9]+$' | sort -n | tail -n 1 | grep . || echo 0) + 1 )); X=$DR/$n; mkdir -p "$X/files"
   git rev-parse HEAD > "$X/base"; printf '%s\n' "${WHY:-a change to the spec}" > "$X/why"; [ -z "$FOR" ] || printf '%s\n' "$FOR" | tr ',' '\n' | grep . > "$X/for"; [ -z "$PL" ] || pblock "$PL" > "$X/plan" 2>/dev/null; [ -z "$PL" ] || [ -s "$X/plan" ] || cp "$PL" "$X/plan"
-  for f in $CH; do cp "$f" "$X/files/$f"; done
+  # 0.26.10.29.2 (R2): a spec file the tree deletes (STAGES.md, a re-cut back to one stage) is carried as a line of <n>/deleted
+  for f in $CH; do if [ -f "$f" ]; then cp "$f" "$X/files/$f"; else echo "$f" >> "$X/deleted"; fi; done
   ( count "$X" ) || { rm -rf "$X"; exit 1; }
   # v0.26.10.26.7 (R5 b, W-6): the review's record, as planner.sh review --in records the planner's: `none` alone, or one
   # `finding <row id> | <why>` a line naming a row the draft resets, adds, reaches or records
@@ -116,6 +155,15 @@ records() { ( cd "$1" || exit 1; L=$2; X=$3; W=$(now); mkdir -p "$D" .vid/tw; to
     grep -q "^reached $r $it $L " "$HAND" || printf 'reached %s %s %s | stand-in: SP\n' "$r" "$it" "$L" >> "$HAND"; done
   # R5: a step that gains a row is open again: its closed line dropped, its newest ask withdrawn, whatever its state
   awk -F'\t' '($1 == "reset" || $1 == "added") && $3 != "transition" { print $2 }' "$X/sets" > "$T/xb"; dblock "$X" > "$T/blk"; stepsof "$T/xb" "$T/blk" | cut -d' ' -f2 | sort -u > "$T/rs"
+  # 0.26.10.29.2 (R9): but a closed step of a stage with a candidate keeps its closed line and its ask: that stage's re-close C3,
+  # or a later stage's C3, covers its rows, and rule B and the graded gate hold its dependents until every row it holds is settled
+  # again (plan.sh's tclosed). Its stage is close.sh's (step-stages, its sst), read as the spec stands once the draft lands: the
+  # spec files with the draft's over them, less a file the draft deletes (R2's <n>/deleted), and the draft's block, in a view of their
+  # own; a step of a stage with no candidate reopens
+  if grep -q '^candidate ' "$HAND" && [ -s "$T/rs" ]; then V=$T/view; rm -rf "$V"; mkdir -p "$V/.vid"; for f in $HASHF; do if [ -f "$X/files/$f" ]; then cp "$X/files/$f" "$T/view/$f"; elif [ -f "$f" ] && ! gone "$X" "$f"; then cp "$f" "$T/view/$f"; fi; done
+    { printf '## The plan\n\n```vid-plan\n'; cat "$T/blk"; printf '```\n'; } > "$V/.vid/RUN-STATE.md"; ( cd "$V" && sh "$HERE/close.sh" step-stages ) > "$T/sst" 2>/dev/null || : > "$T/sst"
+    while read -r s; do grep -q "^closed $s " "$HAND" || continue; x=$(awk -F'\t' -v s="$s" '$1 == s { print $2; exit }' "$T/sst")
+      [ -n "$x" ] && grep -q "^candidate $x " "$HAND" && echo "$s"; done < "$T/rs" > "$T/kc"; grep -vxF -f "$T/kc" "$T/rs" > "$T/rs2" || :; cp "$T/rs2" "$T/rs"; fi
   : > "$T/wd"; while read -r s; do grep -v "^closed $s " "$HAND" > "$T/h" || true; cmp -s "$T/h" "$HAND" || { put "$HAND" < "$T/h" || exit 1; echo "reopened $s"; }
     k=''; for j in $(ls "$D/close/$s" 2>/dev/null | grep -E '^[0-9]+$' | sort -n); do [ -f "$D/close/$s/$j/ask" ] && k=$j; done
     [ -n "$k" ] && [ ! -f "$D/close/$s/$k/withdrawn" ] || continue; printf '%s %s\n' "$L" "$W" > "$D/close/$s/$k/withdrawn"
@@ -130,27 +178,48 @@ records() { ( cd "$1" || exit 1; L=$2; X=$3; W=$(now); mkdir -p "$D" .vid/tw; to
       awk -v RR="$T/rr" 'BEGIN { while ((getline l < RR) > 0) W[l] = 1 } { r = $1; b = r; sub(/-T[0-9]+$/, "", b); if (r in W) print r; else if (b in W) print b }' "$K/rows" | sort -u > "$T/rk"; [ -s "$T/rk" ] || continue
       if [ ! -f "$K/withdrawn" ]; then printf '%s %s\n' "$L" "$W" > "$K/withdrawn"; printf '%s %s %s\n' "$s" "$k" "$(sed -n 's/^issue	//p' "$K/ask" | head -n 1)" >> "$T/wd"; echo "withdrawn $s $k"; fi
       cat "$K/reached" "$T/rk" 2>/dev/null | sort -u > "$T/rk2" || exit 1; put "$K/reached" < "$T/rk2" || exit 1; done; fi
+  # 0.26.10.29.2 (R2): a re-cut withdraws every candidate of each stage it changes (dryrun refused a closed or deployed one), the newest
+  # and any older one, with the asks made at it still out: its C3, its S1, its D1 okay; close.sh then names a new candidate once one is
+  # due. The asks, in $T/ws (`<N> <c> <c3|s1|d1> <issue>`), have their issues closed last
+  : > "$T/ws"; if recut "$X"; then cutd "$X" "$(cat "$X/base")" > "$T/cut" || exit 1; for N in $(cat "$T/cut"); do for c in $(ls "$SD/$N" 2>/dev/null | grep -E '^[0-9]+$' | sort -n); do F=$SD/$N/$c; [ -f "$F/ask" ] && [ -f "$F/named" ] && [ ! -f "$F/withdrawn" ] || continue
+      printf '%s %s\n' "$L" "$W" > "$F/withdrawn"; ev "stage-candidate-withdrawn stage=$N candidate=$c by=$L"; echo "withdrawn stage-$N $c"
+      [ -f "$F/passed" ] || [ -f "$F/done" ] || printf '%s %s c3 %s\n' "$N" "$c" "$(sed -n 's/^issue	//p' "$F/ask" | head -n 1)" >> "$T/ws"
+      if [ -f "$F/s1ask" ] && [ ! -f "$F/s1done" ] && [ ! -f "$F/s1withdrawn" ]; then : > "$F/s1withdrawn"; printf '%s %s s1 %s\n' "$N" "$c" "$(sed -n 's/^issue	//p' "$F/s1ask" | head -n 1)" >> "$T/ws"; fi
+      if [ -f "$F/d1/ask" ] && [ ! -f "$F/d1/passed" ] && [ ! -f "$F/d1/closed" ]; then printf 'withdrawn by the landing %s %s\n' "$L" "$W" > "$F/d1/closed"; printf '%s %s d1 %s\n' "$N" "$c" "$(sed -n 's/^issue	//p' "$F/d1/ask" | head -n 1)" >> "$T/ws"; fi; done; done; fi
   ev "landed draft=$(basename "$X") at=$L ids=$(grep -c . "$T/x") reopened=$(paste -sd , "$T/rs" | grep . || echo -)" ) || return 1; }
 
 # commits <draft dir>: the commits as develop makes them, the draft's files alone, at the fixed date DT; prints each sha
+# answers <draft dir>: the owner's answers the draft's PRD adds, `A-1, A-2`
+answers() { [ ! -f "$1/files/PRD.md" ] || git show "$(cat "$1/base"):PRD.md" 2>/dev/null | diff - "$1/files/PRD.md" | sed -n 's/^> //p' | grep -oE '(^|[^A-Za-z0-9-])A-[0-9]+' | grep -oE 'A-[0-9]+' | sort -u | paste -sd ',' - | sed 's/,/, /g'; }
 commits() { X=$1; why=$(cat "$X/why"); n=$(basename "$X")
   # the owner's answers the draft's PRD adds, cited in each message, as a placement's law commit must (commit-msg, stages.sh msg)
-  AN=''; [ ! -f "$X/files/PRD.md" ] || AN=$(git show "$(cat "$X/base"):PRD.md" 2>/dev/null | diff - "$X/files/PRD.md" | sed -n 's/^> //p' | grep -oE '(^|[^A-Za-z0-9-])A-[0-9]+' | grep -oE 'A-[0-9]+' | sort -u | paste -sd ',' - | sed 's/,/, /g')
+  # 0.26.10.29.3 (R2): and the owner's yes as the Owner: trailer commit-msg asks of a commit adding a human answer
+  AN=$(answers "$X")
+  # 0.26.10.29.5 (DP-1 R7): the Decisions: line states what the landing admits, the draft's why on one line and its count's first line,
+  # passed to printf as arguments, never as its format, so a per cent sign, a quote or a backslash in the why is written as it stands
+  DW=$(printf '%s' "$why" | tr '\r\n' '  '); CL=$(sed -n 1p "$X/count" 2>/dev/null); [ -n "$CL" ] || CL='no count'
   for g in 'PRD.md GRADING-CHECKLIST.md DECISIONS.md|the PRD' 'INVENTORY.md STAGES.md ARCHITECTURE.md|the law' 'PLAN.md|the plan file'; do fs=''
-    for f in ${g%%|*}; do [ -f "$X/files/$f" ] || continue; put "$f" < "$X/files/$f" || return 1; git add -- "$f" || return 1; fs="$fs $f"; done; [ -n "$fs" ] || continue
-    printf 'Land draft %s, %s: %s\n\nThe owner'"'"'s yes, during the run: "%s"%s\n\nDecisions: none — the owner'"'"'s yes to a counted change (checks/land.sh)\n' "$n" "${g#*|}" "$why" "$WORDS" "${AN:+
-Answers: $AN}" > "$T/msg"
+    for f in ${g%%|*}; do if gone "$X" "$f"; then git rm -q -- "$f" || return 1; fs="$fs $f"; continue; fi   # 0.26.10.29.2 (R2): a deletion the draft carries
+      [ -f "$X/files/$f" ] || continue; put "$f" < "$X/files/$f" || return 1; git add -- "$f" || return 1; fs="$fs $f"; done; [ -n "$fs" ] || continue
+    printf 'Land draft %s, %s: %s\n\nThe owner'"'"'s yes, during the run: "%s"%s\n\nDecisions: admits %s (%s) — the owner'"'"'s yes\nOwner: "%s"\n' "$n" "${g#*|}" "$why" "$WORDS" "${AN:+
+Answers: $AN}" "$DW" "$CL" "$WORDS" > "$T/msg"
     GIT_AUTHOR_DATE=$DT GIT_COMMITTER_DATE=$DT git commit -q -F "$T/msg" -- $fs > "$T/ce" 2>&1 || { cat "$T/ce" >&2; return 1; }; git rev-parse HEAD; done; }   # the draft's paths alone, whatever else is staged
 # plan_change <draft dir> <landing>: the draft's block in RUN-STATE, then plan.sh change rows
+# 0.26.10.29.2 (R2): a re-cut's change is a scope-change, the rows of a moved stage taken out of their open tickets by the plan
 # PCX: the body of RUN-STATE's plan block, the first vid-plan fence under "## The plan", replaced by the file P's lines, every other line as it was
 # (9.3 R2: the landing's one change to the run record, and its roll-back's; a vid-plan fence in the prose is no plan)
 PCX='/^## / { t = ($0 ~ /^## The plan/) } t && !d && /^```vid-plan[ \t]*$/ { print; while ((getline l < P) > 0) print l; s = 1; d = 1; next } s && /^```[ \t]*$/ { s = 0 } !s { print }'
 plan_change() { X=$1; if [ -s "$X/plan" ]; then rs_edit awk -v P="$X/plan" "$PCX" || return 1; fi
   ids=$(awk -F'\t' '($1 == "reset" || $1 == "added") && $3 != "transition" { print $2 }' "$X/sets" | paste -sd ' ' -); st=$(dblock "$X" > "$T/blk"; awk -F'\t' '($1 == "reset" || $1 == "added") && $3 != "transition" { print $2 }' "$X/sets" > "$T/xb"; stepsof "$T/xb" "$T/blk" | cut -d' ' -f2 | sort -u | paste -sd ' ' -)
-  sh "$HERE/plan.sh" change rows "the owner's yes to draft $(basename "$X"): $(cat "$X/why")" --trigger owner-answer --evidence "commit:$2" --expect "${ids:+a new ticket of ${st:-its step} for $ids}${ids:-no row changes: the spec export carries it}" > "$T/pc" 2>&1; }
+  sh "$HERE/plan.sh" change rows "the owner's yes to draft $(basename "$X"): $(cat "$X/why")" --trigger "$(recut "$X" && echo scope-change || echo owner-answer)" --evidence "commit:$2" --expect "${ids:+a new ticket of ${st:-its step} for $ids}${ids:-no row changes: the spec export carries it}" > "$T/pc" 2>&1; }
 
 # dryrun <draft dir> <base> <words>: the landing's checks on a scratch copy, nothing landed; sets LD, XA and HD
 dryrun() { X=$1; B=$2; WORDS=$3
+  # 0.26.10.29.2 (R2): a re-cut never changes a stage closed or deployed, at draft time and again at the landing
+  if recut "$X"; then [ -n "$(answers "$X")" ] || ref "the re-cut adds no owner answer to PRD.md's vid-prd-answers block, which its law commit cites: nothing landed"
+    cutd "$X" "$B" > "$T/cut" || ref "the re-cut's stages could not be read: nothing landed"
+    for N in $(cat "$T/cut"); do ! sclosed_ "$N" || ref "the re-cut changes stage $N, which is closed: a closed stage stands as it is (a new rule row sits in stage 1 unless the cut places it: give it a line \`row: <id> -> STAGE-<k>\` for an open stage, or cut with \`rules: by-origin\` where its requirements are in an open stage); nothing landed"
+      ! deployed "$N" || ref "the re-cut changes stage $N, which is deployed (a candidate's D1 passed, or it runs in production): a deployed stage stands as it is (a new rule row sits in stage 1 unless the cut places it: give it a line \`row: <id> -> STAGE-<k>\` for an open stage, or cut with \`rules: by-origin\` where its requirements are in an open stage); nothing landed"; done; fi
   # the dry run: a scratch copy, the records and commits made there with the hooks on, the plan change, planner.sh check
   SC=$T/sc; git clone -q --no-hardlinks . "$SC" 2> "$T/ge" || ref "no scratch copy: $(tail -n 1 "$T/ge")"
   BR=$(git symbolic-ref -q --short HEAD || true); if [ -n "$BR" ]; then git -C "$SC" checkout -q -B "$BR" "$B"; else git -C "$SC" checkout -q --detach "$B"; fi
@@ -161,9 +230,14 @@ dryrun() { X=$1; B=$2; WORDS=$3
   records "$SC" "$(printf %.12s "$B")" "$XA" > /dev/null || ref "the dry run's records failed: nothing landed"
   ( cd "$SC" && commits "$XA" ) > "$T/shas" || ref "the dry run's commits were refused (above): nothing landed"
   LD=$(tail -n 1 "$T/shas"); [ -n "$LD" ] || ref 'the draft holds no file to commit'
+  # 0.26.10.29.2 (R2): a re-cut's stage: moved first, as the landing moves it, so its own plan change is judged at the stage it lands in
+  if recut "$X"; then ( cd "$SC" && stmove ) > /dev/null || ref "the dry run could not move RUN-STATE's stage: nothing landed"; fi
   ( cd "$SC" && sed "s/ $(printf %.12s "$B") / $(printf %.12s "$LD") /" "$D/landed" > "$T/ld" && put "$D/landed" < "$T/ld" && plan_change "$XA" "$LD" ) || ref "the dry run's plan change was refused: $(grep -m 1 'refused' "$T/pc" || tail -n 1 "$T/pc"); nothing landed"
+  # 0.26.10.29.2 (R2): a stage the re-cut changes and leaves with no row, by each row's effective stage, would never get a candidate,
+  # and the stages after it would wait for good; a stage it never touched is not its concern
+  if recut "$X"; then e=$( cd "$SC" && hollow "$T/cut" | head -n 1 ); [ -z "$e" ] || ref "the re-cut leaves stage $e with no row (each row by its stage, a PLAN.md moved: line counted): a stage holds at least one row, or the cut drops it; nothing landed"; fi
   ( cd "$SC" && sh "$HERE/planner.sh" check ) > "$T/pk" 2>&1 || ref "the dry run's planner.sh check flags the plan: $(head -n 1 "$T/pk"); nothing landed"
-  HD=$(for f in $HASHF; do [ -f "$X/files/$f" ] && printf '%s,' "$f"; done)
+  HD=$(for f in $HASHF; do { [ -f "$X/files/$f" ] || gone "$X" "$f"; } && printf '%s,' "$f"; done)   # 0.26.10.29.2 (R2): a deleted file is held too
   ( cd "$SC" && sh "$HERE/planner.sh" reratify --words "$WORDS" --base "$B" --to "$LD" --held "${HD%,}" ) > "$T/rr" 2>&1 || ref "the dry run's reratify refuses: $(sed -n 's/^ViD planner: reratify refused — //p' "$T/rr" | head -n 1); nothing landed"
 }
 
@@ -184,6 +258,7 @@ cmd_land() { n=${1:-}; shift; WORDS=''; [ "${1:-}" = --words ] && WORDS=${2:-}; 
   # 9.3 R2: RUN-STATE is rolled back in the one block the landing changes, its plan, so another writer's lines since stand
   awk '/^## / { t = ($0 ~ /^## The plan/) } t && !d && /^```vid-plan[ \t]*$/ { s = 1; d = 1; next } s && /^```[ \t]*$/ { exit } s' .vid/RUN-STATE.md > "$T/bk-planblk" || exit 1
   back() { BF=''; putd "$D" "$T/bk-decide" || BF="$BF $D"; for f in "$HAND" "$LOG" .vid/metrics-events; do put "$f" < "$T/bk-$(basename "$f")" || BF="$BF $f"; done; rs_edit awk -v P="$T/bk-planblk" "$PCX" || BF="$BF .vid/RUN-STATE.md"; putd .vid/plans "$T/bk-plans" || BF="$BF .vid/plans"; putd .vid/plan "$T/bk-plan" || BF="$BF .vid/plan"
+    [ -z "${OST:-}" ] || rs_edit sed "s/^stage:[[:space:]]*[0-9][0-9]*/stage: $OST/" || BF="$BF .vid/RUN-STATE.md"   # 0.26.10.29.2 (R2): a re-cut's stage: put back
     # a restore that failed keeps the backup where it is, the EXIT trap disarmed, and says so with the base
     [ -z "$BF" ] || { trap - EXIT; die "$1 after the dry run passed, and the roll-back could not restore$BF: their backup is kept in $T (bk-*), and nothing is reset — the base is $(printf %.12s "$B")"; }   # kept in place, never copied
     git reset -q --soft "$B"; for f in $SPEC; do git reset -q "$B" -- "$f" 2>/dev/null; if git cat-file -e "$B:$f" 2>/dev/null; then git checkout -q "$B" -- "$f"; else rm -f "$f"; fi; done
@@ -191,15 +266,25 @@ cmd_land() { n=${1:-}; shift; WORDS=''; [ "${1:-}" = --words ] && WORDS=${2:-}; 
   records "$PWD" "$L" "$XA" > "$T/rec" || back 'the records failed'
   commits "$XA" > "$T/shas2" || back 'a commit was refused' 
   LR=$(tail -n 1 "$T/shas2"); L2=$(printf %.12s "$LR")
-  if [ "$L2" != "$L" ]; then for f in "$D/landed" "$HAND" $(ls "$D"/close/*/*/withdrawn 2>/dev/null); do sed "s/ $L / $L2 /; s/^$L /$L2 /" "$f" > "$T/f" || back 'a record could not be rewritten'; put "$f" < "$T/f" || back 'a record could not be rewritten'; done; sed "s/	landed at $L	/	landed at $L2	/" "$D/rulings" > "$T/f" || back 'a record could not be rewritten'; put "$D/rulings" < "$T/f" || back 'a record could not be rewritten'; L=$L2; fi
+  if [ "$L2" != "$L" ]; then for f in "$D/landed" "$HAND" $(ls "$D"/close/*/*/withdrawn "$D"/stage/*/*/withdrawn "$D"/stage/*/*/d1/closed 2>/dev/null); do sed "s/ $L / $L2 /; s/^$L /$L2 /" "$f" > "$T/f" || back 'a record could not be rewritten'; put "$f" < "$T/f" || back 'a record could not be rewritten'; done; sed "s/	landed at $L	/	landed at $L2	/" "$D/rulings" > "$T/f" || back 'a record could not be rewritten'; put "$D/rulings" < "$T/f" || back 'a record could not be rewritten'; L=$L2; fi
+  # 0.26.10.29.2 (R2): a re-cut moves RUN-STATE's stage: to the new cut's current stage before its own plan change, so the change and
+  # every admission after read the new cut; the roll-back puts the old stage: back
+  : > "$T/stm"; if recut "$X"; then OST=$(sed -n 's/^stage:[[:space:]]*\([0-9][0-9]*\).*/\1/p' .vid/RUN-STATE.md | head -n 1); stmove > "$T/stm" || back "RUN-STATE's stage: could not be moved"; fi
   plan_change "$XA" "$LR" || back "the plan change was refused ($(grep -m 1 refused "$T/pc" || tail -n 1 "$T/pc"))"
   sh "$HERE/planner.sh" reratify --words "$WORDS" --base "$B" --to "$LR" --held "${HD%,}" > "$T/rr" 2>&1 || back "reratify refused ($(tail -n 1 "$T/rr"))"
   ev "publish-approved words=\"$WORDS\""   # the owner's go in the same words, so the writer's gate opens; through event.sh (9.3 R1)
   echo "$LR" > "$X/landed"; ev "land-landed draft=$n at=$L"
+  # 0.26.10.29.2 (R2): a re-cut's stage-cut event, as /vid stage records one outside ticket mode: the new cut's stages (1 with no
+  # STAGES.md), the answer its law commit cites, STAGES.md's blob
+  if recut "$X"; then ns=1; bl=''; if [ -f STAGES.md ]; then ns=$(sed -n '/^```vid-stages/,/^```$/p' STAGES.md | grep -cE '^[[:space:]]*STAGE-[0-9]+[[:space:]]*\|'); bl=" blob=$(git rev-parse "$LR:STAGES.md")"; fi
+    ev "stage-cut n=$ns answer=$(answers "$X" | sed 's/,.*//')$bl"; fi
   # 4. last, each withdrawn ask's issue closed on GitHub, with a comment naming the landing
   while read -r s k i; do [ -n "$i" ] || continue; printf 'vid: withdrawn. The landing %s changed rows of %s; this close is asked again once its new tickets merge. A later report for it is not read.\n' "$L" "$s" > "$T/wc"
     sh "$HERE/github.sh" comment "$i" --body-file "$T/wc" > /dev/null 2>&1 && sh "$HERE/github.sh" close "$i" > /dev/null 2>&1 && echo "issue $i" >> "$D/close/$s/$k/withdrawn" || echo "ask-open $s $i"; done < "$T/wd"
-  cat "$T/rec"; echo "landed $n at $L: $(sed -n 1p "$X/count")"; }
+  # 0.26.10.29.2 (R2): and each ask a re-cut withdrew at a stage's candidate
+  while read -r N c w i; do [ -n "$i" ] || continue; printf 'vid: withdrawn. The landing %s re-cut the stages and changed stage %s; its candidate %s is withdrawn, and a new one is named once one is due. A later report for this one is not read.\n' "$L" "$N" "$c" > "$T/wc"
+    sh "$HERE/github.sh" comment "$i" --body-file "$T/wc" > /dev/null 2>&1 && sh "$HERE/github.sh" close "$i" > /dev/null 2>&1 || echo "ask-open stage-$N $i"; done < "$T/ws"
+  cat "$T/rec" "$T/stm" 2>/dev/null; echo "landed $n at $L: $(sed -n 1p "$X/count")"; }
 
 CMD=${1:-}; [ $# -eq 0 ] || shift
 case $CMD in

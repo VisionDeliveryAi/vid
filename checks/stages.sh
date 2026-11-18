@@ -8,6 +8,9 @@
 #   split: REQ-x[ REQ-y …] -> STAGE-<n>             requirements a split feature puts in another stage
 #   row: <ROW|RULE|DIF|EXC|SUP>-x -> STAGE-<n>       a row placed (a ROW whose items span stages; a census row later)
 #   needs: FEAT-a needs FEAT-b — <source>          an ordering edge, with its source
+#   rules: by-origin                               0.26.10.29.4 (phase 4 R2): at most once; a census row is placed by
+#                                                  its origin: (below). vid-stage writes it only while no stage is
+#                                                  closed or deployed; without it, the reading before it
 #   STAGE-0 | <name> | technical                   v0.26.10.8 (R2): the technical stage 0 — the walking skeleton, never
 #                                                  released; it holds rows only, each placed by a row: line (its rows'
 #                                                  requirements keep their own stages). Stages then run 0..k.
@@ -19,6 +22,11 @@
 # (RULE, DIF, EXC, SUP): stage 1 unless a row: line places it later. A HOS
 # row: the stage of the row or item its protects: names. Seam rows have no
 # stage reading; the coverage join counts them, as stage 1.
+# 0.26.10.29.4 (phase 4 R2): with `rules: by-origin`, a census row whose origin: names effective PRD items takes the
+# earliest stage among them (`later` ones and ones with no stage left out); it stays stage 1 when its origin names no
+# PRD item (domain, finding-NNN, derivation …, none), when every item it names is later, and when it is a Tier-0 rule
+# row (its tier, the field before its test, is 0, T0, tier-0 …: a must-never-break rule covers the code from the first
+# stage). A row: line overrides each of these.
 #   (no argument) | check   the court (pre-commit): silent while the index
 #                  holds no STAGES.md. Reads the staged STAGES.md, PRD.md and
 #                  INVENTORY.md (the working tree outside a repository).
@@ -28,7 +36,10 @@
 #                  feature in a stage (a feature this commit adds to the
 #                  PRD may be unplaced at it: its placement is the next, law
 #                  commit — every commit after is refused until then); a split: or row: line naming an unknown
-#                  id, a later-phase item or an unknown stage; a ROW whose
+#                  id, a later-phase item or an unknown stage (0.26.10.29.4, phase 4 R5: but the commit whose
+#                  staged PRD.md makes items `phase: later` that HEAD's did not may keep the split: lines and the
+#                  row: lines naming them — their removal is the next, law commit, and every commit after is
+#                  refused until then); a rules: line twice or other than `rules: by-origin`; a ROW whose
 #                  items span stages with no row: line; a requirement of
 #                  stage k whose rows all sit in later stages; a needs: edge
 #                  to a later stage, transitively, or a cycle. v0.26.10.8 (R2): `technical` on a stage but
@@ -36,7 +47,7 @@
 #                  no row: line places a row in; a STAGE-0 line added or removed by any commit but the one that
 #                  creates STAGES.md (init's cut only).
 #   msg <message file>  commit-msg: a change to stage membership (the STAGE-,
-#                  split: and row: lines, STAGES.md created or deleted)
+#                  split:, row: and rules: lines, STAGES.md created or deleted)
 #                  between HEAD and the index whose message cites no owner
 #                  answer (an A-NNN token) is refused. Silent while neither
 #                  HEAD nor the index holds STAGES.md.
@@ -47,9 +58,10 @@
 #                  STAGES.md everything not later is stage 1.
 #   stage-of <id>  prints the id's stage, or `later`; exit 2 for an unknown id.
 #   current        the current stage: RUN-STATE's `stage:` (when absent the lowest stage: 0 with STAGE-0, else 1).
-#   counts         amendment 1 (R1a): per stage `stage <k> requirements=<REQ ids> rows=<obligations> | <name>` —
-#                  the same numbers as `scope --upto k [--reqs]` minus `--upto k-1` — then `row-lines=<n>`, the
-#                  block's row: lines (rows placed by hand). The ladder's counts, run in each rung's scratch copy.
+#   counts         amendment 1 (R1a): per stage `stage <k> requirements=<REQ ids> rows=<obligations> journeys=<n> | <name>`
+#                  — the same numbers as `scope --upto k [--reqs]` minus `--upto k-1`; journeys= (0.26.10.29.4, phase 4
+#                  R3) the stage's ROW rows of kind journey — then `row-lines=<n>`, the block's row: lines (rows placed
+#                  by hand). The ladder's counts, run in each rung's scratch copy.
 #   deploy [--target staging|production] [--platform none|present] [--tree <dir>]   R11–R15, deploy's
 #                  reading; v0.26.10.7 (R2, R11): two targets (see `deploy` below).
 #   candidate --target staging|production   v0.26.10.7 (R2): the candidate alone, one line for the readers
@@ -59,6 +71,7 @@
 #   staging-auth on|off --words "<the owner's words>"   v0.26.10.8 (R6): the standing staging authorization.
 # The working tree is read for every subcommand but the court and msg.
 set -eu
+_vidwsl=${0%/*}/lib/wsl.sh; [ ! -f "$_vidwsl" ] || . "$_vidwsl"   # 0.26.10.29.3 (R6): on native Windows, with the owner's yes, this court re-runs under WSL
 IFS='
 '
 CMD=${1:-check}; [ $# -gt 0 ] && shift
@@ -89,16 +102,26 @@ load() {
     src head PRD.md "$T/PRD.head" || true
     block vid-prd-features "$T/PRD.head" | awk -F'|' '{ id = $1; gsub(/^[ \t]+|[ \t]+$/, "", id); sub(/[ \t]+AMENDED$/, "", id); if (id ~ /^FEAT-[0-9]+$/) print id }' | sort -u > "$T/hfeat"
   else cp "$T/feat" "$T/hfeat"; fi
+  # 0.26.10.29.4 (phase 4 R5): the items this commit makes `phase: later` that HEAD's PRD did not (in HEAD's effective set,
+  # not later there): the split: and row: lines naming them may stay at this commit only, their removal the next law commit
+  : > "$T/nlater"
+  if [ "$1" = index ] && [ "$HASST" = yes ] && [ -s "$T/PRD.head" ] && [ -s "$T/prd" ]; then
+    sh "$HERE/prd.sh" --effective "$T/PRD.head" > "$T/heff" 2>/dev/null || : > "$T/heff"
+    awk -F'|' 'function tr(s) { gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
+      { id = tr($1); if (id !~ /^[A-Z]+-[0-9]+$/) next; p = "pilot"; for (i = 3; i <= NF; i++) { x = tr($i); if (x ~ /^phase:/) { sub(/^phase:[ \t]*/, "", x); p = x } } }
+      FILENAME == ARGV[1] { if (p != "later") H[id] = 1; next } p == "later" && (id in H) { print id }' "$T/heff" "$T/prd" > "$T/nlater" || : > "$T/nlater"
+  fi
   src "$1" INVENTORY.md "$T/INVENTORY.md" || true
   sed -n '/^```vid-inventory/,/^```$/p' "$T/INVENTORY.md" | sed '1d;$d' > "$T/inv" || : > "$T/inv"
 }
 # resolve: one awk pass over the four inputs → $T/table lines
 #   item <id> <stage|later|-> <feature|-> <type>   (an effective PRD item)
-#   obl <id> <stage|later> <class> <cites>          (an inventory obligation; cites: its test field's path or -)
+#   obl <id> <stage|later> <class> <cites> <kind>   (an inventory obligation; cites: its test field's path or -; kind: a
+#                                                    ROW's kind column, journey …, else -: 0.26.10.29.4, phase 4 R3)
 #   err <why>                                        (a court refusal)
 #   nstages <k>
 resolve() {
-  awk -F'|' -v sf="$T/stages" -v ff="$T/feat" -v hf="$T/hfeat" -v pf="$T/prd" -v hasst="$HASST" '
+  awk -F'|' -v sf="$T/stages" -v ff="$T/feat" -v hf="$T/hfeat" -v pf="$T/prd" -v nlf="$T/nlater" -v hasst="$HASST" '
     function tr(s) { gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
     function err(m) { print "err " m }
     function stno(s) { if (s ~ /^STAGE-[0-9]+$/) { sub(/^STAGE-/, "", s); return s + 0 } return 0 }
@@ -106,6 +129,7 @@ resolve() {
       dem["functional"] = 1; dem["nfr"] = 1; dem["ux_flow"] = 1; dem["data_entity"] = 1
       while ((getline l < ff) > 0) FE[l] = 1
       while ((getline l < hf) > 0) HF[l] = 1
+      while ((getline l < nlf) > 0) NL[l] = 1   # phase 4 R5: the items this commit makes later
       # the effective PRD: type, feature, phase per item
       while ((getline l < pf) > 0) { n = split(l, F, "|"); id = tr(F[1]); if (id !~ /^[A-Z]+-[0-9]+$/) continue
         IT[id] = 1; TY[id] = tr(F[2]); FT[id] = "-"; PH[id] = "pilot"; IO[++ni] = id
@@ -136,6 +160,9 @@ resolve() {
           if (id in RL) { err("row: " id " is placed twice"); continue } RL[id] = stno(st); RLO[++nrl] = id; continue }
         if (t ~ /^needs:/) { x = t; sub(/^needs:[ \t]*/, "", x); if (x !~ /^FEAT-[0-9]+[ \t]+needs[ \t]+FEAT-[0-9]+[ \t]+(—|--)[ \t]*[^ \t]/) { err("needs: line does not parse (needs: FEAT-a needs FEAT-b — <source>): \047" t "\047"); continue }
           split(x, a, /[ \t]+/); NA[++ne] = a[1]; NB[ne] = a[3]; continue }
+        # 0.26.10.29.4 (phase 4 R2): census rows placed by their origin
+        if (t ~ /^rules:/) { x = t; sub(/^rules:[ \t]*/, "", x); if (x != "by-origin") { err("rules: line does not parse (rules: by-origin): \047" t "\047"); continue }
+          if (BYO) { err("rules: by-origin is declared twice"); continue } BYO = 1; continue }
         err("line does not parse: \047" t "\047") }
       LO = (0 in SD) ? 0 : 1
       for (s = LO; s <= K; s++) if (!(s in SD)) err("no STAGE-" s ": stages run " LO ".." K ", once each")
@@ -143,7 +170,8 @@ resolve() {
       if (hasst == "yes") for (f in PF) if (!(f in FST) && (f in HF)) err("feature " f " (pilot) is in no stage")
       for (k = 1; k <= nsp; k++) { id = SPN[k]; s = SPS[k]
         if (!(id in IT)) { err("split: " id " is no item of the PRD"); continue }
-        if (PH[id] == "later") { err("split: " id " is phase: later — a later item has no stage"); continue }
+        # phase 4 R5: kept at the commit making it later, where it still holds its stage (a stage fed by it alone is no empty stage)
+        if (PH[id] == "later") { if (!(id in NL)) err("split: " id " is phase: later — a later item has no stage"); else if ((s in SD) && s != 0) SPIN[s] = 1; continue }
         if (!(s in SD)) { err("split: " id " -> STAGE-" s ", which is no stage"); continue }
         if (s == 0) { err("split: " id " -> STAGE-0: stage 0 holds rows only, never a requirement (its rows\047 requirements keep their own stages)"); continue }
         SP[id] = s; SPIN[s] = 1 }
@@ -165,7 +193,10 @@ resolve() {
       for (k = 1; k <= m; k++) if (a[k] in IT) RI[id] = RI[id] " " a[k]
       t = tr($8); sub(/ .*/, "", t); CI[id] = (t ~ /^tests\//) ? t : "-"; next }
     c1 == "rule" || c1 == "difference" || c1 == "exception" || c1 == "suppression" { id = tr($2); if (id !~ /^(RULE|DIF|EXC|SUP)-[0-9]+$/) next; RO[++nr] = id; RC[id] = toupper(substr(id, 1, index(id, "-") - 1))
-      CI[id] = "-"; if (c1 == "rule") { n = NF; while (n > 3 && $n ~ /^[ \t]*(origin|proved-red|paid-at):/) n--; t = tr($n); sub(/ .*/, "", t); if (t ~ /^tests\//) CI[id] = t } next }
+      # 0.26.10.29.4 (phase 4 R2): the effective PRD items of the origin: field, read from the right past the labeled fields (the
+      # census command of a rule may hold |); the tier of a rule is the field before its test
+      CI[id] = "-"; n = NF; while (n > 3 && $n ~ /^[ \t]*(origin|proved-red|paid-at|paying-step):/) { x = tr($n); if (x ~ /^origin:/) { sub(/^origin:[ \t]*/, "", x); m = split(x, a, /[ ,]+/); for (k = 1; k <= m; k++) if (a[k] in IT) OG[id] = OG[id] " " a[k] } n-- }
+      if (c1 == "rule") { t = tr($n); sub(/ .*/, "", t); if (t ~ /^tests\//) CI[id] = t; if (n > 5) { x = tr($(n - 1)); if (x ~ /^(0|T0|t0|tier-0|tier0|Tier-0)$/) T0R[id] = 1 } } next }
     c1 == "hostility" { id = tr($2); if (id !~ /^HOS-[0-9]+$/) next; RO[++nr] = id; RC[id] = "HOS"; PR[id] = ""; CI[id] = "-"
       for (i = 3; i <= NF; i++) { x = tr($i); if (x ~ /^protects:/) { sub(/^protects:[ \t]*/, "", x); sub(/[ \t].*$/, "", x); PR[id] = x } else if (x ~ /^tests\//) { sub(/ .*/, "", x); CI[id] = x } } next }
     END {
@@ -180,15 +211,21 @@ resolve() {
           for (k = 1; k <= m; k++) { if (a[k] == "") continue; any++; s = ST[a[k]]
             if (s == "later") { lat++; continue } if (s == "-") continue
             if (!(s in seen)) { seen[s] = 1; S = S (S == "" ? "" : ",") s } if (s + 0 > mx) mx = s + 0 }
-          if (id in RL) { if (any && lat == any) { err("row: " id " is placed, but every item it derives from is phase: later"); OS[id] = "later" } else OS[id] = RL[id] }
+          if (id in RL) { if (any && lat == any) { nl = 0; for (k = 1; k <= m; k++) if (a[k] in NL) nl = 1   # phase 4 R5: kept at the commit making them later
+              if (!nl) err("row: " id " is placed, but every item it derives from is phase: later"); OS[id] = "later" } else OS[id] = RL[id] }
           else if (any && lat == any) OS[id] = "later"
           else if (S == "") OS[id] = 1
           else if (index(S, ",")) { err(id " derives from items of stages " S " and no row: line places it"); OS[id] = mx }
           else OS[id] = S + 0
-        } else if (c != "HOS") OS[id] = (id in RL) ? RL[id] : 1 }
+        } else if (c != "HOS") {
+          # 0.26.10.29.4 (phase 4 R2): with rules: by-origin, the earliest stage of the items its origin names; a Tier-0 rule, an origin naming
+          # no staged item (none, domain, finding-NNN, every item later): stage 1; a row: line first, always
+          OS[id] = 1
+          if (id in RL) OS[id] = RL[id]
+          else if (BYO && !(id in T0R) && OG[id] != "") { mn = ""; m = split(OG[id], a, " "); for (k = 1; k <= m; k++) { s = ST[a[k]]; if (s == "later" || s == "-" || s == "") continue; if (mn == "" || s + 0 < mn) mn = s + 0 } if (mn != "") OS[id] = mn } } }
       for (i = 1; i <= nr; i++) { id = RO[i]; if (RC[id] != "HOS") continue; p = PR[id]
         if (p in OS) OS[id] = OS[p]; else if ((p in ST) && ST[p] != "-") OS[id] = ST[p]; else OS[id] = 1 }
-      for (i = 1; i <= nr; i++) print "obl " RO[i] " " OS[RO[i]] " " RC[RO[i]] " " CI[RO[i]]
+      for (i = 1; i <= nr; i++) { id = RO[i]; kd = (RC[id] == "ROW" && RK[id] != "") ? RK[id] : "-"; gsub(/[ \t]+/, "_", kd); print "obl " id " " OS[id] " " RC[id] " " CI[id] " " kd }
       # a requirement of stage k whose rows all sit in later stages (a row in no stage — later — is not one of them)
       for (i = 1; i <= nr; i++) { id = RO[i]; if (RC[id] != "ROW" || OS[id] == "later") continue; m = split(RI[id], a, " ")
         for (k = 1; k <= m; k++) if (a[k] ~ /^REQ-/) { HR[a[k]] = 1; if (!((a[k]) in MINS) || OS[id] + 0 < MINS[a[k]]) MINS[a[k]] = OS[id] + 0 } }
@@ -218,8 +255,13 @@ current() {
   _c=$(sed -n 's/^stage:[[:space:]]*\([0-9][0-9]*\).*/\1/p' "$_rs" 2>/dev/null | head -n 1)
   echo "${_c:-$(lowest)}"
 }
-# membership <file>: the STAGE-, split: and row: lines of a STAGES.md, whitespace normalised
-membership() { block vid-stages "$1" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//;s/[[:space:]][[:space:]]*/ /g' | grep -E '^(STAGE-[0-9]+ ?\||split:|row:)' || true; }
+# membership <file>: the STAGE-, split:, row: and rules: lines of a STAGES.md, whitespace normalised (rules:, 0.26.10.29.4
+# phase 4 R2: it moves census rows between stages)
+membership() { block vid-stages "$1" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//;s/[[:space:]][[:space:]]*/ /g' | grep -E '^(STAGE-[0-9]+ ?\||split:|row:|rules:)' || true; }
+
+# 0.26.10.29.3 (R9, F53): eol.sh's test on the spec files this reads, before every subcommand — those that read STAGES.md
+# without load (current, the deploy readings) among them; a CR LF file is refused, never misread
+if [ -f "$HERE/eol.sh" ]; then sh "$HERE/eol.sh" file STAGES.md PRD.md INVENTORY.md || exit 1; fi
 
 case "$CMD" in
   check)
@@ -249,7 +291,7 @@ case "$CMD" in
     if [ "$HH" = "$HI" ] && [ "$(membership "$T/h")" = "$(membership "$T/i")" ]; then exit 0; fi
     if grep -v '^#' "$MF" | grep -qE '(^|[^A-Za-z0-9-])A-[0-9]+([^0-9]|$)'; then exit 0; fi
     case "$HH$HI" in
-      yesno) W='deletes STAGES.md' ;; noyes) W='creates STAGES.md' ;; *) W='changes stage membership (a STAGE-, split: or row: line)' ;;
+      yesno) W='deletes STAGES.md' ;; noyes) W='creates STAGES.md' ;; *) W='changes stage membership (a STAGE-, split:, row: or rules: line)' ;;
     esac
     echo "ViD commit-msg: rejected — this commit $W and its message cites no owner answer (A-NNN)." >&2
     echo 'Which stage a feature, requirement or row is in is the owner'"'"'s: name the answer that ratified it, e.g. "Stages: A-031 (the owner ratified the cut)".' >&2
@@ -273,8 +315,8 @@ case "$CMD" in
     load work; resolve
     # the block is read in BEGIN: an empty block (no STAGES.md — the single-stage rung) must not swallow the table
     awk -v sf="$T/stages" 'BEGIN { while ((getline l < sf) > 0) { if (l ~ /^[ \t]*STAGE-[0-9]+[ \t]*\|/) { n = split(l, f, "|"); id = f[1]; gsub(/^[ \t]+|[ \t]+$/, "", id); sub(/^STAGE-/, "", id); nm = f[2]; gsub(/^[ \t]+|[ \t]+$/, "", nm); NM[id + 0] = nm } if (l ~ /^[ \t]*row:/) rl++ } }
-      $1 == "nstages" { K = $2 + 0 } $1 == "item" && $2 ~ /^REQ-/ && $3 ~ /^[0-9]+$/ { R[$3 + 0]++ } $1 == "obl" && $3 ~ /^[0-9]+$/ { O[$3 + 0]++ }
-      END { if (K == 0) K = 1; for (k = ((0 in NM) ? 0 : 1); k <= K; k++) printf "stage %d requirements=%d rows=%d | %s\n", k, R[k], O[k], (k in NM ? NM[k] : "-"); printf "row-lines=%d\n", rl + 0 }' "$T/table"
+      $1 == "nstages" { K = $2 + 0 } $1 == "item" && $2 ~ /^REQ-/ && $3 ~ /^[0-9]+$/ { R[$3 + 0]++ } $1 == "obl" && $3 ~ /^[0-9]+$/ { O[$3 + 0]++; if ($4 == "ROW" && $6 == "journey") J[$3 + 0]++ }
+      END { if (K == 0) K = 1; for (k = ((0 in NM) ? 0 : 1); k <= K; k++) printf "stage %d requirements=%d rows=%d journeys=%d | %s\n", k, R[k], O[k], J[k], (k in NM ? NM[k] : "-"); printf "row-lines=%d\n", rl + 0 }' "$T/table"
     exit 0 ;;
   deploy|candidate|hold|staging-auth) ;;   # below
   *) echo 'ViD stages: usage — sh checks/stages.sh [check] | msg <file> | scope [--upto N] [--reqs] | stage-of <id> | current | counts | deploy [--target staging|production] [--by develop] [--platform none|present] [--tree <dir>] | candidate --target staging|production [--by develop] | hold --after N --words "<the owner'"'"'s words>" | hold --off [--setup] | staging-auth on|off --words "<the owner'"'"'s words>"' >&2; exit 2 ;;

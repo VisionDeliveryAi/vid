@@ -173,7 +173,12 @@ read as green. Its report is read as any chunk's; its cases credit no row, and e
 ## The staging deploy (D1)
 
 Once a candidate's C3 has passed, ViD gives the okay on an issue labelled `deploy`, its body beginning `okay: staging`,
-`commit:` the candidate's and `seed: synthetic`. ViD deploys nothing: DP deploys that commit to staging, within the downtime
+`commit:` the candidate's, `seed: synthetic` (or `seed: production`, once production exists and the product's sponsor asks for
+production's data on staging: load a copy of production's newest backup into staging before the migration, in place of the
+made-up data, and keep every outside service on staging limited), and `outside-service rows:` the outside-service rows the
+staging run will ask, or `none`. Further down the body quotes the hosting, a paragraph `The hosting:` of `> <key>: <value>`
+lines, and names the duties, a paragraph `Duties:` of `- <duty>: <what is asked>` lines: `log-in`, `environments`,
+`outside-services`, `sending-domain`, `deploy-notes` and `captures`. ViD deploys nothing: DP deploys that commit to staging, within the downtime
 tolerance the skeleton ticket's hosting states, comments `vid: started` when it starts, and asks a step only the product's sponsor can take as a question on that issue, labelled blocked. Staging holds one candidate at a time: an okay comes only
 once every earlier deploy that passed has had its staging run read. A newer okay withdraws an earlier one that has not passed.
 The folder `deploy-<okay issue>-<k>/` holds:
@@ -183,12 +188,20 @@ The folder `deploy-<okay issue>-<k>/` holds:
 - `deploy.xml`, one case per deploy step;
 - for a passed deploy, `staging.txt`: `staging: <address>`; one `signin: <role> <address>` line for each role DP can sign in
   as; and one `differs: <what> — <on staging> — <on production>` line for each way staging differs from production beyond
-  the head reports' `stand-in:` lines, or the one line `differs: none`.
+  the head reports' `stand-in:` lines, or the one line `differs: none`; `seed: synthetic` or `seed: production`, as the okay's;
+  for each outside-service row the okay names, one `seam: <row> real` when its outside service is the real one on this staging,
+  or `seam: <row> stand-in — <why>`; and `stays: up` when staging stays up between deploys;
+- for a passed deploy, `duties.txt`: for each duty the okay names, one line `<duty>: done — <what and where>`,
+  `<duty>: not needed — <why>` or `<duty>: not done — <why>`.
 
 Then `vid: reported d1-<k>` on the issue. A report is not read when its role is not DP, its commit is not the okay's or is not
-in the code repository, a passed deploy has no `staging.txt`, no `staging:` line or no `differs:` line, or a failed one has
-no `product change:` line; ViD's comment says why, and DP sends it again as attempt k+1. A second such report on the same
-okay waits on ViD. A failed step that needs no product change is DP's to fix: ViD's comment `vid: failed at <step>:
+in the code repository, a passed deploy has no `staging.txt`, no `staging:` line, no `differs:` line, no `seed:` line or one other than
+the okay's, or no `seam:` line for a row the okay names, has no `duties.txt`, or leaves a duty the okay names without a line or
+`not done`, or a failed one has no `product change:` line; ViD's comment says why, naming the duty and your words, and DP sends
+it again as attempt k+1. A second such report on the same okay waits on ViD; for a duty not done, the product's sponsor may rule
+it a known limit of the project, and from then on that duty's `not done` is read. A `not needed` duty is read, its words passed
+on. An outside-service row is paid only when the passed deploy marks it `real`; any other the staging run passes waits on ViD,
+which may ask the deploy and the staging run again at the same commit once the real service is on. A failed step that needs no product change is DP's to fix: ViD's comment `vid: failed at <step>:
 deploy again and report as attempt <k+1>` asks it again at the same commit, and a second failure at the same step waits
 on ViD. A fix that needs a commit to the code repository is a product change: ViD closes the okay, and the change
 comes back as a row in a ticket. With no report for a long while ViD comments `vid: again d1` once.
@@ -210,16 +223,19 @@ this run, and the issue closes only when the walk is done, or withdrawn by a new
 
 After a stage's close, ViD gives the rehearsal okay, an issue labelled `deploy`, its body beginning `okay: rehearsal` and
 `commit:`. DP restores the newest production backup somewhere that is not production, sealed: no connection from it to anything
-outside it, reachable only from where TM runs; migrates it, boots it, and reports `deploy-<okay issue>-<k>/`:
+outside it, reachable only from where TM runs; migrates it, boots it, and reports `deploy-<okay issue>-<k>/`. Before the migration DP notes every row of each table the product
+only ever adds to; after it, it checks each of those rows is still there, word for word:
 - `report.txt`: `by: DP`, `commit:`, `outcome: passed`, `outcome: failed <step>` (with `product change: yes` or `no`), or
-  `outcome: no backup yet` (a first deploy, before any production exists); for a passed one, `sealed: yes`, `copy: <address>`, and
-  one `signin: <role> <address>` line a role;
-- `deploy.xml`, the steps restore, migrate and boot;
+  `outcome: no backup yet` (a first deploy, before any production exists); for a passed one, `sealed: yes`, `copy: <address>`,
+  one `signin: <role> <address>` line a role, and one `kept: <table> — <n> rows` line a table, or the one line
+  `kept: none — <why>`; a lost or changed row is `outcome: failed kept`;
+- `deploy.xml`, the steps restore, migrate, kept and boot, kept after migrate and before boot;
 - `change.txt`, for every outcome: `migrates: yes` or `no`; one `drops: <data>` and one `rewrites: <data>` line for each piece of
   data the migration drops or rewrites; one `services: <outside service>` line for each that changes; or `drops: none` and
   `services: none`.
 
-Then `vid: reported rh-<k>`. A report without these lines, or a passed one not `sealed: yes`, is not read, and ViD's comment says
+Then `vid: reported rh-<k>`. A report without these lines, or a passed one not `sealed: yes`, with no `kept:` line or no kept
+step, is not read; a failed `kept` is a failed step like any other, and ViD's comment says
 why. `no backup yet` is not read once production exists. CR, the rehearsal run, is asked as CS is, on an issue whose body begins
 `close: rehearsal-<N>`, against the copy's address: the golden path's rows that are not deploy-owed, and the rehearsal-owed
 rows. DP destroys the copy once its run is read.
@@ -230,9 +246,15 @@ Once the product's sponsor has said yes to the rehearsal, ViD gives the producti
 DP backs production up first, deploys, and reports `deploy-<okay issue>-<k>/`:
 - `report.txt`: `by: DP`, `commit:`, `outcome: passed` or `outcome: failed <step>`, `production: <address>`, and on the first
   production deploy ever, `logs: <where production's logs are read>`;
-- `deploy.xml`, its first step `backup` (before any production exists, it passes with nothing to back up).
+- `deploy.xml`, its first step `backup` (before any production exists, it passes with nothing to back up);
+- for a passed deploy, `duties.txt`: for each duty the okay names (`service-switch-on`, `backups`, `point-in-time-recovery`,
+  `storage-versioning`, `dns`, `https`, `monitoring`), one line in the staging deploy's form. Production is live once it reports,
+  so a duty without a line or `not done` never sends the report back: each waits on ViD, until the product's sponsor rules it
+  known or a later production report says it done. The production okay quotes the hosting and names these duties as the
+  staging okay does.
 
-Then `vid: reported d2-<k>`. Before a restore that would lose writes, DP asks on the issue first. When a deploy fails, or its run
+Then `vid: reported d2-<k>`. Before any restore, DP asks on the issue first, naming the recovery point (the backup's time) and the writes at risk (every
+write since). When a deploy fails, or its run
 is red, ViD asks for a recovery: DP recovers as it judges and comments `vid: recovered <the commit production runs now, or none>
 — <what it did>`; the okay is then closed, never deployed again. A recovery to the okay's own commit counts as its deploy: the okay
 stays open, CP is asked again, and a later `vid: recovered` comment on it is read the same way. The production okay closes once
@@ -299,7 +321,7 @@ ROW-13 failing, a product failure — its test failed, pr-<pull request>-<head12
 ROW-14 failing, a weak test — its fault not proven, pr-<pull request>-<head12>-2 — siblings: ROW-15, and any other test with the same data pattern
 ROW-17 evidence missing — no fault folder, pr-<pull request>-<head12>-2
 ```
-A row also reads `accepted`, `accepted by ruling`, `known limit`, `owed`, `passing`, `question open`, `its state stands` or `held`; `held — it did not shrink`, when a new head's failing rows, held ones too, are not fewer than the head before's, leaving out a row at its first product failure that was failing as a weak test at the head before, or has a `list:` line. A row's state comes from runs alone. With no grade report, or a line of the one grade breached or unclear and open with no sort report, a decision reads `not yet` with one line, `sort evidence missing — <what>`, against no row, whatever else it reads. The reader's evidence holds a line `list: <row>` for each row with a line other than `kept` in the one grade, closed or not. A decision holding a product failure ends by asking for the whole harm to be fixed.
+A row also reads `accepted`, `accepted by ruling`, `known limit`, `owed`, `passing`, `question open`, `its state stands` or `held`; `held — it did not shrink`, when a new head's failing rows, held ones too, are not fewer than the head before's, leaving out a row at its first product failure that was failing as a weak test at the head before, or has a `list:` line. A row's state comes from runs alone. With no grade report, or a line of the one grade breached or unclear and open with no sort report, a decision reads `not yet` with one line, `sort evidence missing — <what>`, against no row, whatever else it reads. A pull request whose description has no Decisions section (neither the line `Decisions: none` nor a line `Decisions:` with at least one `- ` line under it) reads `not yet` with one line, beside every other line of the decision, against no row, and moves no row's state, count or hold: `decisions missing — the pull request's description has no Decisions section, nor Decisions: none`; once the section is there, the next `vid: decide` at that same head is answered without it. The reader's evidence holds a line `list: <row>` for each row with a line other than `kept` in the one grade, closed or not. A decision holding a product failure ends by asking for the whole harm to be fixed.
 After the rows, three ticket-level lines stop nothing: `engine <e>: <n> could not run`, for an engine the ticket did not ask;
 `split — every engine is now asked: <engines>`, when a row failed in one engine and passed in another, or once one has and the
 ticket asked fewer engines than are declared; and once a ticket, at the head where the pull request's head reports reach 5 cases
@@ -311,9 +333,15 @@ that could not run in one engine, `analyst due — <engine>, <n> cases could not
   product change); the okay's issue says which target the report is for;
 - `deploy.xml`: one case per deploy step, named by the step (for RH: restore, migrate, boot);
 - for RH, also `change.txt`: whether data migrates, each piece of data the migration drops or rewrites, and which
-  outside services change;
+  outside services change; and in its `report.txt` the `kept:` lines, a table each, and in its `deploy.xml` the kept step;
+- for a passed D1 or D2, also `duties.txt`: one line a duty its okay names, done, not needed or not done, each with its words;
+- in every `report.txt`, of every target and outcome, the deploy's own decisions: one line `decision: <what> | why: <why>`
+  for each choice it made, or the one line `decisions: none`. A report with neither is sent back, as an RH report with no
+  `drops:` line is. ViD records each line of a report it accepts, whatever its outcome, in its DECISIONS.md, `enforced: deploy
+  <the report's id>`, `scope: project`, `origin: dev-side`, once: a line whose words it holds already is not recorded again;
 - for a passed D1, also `staging.txt`: a `staging: <address>` line, and one `signin: <role> <address>` line for each
-  role the sign-in rows name. Each sign-in is test-only: it signs in as that role on staging, with no password, and
+  role the sign-in rows name; its `seed:` line, a `seam:` line for each outside-service row its okay names, and `stays: up`
+  when staging stays up. Each sign-in is test-only: it signs in as that role on staging, with no password, and
   never works on production.
 
 **Test differences.** Each `stand-in:` line names a setting that differs between the team's tests and production. ViD
@@ -359,6 +387,10 @@ zero `covers:` makes its rule row fail unless its test could not run, and a rete
 
 - **A claim** is a comment on the ticket whose first line is `vid: claimed`.
 - **A pull request** names its ticket: its body begins `ticket: #<n>`.
+- **Its Decisions section:** the body holds a line `Decisions:` and under it one line a technical decision of the branch,
+  `- <what was chosen> | why: <the reason>`, a line that bears on many areas of the product ending `| scope: project`; or the one
+  line `Decisions: none`. ViD records each line in its DECISIONS.md when the pull request merges, marked `origin: dev-side`, in the
+  dev side's words (a `|` in them written `/`), and a pull request with no section is not accepted.
 - **An empty code repository:** a skeleton ticket whose header says `base: none` was written while the code repository had no
   branch at all. Its body says so; the dev side pushes main's first commit, then branches from it. No other ticket goes out
   until main exists.

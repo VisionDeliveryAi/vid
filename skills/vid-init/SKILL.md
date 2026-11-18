@@ -66,14 +66,28 @@ the scripts and `checks/` keep LF line endings on every checkout, Git for
 Windows' included. The project's first commit carries it: create-prd's
 first ratification commit when create-prd runs inside init, else the
 adoption commit below, else (create-prd ran standalone and its file is
-already committed here) the spec commit, step 7.
+already committed here) the spec commit, step 7. Every helper file ViD
+writes for itself on the way — a script, a scratch copy, a draft a court
+reads — is written as UTF-8 with Unix (LF) line endings, whatever the
+machine's default (0.26.10.29.3, R9).
+Then the WSL question (0.26.10.29.3, R6): run
+`sh "${CLAUDE_PLUGIN_ROOT}/checks/lib/wsl.sh" ask` — the plugin's copy too.
+It prints nothing except on a native Windows shell with WSL available and
+no answer recorded for this PC; then it prints one question, which you
+ask the owner as written, alone, in a message of its own, and record the
+answer with `sh "${CLAUDE_PLUGIN_ROOT}/checks/lib/wsl.sh" record yes` (or
+`record no`). Printing nothing means ask nothing and carry on: ViD runs
+natively on Windows, only more slowly. The answer is per machine and
+untracked (`.vid/windows`); it is never asked again, and the courts follow
+it by themselves, so nothing else in this skill changes.
 
 **Init makes the spec only (v0.26.10.9 R1, VS-3).** What init still does:
 steps 1 to 4, with the inventory at call point 1 only; from step 6 only the
 copy of `checks/` (the shipped courts, helpers and self-test), `git config
 core.hooksPath checks/hooks`, `.vid/budget` and the two host-settings
-questions; the labelling pass; the spec commit (step 7);
-step 7b, the stage cut; the hand-back. Nothing is rewritten: the code
+questions; the final review (step 6b); the labelling pass; the spec
+commit (step 7); step 7b, the stage cut, with its final review; the
+hand-back. Nothing is rewritten: the code
 skeleton's text moved to the internal `vid-skeleton` skill, which /vid
 develop runs as its first step; in ticket mode (/vid plan) the skeleton is
 the dev team's first ticket and ViD writes the tests ticket by ticket. Every
@@ -124,7 +138,9 @@ findings, and ratification shas — adopt it instead of delegating:
   init naming the gaps — the owner repairs by append or re-runs the verb;
   init never edits a ratified base;
 - `git init` if the directory is not a repository, and commit the file
-  as it is, with `.gitattributes` beside it — summary "adopt PRD.md ratified by /vid create-prd", body
+  as it is, with `.gitattributes` beside it and, when its header carries a
+  `Seed:` line, the SEED.md it names, taken from beside the PRD and
+  committed with it unchanged (0.26.10.29.3, R9) — summary "adopt PRD.md ratified by /vid create-prd", body
   naming the court result and the three Ratifications lines verbatim
   (their shas name the standalone repository's commits; they are carried,
   not resolved here — the receiving repo's first commit of the file
@@ -158,8 +174,11 @@ Always ask the two optional hint questions, verbatim:
    second when it can see its own drawings. Promise nothing beyond that.
 2. **"Any directional hints on architecture and technical stack?"** — accept
    ANY altitude, from "it's a website" or "it's a mobile app" to a full stack
-   prescription. Record whatever is said verbatim in BASELINE.md's Owner
-   hints section. Skipped → you choose the stack and log it
+   prescription. Record what is said verbatim in BASELINE.md's Owner
+   hints section, with the hosting answers taken out (where it runs, the
+   addresses, the access, the accounts, the spend cap: they go to
+   `vid-staging-setup` Part 1's block, below, never into the hints;
+   0.26.10.29.3, R9). Skipped → you choose the stack and log it
    (`origin: proposal`). When you choose: convention-heavy frameworks are a
    **scaling decision, not a taste preference** — hand-rolled framework
    equivalents cost several times the lines per requirement that framework
@@ -175,6 +194,36 @@ its DECISIONS entry. Its answers go only into ARCHITECTURE.md's
 ```vid-hosting block and DECISIONS, never verbatim into BASELINE's Owner
 hints — a hosting answer given inside hint 2 goes there, not into the
 hints. They are recorded when ARCHITECTURE.md is generated (step 2).
+
+**The `technical` sitting (0.26.10.29.6, S1, S2).** The hints and Part 1's
+questions are one pause. Where `.vid/` exists, before you ask:
+1. write it: `sh "${CLAUDE_PLUGIN_ROOT}/checks/face.sh" write technical <file>`,
+   the file holding, in `face.sh`'s line form (its head), `section hints`
+   with the two hint questions as items (no `choice` and no `recommend`
+   line: their buttons are fixed), then Part 1's two sections, `section
+   where` and `section access` (vid-staging-setup, Part 1, "The sitting's
+   lines");
+2. give the owner what the script printed about pages first: the link, or
+   the file's path;
+3. ask in the chat as above, in the sitting's order, whether or not a
+   panel is there.
+
+A refused line is rewritten and the call made again. When the script
+names a line that holds an id or one of ViD's own words, rewrite that
+line in plain words and write again before you ask. Once the answers are
+recorded: `sh "${CLAUDE_PLUGIN_ROOT}/checks/face.sh" end technical`. Then
+ask the monthly spend cap in the chat, on its own: a face shows no amount
+of money. An answer the owner types in the chat answers the items it
+names, one by one, as a send from the panel does.
+
+**A technical choice the owner asks about (0.26.10.29.6, S7)** is given
+as: what each option means for the product; its effort, small, medium or
+large, said to be an estimate; ViD's recommendation; and what would
+change it. Product names come second, never first. If your
+recommendation changes between two answers, say what changed. One
+question settles one thing: when answering it would change something
+else (a rule, a name used elsewhere), that is a second question, asked
+after the first.
 
 **Scale warning (state it when it applies, never refuse).** Only for a PRD
 under a grammar before 0.9.4, whose pause 2 did not size it: past ~2 grader
@@ -209,7 +258,10 @@ Fill every template; no placeholder survives. Specifics that matter:
     applicable) — the spec commit itself must pass conformance.
   - `vid-forbidden`: dependency/import tokens that must never appear in staged
     source additions. Pick tokens that will not legitimately occur otherwise
-    (e.g. `sqlalchemy`, not `sql`).
+    (e.g. `sqlalchemy`, not `sql`). The court reads the project's own files,
+    never ViD's installed `checks/` (0.26.10.29.3, R7). Never narrow this block
+    to get a commit through: a term the project's own files must use is the
+    owner's ruling, asked in plain words.
 - **DECISIONS.md** — seed with the real decisions made so far: stack choice,
   storage, hosting posture, anything from skipped hints. Every entry carries
   `| enforced:` and a label — `| applies-to: <ids and codes>`, or `| scope:
@@ -246,8 +298,30 @@ If the product has a visual surface and the owner wants it designed (the
 hint question, or their own ask), run /vid design now — the PRD exists, so
 the brief can be derived. That verb owns the whole chain: brief + manifest →
 owner authors → `sh checks/design-join.sh` fail-closed reconciliation →
-ratification into design/. Init waits for it because the inventory's surface
-rows are the join's resolved output.
+ratification into design/.
+
+**The order (0.26.10.29.4, phase 3 R6).**
+- **The brief goes out only from a settled PRD:** after pause 3, and after
+  every open PRD review loop has ended (vid-create-prd, "Reviews
+  converge"). No brief goes out while an append's review is open.
+- **No row is derived from an append whose review has not ended.**
+- **While the owner designs in their own tool,** init waits only for the
+  parts that need the design, since the inventory's surface rows are the
+  join's resolved output. Go on to step 4 and derive every row that does
+  not need the design (vid-test-inventory §§1, 2 and 4), so the wait is
+  not idle; say once, plainly, what you are waiting for; and hold the
+  screen rows, the strength pass (vid-test-inventory §3) and the sitting
+  until the pack is imported and `sh checks/design-join.sh` exits clean.
+  The sitting waits for the design.
+- **A clean join comes first.** A pack's first consistency pass starts
+  only once `sh checks/design-join.sh` exits 0, the court run on its own,
+  never piped (vid-create-prd, "While a pass runs"). The re-run that lands
+  ruled corrections follows the design skill's landing rule (vid-design
+  §3, `landed`).
+- A design round's PRD append (a read-back, a `design wins` ruling)
+  amends the PRD: the rows that cite what it amends are found and
+  rewritten by vid-test-inventory §5, "Rows that cite an amended item",
+  and read again by the strength pass's next round.
 
 No visual surface, or the owner defers design → skip; the inventory derives
 from the PRD and routes alone, and /vid design can run later (its import
@@ -261,9 +335,10 @@ test contract, every test the project will ever have, routed by what can
 run it. Run it now, inline, in **init mode, call point 1**: read that
 skill and follow it whole — the derivation from the three enumerable
 sets and the enumeration joins, the genus deliberation through
-fresh-context lenses, the counterexample-challenge lens, the governance
-rows (rule, difference, exception, suppression, seam, hostility, the
-control siblings, the golden sets), and the ratification sitting — with
+fresh-context lenses, the governance rows (rule, difference, exception,
+suppression, seam, hostility, the control siblings, the golden sets), the
+strength pass (the counterexample-challenge lens) last, after the design
+rows, and the ratification sitting — with
 the grading checklist created from `templates/GRADING-CHECKLIST.md` in
 the same sitting. Do not shortcut, summarise, or re-derive: what that
 skill derives is the inventory, and what the owner ratifies there is
@@ -330,6 +405,67 @@ ticket mode the skeleton is the dev team's first ticket (/vid plan).
     setting or the organisation can still override it). develop's start
     says whether each still reads as enabled.
 
+  **The `settings` sitting (0.26.10.29.6, S1, S2).** These two are asked
+  after the test list's hand-back, each on its own: never in a list,
+  never covered by a yes to anything else. Where `.vid/` exists, write
+  them first: `sh "${CLAUDE_PLUGIN_ROOT}/checks/face.sh" write settings <file>`,
+  the file holding `section settings` with two items, the compaction
+  point in plain words ("May ViD have this project's sessions shorten
+  what they carry once they hold 300,000 tokens, so the build stays
+  lean?") and the other plugins (their names as `detail` lines), with no
+  `choice` line: their answers are Yes and No, fixed, and every item of
+  the section is asked on its own; give the owner what the script printed about
+  pages first; then ask the two in the chat, in that order, one message
+  each. Once both answers are recorded: `sh
+  "${CLAUDE_PLUGIN_ROOT}/checks/face.sh" end settings`.
+
+## 6b. The final review (0.26.10.29.3 phase 2 R4)
+
+After step 6 has written its budget lines and before step 7's labelling
+pass, spawn `${CLAUDE_PLUGIN_ROOT}/skills/vid-create-prd/passes/final-review.md`
+in `mode: whole`: one fresh pass over the whole spec, with exactly the
+inputs its `receives:` line lists — the PRD without its `## Findings`
+section, its append sections' findings blocks and its `review:` lines;
+the design when there is one; ARCHITECTURE.md, DECISIONS.md, BASELINE.md,
+INVENTORY.md and GRADING-CHECKLIST.md. Its rounds, its second reader and
+its record follow vid-create-prd: "Reviews converge", "The second
+reader" and "While a pass runs" (in "Pass mechanics"), and "The findings
+record" — never a rule of this skill's own.
+
+**ViD repairs what it wrote, the test list included.** Every repair is
+read again by the pass's next round in `mode: delta`, so none goes unread:
+- **the PRD** (ratified at pause 3): the repairs are one append, carrying
+  `review: final, round <r>, 0 findings, see <heading>` — no rows of its
+  own, since its review's rows are under the heading it names;
+- **INVENTORY.md and GRADING-CHECKLIST.md**: strengthen a row, add a
+  missing one, or rewrite words a test cannot measure, by the inventory's
+  own rule — new rows continue the id sequence, and every existing row
+  keeps its id and its test;
+- **ARCHITECTURE.md, DECISIONS.md and BASELINE.md**: init's own drafts.
+
+All of these are still uncommitted: they are edited in the working tree
+and land in the spec commit.
+
+**What goes to the owner**, as `needs_owner`, each with ViD's recommended
+answer, in the one list vid-create-prd, "Reviews converge", gives the owner: a repair that
+would weaken or remove a test row (a row that seems wrong is a product
+question); a repair that needs a product decision the record does not
+hold; any finding against the design, which is imported as the owner gave
+it and changes only through the design door (/vid design).
+
+**The record.** The findings go into PRD.md under a dated `## Findings`
+heading, `### <date> — final review`, holding one line `review: final,
+round <r>, <n> findings, read: <files>` — `<r>` the round the review ended
+on, `<n>` the rows of that heading's one ```vid-prd-findings block (every
+round's rows and both readers', merged; pass `final`), `read:` the
+documents the pass read (for example `read: PRD.md DESIGN-BRIEF.md design/
+ARCHITECTURE.md DECISIONS.md BASELINE.md INVENTORY.md GRADING-CHECKLIST.md`).
+The heading lands in the spec commit: pre-commit refuses a commit that
+adds INVENTORY.md beside an enriched PRD (one holding a
+```vid-prd-answers block) with no new `review: final` line. The labelling
+pass then labels every decision line, the repaired ones included; labels
+classify a line and change no content, so they are not read again.
+
 ## 7. The labelling pass and the spec commit (v0.26.10.9 R1)
 
 The labelling pass (v0.9.7.3 3.3, R3) over every decision line — step 2's
@@ -344,7 +480,8 @@ the hook's label rule sees a fully labelled file.
 
 **The spec commit** is the former initial commit without code: the
 technical foundation's artifacts, INVENTORY.md and GRADING-CHECKLIST.md,
-the design when there is one, `checks/`, and `.gitattributes` when no
+the design when there is one, PRD.md with step 6b's final review (its
+findings heading and its repair append), `checks/`, and `.gitattributes` when no
 earlier commit carries it (0.26.10.28.1, R4), under `VID_ROLE=fix` and the
 template message:
 
@@ -360,24 +497,46 @@ test is written yet.
 
 After the spec commit and before the hand-back, run the vid-stage
 skill (`${CLAUDE_PLUGIN_ROOT}/skills/vid-stage/SKILL.md`) inline: it reads
-the whole baseline, proposes a cut through its four lenses and presents
+the whole baseline, proposes a cut through its five lenses and presents
 one card per stage in one sitting — the owner's last pause at init. The
 owner ratifies the cut, changes it, or keeps a single stage (no
-STAGES.md). Its hand-back's lines join step 8's.
+STAGES.md). With two or more stages, init's run of vid-stage then runs
+the final review once more, after STAGES.md is committed (vid-stage,
+"After init's cut, the final review"); with one stage there is no second
+run. Its hand-back's lines join step 8's.
 
 ## 8. Hand back
 
 A few sentences, no ceremony, saying honestly what exists and what doesn't
-(RL-5): what was ratified (PRD — the create-prd hand-back's counts: items by
-type, non-goals, pending and provisional with their routing, the provisional
-sweep surface, open OQs; design if any; inventory — the test-inventory
-hand-back's counts: rows by axis, the `spec-only` rows counted, rule rows
-and census classes, DIF rows and paying steps, seam rows, the hostility set
-against the Tier-0 count as two numbers, golden sets, genus proposals kept
-per lens per round, proposed Fail-if amendments; the stages — one line each,
-or "one stage"), what was decided (call out every `origin: proposal`
-default), where the artifacts live, and, in these words: "the spec is
-ratified; there is no code, no test harness and no written test yet; /vid
-develop builds them as its first step, or /vid plan sends the code skeleton
-to the dev team as its first ticket". Never "setup done". Then record
+(RL-5): what was ratified, what was decided (call out every `origin:
+proposal` default), where the artifacts live, and, in these words: "the
+spec is ratified; there is no code, no test harness and no written test
+yet."
+
+**Its numbers (0.26.10.29.6, S7).** Every number in it is copied from a
+script's output printed in this turn: run each script below here, on its
+own, and give its counts as it prints them. A count no script prints in
+this turn is left out, never restated from an earlier turn (an earlier
+hand-back's genus proposals per lens, its proposed Fail-if amendments):
+- the PRD: `sh checks/prd.sh --report PRD.md` — its counts, items by type
+  among them, and the open questions as its `open-OQs=` field, never a
+  number or "none" of your own (0.26.10.29.3 R4);
+- the test list: `sh checks/inventory.sh --report` — the counts of its
+  `inventory:` line (the rows, the owed ones, the hostility set and the
+  Tier-0 count as two numbers);
+- the stages: `sh checks/stages.sh counts` — one line a stage, or "one
+  stage" when there is no STAGES.md. A stage's count is every test of
+  that stage, of every kind, called "tests", never set beside the test
+  list's row count as if they were one;
+- the design, when there is one, named, with no count.
+
+Say which count a number is whenever two could be meant.
+
+Then the next step, by what the owner wants to happen (0.26.10.29.6, S8),
+in these words:
+- "To have ViD's own agents build it on this machine, say `/vid develop`."
+- "To build it through GitHub tickets, by ViD's agents or by your
+  developers, say `/vid plan`."
+
+Never "setup done". Then record
 `sh checks/event.sh "stage name=init state=end made=spec session=$CLAUDE_CODE_SESSION_ID"`.

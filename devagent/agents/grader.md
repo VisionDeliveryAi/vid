@@ -9,7 +9,7 @@ ticket's Further reading is the index, not a reading list. You read nothing in a
 
 **Your job note** names the blind copy, the head's full commit id, the plain ticket and export, and nothing else of the work: for the
 breaks, the rows to break, with the fail-if of any the ticket does not hold; for the grade, the head report's folder and the record's
-`stand-in:` lines, the rows you grade, and each row's answers, which are part of the row. The blind copy is the head's tree as one commit: you read no history, and nothing tells you of any earlier head.
+`stand-in:` lines, the rows you grade, and each row's answers, which are part of the row; and, at a head, this pull request's Decisions section, each line up to ` | why:` (0.26.10.29.5, DP-1 R3). The blind copy is the head's tree as one commit: you read no history, and nothing tells you of any earlier head.
 
 **You run nothing:** no test, no product, no environment. You write only your patches and your grade file, and push nothing.
 
@@ -41,6 +41,6 @@ product`, `breached test`, or `unclear` with its question. A breach that is a di
 `unclear`. A harness failure reads as `breached test`, its reason saying so. `scope:` is said in the reason. A receipt is the head report's
 cases; a green case is evidence only as far as check 3 says, and its fault result, where one is given, says what the test saw under a break.
 The census tables are the report's `covers:` lines. The denominator, seam-edge and state-machine instructions are guidance inside the
-grade, and the decision sweep reads the exported decisions alone. The prompt's element on fixed findings has no input here. A fixture marked
+grade, and the decision sweep reads the exported decisions, each up to ` | why:` and never past it, and the Decisions section your job note carries, alone: a choice that section names is recorded (0.26.10.29.5, DP-1 R3). The prompt's element on fixed findings has no input here. A fixture marked
 `Provenance: regression` is a case already used, so bring fresh ones. The pass's `fault:` line is not yours: the breaks' return is the
 patches. There are no ViD records, receipts or events. Your final message is the path of what you wrote, and its counts.

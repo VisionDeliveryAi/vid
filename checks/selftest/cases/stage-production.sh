@@ -8,7 +8,8 @@
 # at candidate 2: a sealed rehearsal whose change.txt drops a field, the yes naming it, `no backup yet` refused now, CR against
 # the copy paying the rehearsal-owed row; a candidate not descending from production gets no okay; an earlier okay in hand holds
 # the next; a failed D2 asks for recovery and `vid: recovered` settles it, closing the okay; a lost deploy is the owner's at once,
-# settled by `known`. The status line. Env: CHECKS.
+# settled by `known`. The status line. 0.26.11.1.1: its rehearsal reports carry kept: lines and the kept step, its production
+# reports duties.txt, and the owner's yes names the records kept (R3, R5). Env: CHECKS.
 set -eu
 unset CLAUDE_CODE_SESSION_ID 2>/dev/null || true
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
@@ -22,7 +23,10 @@ printf 'close-chunk-minutes: 20\nclose-wait-minutes: 600\n' >> .vid/tw/settings;
 send() { rm -rf "$T/x"; mkdir -p "$T/x"; cp -R "$T/r/$1" "$T/x/"; git -C "$T/x" init -q; git -C "$T/x" add -A; git -C "$T/x" -c user.name=a -c user.email=a@b commit -qm "$1"; git -C "$T/x" push -q -f "$T/code.git" "HEAD:refs/heads/vid-results/$1"; }
 rq() { Q=req-$N-$1; C0=$2; E=$3; shift 3; rm -rf "$T/r/$Q"; rr_put "$Q" results.txt "$(printf 'by: TM\ncommit: %s' "$C0")"; rr_put "$Q" "cases-$E.xml" "$(rr_cases "$@")"; send "$Q"; }
 # dp <okay> <k> <report.txt> [<change.txt>] [<steps>]: a deploy report
-dp() { Q=deploy-$1-$2; rm -rf "$T/r/$Q"; rr_put "$Q" report.txt "$3"; [ -z "${4:-}" ] || rr_put "$Q" change.txt "$4"; P=''; for x in ${5:-restore migrate boot}; do P="$P $x=pass"; done; rr_put "$Q" deploy.xml "$(rr_cases $P)"; send "$Q"; }
+# 0.26.11.1.1: a rehearsal's report holds its kept: line and kept step (R5); a production deploy's its duties.txt, each done (R3)
+PDU=$(for d in service-switch-on backups point-in-time-recovery storage-versioning dns https monitoring; do printf '%s: done — on the host\n' "$d"; done)
+dp() { Q=deploy-$1-$2; rm -rf "$T/r/$Q"; KL=''; case " ${5:-restore migrate kept boot} " in *' backup '*) rr_put "$Q" duties.txt "$PDU" ;; *' kept '*) KL='\nkept: none — the toy has no table it only adds to' ;; esac
+  rr_put "$Q" report.txt "$(printf "%s$KL\ndecisions: none" "$3")"; [ -z "${4:-}" ] || rr_put "$Q" change.txt "$4"; P=''; for x in ${5:-restore migrate kept boot}; do P="$P $x=pass"; done; rr_put "$Q" deploy.xml "$(rr_cases $P)"; send "$Q"; }
 fetch() { sh "$GS" results-fetch > /dev/null 2>&1; sh "$GS" round-read > .vid/round/read 2>/dev/null; }
 tk() { { printf '# t\n\n## Header\n\n- number: %s\n- kind: %s\n\n## Rows\n\n' "$1" "$2"; for r in $(echo "$4" | tr , ' '); do printf '> %s | behavior | a | b | n/a | x | REQ-001 | o\n- %s marks: %s\n' "$r" "$r" "$(echo "$5" | tr ' ' '\n' | sed -n "s/^$r=//p" | tr '+' ' ' | grep . || echo none)"; done
   printf '\n## Regression rows\n\n'; } > ".vid/tw/out/issue-$1.md"; gh issue create -R $R --title "t$1" --body b --label ticket > /dev/null
@@ -48,7 +52,7 @@ dp "$H" 1 "$(printf 'by: DP\ncommit: %s\noutcome: passed\ncopy: http://127.0.0.1
 dp "$H" 1 "$(printf 'by: DP\ncommit: %s\noutcome: no backup yet' "$X")" 'migrates: no'; fetch; sh "$RS" deploy --stage 1 --kind rh > "$T/out" 2>&1; ok 'refused.*change.txt has no drops: line'
 # no backup yet, before any production: the owner's yes asked, never RM's
 dp "$H" 1 "$(printf 'by: DP\ncommit: %s\noutcome: no backup yet' "$X")" "$CH" ''; fetch; cs decide --stage 1; ok '^rh 1 no backup yet$'; ok '^production-yes-asked 1 1$'; cs owed; no '^cr '; no '^okay production'
-QY=$(qn 'Rehearsal of'); [ -n "$QY" ] || fail 'no yes item'; grep -q "^- $QY · .*no backup yet, the first deploy; migrates no; outside services changing: none. Deploy to production? yes or no" .vid/RUN-STATE.md || fail "the yes: $(grep "^- $QY" .vid/RUN-STATE.md)"
+QY=$(qn 'Rehearsal of'); [ -n "$QY" ] || fail 'no yes item'; grep -q "^- $QY · .*no backup yet, the first deploy; migrates no; outside services changing: none; records kept: none. Deploy to production? yes or no" .vid/RUN-STATE.md || fail "the yes: $(grep "^- $QY" .vid/RUN-STATE.md)"
 ! sh "$QS" answer "$QY" --by RM yes 'on the owner'"'"'s behalf' > "$T/out" 2>&1 || fail 'RM gave the production yes'
 # v0.26.10.27.4 (R4): the grade before the first go-live, offered on the item; grade the owner's alone; its hold on every yes, across items
 grep -q "^- $QY · .* · A grade of the whole product is offered first: answer grade, or yes without it.$" .vid/RUN-STATE.md || fail "no offer on the item: $(grep "^- $QY" .vid/RUN-STATE.md)"

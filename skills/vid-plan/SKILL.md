@@ -255,10 +255,10 @@ turn, nor schedule a wake-up, while one is running.
 ## The page
 
 `sh checks/planner.sh page` writes `.vid/plan/PLAN-PAGE.md` and renders it with page.sh to
-`.vid/pages/PLAN-PAGE.html`. When the session has the Artifact tool, publish it as a private artifact and give its
-link; otherwise its absolute path. Tell the owner in plain words what the plan holds — the steps, their waves, the
-largest and smallest, the setup and its lanes — and what the flags and the notes say: counts only, never a score. Run it after every change, so the owner
-sees each.
+`.vid/pages/PLAN-PAGE.html`. Then run `sh "${CLAUDE_PLUGIN_ROOT}/checks/pages.sh" plan` and do what its lines say: it
+puts the page in the index and gives the words on publishing, so the owner's answer on that holds here too. Tell the
+owner in plain words what the plan holds — the steps, their waves, the largest and smallest, the setup and its lanes —
+and what the flags and the notes say: counts only, never a score. Run it after every change, so the owner sees each.
 
 ## The owner's words
 

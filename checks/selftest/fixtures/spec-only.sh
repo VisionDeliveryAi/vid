@@ -1,6 +1,6 @@
 # Purpose: selftest fixture — a toy spec-only ViD tree, as a 0.26.10.9 init leaves it (spec R1, R3; §5 init-spec-only,
 # vid-repo-copies, append-tickets, skeleton-order). Sourced (Env: CHECKS). so_tree <dir>: a repository with no commit
-# holding PRD.md (fixtures/prd-known-good.md), CLAUDE.md placing app/, BASELINE.md, ARCHITECTURE.md (a module table, no seam),
+# holding PRD.md (fixtures/prd-known-good.md with a final findings heading), CLAUDE.md placing app/, BASELINE.md, ARCHITECTURE.md (a module table, no seam),
 # DECISIONS.md, GRADING-CHECKLIST.md and INVENTORY.md (grammar 0.9.3: ROW-001..ROW-004 `owed: spec-only — first stage`,
 # ROW-005 owed to deploy gate 2, RULE-001 census-armed, HOS-001 guard-first), and the plugin's whole checks/ copied as
 # init copies it — its shipped self-test cases replaced by one toy case, so a law commit's suite run is quick — with the hooks path
@@ -12,7 +12,10 @@ so_tree() {
   mkdir -p checks; cp -R "$CHECKS/." checks/; rm -f checks/selftest/cases/*.sh
   printf '#!/bin/sh\n# Purpose: the toy'"'"'s one self-test case\nexit 0\n' > checks/selftest/cases/toy-case.sh
   git config core.hooksPath checks/hooks
-  cp "$CHECKS/selftest/fixtures/prd-known-good.md" PRD.md
+  # 0.26.10.29.3 (phase 2 R4): the spec commit adds INVENTORY.md beside an enriched PRD, so the PRD carries init's final
+  # review: a dated findings heading with its `review: final` line and no rows, before the Ratifications section
+  awk '/^## Ratifications/ { print "### 2026-08-30 — final review"; print ""; print "review: final, round 1, 0 findings, read: PRD.md ARCHITECTURE.md DECISIONS.md BASELINE.md INVENTORY.md GRADING-CHECKLIST.md"; print "" } { print }' \
+    "$CHECKS/selftest/fixtures/prd-known-good.md" > PRD.md
   printf '# toy\n\n```vid-placement\napp/\n```\n' > CLAUDE.md
   printf '# toy\n\n```vid-allowed-extensions\n.py .sh .md .yml .txt .html .css .xml .json\n```\n\n```vid-forbidden\nzq''xk\n```\n' > BASELINE.md
   printf '# Architecture\n\n| Module | Responsibility | Owned tables/data | Public surface | Dependents |\n|---|---|---|---|---|\n| app/notes | notes | notes | `app.notes.api` | none |\n\nImport court: off\n' > ARCHITECTURE.md

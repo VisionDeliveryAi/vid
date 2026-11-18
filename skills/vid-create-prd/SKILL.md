@@ -86,14 +86,96 @@ enforcement.
 checksum its label needs; (2) present its material, in the pause's order
 below, and — once items exist — the `plain sentences` it lists, each
 sentence beside its rule, for every item written or changed since the last
-pause (v0.9.5 3.13: the owner approves both together); (3) write the owner's rulings and a `shown: pause-N <sum>` label
-on every ViD decision presented; (4) re-run it green; (5) commit.
+pause (v0.9.5 3.13: the owner approves both together), and the owner questions `--pause` lists last (an arm withdrawn
+under ViD's draft, § The owner's words, and the questions raised); (3) write the owner's rulings and a `shown: pause-N <sum>` label
+on every ViD decision presented; (4) re-run it green; (5) commit, with the `Owner:` trailer(s) quoting the
+owner's words (§ The owner's words, and the questions raised).
+
+**The face (0.26.10.29): the same sitting, as data.** Where `.vid/` exists,
+before you present a pause's material in step (2), write the same material
+for the panel: `sh "${CLAUDE_PLUGIN_ROOT}/checks/face.sh" write pause-N <file>`,
+the file holding, in `face.sh`'s line form (its head), the sections no
+script prints — at pause 1 `thesis`, `contract` and `findings`, at pause 2
+`gaps`, at pause 3 `rewordings` and `findings` with its `plain-changed` line,
+and at pauses 2 and 3 the recommendation on each pair `duplicates` shows
+(below, "Every pause") — each
+item under the id you present it by, or `empty <section> | <why>`. The
+script reads the rest from `--pause` and the scorecard. A refused line
+is rewritten and the call made again; the presentation itself is as
+above, whether or not a panel is there. After step (5)'s commit:
+`sh "${CLAUDE_PLUGIN_ROOT}/checks/face.sh" end pause-N`.
+
+**Every pause, in the panel and in the chat alike (0.26.10.29.6, S1, S2,
+S4, S7, S10).** This holds for the interview, the three pauses and
+consolidation's sitting.
+- **The page first.** Write the sitting before you ask, then give the
+  owner what `face.sh write` printed about pages before anything else:
+  the link, or the file's full path. Where those lines ask the question
+  on publishing pages, ask it in the chat, on its own, after the page
+  lines and before the pause's own material; the sitting stays as
+  written. Then present the pause in the chat, in the sitting's order,
+  the same whether or not a panel is there.
+- **A stop the map has passed.** Where the map already stands past the
+  sitting's stop, `face.sh write` writes nothing, says so in one line and
+  exits 0, and `face.sh end` does the same: ask in the chat as below,
+  with the page, item by item.
+- **An answer is the owner's however it arrives:** sent from the panel,
+  or typed in the chat after the same items were presented there. A
+  message answers the items it names, one by one.
+- **Asked on its own.** Mark `alone`, and ask in the chat as its own
+  question, never in a list and never under a blanket yes, every item
+  whose recommended answer would remove or weaken a test or a failure
+  clause (a rewording that withdraws an arm, a finding that proposes a
+  looser bound, a line of consolidation that drops an item or weakens a
+  clause), and every setting or permission. A review's weakened clauses
+  are one such item for that review, its rows its details.
+- **A recommendation on every item that can have one,** in the button's
+  own words: each critic finding at pause 1 (`Fix it`, or `Leave it`);
+  each of the two qualities to rule in or out (`Needs it`, or `Doesn't
+  need it`); each rewording at pause 3 whose arms are all kept or
+  strengthened (`Accept`); each near-duplicate pair still shown (`Merge`,
+  or `Keep apart`). Where the evidence supports none, write `recommend |
+  none` and say "ViD has no recommendation". Every such item carries one
+  of the two: `face.sh` refuses a sitting where one has neither. The
+  pairs are printed by `--pause`; in the sitting's file write `section
+  duplicates`, then for each pair still shown `item <a>~<b>` with no
+  words, its one line `recommend | Merge`, `recommend | Keep apart` or
+  `recommend | none`, and its `look | <why>` line where "Where to look"
+  below asks for one; nothing else in that section. The chat gives the
+  same.
+- **A blanket yes** ("all recommended") covers only the items shown with
+  a recommendation, never an item asked on its own. Answer it with what
+  it covered, as counts by section, and ask what it did not cover. Never
+  offer "confirm all" for items of different kinds, or for items not
+  shown one by one.
+- **One question, one decision.** When answering it would change
+  something else, a rule or a name used elsewhere, that is a second
+  question, asked after the first.
+- **Where to look.** Give an item the line `look | <why>` by three counted
+  rules and no other judgement: it has an open finding in the findings
+  record ("An open finding"); it shapes a must-never-break rule ("Shapes
+  a rule that must never break"); you have no recommendation for it ("No
+  recommendation"). In each section write the items that carry `look`
+  first, and present them first in the chat too; `face.sh` refuses a
+  section where one follows an item without it.
+- **Plain words, counted numbers.** Every number you give the owner is
+  copied from a script's output printed in the same turn. Where
+  `face.sh write` names lines that hold an id or one of ViD's own words,
+  rewrite those lines in plain words and write the sitting again before
+  you ask.
+- **Changed since you agreed it.** At pauses 2 and 3, `face.sh` fills
+  this section from the last Ratifications line: every line of the
+  thesis and the mechanisms that differs since, with the line as it was.
+  Present the same list in the chat, each line one item the owner may
+  change.
 
 ## The scorecard (v0.9.5 part B) — at pauses 2 and 3
 
 Information for the owner, never a gate: it blocks nothing, and ViD
 changes nothing because of it unless the owner asks. At pauses 2 and 3,
-after `--pause` is green and before the sitting:
+it is computed after `--pause` is green and before the sitting is
+written; it is shown with the pause, after the page lines, in the
+sitting's order (0.26.10.29.6, S1; § The court gate, "Every pause"):
 
 1. **The counted half:**
 
@@ -108,17 +190,32 @@ after `--pause` is green and before the sitting:
    its whole brief, the candidates file, and PRD.md. It writes its lines
    to `.vid/scorecard-reader.txt` and spawns nothing. If it cannot read
    its input whole, say so and show the counted half alone; never split
-   it.
+   it. **The scorecard waits for its reader** (0.26.10.29.3 phase 2, R7):
+   no part of it is shown while the reader runs; tell the owner the reader
+   is running and that the scorecard follows when it returns. At pause 3
+   it reads the text as it stands at the sitting, after the reviews have converged
+   (§ "Reviews converge").
 3. **The tally:**
 
        sh ${CLAUDE_PLUGIN_ROOT}/checks/scorecard.sh --tally .vid/scorecard-candidates.txt .vid/scorecard-reader.txt
 
-4. **Show the whole scorecard, every time**, in plain
+   When its flags name candidates the reader did not answer, run the
+   reader once more on those candidates alone (a candidates file holding
+   only their lines, numbers kept), add its lines to
+   `.vid/scorecard-reader.txt`, and tally again. Once more, never a loop:
+   then the scorecard is complete, any candidate still unanswered counted
+   as such, and is shown with the pause, after the page lines.
+
+4. **Show the whole scorecard, every time**, at its place in the
+   pause's order, after the page lines, in plain
    words, one line per quality: its numbers as the two outputs print
    them, each judged number with its agreement beside it ("12 of 17
    agreed" or "not yet checked"), and the items behind every flag. Never
    restate a number the outputs did not print. Size is the project's own:
-   no count is called too many or too few.
+   no count is called too many or too few in the scorecard; the size
+   sentence (§8, item 2) is the one place size is judged. The counted `coherent` line
+   counts near-duplicate pairs only; contradictions are the reviews' to
+   find, so never present it as a check for them.
 
 ## The findings record
 
@@ -129,9 +226,15 @@ one `vid-prd-findings` row per finding —
 
     F-NN | pass | severity | target | disposition | evidence: …
 
-pass ∈ `red-team` | `audit` | `review`; severity ∈ `blocking` |
-`advisory`; the target names item, `MECH-`, or `DIM-` ids, `thesis`, or
-`seed`; the disposition is `repaired`, `overruled A-NNN`,
+pass ∈ `red-team` | `audit` | `review` | `lens` | `final` | `strength` (the
+inventory's strength pass, vid-test-inventory §3); severity ∈ `blocking` |
+`advisory`; the target names item, `MECH-`, `DIM-` or answer (`A-NNN`)
+ids, `thesis`, or `seed`, or another document — `INVENTORY.md:ROW-12`,
+`DESIGN-BRIEF.md:D-149`, or the bare file name, one of `DESIGN-BRIEF.md`,
+a path under `design/`, ARCHITECTURE.md, DECISIONS.md, BASELINE.md,
+INVENTORY.md, GRADING-CHECKLIST.md or STAGES.md (the court checks such a
+target's form, never looks its id up); a contradiction's target lists
+every row in conflict, comma-separated; the disposition is `repaired`, `overruled A-NNN`,
 `accepted A-NNN`, `routed OQ-n`, or `noted` (advisory only). The court
 joins all of it: a blocking finding without a resolving disposition
 blocks the pause mechanically, dispositions must cite ledger rows or
@@ -140,6 +243,118 @@ nothing is refused. A clean sitting is recorded as a prose line under
 its heading — **a finding is never manufactured to fill the block.**
 The ratification sha thereby covers what the owner was SHOWN, not only
 what they decided.
+
+**Every review is recorded here** (0.26.10.29.3 phase 2, R6), whenever
+it runs: pauses 1 to 3 under their sitting headings; the append doors'
+delta reviews in their own sections (0.26.10.29.3 R3); 7b, and the final
+passes (vid-init's, and the one after init's cut), each under a dated
+`## Findings` sub-heading of its own; and the inventory's strength pass
+(vid-test-inventory §3, pass `strength`), under a dated `## Findings`
+sub-heading of its own at every round it runs. A review held only in
+`.vid/` is not recorded.
+
+- **Severity.** A reviewer's own "critical" or "major" is recorded
+  `blocking`, its word kept at the start of the evidence
+  (`evidence: critical — …`); only "minor" or "advisory" is recorded
+  `advisory`. A severity is never folded down.
+- **Whole reports.** Save each pass's return verbatim, before reading
+  it, as `.vid/reviews/<pass>-<date>-<n>-r<round>-<reader>.md`: `<n>`
+  counts that pass's runs that day, `<reader>` is `agent` or `codex`,
+  so two readers, or two runs on one day, never share a name. Write the
+  rows from that file, every finding one row; a condensed copy is never
+  the record. The pass's own output format is unchanged.
+- **The review line** (R2). One line, outside any fence:
+  `review: <mode>, round <r>, <n> findings`, and for a final review
+  `, read: <files>` after it — `<mode>` is `delta`, `whole` or `final`;
+  `<r>` is the round the review ended on (§ "Reviews converge"); `<n>` is
+  the number of rows in the findings block under the same section or
+  heading, every round and both readers merged, counted from the block
+  itself; `read:` lists, space-separated, the documents the final pass
+  read (`read: PRD.md DESIGN-BRIEF.md design/ ARCHITECTURE.md
+  DECISIONS.md BASELINE.md INVENTORY.md GRADING-CHECKLIST.md`). A review
+  of one round with no findings is `round 1, 0 findings`. It goes in an
+  append section for a delta review, and in the review's `## Findings`
+  sub-heading for a whole or final review (pause 3, 7b, the final
+  passes), every round's and both readers' rows in that heading's one
+  block. One exception: the strength pass's line sits under its own
+  `## Findings` sub-heading in every mode, `review: delta, …` too in
+  append mode and at materialisation. A repair append a whole or final review makes (7b's proposals,
+  the final pass's PRD repairs) holds no rows of its own and carries
+  `review: <whole|final>, round <r>, 0 findings, see <heading>`, naming
+  the `### ` sub-heading under `## Findings` that holds them, its text
+  without the `### ` (`see 2026-11-15 — consolidation review`), and no
+  `read:`; a finding id appears once. A line written
+  before this form (`review: delta, <n> findings`, no round) reads as
+  round 1 and is never rewritten.
+- **Dismissals.** A blocking finding ViD believes wrong is never
+  dropped and never `noted`: it is a row, and only the owner disposes of
+  it (`overruled A-NNN`). The question to the owner quotes the file and
+  line ViD's belief rests on, so a false premise shows.
+
+## The owner's words, and the questions raised (0.26.10.29.3, R2, R4)
+
+The rule for every door that writes PRD answers — this verb's pauses, the
+inventory's sitting, design's sitting, add, fix, stage and develop's
+answers, delegated answers included; each door's skill points here.
+
+**An answer is the owner's only with the owner's words.** Between
+sittings ViD drafts every answer as `model_proposed`: its own decision,
+routed as §6 says. At a sitting, after the owner's yes, the yes is
+recorded as a `human` row — the draft itself while it is still
+uncommitted, else an `A-NNN AMENDED` row in a new append restating the
+full row `human`. The commit that adds a human ruling carries at least
+one `Owner:` trailer quoting the owner's words — `Owner: "<words>"` for
+the sitting, or, when the answers came in different words, one per
+answer, `Owner: A-NNN "<words>"`. An answer ViD writes under the owner's
+delegation is the owner's at once: `human`, its row carrying the field
+`delegated: yes`, its trailer quoting the delegation, and, in a ViD
+project, marked delegated before its commit (`sh checks/metrics.sh
+delegated --answer <A-id>`, which asks for the field). The owner's
+confirmation of a delegated answer restates it `A-NNN AMENDED | human`
+without the field, their own words in the trailer. One exception: an
+answer that an `arms:` entry `withdrawn A-NNN` would cite. Under a
+delegation it is written `model_proposed`, never `human`, and its
+withdrawing amendment is not committed — join 14 holds it as a gap, and
+the mark is refused for an answer a withdrawn arm cites. Nothing it would
+remove is removed: the question goes to the owner at the next sitting,
+and on their yes the answer is restated `human` with the owner's own
+words in the `Owner:` trailer, not the delegation's, is not marked
+delegated, and the withdrawal then lands. The court holds the order
+too: an arm withdrawn under an answer whose row carries `delegated: yes`
+— written before the answer or long after — is a gap at commit and an
+owner question under `--pause`, as under a draft, until the answer is
+confirmed. The commit-msg hook refuses a commit
+whose staged PRD holds a `human` answer HEAD does not — a new id, a
+changed `A:`, or a draft restated `human` — without one; consolidation
+(which drops `Q:` text) and rows left as they were add none. Nothing
+proves the words are real: the rule makes the honest record the easy
+one.
+
+**A draft never withdraws a fail-if arm on its own.** An `arms:` entry
+`withdrawn A-NNN` under a `model_proposed` answer is a gap at commit;
+under `--pause` it is not refused, and the pause material lists it last,
+as an owner question: `arm N of REQ-x withdrawn under ViD's draft A-NNN`
+(under a delegated answer: `… withdrawn under A-NNN, a delegated answer
+not yet confirmed`).
+Ask it at the sitting. Both exits are the owner's ruling on the answer,
+recorded as one: the yes restates the answer `human`; the no restates it
+`human` with the no in its `A:` and amends the item with the arm back
+(while the withdrawing row is still uncommitted, the row is simply not
+written); either way the owner's words go in the `Owner:` trailer. No
+later amendment of the item clears the gap while the answer is still
+ViD's draft.
+
+**A question an agent raises is recorded at once.** A question a pass's
+or an agent's report raises, which ViD cannot settle from the record — a
+ruling, the seed, or an owner answer it can cite — becomes an open carrier
+at once, `VID-QUESTION: (OQ-n) <the question>`, its number continuing the
+sequence (under `## Open decisions` before the final ratification, in a
+dated append after it), and is raised with the owner at the next sitting.
+A question ViD settles from the record is no carrier: the message to the
+owner names the record line that settles it. **Every hand-back that
+states open questions quotes the court's count** — the `open-OQs=` field
+of `sh ${CLAUDE_PLUGIN_ROOT}/checks/prd.sh --report PRD.md` — never a
+number, or "none", of its own.
 
 ## The chain
 
@@ -161,7 +376,7 @@ what they decided.
  augment (additive only)                    pass
  wording lens (fresh)                       pass
  whole-set review (fresh)                   pass
- repair (one bounded round, a diff)         skill
+ repair, then read again (a diff)           skill
     ↓
  PAUSE 3 — final ratification             ← a commit
 ```
@@ -188,6 +403,24 @@ what they decided.
 The contract lenses (§2) are the one existing exception: several fresh
 lenses, each blind to the others, by design. They write no rows.
 
+**The wait's parts, and the drafts (0.26.10.29.6, S11).** Where `.vid/`
+exists, at the start of each wait below name its parts,
+`sh "${CLAUDE_PLUGIN_ROOT}/checks/face.sh" wait parts "<part>" …` in this
+order, and as each step starts call `sh "${CLAUDE_PLUGIN_ROOT}/checks/face.sh" wait at <n>`:
+
+| Before | Parts, and the step each is |
+|---|---|
+| the interview | Reading what you wrote (absorbing the seed) · Choosing the questions (the materiality test) |
+| the summary | The qualities (§2) · The summary and the features (§3) · The critic (§4) |
+| the gaps | Writing the requirements (§6) · Checking them (§7) · The scorecard (§ The scorecard, computed here, shown with the pause) |
+| the final wording | Folding in your answers (§9) · The wording check (§9b) · The review (§10) · Repairs (§11) · The final pass (§11's reading again, and the scorecard) |
+
+Show what you have so far with `sh "${CLAUDE_PLUGIN_ROOT}/checks/face.sh" draft <sitting> <file>`,
+the same lines as its `write`: the qualities when the list is merged
+(`draft pause-1`, `section contract`), the summary when it is written
+(`draft pause-1`, `section thesis` with the qualities again), and the
+gaps as the audit returns them (`draft pause-2`, `section gaps`).
+
 ### 1. Interview — materiality-filtered, batched, recommendation-led
 
 Absorb whatever the owner gave (a paragraph, a document through the
@@ -207,7 +440,9 @@ tiered `human`; every skipped question or "you pick" lands as a
 
 **Whose decision each row records.** An answer to a question ViD asked
 is the owner's — `human` — whether given in the owner's words, as one
-accepted recommendation, or in a blanket "all recommended": one ledger
+accepted recommendation, or in a blanket "all recommended" (which covers
+the items shown with a recommendation, and no item asked on its own;
+§ The court gate, "Every pause"): one ledger
 row per question, its `A:` restating the value decided ("accepted as
 recommended: 30 days"), because values are traced against `A:` texts and
 consolidation drops `Q:`. The materiality defaults — the questions the
@@ -216,7 +451,20 @@ decision, `A:` the default with its values stated, shown to the owner at
 pause 1 among the ranked ViD decisions (§5). Where an answer shapes a
 must-never-break (T0) rule, ViD marks it `importance: priority` and says
 so; the owner may raise or lower any answer's marker — priority marks the
-big decisions, and the rest are normal.
+big decisions, and the rest are normal. **After writing answers**, here,
+at a pause or when applying the owner's rulings, run
+`sh "${CLAUDE_PLUGIN_ROOT}/checks/prd.sh" PRD.md` and set the mark on
+each answer its `importance` notes name before going on (0.26.10.29.6,
+S6): the notes refuse nothing, and `--pause` refuses what is left.
+
+**A request for research** (0.26.10.29.6, S5). When the seed or an
+answer asks ViD to find something out before it decides (to understand
+a market, read a competitor, check a rule), do it and give what you read
+and what you concluded at the next pause, as a text section "What you
+asked ViD to find out", or ask the owner one question: how far to go.
+Until one of the two has happened it is an open question
+(`VID-QUESTION: (OQ-n)`, § The owner's words, and the questions raised):
+never a finding with a default exit, and no blanket yes closes it.
 
 **The scope challenge — a distinct question class, not a loosened
 filter.** The materiality test structurally never challenges scope on a
@@ -231,6 +479,21 @@ keeping it. The owner rules or declines — declining is acceptable — and
 every ruling lands as a ledger answer (`human`). One challenge, in the
 batch, at the same sitting: never a second interview, never a quota of
 cuts.
+
+**No size number before pause 2** (0.26.10.29.4, phase 4 R4). The
+interview gives no estimate of how many requirements the PRD will hold,
+and pause 1 none either: requirements are authored in step 6, after it,
+and a number that was not counted is never presented. Size is first
+counted at pause 2 (§8, the size sentence).
+
+**The face (0.26.10.29): the interview, as data.** Where `.vid/` exists,
+before you ask the batch, write it for the panel:
+`sh "${CLAUDE_PLUGIN_ROOT}/checks/face.sh" write interview <file>`, the
+file holding, in `face.sh`'s line form (its head), `section questions`
+with each question as you ask it (`item`, its `recommend` and `choice`
+lines) and `section challenge` with each capability of the boundary
+challenge. Once the answers are in the ledger:
+`sh "${CLAUDE_PLUGIN_ROOT}/checks/face.sh" end interview`.
 
 **The ledger's supersession law** is the items' law: when a later ruling
 changes an earlier answer, restate the FULL row as `A-NNN AMENDED` in an
@@ -320,7 +583,10 @@ Spawn `passes/thesis-red-team.md` on the drafted thesis.
 
 ### 5. Pause 1 — thesis + contract ratification
 
-Run `--pause` (the court gate's sequence). One sitting: the thesis, the
+Run `--pause` (the court gate's sequence), then write the sitting,
+`sh "${CLAUDE_PLUGIN_ROOT}/checks/face.sh" write pause-1 <file>`, and
+give its page lines first (§ The court gate, "Every pause"); after the
+commit, `sh "${CLAUDE_PLUGIN_ROOT}/checks/face.sh" end pause-1`. One sitting: the thesis, the
 contract and the features presented; the red-team's findings adjudicated
 (fix, or the owner overrules with the ruling recorded as a ledger
 answer); the contract dimensions ratified — all 19 floor dimensions
@@ -417,6 +683,9 @@ rulings. The authoring mandates:
   > you marked in your output. The owner may lower any of them at pause 2.
 - **Non-goals are first-class demand.** Author them deliberately; *"a
   generator cannot infer a boundary from silence."*
+- **A cut feature stays cut** (0.26.10.29.4, phase 3 R7). Once a feature
+  is cut, out of scope or a non-goal, ViD never proposes bringing it
+  back; it is re-opened only when the owner asks.
 - **Phase is membership, not ranking** (v0.9.1 3.6): *"every item
   carries `phase`; propose it from the thesis's MVP focus,
   Explicitly-not-MVP and Future sections; the owner ratifies it with
@@ -467,17 +736,33 @@ Run `--pause`. Before the sitting, merge the near-duplicate pairs it
 prints that are plainly one rule; a pair kept apart becomes a findings
 row — `F-NN | review | advisory | REQ-a, REQ-b | noted | evidence:
 near-duplicate kept — <why>` — and that row is the record, so the pair
-is not shown again. Then present, in this order:
+is not shown again. Then write the sitting,
+`sh "${CLAUDE_PLUGIN_ROOT}/checks/face.sh" write pause-2 <file>`, give
+its page lines first (§ The court gate, "Every pause"), and present, in
+this order, with what changed since pause 1 (its section "Changed since
+you agreed it"); after the commit, `sh "${CLAUDE_PLUGIN_ROOT}/checks/face.sh" end pause-2`:
 
 1. the questions: the audit's gaps, then the must-never-break questions
    (`--pause` lists each with ViD's recommendation and the T0 items
    waiting on it);
-2. the size, in one plain sentence:
+2. **the size sentence** (0.26.10.29.4, phase 4 R4), in plain words, its
+   numbers from the `size:` line this pause's `--pause` prints, never
+   estimated — N its `demand=`, P its `pilot=`, X and Y with n and m its
+   `largest=`, and S the minimum number of stages so that none holds more
+   than 60 requirements: P ÷ 60, rounded up:
 
    > This PRD holds N requirements — about N/30 grading batches, where ViD
    > grades comfortably up to two. Past that, rules that span features are the
-   > first to slip. The largest features are X (n) and Y (m); moving one to
-   > "later" is the cheapest cut.
+   > first to slip. The P not marked "later" need at least S stages so that
+   > no stage holds more than 60. The largest features are X (n) and Y (m).
+   > You choose, at this pause and each later one: keep everything and stage
+   > it, or move features to "later".
+
+   When S is 1 its fourth sentence says instead that the P not marked
+   "later" fit in one stage. Keeping everything hands size to the cut, which is held to
+   it: no stage above 60 requirements (vid-stage). The same sentence, with
+   the counts of that moment, is shown again at pause 3 (§12) and at the
+   cut's sitting; moving features to "later" lowers P and S.
 
 3. the new ViD decisions, ranked, one line each;
 4. the sensitive list — T1 and T2 rules on security, privacy,
@@ -538,9 +823,11 @@ Spawn `passes/whole-set-review.md` in `mode: whole` on the entire
 effective set. (The append doors — vid-add §2, vid-fix (a), vid-develop's
 two-channel rule, vid-design §4, vid-test-inventory §5 — spawn the same
 brief in `mode: delta` on one append against the effective set; v0.9.1
-3.2.)
+3.2.) Its findings are repaired (§11) and read again by the one rule,
+§ "Reviews converge" (Pass mechanics), with the second reader beside the
+fresh agent in every round (§ "The second reader").
 
-### 11. Repair — one bounded round, a diff
+### 11. Repair — a diff, then read again
 
 The skill resolves all `fix_from_record` and `fix_model_authority`
 findings in one plan: *"you see every finding at once precisely so the
@@ -567,21 +854,41 @@ Before the freeze the accounting rides the diff; after it, an append's
 The review's findings are `vid-prd-findings` rows (pass `review`) in the
 pause-3 sitting record, so the F-ids the plan cites are durable: a
 resolved finding's row is dispositioned `repaired`, and its target names
-where the edit landed. One round. Findings that survive it, plus every
-`needs_owner`, go to pause 3.
+where the edit landed. Then the same pass reads the repair again, round
+by round, by § "Reviews converge" (Pass mechanics); every round's rows, and
+both readers', go in this one sitting block under its line
+`review: whole, round <r>, <n> findings` (§ "The findings record").
+What the rounds could not close, and every `needs_owner`, go to pause 3
+as the one list, each with ViD's recommended answer.
+
+**Reporting repairs (0.26.10.29.6, S4).** Wherever you report repairs to
+the owner, list them in two groups: first each repair that follows an
+answer of the owner's, each entry giving that answer (`A-NNN`, in the
+owner's words); then every other repair, under "On ViD's own judgement".
+A count you give for a group is the count of the entries you list.
+Never put both under "from what you've decided".
 
 ### 12. Pause 3 — final ratification
 
-Run `--pause` and present: the new ViD decisions, ranked; the lens
+Run `--pause`, write the sitting,
+`sh "${CLAUDE_PLUGIN_ROOT}/checks/face.sh" write pause-3 <file>`, give
+its page lines first (§ The court gate, "Every pause"), and present: what
+changed since pause 2 (its section "Changed since you agreed it"); the
+repairs, in two groups (§11); the size sentence (§8, item 2), with the
+counts this pause's `--pause` prints, and the owner's choice again; the new ViD decisions, ranked; the lens
 rewordings, one findings row each (§9b); the remaining findings; the new
 near-duplicate pairs (merged, or kept with a findings row, as at pause
 2); the scorecard (§ The scorecard), whole. The owner adjudicates what remains: `needs_owner` findings answered
 (or explicitly accepted, the acceptance recorded as a ledger answer with the
 bound stated and the finding row dispositioned `accepted A-NNN`),
-advisory findings read (dispositioned `noted`). The court must pass —
+advisory findings read (dispositioned `noted`). Applying the owner's
+rulings is a repair: before the commit the same loop reads what they
+changed (§ "Reviews converge"), and only new product decisions and what it
+could not close come back, in the same one list. The court must pass —
 and it holds this mechanically: a blocking finding row without a
 resolving disposition refuses the commit. Write the
-final Ratifications line and commit. A commit cannot contain its own
+final Ratifications line and commit, then
+`sh "${CLAUDE_PLUGIN_ROOT}/checks/face.sh" end pause-3`. A commit cannot contain its own
 sha: each pause's Ratifications line is written immediately after its
 commit and rides into the next one, and the final line lands in a
 one-line record commit that is part of the pause-3 sitting. From here
@@ -593,7 +900,8 @@ counts by type, the non-goal count, the pilot and later counts,
 provisional and pending counts with their `confirms_via` routing (the
 delegation surface), the features, the owner's decisions split priority
 and normal, the ViD decisions (all shown), the open must-never-break
-questions, and where the artifact lives. A must-never-break question left
+questions, the open questions as the court's `open-OQs=` count (§ The
+owner's words, and the questions raised), and where the artifact lives. A must-never-break question left
 open after pause 3 remains visible debt: the inventory sitting lists
 blocking provisionals, and develop builds ViD's recommendation until it
 is answered.
@@ -609,8 +917,8 @@ report line carries the counts (`provisional=N (owner-decision=M)`,
 
 Fresh-context passes are spawned exactly where the chain marks them
 (the contract lenses, the thesis red-team, the completeness judgment,
-the wording lens, the whole-set review, the scorecard reader), under the
-chain's rule, repeated
+the wording lens, the whole-set review, the scorecard reader) and
+where vid-init marks its final review, under the chain's rule, repeated
 here:
 
 > **One writer per step**. Every step that
@@ -641,7 +949,8 @@ not:
 | Thesis red-team (§4) | `passes/thesis-red-team.md` | seed, sources, ledger, the drafted thesis | the authoring session's reasoning — it judges the artifact, not the intent; any previous verdict |
 | Completeness judgment (§7) | `passes/completeness-audit.md` | the ratified thesis, the effective item set, the ledger, the ratified contract with the catalog prompts | the authoring session's reasoning; any previous verdict |
 | Wording lens (§9b) | `passes/wording-lens.md` | every demand item's id, statement and fail-if (the effective set), the seed, the ratified thesis | the authoring session's reasoning; any previous verdict; the derived inventory; other passes' findings |
-| Whole-set review (§10) | `passes/whole-set-review.md` | `mode: whole` — the entire effective set with seed, sources, ledger, contract (at consolidation, 7b: the consolidated file plus the arm ledger); `mode: delta` (the append doors) — the effective set, the one append's rows and answers verbatim, the seed, the contract | the authoring session's reasoning; any previous verdict |
+| Whole-set review (§10) | `passes/whole-set-review.md` | `mode: whole` — the entire effective set with seed, sources, ledger, contract (at consolidation, 7b: the consolidated file plus the arm ledger); `mode: delta` (the append doors, and every re-read round of § "Reviews converge") — the effective set, the one append's rows and answers verbatim (a re-read: the rows the repair changed, their affected set, ViD's recommended answer to every open `needs_owner` finding), the open entries `sh checks/prd.sh --arms` lists for the delta's own rows, the seed, the contract | the authoring session's reasoning; any previous verdict |
+| Final review (vid-init) | `final-review.md`, in this skill's passes folder | the PRD without its `## Findings` section, its append sections' `vid-prd-findings` blocks and its `review:` lines; the design when there is one (`DESIGN-BRIEF.md`, `design/screens/` with its `index.json`, `design/tokens.css`); ARCHITECTURE.md, DECISIONS.md, BASELINE.md, INVENTORY.md, GRADING-CHECKLIST.md; after the cut, STAGES.md and the output of `sh checks/stages.sh check` and `counts` | the session's reasoning; any previous verdict |
 
 Every pass file opens with the same fixed header — the independence
 mechanism (a separate agent, no authoring- or build-session context, a
@@ -663,6 +972,109 @@ store or journals (git), seals or digests (ratification commits — the
 sha names the bytes), projections or a handoff package (the PRD IS the
 handoff), a replay bench (the fixture self-tests serve this role).
 
+### Reviews converge (0.26.10.29.3 phase 2, R1)
+
+The one rule for every fresh review whose findings ViD repairs: the
+whole-set review (§10, and 7b), the append doors' delta reviews (vid-add
+§2, vid-fix (a), vid-develop's two-channel rule, vid-design §4,
+vid-test-inventory §5, vid-stage's answer; 0.26.10.29.3 R3) and the
+final passes (vid-init's, and the one after init's cut), and the
+inventory's strength pass (vid-test-inventory §3). The design
+door's consistency pass is not one: it already loops until the design is
+re-imported and the pass re-run empty. Nor is the contract panel (§2):
+ViD repairs nothing it says, and it stays one round, no loop.
+
+- **Round 1 is the pass as written, with no count limit.** A caller
+  never caps how many findings a pass returns — not in the brief, the
+  prompt, or the reading of its return.
+- **Repair, then read again.** ViD repairs the `fix_from_record` and
+  `fix_model_authority` findings by §11's rules (a fix strengthens; the
+  plan is a diff). Whenever a round's findings were repaired, whatever
+  their severity, the same pass runs again in `mode: delta` on three
+  things: the rows the repair changed, their affected set, and ViD's
+  recommended answer to every open `needs_owner` finding, which it judges
+  for soundness.
+- **Later rounds report blocking findings only, on what changed.**
+- **Stopping.** These tests apply to the re-read rounds. The loop stops
+  at the first of: a re-read round with no blocking finding; a round
+  whose blocking count is not lower than the round before; the end of
+  round 3. With two readers the count is the merged one (§ "The second
+  reader").
+- **What remains is still open, and the owner never fixes anything.**
+  ViD gives the owner one list, each entry with ViD's recommended
+  answer: the product decisions only the owner can make (`needs_owner`),
+  and the findings the rounds could not close. For each of those, the
+  owner either accepts it as a known gap — an answer stating the bound,
+  the row dispositioned `accepted A-NNN`, as at pause 3 — or rules how it
+  should go.
+- **After the owner rules, the same loop runs again.** Applying the
+  rulings is a repair like any other: the same pass reads what changed,
+  ViD repairs what it finds itself, and the stop tests and the cap of
+  three rounds apply. Only new product decisions, and what this loop
+  could not close, go back to the owner, in the same one list. A new loop
+  starts only from the owner's own answers, never by itself; each ends
+  within three rounds, so the sitting ends when the owner has nothing
+  more to rule.
+- **The record.** Every round's rows go in the review's one findings
+  block, and its `review:` line names the round it ended on (§ "The
+  findings record").
+
+### The second reader (0.26.10.29.3 phase 2, R5)
+
+- **The question.** At the first whole-mode review on a machine, run
+  `sh "${CLAUDE_PLUGIN_ROOT}/checks/lib/wsl.sh" reviewers ask`. It prints
+  nothing unless `codex` is on the PATH and no answer is recorded; then
+  it prints one question, which you ask the owner as written, alone, and
+  record the answer with
+  `sh "${CLAUDE_PLUGIN_ROOT}/checks/lib/wsl.sh" reviewers record yes` (or
+  `record no`). The answer is `.vid/reviewers` at the main checkout,
+  beside `.vid/windows`, so worktrees and other sessions follow it. It is
+  a question about this machine, not a product question or an approval
+  point: ViD never asks it again, and asks nothing when `codex` is
+  absent.
+- **Where it reads.** When `sh "${CLAUDE_PLUGIN_ROOT}/checks/lib/wsl.sh"
+  reviewers` prints `yes`, every round of the whole-mode reviews — §10
+  at pause 3, 7b, the final passes, and the strength pass's table pass
+  in `mode: whole` (vid-test-inventory §3) — has Codex as a second reader
+  beside the fresh agent. The delta reviews of appends keep one reader.
+  Each reader reads the whole input: two readers are not a split of the
+  work (the one-writer rule).
+- **How.** Write the pass's brief to `.vid/briefs/<pass>-<n>.md`: the
+  pass file and every input as a path, never their contents (an input
+  that is not yet a file, such as a re-read round's rows, is written to
+  a file beside the brief and named). Start the fresh agent on that
+  brief and, in the same message, in the background:
+
+      codex exec --skip-git-repo-check -s read-only -o .vid/reviews/<pass>-<date>-<n>-r<round>-codex.md -C <project> "Read .vid/briefs/<pass>-<n>.md and the files it lists, and do what it says." < /dev/null
+
+  on Codex's own configured model (no model flag). The argument stays
+  that one short sentence: a real project's inputs run to hundreds of
+  KB, past the command-line limit of every platform.
+- **The merge.** A finding both readers raise is one row, its evidence
+  naming both readers; every other finding is a row naming its reader.
+  The round's blocking count, for the stop tests, is the merged one.
+- **If Codex fails or times out** — a non-zero exit, no report, or no
+  return 15 minutes after the fresh agent's — the round goes on with the
+  fresh agent's report alone, and the owner is told in one line.
+
+### While a pass runs (0.26.10.29.3 phase 2, R8)
+
+- **Side by side.** Readers that do not need each other's output start
+  at the same time, in one message — the two readers of a round. The
+  scorecard reader is not one of them: it reads the text after the
+  reviews have converged (§ "The scorecard").
+- **Say what is running.** While a reader runs and no question is
+  pending, tell the owner what is running and that you will report when
+  it finishes. Never leave the owner with neither a question nor a
+  stated wait.
+- **Unpiped courts.** Run a court or check on its own, never piped
+  (no `| tail`, no `| head`): its exit code is the result, and a refusal
+  stops the step — a pass whose brief a court refused is not started.
+- **The brief as written.** Start a pass with its brief file and its
+  inputs, and nothing else. A sentence of the caller's own in the prompt
+  — a steer, a hint, an expected answer, a count — makes the pass VOID,
+  as its header says, and it is re-spawned clean.
+
 ## Consolidation — the scheduled event (v0.9.1 3.4: 7a, then 7b)
 
 Triggered in two places and nowhere else: vid-test-inventory §5 (init
@@ -675,7 +1087,10 @@ no model: the seed to `SEED.md` with its hash on the header line, the
 input's grammar when it is 0.9.4 or later and `grammar: 0.9.1` otherwise,
 one ```vid-prd-features block of the effective feature rows (base and
 appends, latest per id) before the effective rows (four positional
-fields, `phase: pilot` when absent), the effective rulings (no `Q:` text;
+fields, `phase: pilot` when absent), `## Mechanisms` as the effective
+mechanism rows (base and appends, latest per id, the `AMENDED` marker
+stripped, in first-appearance order — every owner-amended mechanism in
+its amended wording; 0.26.10.29.3, R1), the effective rulings (no `Q:` text;
 the labels ride their rows), every open
 carrier and every RESOLVED one-liner kept, Findings and Ratifications
 untouched, Appends emptied to its comment; `PRD-HISTORY-<date>.md` keeps
@@ -683,7 +1098,10 @@ verbatim and in order every append, every superseded row, every question
 text and every sitting narrative; `.vid/consolidation-arms-<date>.md` is
 the arm ledger — per amended item, its fail-if arms at first ratified
 text and at consolidated text, side by side. It refuses to write unless
-checks/prd.sh passes on its output, and a second run is byte-identical.
+its output's effective mechanism rows are its input's, row for row, and
+checks/prd.sh passes on its output given the input as `--before` (the
+court compares the effective mechanism rows of the two files); a second
+run is byte-identical.
 
 **7b — semantic repairs, proposed separately.** Spawn
 `passes/whole-set-review.md` in `mode: whole` over the consolidated file
@@ -691,7 +1109,13 @@ plus the arm ledger. It proposes — as ordinary AMENDED rows in their own
 append, never as edits to 7a's output — ruling propagation across
 affected sets, cross-item effects of amendments, and the restoration of
 any arm the effective text carries weakened without an accounted
-disposition; each proposal carries `arms:`. Record `sh "${CLAUDE_PLUGIN_ROOT}/checks/event.sh" 'tokens slice=N
+disposition; each proposal carries `arms:`. Its rounds follow § "Reviews
+converge" (Pass mechanics), with the second reader (§ "The second
+reader"). Its record (0.26.10.29.3 phase 2, R2, R6): every round's
+findings, and both readers', ruled, as rows under a dated `## Findings`
+sub-heading of their own (`### <date> — consolidation review`) with the line `review: whole, round <r>, <n>
+findings`; its append holds no rows and carries `review: whole, round
+<r>, 0 findings, see <that heading>`. Record `sh "${CLAUDE_PLUGIN_ROOT}/checks/event.sh" 'tokens slice=N
 phase=review n=T'` (in a ViD project only, as the stage events).
 
 **The sitting.** The owner ratifies 7a and 7b as two commits after one
@@ -701,6 +1125,20 @@ only produce UNCHANGED and CHANGED-by-field-removal; anything else is a
 script defect and refuses), and the arm ledger for every item whose arms
 changed since first ratification, one line per item for a ruling.
 Meaning, not ids, is the criterion: `DROPPED=0` establishes nothing.
+
+**Its sitting (0.26.10.29.6, S1, S2).** Where `.vid/` exists, write it
+before you ask, `sh "${CLAUDE_PLUGIN_ROOT}/checks/face.sh" write consolidation <file>`,
+the file holding `section changes`, "What consolidation changed in the
+PRD", and `section alone`, "Asked on their own". A dropped item, and each
+line of the arm ledger that weakens or removes a clause, is in `alone`,
+an item of its own, never in `changes`; 7b's review's weakened clauses
+are one such item (§ The court gate, "Every pause"). `changes` holds
+every other change only, one item each (it
+starts at Fine); a section with nothing in it is `empty <section> | <why>`.
+After the two commits,
+`sh "${CLAUDE_PLUGIN_ROOT}/checks/face.sh" end consolidation`. Run from
+vid-fix, after init, the map has passed the stop: the write writes
+nothing and you ask in the chat, item by item, with the page.
 
 ## Standalone (no-repo) mode
 
@@ -713,10 +1151,22 @@ unmodified. No hooks are installed (hook installation is init's job);
 the court gate above carries the enforcement — run it before each of
 the three ratification commits.
 
-The hand-back names the portability fact: **the PRD file carries the
-whole record** — seed, ledger, contract, findings, ratification lines.
-Moving it into a project later carries everything, and the receiving
-repo's first commit of the file re-anchors the law — vid-init adopts
+**First, on a PC (0.26.10.29.3, R6).** Standalone only (inside vid-init,
+init has asked already): after the `git init` above and before the
+interview, run `sh "${CLAUDE_PLUGIN_ROOT}/checks/lib/wsl.sh" ask`. It
+prints nothing except on a native Windows shell with WSL available and no
+answer recorded for this PC; then it prints one question, which you ask
+the owner as written, alone, and record the answer with
+`sh "${CLAUDE_PLUGIN_ROOT}/checks/lib/wsl.sh" record yes` (or `record no`).
+It is a question about this PC, not a product question or an approval
+point, and it is asked once per machine. Printing nothing means ask
+nothing: the court runs natively, only more slowly.
+
+The hand-back names the portability fact: **the PRD and its SEED.md
+carry the whole record** (the PRD alone when the seed sits in its
+`## Seed` section; 0.26.10.29.3, R9) — seed, ledger, contract, findings,
+ratification lines. Moving both into a project later carries everything,
+and the receiving repo's first commit of the file re-anchors the law — vid-init adopts
 such a file in place of delegation and re-interviews nothing it settles.
 
 **Inside vid-init:** after the pause-3 hand-back, control returns to
@@ -730,7 +1180,11 @@ Any textual document the owner hands over enters in one of two
 
 - **seed** — "this is my demand." The document lands verbatim in
   `## Seed` under a dated sub-heading, at seed authority: it grounds
-  `authoritative` items.
+  `authoritative` items. A seed document with its own `## ` headings goes
+  to `SEED.md` beside the PRD instead, verbatim, with the header line
+  `Seed: SEED.md (sha256 <its hash>)` from its first commit, which the
+  court reads: a `## Seed` section ends at the next `## ` line, so such a
+  seed would be cut short there (0.26.10.29.3, R9).
 - **source** — "this is evidence." The document lands verbatim in
   `## Sources` under a named, dated sub-heading, at supporting
   authority — below the seed and human answers, above model proposals:
@@ -739,7 +1193,9 @@ Any textual document the owner hands over enters in one of two
 Either way **the full chain runs**. The interview shrinks to what the
 documents leave inventable — the materiality test does this without a
 special mode: a question whose answer the document supplies does not
-survive it. The transcription prohibition:
+survive it. A document that asks ViD to find something out before it
+decides is a request for research, done or asked about as §1 says, never
+closed by a default (0.26.10.29.6, S5). The transcription prohibition:
 
 > Items are **authored, never transcribed**: every item cites the
 > document in `source:`, and statements are written to the grammar's

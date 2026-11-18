@@ -10,7 +10,7 @@ mkdir "$T/r"; cd "$T/r"
 g() { git -c user.email=vid@selftest -c user.name=vid "$@"; }
 git init -q; mkdir -p checks/hooks .ran .fail app .vid
 for c in placement conformance imports seams inventory census design-cite prd harness; do printf '#!/bin/sh\n# Purpose: stub court %s\nexit 0\n' "$c" > "checks/$c.sh"; done
-cp "$CHECKS/hooks/pre-commit" checks/hooks/; cp "$CHECKS/decisions.sh" "$CHECKS/lib.sh" "$CHECKS/event.sh" checks/
+cp "$CHECKS/hooks/pre-commit" checks/hooks/; cp "$CHECKS/decisions.sh" "$CHECKS/lib.sh" "$CHECKS/event.sh" "$CHECKS/labels.sh" checks/
 printf '.ran/\n.fail/\n.vid/\n' > .gitignore; printf 'x\n' > app/x.txt
 fail() { echo "labels-init-order: $*" >&2; cat "$T/r/.vid/out" >&2 2>/dev/null; exit 1; }
 printf '# Inventory\n\n```vid-inventory\ngrammar: 0.9.3\nROW-001 | behavior | login | anon | LOGIN/form | x | REQ-001 | owed: prerequisite — later\n```\n' > INVENTORY.md

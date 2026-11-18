@@ -15,6 +15,7 @@
 # INVENTORY.md machine block. Usage: sh checks/seams.sh
 # serves: both (0.26.10.28.4, M9)
 set -eu
+_vidwsl=${0%/*}/lib/wsl.sh; [ ! -f "$_vidwsl" ] || . "$_vidwsl"   # 0.26.10.29.3 (R6): on native Windows, with the owner's yes, this court re-runs under WSL
 IFS='
 '
 

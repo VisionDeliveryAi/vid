@@ -24,7 +24,8 @@ vid-deploy when ARCHITECTURE.md holds no `vid-hosting` block (a project
 made by an older init); and by vid-develop at a setup stop for a missing
 block, to ask only the answers the stop named.
 
-**Ask, in one batch, in plain language:**
+**Ask, in one batch, in plain language** (the spend cap and the access
+each on its own, below):
 - the hosting platform and its region (a product question: where the users
   are and whose law applies);
 - the staging and production web addresses, or the platform's own;
@@ -42,6 +43,34 @@ block, to ask only the answers the stop named.
 - the downtime tolerance for a release that changes the database — asked
   once per project, logged as a D-entry (default: brief maintenance-window
   migrations).
+
+**Asked on its own (0.26.10.29.6, S2).** How ViD gets access is a
+permission: ask it as its own question, after the batch, never inside it
+and never answered by a yes to the rest. The spend cap is asked in the
+chat, on its own, after the sitting below is answered: a face shows no
+amount of money.
+
+**The sitting's lines (0.26.10.29.6, S1).** These questions are the
+`technical` sitting's last two sections, in `face.sh`'s line form (its
+head):
+- `section where`: each question of the batch but the spend cap and
+  the access, as an `item`, its `choice` lines the choices you give and
+  its `recommend` line where you have one (`recommend | none` where you
+  have none);
+- `section access`: one `item` for how ViD gets access, and nothing
+  under it: no `detail`, `choice` or `recommend` line. Every item of the
+  section is asked on its own, and `face.sh` adds its fixed line itself
+  ("Name the way only. Never type a password, a key or a token here.").
+
+Inside init, vid-init §1b writes and ends the sitting, its hints first.
+Invoked by vid-deploy or vid-develop, write it yourself where `.vid/`
+exists, `empty hints | asked at init` in place of the hints, with only
+the questions still to ask: `sh "${CLAUDE_PLUGIN_ROOT}/checks/face.sh"
+write technical <file>`; give the owner what it printed about pages
+first; ask in the chat as above; and once the answers are recorded, `sh
+"${CLAUDE_PLUGIN_ROOT}/checks/face.sh" end technical`. By then the map
+has passed this stop, so the script writes nothing and says so in one
+line; the questions are asked in the chat all the same.
 
 **An answer that holds a value** (anything that looks like a password, a
 token or a key) is neither recorded nor cited. Ask again for the log-in or

@@ -6,7 +6,8 @@
 #   out             each step with an ask and no `closed <step>` line
 #   ask <step>      packs the step's rows into chunks and posts the ask, an issue labelled <prefix>run; .vid/decide/close/<step>/<k>/ask
 #   decide <step>   reads the newest ask: every chunk green closes the step; a chunk with a row not run, or absent past close-wait-minutes: of
-#                   quiet, is asked again once, and lost again it is an item for the owner; a red chunk is an item; a split is written. Once no
+#                   quiet, is asked again once, and lost again it is an item for the owner (0.26.10.28.10, R2: `same` when its rows could not run as
+#                   at the attempt before; an owner's again goes out with their words, `why:`); a red chunk is an item; a split is written. Once no
 #                   chunk waits on a report, its red rows read failing, with one count; a row red at an earlier ask of the step is an item for the
 #                   owner, and the others get one fix line; a plan change; the ask's issue closed; after the first ask, the three numbers
 #   (v0.26.10.25.5, R5) a step that gains a row at a landing is open again: its newest ask withdrawn (withdrawn), read no more, and a
@@ -15,6 +16,10 @@
 #   (v0.26.10.26.2) owed also prints `okay staging <N>` once the newest candidate's C3 passed and staging is free, and `cs <N>` once its
 #                   D1 passed; okay --stage <N> posts the okay for DevAgent's deploy, labelled <prefix>deploy, in <c>/d1/; ask --cs <N> asks
 #                   CS, the staging run, in <c>/cs/; decide --stage <N> reads both too; a seam or staging-owed row CS passes is paid
+#   (0.26.11.1.1, R3 to R6) the staging okay names its seed (the owner's newest `control seed` word), its outside-service rows (the
+#                   seam rows CS would ask), the hosting and the staging duties; the production okay the hosting and the production
+#                   duties; the rehearsal okay asks the kept: lines; a seam row is paid only when the passed D1 marks it real, else a
+#                   stand-in item, whose again asks D1 and CS afresh at the candidate; the owner's yes names the records kept
 # Settings: close-chunk-minutes: (20), close-wait-minutes: (180). Records: .vid/decide/close/<step>/<k>/ (ask, again, items, read, chunks, failed,
 # acted, lined, fixes, result, numbers, done), k the ask's number, the newest read.
 # serves: tickets (0.26.10.28.4, M9)
@@ -45,9 +50,12 @@ live() { for r in $1; do limited "$r" || { echo y; return 0; }; done; }
 # owed again (R3): the newest ask done, with a fix line, each line's ticket merged or every row of it a known limit, nothing for the owner
 # a row another step's close owned waits for that fix, then the close is owed again too
 again1() { againK "$C/$1/$2"; }
-againK() { K=$1; [ -f "$K/done" ] && { [ -s "$K/fixes" ] || [ -s "$K/waits" ]; } || return 1; ! grep -qE '^(twice|lost) ' "$K/items" 2>/dev/null || return 1
+againK() { K=$1; [ -f "$K/done" ] && { [ -s "$K/fixes" ] || [ -s "$K/waits" ]; } || return 1; ! grep -qE '^(twice|lost|shrink) ' "$K/items" 2>/dev/null || return 1   # 0.26.10.29.2 (R7): a shrink item holds it too
   [ ! -s "$K/waits" ] || ! cmd_owned | grep -qxF -f "$K/waits" || return 1
-  while IFS=$TAB read -r f rs; do [ -n "$(live "$rs")" ] || continue; t=$(fixt "$f"); [ -n "$t" ] && [ -n "$(mrg "$t")" ] || return 1; done < "$K/fixes"; return 0; }
+  # 0.26.10.29.2 (R11): a fix line whose ticket a plan change withdrew (every row of it moved out of its step, so the step
+  # that now holds them carries them and its own close covers them) is waited on no longer; a closed-outside one is written again (R4)
+  while IFS=$TAB read -r f rs; do [ -n "$(live "$rs")" ] || continue; t=$(fixt "$f"); [ -z "$t" ] || ! awk -v t="$t" '$1 == "withdrawn" && $2 == t && $3 != "decision=closed-outside" { f = 1 } END { exit !f }' "$LOG" 2>/dev/null || continue
+    [ -n "$t" ] && [ -n "$(mrg "$t")" ] || return 1; done < "$K/fixes"; return 0; }
 # v0.26.10.26.7 (R9, W-11): rrows <step>, the rows its tickets hold and those its newest ask recorded as reached (land.sh);
 # rtix <file>, the published tickets, never withdrawn, whose reached rows (a reached-rows ticket: its rows) meet the file's;
 # rwait <step>, one of those tickets not yet merged; rpend <step>, a reached row no ticket holds yet meets its rows or is its own
@@ -84,7 +92,7 @@ cmd_owed() { reclose; WOWED=$(sh "$HERE/walk.sh" owed 2>/dev/null || true)   # 0
     ! pdue || echo "okay production $N"; fi
   for O in $(ls -d "$SD"/*/*/d2 2>/dev/null); do G=${O%/d2}; [ -f "$O/passed" ] && [ ! -f "$G/cp/ask" ] && [ ! -f "$G/cp/done" ] && ! psettled "$G" && { G=${G#"$SD"/}; echo "cp ${G%/*}"; }; done | sort -u; return 0; }   # v0.26.10.26.4 (R1): `walk <N>`, for the run manager to brief and start   # R1: no C1 once the stage's candidate is due or named
 cmd_out() { for s in $(ls "$C" 2>/dev/null); do k=$(nk "$s"); [ -n "$k" ] && [ ! -f "$C/$s/$k/withdrawn" ] && ! closed "$s" && echo "out $s"; done
-  for x in $(ls "$SD" 2>/dev/null); do c=$(snc "$x"); F=$SD/$x/$c; [ -n "$c" ] && [ -f "$F/named" ] || continue; { [ ! -f "$F/passed" ] || { [ -f "$F/s1ask" ] && [ ! -f "$F/s1done" ] && [ ! -f "$F/s1withdrawn" ]; } || dout "$F" || { [ -f "$F/cs/ask" ] && [ ! -f "$F/cs/passed" ] && [ ! -f "$F/cs/withdrawn" ]; } || wout "$F" || pout "$F" || for o in $(ls "$SD/$x" | grep -E '^[0-9]+$'); do [ "$o" != "$c" ] && pprod "$SD/$x/$o" && break; done; } && echo "out stage-$x"; done; return 0; }
+  for x in $(ls "$SD" 2>/dev/null); do c=$(snc "$x"); F=$SD/$x/$c; [ -n "$c" ] && [ -f "$F/named" ] && [ ! -f "$F/withdrawn" ] || continue; { [ ! -f "$F/passed" ] || { [ -f "$F/s1ask" ] && [ ! -f "$F/s1done" ] && [ ! -f "$F/s1withdrawn" ]; } || dout "$F" || { [ -f "$F/cs/ask" ] && [ ! -f "$F/cs/passed" ] && [ ! -f "$F/cs/withdrawn" ]; } || wout "$F" || [ -f "$F/cs/stand-in-again" ] || pout "$F" || for o in $(ls "$SD/$x" | grep -E '^[0-9]+$'); do [ "$o" != "$c" ] && pprod "$SD/$x/$o" && break; done; } && echo "out stage-$x"; done; return 0; }   # 0.26.10.29.2 (R2): a withdrawn candidate is out no more
 # pout <folder> (v0.26.10.27.1): its rehearsal, CR, production okay or CP out
 pout() { [ -f "$1/rh/ask" ] && [ ! -f "$1/rh/closed" ] && [ ! -f "$1/rh/passed" ] && return 0; pprod "$1" && return 0
   [ -f "$1/cr/ask" ] && [ ! -f "$1/cr/passed" ] && [ ! -f "$1/cr/withdrawn" ] && return 0; [ -f "$1/rh/closed" ] && grep -q '^failed ' "$1/rh/closed"; }
@@ -146,6 +154,8 @@ cmd_ask() { s=$1; owed1 "$s" || die "no close is owed for $s"; E=$(sed -n 's/^en
     [ -z "$P2" ] || while IFS=$TAB read -r c rows; do printf 'chunk\tp2c%s\t%s\t%s\n' "$c" "$P2" "$rows"; done < "$K/packed"; } > "$K/ask"
   ev "close-asked step=$s issue=$n commit=$last chunks=$(grep -c '^chunk' "$K/ask") ask=$k"; echo "asked $n close $s"; }
 akey() { sed -n "s/^$1$TAB//p" "$K/ask" | head -n 1; }
+# drop <key> <file>: the file's lines keyed <key> (its first tab field) removed (0.26.10.29.1, R2)
+drop() { [ -f "$2" ] || return 0; awk -F'\t' -v c="$1" '$1 != c' "$2" > .vid/round/dr && put "$2" < .vid/round/dr; }
 item() { grep -qxF "$1" "$K/items" 2>/dev/null || { echo "$1" >> "$K/items"; ev "close-item step=$s what=$(printf %s "$1" | cut -d' ' -f1-2 | tr ' ' '-')"; }; }
 # a red row's one line in the handed record, its mark kept
 hfail() { m=$(sed -n "s/^row $1 [^ ]* \(fault-proven\).*/\1/p" "$HAND" | tail -n 1); { grep -v "^row $1 " "$HAND" || true; printf 'row %s failing%s | stand-in: %s #%s\n' "$1" "${m:+ $m}" "${HL:-close}" "$n"; } > .vid/round/h || exit 1; put "$HAND" < .vid/round/h || exit 1; }
@@ -177,12 +187,22 @@ decide_k() { K=$KD/$k; [ ! -f "$K/withdrawn" ] || return 0; n=$(akey issue); tou
   # the chunk's newest `vid: reported`: the chunk lost now, asked again or made the owner's at once, with no quiet time; an older generation's changes nothing
   said() { awk -F'\t' -v n="$n" -v c="$1" '$1 == "issue" && $2 == n { m = split($4, h, "\001"); for (i = 1; i <= m; i++) { if (h[i] == "vid: again " c) A++; else if (h[i] ~ ("^vid: reported " c "-[0-9]+$")) r = i
       else if (h[i] ~ ("^vid: lost " c " [0-9]+$")) { split(h[i], w, " "); k[i] = w[4] } } for (i in k) if (i + 0 > r && k[i] == A + 0) f = 1 } END { exit !f }' .vid/round/read 2>/dev/null; }
+  # 0.26.10.28.10 (R2): lsig <chunk>, the chunk's rows that could not run, by engine and state, messages apart; each attempt's in lostsig
+  # (`<chunk> <attempt> <sig>`); lost with the sig of the attempt before, the chunk is `same` (queue.sh refuses a bare again);
+  # an again's words, againwhy (`<chunk> TAB <words>`), go out with it as `why:`
+  lsig() { awk -F'\t' -v c="$1" '$1 == "row" && $2 == c && $5 != "passed" && $5 != "failed" { print $3 ":" $4 ":" $5 }' "$K/read" | sort | cksum | tr -d ' '; }
   while IFS='|' read -r ch st a fr xr; do case $st in
       red) item "red $ch$fr"; echo "close-red $s $ch$fr" ;;
       incomplete|absent) LS=''; ! said "$ch" || LS=1; [ "$st" = incomplete ] || [ "$q" -ge "$W" ] || [ -n "$LS" ] || grep -qxF "allow $ch" "$K/again" || continue; g=$(awk -v c="$ch" '$1 == c { print $2 }' "$K/again" | tail -n 1)
-        if [ -z "$g" ] || grep -qxF "allow $ch" "$K/again"; then printf 'vid: again %s\nby: RM\n' "$ch" > .vid/round/again; gh_ comment "$n" --body-file .vid/round/again > /dev/null 2>&1 || die "the ask #$n could not be commented"
-          grep -vxF "allow $ch" "$K/again" > .vid/round/ag; put "$K/again" < .vid/round/ag || exit 1; echo "$ch ${a:--}" >> "$K/again"; ev "close-again step=$s chunk=$ch"; echo "close-again $s $ch"
-        elif [ "$a" != "$g" ] || [ "$q" -ge "$W" ] || [ -n "$LS" ]; then item "lost $ch$xr #$(grep -c "^$ch " "$K/again")"; echo "close-lost $s $ch"; fi ;;
+        sg=''; [ "$st" != incomplete ] || [ "${a:--}" = - ] || grep -q "^$ch $a " "$K/lostsig" 2>/dev/null || { sg=$(lsig "$ch"); echo "$ch $a $sg" >> "$K/lostsig"; }   # an attempt's first reading, from a report, never a refused or missing one
+        if [ -z "$g" ] || grep -qxF "allow $ch" "$K/again"; then wy=$(awk -F'\t' -v c="$ch" '$1 == c { w = $2 } END { print w }' "$K/againwhy" 2>/dev/null)
+          { printf 'vid: again %s\nby: RM\n' "$ch"; [ -z "$wy" ] || printf 'why: %s\n' "$wy"; } > .vid/round/again; gh_ comment "$n" --body-file .vid/round/again > /dev/null 2>&1 || die "the ask #$n could not be commented"
+          grep -vxF "allow $ch" "$K/again" > .vid/round/ag; put "$K/again" < .vid/round/ag || exit 1; drop "$ch" "$K/againwhy" || exit 1; drop "$ch" "$K/same" || exit 1
+          echo "$ch ${a:--}" >> "$K/again"; ev "close-again step=$s chunk=$ch"; echo "close-again $s $ch"
+        elif [ "$a" != "$g" ] || [ "$q" -ge "$W" ] || [ -n "$LS" ]; then
+          pv=$(awk -v c="$ch" -v a="${a:--}" '$1 == c && $2 != a { p = $3 } END { print p }' "$K/lostsig" 2>/dev/null)   # the attempt before's sig
+          [ -z "$sg" ] || [ -z "$pv" ] || [ "$pv" != "$sg" ] || grep -qxF "$ch" "$K/same" 2>/dev/null || echo "$ch" >> "$K/same"
+          item "lost $ch$xr #$(grep -c "^$ch " "$K/again")"; echo "close-lost $s $ch"; fi ;;
     esac; done < "$K/chunks"
   # R1: once no chunk waits on a report, each green, red, or lost to the owner
   awk -F'|' -v IT="$K/items" 'BEGIN { while ((getline l < IT) > 0) { split(l, x, " "); if (x[1] == "lost") G[x[2]] = 1 } } ($2 == "incomplete" || $2 == "absent") && !($1 in G) { f = 1 } END { exit f }' "$K/chunks" || return 0
@@ -193,13 +213,33 @@ decide_k() { K=$KD/$k; [ ! -f "$K/withdrawn" ] || return 0; n=$(akey issue); tou
       for (i = 1; i <= k; i++) { sub(/^-+/, "", a[i]); if (a[i] == "") continue; if (a[i] ~ /^[A-Z]+$/ && a[i + 1] ~ /^[0-9]+$/) { a[i + 1] = a[i] "-" a[i + 1]; continue } o = o (o == "" ? "" : " ") a[i] } return o == "" ? "its test" : o }
     { if (!($3 in w)) o[++m] = $3; w[$3] = w[$3] (w[$3] == "" ? "" : ", ") wd($4) " in " $2; c[$3] = c[$3] " " $1 } END { for (i = 1; i <= m; i++) print o[i] "\t" w[o[i]] "\t" c[o[i]] }' "$K/failed" > .vid/round/red
   new=''; why=''; lk=''; cmd_owned "$s" > .vid/round/ow; touch "$K/waits"
+  # 0.26.10.29.2 (R7): a close asked again after the fix tickets of the close before it merged must shrink its red set, over the rows that
+  # close's ask covered (its own, its dependencies' and its regression rows) less those landed since it was asked (close-twice's test):
+  # its red rows now a strict subset of its red rows then. Else no fix line, and one item for the owner naming both, holding the close as
+  # a twice item does; the owner's again (`allow shrink`) writes the fix line, limit rules the rows known limits. A step's close and a
+  # stage's C3, never a CS, CR or CP; a withdrawn close before it is not compared. It is judged at every decide over the close's whole
+  # red set as it stands, however its chunks arrive: a chunk that reports late, after rows of the set had their fix line, can still
+  # make the set not shrink, and then no further row gets one
+  SHR=''; P=$(prior | tail -n 1)
+  if [ -z "$CSM" ] && [ -n "$P" ] && [ ! -f "$P/withdrawn" ] && [ -s "$P/fixes" ] && [ -s "$P/failed" ] && [ -f "$P/rows" ] && ! grep -qxF 'allow shrink' "$K/again"; then
+    pa=$(sed -n "s/^asked$TAB//p" "$P/ask" | head -n 1)
+    awk -v a="$pa" -v LF="$D/landed" 'BEGIN { while ((getline l < LF) > 0) { split(l, x, " "); if (x[3] > L[x[1]]) L[x[1]] = x[3] } } { r = $1 } !(r in L) || a > L[r] { print r }' "$P/rows" | sort -u > "$SX/su"
+    cut -f3 "$P/failed" | sort -u | comm -12 - "$SX/su" > "$SX/sp"; cut -f1 .vid/round/red | sort -u | comm -12 - "$SX/su" > "$SX/sk"
+    # the same set, every row of it acted on then, is close-twice's alone: each row is its item already
+    cut -f1 "$P/acted" 2>/dev/null | sort -u > "$SX/sa"
+    if [ -s "$SX/sk" ] && { [ -n "$(comm -23 "$SX/sk" "$SX/sp")" ] || { cmp -s "$SX/sk" "$SX/sp" && [ -n "$(comm -23 "$SX/sk" "$SX/sa")" ]; }; }; then SHR=1
+      # one open shrink item a close, `shrink <P>@<rows now,> <rows now> · before: <rows then>`: keyed by its rows, so a set that grew
+      # since, or a new one after an answered one, is a new question to the owner; a grown open one replaces the old
+      sl="shrink $(basename "$P")@$(paste -sd ',' "$SX/sk") $(paste -sd ' ' "$SX/sk") · before: $(paste -sd ' ' "$SX/sp")"
+      grep -qxF "$sl" "$K/items" 2>/dev/null || { grep -v "^shrink $(basename "$P")@" "$K/items" > "$SX/si" 2>/dev/null || true; put "$K/items" < "$SX/si" || exit 1; }; item "$sl"; echo "close-shrink $s $(paste -sd ' ' "$SX/sk")"; fi; fi
   while IFS=$TAB read -r r w cs; do
     if ! grep -q "^$r$TAB" "$K/acted" && grep -qxF "$r" .vid/round/ow; then grep -qxF "$r" "$K/waits" || { echo "$r" >> "$K/waits"; echo "close-waits $s $r"; }; continue; fi   # another close's fix holds it
     if ! grep -q "^$r$TAB" "$K/acted"; then printf '%s\t%s\n' "$r" "$w" >> "$K/acted"; hfail "$r"; grep -qxF "$r close#$n" "$D/counts" 2>/dev/null || echo "$r close#$n" >> "$D/counts"; ev "close-failing step=$s row=$r issue=$n"; echo "failing $r"; fi
+    [ -z "$SHR" ] || continue   # R7: the owner's first
     grep -qxF "$r" "$K/lined" && continue
     lt=$(awk -v r="$r" '$1 == r { t = $3 } END { print t }' "$D/landed" 2>/dev/null)   # R4: a close asked before the row's landing is no earlier close
     b=$(for P in $(prior); do [ -z "$lt" ] || awk -v a="$(sed -n "s/^asked$TAB//p" "$P/ask" 2>/dev/null)" -v b="$lt" 'BEGIN { exit !(a > b) }' || continue; sed -n "s/^$r$TAB//p" "$P/acted" 2>/dev/null; done | tail -n 1)
-    if [ -n "$b" ] && ! grep -qxF "allow $r" "$K/again"; then item "twice $r now: $w · before: $b"; echo "close-twice $s $r"; continue; fi
+    if [ -n "$b" ] && ! grep -qxF "allow $r" "$K/again" && ! grep -qxF 'allow shrink' "$K/again"; then item "twice $r now: $w · before: $b"; echo "close-twice $s $r"; continue; fi
     echo "$r" >> "$K/lined"; new="$new $r"; why="$why${why:+; }$r: $w"; for c in $cs; do lk="$lk req-$n-$c-$(awk -F'|' -v c="$c" '$1 == c { print $3 }' "$K/chunks")"; done
   done < .vid/round/red
   if [ -n "$new" ]; then lk=$(printf '%s\n' $lk | awk '!s[$0]++' | paste -sd ',' - | sed 's/,/, /g'); l="fix$new | $why | ${LB:-close #$n of $s}: $lk"; f=$(printf '%s' "$l" | cksum | cut -d' ' -f1)
@@ -242,6 +282,7 @@ sdue() { N=$1; W=$SX/why$N; : > "$W"; plr
   sed -n 's/^candidate \([0-9][0-9]*\) .*/\1/p' "$HAND" 2>/dev/null | awk -v n="$N" '$1 > n { f = 1 } END { exit f }' || return 1   # a later stage's C3 covers N
   for e in $(sstages); do [ "$e" -lt "$N" ] || continue; [ -n "$(stp "$e")" ] || continue; set -- $(sclosed "$e"); [ -n "${2:-}" ] && { [ -z "$(snc "$e")" ] || [ "$2" = "$(snc "$e")" ]; } || { echo "stage $e not closed at its newest candidate" >> "$W"; return 1; }; done   # v0.26.10.26.5 (R5a): stages close in order
   c=$(snc "$N"); [ -n "$c" ] || return 0; K=$SD/$N/$c; [ -f "$K/named" ] || return 0   # a post that failed: asked again
+  [ ! -f "$K/withdrawn" ] || return 0   # 0.26.10.29.2 (R2): a candidate a re-cut withdrew, its C3 out or not: a new one is due
   if [ -f "$K/passed" ]; then X=$(sed -n "s/^commit$TAB//p" "$K/ask" | head -n 1); upto "$N"
     while IFS=$TAB read -r p t H M; do [ "$M" != - ] && [ -n "$M" ] || continue; ! anc "$M" "$X" || continue; trows "$t" | grep -qxF -f "$SX/up$N" && return 0; done < "$D/merges"; return 1; fi
   [ -f "$K/done" ] && againK "$K"; }
@@ -323,6 +364,7 @@ stage_green() { : > "$K/passed"; : > "$K/done"; a=$(akey asked); c3=$(printf %.1
   gh_ close "$n" > /dev/null 2>&1 || true; ev "stage-c3 stage=$STG ask=$k result=passed"; echo "stage-c3 $STG passed"; }
 # decide --stage <N>: C3 as a step close; S1, its form and its grades; the findings (R4)
 cmd_decide_stage() { N=$1; s=stage-$N; CN=$(snc "$N"); [ -n "$CN" ] || die "no candidate for stage $N"; K=$SD/$N/$CN; [ -f "$K/named" ] || return 0
+  [ ! -f "$K/withdrawn" ] || return 0   # 0.26.10.29.2 (R2): a candidate a re-cut withdrew: a later report for it is not read
   if [ ! -f "$K/passed" ]; then s=stage-$N; KD=$SD/$N; k=$CN; STG=$N; HL=C3; LB="C3 #$(sed -n "s/^issue$TAB//p" "$K/ask") of stage $N"; RA="--stage $N"; CSM=''; decide_k; fi; c=$CN; K=$SD/$N/$CN
   if [ -f "$K/s1ask" ] && [ ! -f "$K/s1done" ] && [ ! -f "$K/s1withdrawn" ]; then i=$(sed -n "s/^issue$TAB//p" "$K/s1ask"); touch "$K/items" "$K/again"
     sh "$HERE/results.sh" grade --stage "$N" > /dev/null 2> .vid/round/ce || die "S1 could not be read: $(tail -n 1 .vid/round/ce)"; set -- $(head -n 1 "$K/s1read" | tr '\t' ' ')
@@ -333,9 +375,18 @@ cmd_decide_stage() { N=$1; s=stage-$N; CN=$(snc "$N"); [ -n "$CN" ] || die "no c
       refused) grep -qx "refused $3" "$K/s1again" 2>/dev/null || { printf 'vid: refused s1-%s\nby: RM\n\n%s\n' "$3" "$(cut -f4- "$K/s1read" | head -n 1)" > .vid/round/again; gh_ comment "$i" --body-file .vid/round/again > /dev/null 2>&1 && echo "refused $3" >> "$K/s1again"; echo "s1-refused $N $3"; } ;;
     esac
     if [ "$2" != read ]; then W=$(skey close-wait-minutes); W=$((${W:-180} * 60)); u=$(awk -F'\t' -v n="$i" '$1 == "issue" && $2 == n { print $5 }' .vid/round/read 2>/dev/null); q=$(( $(date +%s) - $(epoch "${u:-$(stamp)}") ))
-      if grep -qxF "allow s1" "$K/again" || { [ "$q" -ge "$W" ] && ! grep -q '^s1 ' "$K/again"; }; then printf 'vid: again s1\nby: RM\n' > .vid/round/again; gh_ comment "$i" --body-file .vid/round/again > /dev/null 2>&1 || die "the S1 ask #$i could not be commented"
-        grep -vxF "allow s1" "$K/again" > .vid/round/ag; put "$K/again" < .vid/round/ag || exit 1; echo "s1 again" >> "$K/again"; echo "close-again stage-$N s1"
+      if grep -qxF "allow s1" "$K/again" || { [ "$q" -ge "$W" ] && ! grep -q '^s1 ' "$K/again"; }; then wy=$(awk -F'\t' '$1 == "s1" { w = $2 } END { print w }' "$K/againwhy" 2>/dev/null)   # 0.26.10.29.1 (R2): the owner's words, as for a chunk
+        { printf 'vid: again s1\nby: RM\n'; [ -z "$wy" ] || printf 'why: %s\n' "$wy"; } > .vid/round/again; gh_ comment "$i" --body-file .vid/round/again > /dev/null 2>&1 || die "the S1 ask #$i could not be commented"
+        grep -vxF "allow s1" "$K/again" > .vid/round/ag; put "$K/again" < .vid/round/ag || exit 1; drop s1 "$K/againwhy" || exit 1; echo "s1 again" >> "$K/again"; echo "close-again stage-$N s1"
       elif [ "$q" -ge "$W" ]; then item "lost s1 #$(grep -c '^s1 ' "$K/again")"; echo "close-lost stage-$N s1"; fi; fi; fi
+  # 0.26.11.1.1 (R4): the owner's again on a stand-in row: the candidate's d1 and cs moved to numbered folders, as D2's again moves its
+  # okay and run, so the round asks D1 and CS afresh at this candidate; the walk and its findings stay
+  if [ -f "$K/cs/stand-in-again" ] && { [ ! -f "$K/cs/passed" ] || wfin "$K/w1"; }; then   # the walk over first: it holds staging until its end
+    # its staging run's issue closed first; a failed close moves nothing, and the next round tries again
+    i0=''; [ -f "$K/cs/issue-closed" ] || i0=$(sed -n "s/^issue$TAB//p" "$K/cs/ask" | head -n 1)
+    if [ -n "$i0" ] && ! gh_ close "$i0" > /dev/null 2>&1; then echo "staging-again-waits $N: the staging run's issue #$i0 did not close"
+    else [ -f "$K/cs/issue-closed" ] || : > "$K/cs/issue-closed"; j=1; while [ -d "$K/d1-$j" ] || [ -d "$K/cs-$j" ]; do j=$((j + 1)); done; [ ! -d "$K/d1" ] || mv "$K/d1" "$K/d1-$j"; mv "$K/cs" "$K/cs-$j"
+      ev "stage-okay-again stage=$N candidate=$CN kind=stand-in"; echo "staging-again $N"; fi; fi
   # v0.26.10.26.2: D1, then CS as C3 is read, its folder <c>/cs
   d1_decide "$N" "$CN"; K=$SD/$N/$CN
   # v0.26.10.27.1: the rehearsal and CR, the production deploy and CP, at this candidate
@@ -360,24 +411,46 @@ sfree() { for O in $(ls -d "$SD"/*/*/d1 2>/dev/null); do [ -f "$O/ask" ] || cont
       ! grep -q '^lost d1 ' "$O/items" 2>/dev/null || continue   # lost: it holds no more
       awk -F'\t' -v n="$i" '$1 == "issue" && $2 == n && index($4, "vid: started") { f = 1 } END { exit !f }' "$RD" 2>/dev/null && return 1; fi; done; return 0; }
 # okdue <N>: the newest candidate's C3 passed, it has no okay yet, and staging is free
-okdue() { sed -n 's/^candidate \([0-9][0-9]*\) .*/\1/p' "$HAND" 2>/dev/null | awk -v n="$1" '$1 > n { f = 1 } END { exit f }' || return 1; c=$(snc "$1"); F=$SD/$1/$c; [ -n "$c" ] && [ -f "$F/named" ] && [ -f "$F/passed" ] && [ ! -f "$F/d1/ask" ] && afirst "$1" && sfree; }
+okdue() { sed -n 's/^candidate \([0-9][0-9]*\) .*/\1/p' "$HAND" 2>/dev/null | awk -v n="$1" '$1 > n { f = 1 } END { exit f }' || return 1; c=$(snc "$1"); F=$SD/$1/$c; [ -n "$c" ] && [ -f "$F/named" ] && [ ! -f "$F/withdrawn" ] && [ -f "$F/passed" ] && [ ! -f "$F/d1/ask" ] && afirst "$1" && sfree; }   # 0.26.10.29.2 (R2): none at a withdrawn candidate
 # afirst <N> (v0.26.10.26.4 R4): once rows of stage N itself landed through the door since the previous candidate, or before the
 # first, the okay waits for this candidate's S1 report read, when one was asked, and each of its S1 findings ruled
 afirst() { [ -s "$D/landed" ] || return 0; upto "$1"; [ "$1" -lt 1 ] && : > "$SX/upa" || { upto "$(($1 - 1))"; cp "$SX/up$(($1 - 1))" "$SX/upa"; }; grep -vxF -f "$SX/upa" "$SX/up$1" > "$SX/own$1" || true; pa=''; [ "$c" -le 1 ] || pa=$(sed -n "s/^asked$TAB//p" "$SD/$1/$((c - 1))/ask" 2>/dev/null); b=$(sed -n "s/^asked$TAB//p" "$F/ask")
   awk -v a="$pa" -v b="$b" -v U="$SX/own$1" 'BEGIN { while ((getline l < U) > 0) W[l] = 1 } { id = $1; sub(/-T[0-9]+$/, "", id) } (id in W) && $3 >= a && $3 <= b { f = 1 } END { exit !f }' "$D/landed" || return 0
   [ -f "$F/s1ask" ] || return 0; [ -f "$F/s1done" ] || return 1; [ -f "$F/findings" ] || return 0; k=0
   while IFS= read -r l; do k=$((k + 1)); case $l in 'grade '*|'finding: '*) awk -F'\t' -v q="stage:$1:$c:$k" '$2 == q { f = 1 } END { exit !f }' "$D/queue/answers" 2>/dev/null || return 1 ;; esac; done < "$F/findings"; return 0; }
+# 0.26.11.1.1 (R3): the hosting, quoted as the skeleton ticket quotes it (ARCHITECTURE.md's vid-hosting block, a `> ` line each), and
+# the duties an okay names, `- <duty>: <what is asked>`, in plain words for an outside team; R6: the owner's newest seed word
+hostq() { printf 'The hosting:\n'; { git show HEAD:ARCHITECTURE.md 2>/dev/null || cat ARCHITECTURE.md 2>/dev/null || true; } | sed -n '/^```vid-hosting[[:space:]]*$/,/^```[[:space:]]*$/p' | grep -v '^```' | grep '[^[:space:]]' | sed 's/^/> /' > "$SX/hq" || true
+  if [ -s "$SX/hq" ]; then cat "$SX/hq"; else echo '> none'; fi; }
+dutyq() { printf 'Duties:\n'; if [ "$1" = staging ]; then
+    printf -- '- log-in: the log-in to the host works\n- environments: staging and production exist on the host, their versions pinned from the stack\n'
+    printf -- '- outside-services: each outside service'"'"'s settings set by name, never a value, and its state recorded\n- sending-domain: the email domain'"'"'s records published, or each one named\n'
+    printf -- '- deploy-notes: the deploy notes written: the services and their states, the allowed differences, rollback, the deploy log\n'
+    printf -- '- captures: each real answer the last staging run'"'"'s outside-service tests got saved, and your tests of that service built on the saved answers from then on; before any staging run, not needed\n'
+  else printf -- '- service-switch-on: each outside service changing moved one step, stand-in to limited to live, and recorded\n- backups: the host'"'"'s managed backups of production'"'"'s data on\n'
+    printf -- '- point-in-time-recovery: point-in-time recovery on for production'"'"'s data\n- storage-versioning: versioning on for the files production stores\n- dns: the product'"'"'s domain points at production\n'
+    printf -- '- https: production answers over https with a valid certificate\n- monitoring: production watched, and someone told when it stops answering\n'; fi; }
+seedw() { w=$(awk -F'\t' '$2 == "control:seed" { v = $3 } END { print v }' "$D/queue/answers" 2>/dev/null); echo "${w:-synthetic}"; }
 cmd_okay() { N=$1; okdue "$N" || die "no okay is due for stage $N"; X=$(cat "$F/commit"); DK=$F/d1; mkdir -p "$DK"
-  { printf 'okay: staging\ncommit: %s\nseed: synthetic\n\n' "$X"
+  # 0.26.11.1.1 (R4, R6): the seam rows CS would ask now, and the owner's newest seed word
+  E=$(sed -n 's/^engines \(.*\) | stand-in.*/\1/p' "$HAND" | tail -n 1); set -- $E; P1=${1:-}; KN=cs; DW='owed-staging|seam'; mkdir -p "$SX/ok"; cssel "$SX/ok"
+  RW=$(paste -sd ' ' "$SX/ok/seam"); SW=$(seedw)
+  { printf 'okay: staging\ncommit: %s\nseed: %s\noutside-service rows: %s\n\n' "$X" "$SW" "${RW:-none}"
     printf 'Deploy this commit to staging, within the downtime tolerance the skeleton ticket'"'"'s hosting states. Report it as vid-results/deploy-<this issue>-<k>, by: DP, its commit the one above: report.txt with `outcome: passed` or `outcome: failed <step>`, and for a failed step `product change: yes` or `product change: no`; deploy.xml, one case per deploy step; and for a passed deploy staging.txt, with `staging: <address>`, one `signin: <role> <address>` line for each role you can sign in as, and one `differs: <what> — <on staging> — <on production>` line for each way staging differs from production beyond the head reports'"'"' stand-in: lines, or `differs: none`. Then comment `vid: reported d1-<k>` here; `vid: started` when you start. An owner-only step is your question here, labelled blocked.\n'
+    # 0.26.11.1.1 (R1, R3, R4, R6): the further lines of a passed deploy, the seed's sentence, the hosting and the duties
+    printf '\nIn staging.txt also: `seed: synthetic` or `seed: production`, as the seed above; for each outside-service row above, `seam: <row> real` when its outside service is the real one on this staging, or `seam: <row> stand-in — <why>`; and `stays: up` when staging stays up between deploys. For a passed deploy also duties.txt: for each duty below, one line `<duty>: done — <what and where>`, `<duty>: not needed — <why>` or `<duty>: not done — <why>`.\n'
+    [ "$SW" != production ] || printf '\nLoad a copy of production'"'"'s newest backup into staging in place of the made-up data, before the migration. It holds real customers'"'"' data: keep every outside service on staging limited, so nothing reaches a real person.\n'
+    printf '\n'; hostq; printf '\n'; dutyq staging
     grep -q '^staged ' "$HAND" 2>/dev/null || grep -q '^setup-hold off ' "$HAND" 2>/dev/null || if [ "$((N + 1))" -le "$(finals)" ]; then printf '\nUntil this deploy passes, or the owner says continue, no ticket of stage %s is published.\n' "$((N + 1))"
       else printf '\nStage %s is the last stage: no later stage waits on this deploy.\n' "$N"; fi; } > "$DK/body"   # v0.26.10.26.7 (R2); v0.26.10.28.8 (R9): no stage named that does not exist
   n=$(gh_ deploy-ask --stage "$N" --commit "$X" --title "Deploy to staging: stage $N, candidate $c" --body-file "$DK/body") || die 'the okay could not be posted'
-  printf 'issue\t%s\ncommit\t%s\nasked\t%s\n' "$n" "$X" "$(stamp)" > "$DK/ask"; ev "stage-okay stage=$N candidate=$c issue=$n commit=$X"; echo "asked $n okay stage-$N"
+  printf 'issue\t%s\ncommit\t%s\nasked\t%s\nseed\t%s\nrows\t%s\n' "$n" "$X" "$(stamp)" "$SW" "$RW" > "$DK/ask"; ev "stage-okay stage=$N candidate=$c issue=$n commit=$X"; echo "asked $n okay stage-$N"
   # an earlier okay still out with no D1 passed is withdrawn (V2 §5.7)
   for O in $(ls -d "$SD"/*/*/d1 2>/dev/null); do [ "$O" != "$DK" ] && [ -f "$O/ask" ] && [ ! -f "$O/passed" ] && [ ! -f "$O/closed" ] || continue; i=$(sed -n "s/^issue$TAB//p" "$O/ask")
     printf 'vid: withdrawn. A newer okay, #%s, takes staging; a later report for this one is not read.\n' "$n" > .vid/round/wc; gh_ comment "$i" --body-file .vid/round/wc > /dev/null 2>&1 || true; gh_ close "$i" > /dev/null 2>&1 || true
     echo "withdrawn by #$n" > "$O/closed"; ev "stage-okay-withdrawn issue=$i by=$n"; done; }
+# nneed <kind> <read> (0.26.11.1.1, R3): the report's `not needed` duties, with their words, in one line, said once beside its passed line
+nneed() { w=$(awk -F'\t' '$1 == "duty" && $3 == "not needed" { printf "%s%s — %s", (n++ ? "; " : ""), $2, $4 }' "$2"); [ -z "$w" ] || echo "not-needed $1 $N: $w"; }
 # ditem <words> <n>: an item for the owner, numbered (#<issue * 1000 + n>) so one answered never hides a later one
 ditem() { set -- "$1 #$((i * 1000 + $2))"; grep -qxF "$1" "$DK/items" 2>/dev/null || { echo "$1" >> "$DK/items"; ev "close-item step=staging-$N what=$(printf %s "$1" | cut -d' ' -f1-2 | tr ' ' '-')"; echo "d1-item $N $1"; }; }
 dcom() { printf '%s\nby: RM\n%s' "$1" "${2:+
@@ -393,7 +466,7 @@ kdecide() { KN=$1; shift; N=$1; F=$SD/$1/$2; DK=$F/$KN; [ -f "$DK/ask" ] && [ ! 
   case $2 in
     no-backup) : > "$DK/passed"; : > "$DK/nobackup"; gh_ close "$i" > /dev/null 2>&1 || true; ev "stage-rh stage=$N issue=$i result=no-backup"; echo "rh $N no backup yet"; yesask; return 0 ;;   # v0.26.10.27.1 (R1): a first deploy
     passed) : > "$DK/passed"; X=$(sed -n "s/^commit$TAB//p" "$DK/ask"); [ "$KN" = d1 ] || gh_ close "$i" > /dev/null 2>&1 || true; [ "$KN" = d1 ] || { ev "stage-rh stage=$N issue=$i result=passed attempt=$3"; echo "rh $N passed"; return 0; }
-      gh_ close "$i" > /dev/null 2>&1 || true; ev "stage-d1 stage=$N issue=$i result=passed attempt=$3"; echo "d1 $N passed"
+      gh_ close "$i" > /dev/null 2>&1 || true; ev "stage-d1 stage=$N issue=$i result=passed attempt=$3"; echo "d1 $N passed"; nneed d1 "$DK/read"
       grep -q '^staged ' "$HAND" 2>/dev/null || { echo "staged $N | stand-in: D1 #$i at $(printf %.12s "$X")" >> "$HAND"; ev "stage-staged stage=$N issue=$i"; echo "staged $N"; }
       # R6: each new difference, by its <what>, against earlier D1s' differs: lines: one door line a D1
       ls "$SD"/*/*/d1*/read 2>/dev/null | grep -vxF "$DK/read" | while read -r f; do awk -F'\t' '$1 == "differs" { print $2 }' "$f"; done | sort -u > .vid/round/dk
@@ -406,7 +479,8 @@ kdecide() { KN=$1; shift; N=$1; F=$SD/$1/$2; DK=$F/$KN; [ -f "$DK/ask" ] && [ ! 
       elif awk -v s="$st" '$1 == "failed" { x = $0; sub(/^failed [0-9]+ /, "", x); if (x == s) f = 1 } END { exit !f }' "$DK/again" && ! allow failed; then ditem "failed $KN at $st" "$k"; return 0
       else dcom "vid: failed at $st: deploy again and report as attempt $((k + 1))" "Failed at $st, which you say needs no product change."; echo "failed $k $st" >> "$DK/again"; ev "stage-$KN stage=$N issue=$i result=failed step=$(printf %s "$st" | tr ' ' '-') change=no"; echo "$KN-failed $N $st"; fi ;;   # fields: stage-d1 stage-rh
     refused) k=$3; if ! grep -qx "refused $k" "$DK/again"; then
-      if grep -q '^refused ' "$DK/again" && ! allow refused; then ditem "refused $KN twice: $(cut -f4- "$DK/read" | head -n 1)" "$k"; return 0; fi
+      if grep -q '^refused ' "$DK/again" && ! allow refused; then wr=$(cut -f4- "$DK/read" | head -n 1)
+        case $KN:$wr in d1:'the duty '*' is not done: '*) du=${wr#the duty }; du=${du%% *}; ditem "notdone $du $wr" "$k" ;; *) ditem "refused $KN twice: $wr" "$k" ;; esac; return 0; fi   # 0.26.11.1.1 (R3): a duty not done, keyed by its duty
       dcom "vid: refused $KN-$k" "$(cut -f4- "$DK/read" | head -n 1)"; echo "refused $k" >> "$DK/again"; echo "$KN-refused $N $k"; return 0; fi; LATE=1 ;;
     absent) LATE=1 ;;
   esac
@@ -415,22 +489,25 @@ kdecide() { KN=$1; shift; N=$1; F=$SD/$1/$2; DK=$F/$KN; [ -f "$DK/ask" ] && [ ! 
   if allow lost || { [ "$q" -ge "$W" ] && ! grep -qx "again $KN" "$DK/again"; }; then dcom "vid: again $KN"; echo "again $KN" >> "$DK/again"; echo "close-again staging-$N $KN"
   elif [ "$q" -ge "$W" ]; then ditem "lost $KN" "$(grep -c "^again $KN\$" "$DK/again")"; fi; return 0; }
 d1_decide() { kdecide d1 "$@"; }
+# cssel <folder> (0.26.11.1.1, R4): the rows the KN run of stage N asks at the candidate commit X, into <folder>/rows (`<row> <secs>`),
+# its deploy-owed ones into owed and its seam rows into seam; the staging okay reads seam for its outside-service rows
+cssel() { upto "$N"; psteps
+  G0=$(plan_block | awk -F' [|] ' '{ for (i = 2; i <= NF; i++) if ($i == "kind: skeleton") { s = $1; sub(/^[ \t]*step[ \t]+/, "", s); print s; exit } }')
+  awk -F'\t' -v s="$G0" '$1 == s { print $2 }' "$SX/ps" > "$SX/gp"
+  awk '$1 == "published" { k[$2] = 1 } $1 == "withdrawn" { delete k[$2] } END { for (n in k) print n }' "$LOG" | sort -n | while read -r t; do m=$(mrg "$t" | cut -d' ' -f2); [ -n "$m" ] && { [ "$m" = "$X" ] || anc "$m" "$X"; } || continue
+    awk '/^## / { x = substr($0, 4); next } x == "Rows" && /^> / { split(substr($0, 3), a, "|"); i = a[1]; gsub(/[ \t]/, "", i); if (i !~ /^[A-Z]+-[0-9]/) { i = a[2]; gsub(/[ \t]/, "", i) } print i } x == "Regression rows" && /^- [A-Z]+-[0-9]/ { print $2 }' ".vid/tw/out/issue-$t.md" 2>/dev/null; done | awk '!s[$0]++' > "$SX/cr"
+  { cmd_owned "$KN-$N"; fxo; } > .vid/round/cx; : > "$1/rows"; : > "$1/owed"; : > "$1/seam"
+  while read -r r; do mk=$(grep -h "^- $r marks: " $(tfile "$r") /dev/null 2>/dev/null | head -n 1); dw=''; printf '%s\n' "$mk" | grep -qE "(^|[ ;])($DW)(\$|[ ;])" && dw=1
+    # v0.26.10.27.1 (R2, R5): CR's and CP's golden path is its rows that are not deploy-owed at all
+    if [ -n "$dw" ]; then grep -qxF "$r" "$SX/up$N" || continue; else grep -qxF "$r" "$SX/gp" || continue; if [ "$KN" = cs ]; then ! printf '%s\n' "$mk" | grep -qE '(^|[ ;])owed-(production|rehearsal)($|[ ;])' || continue; else ! printf '%s\n' "$mk" | grep -qE '(^|[ ;])(owed-[a-z-]*|seam)($|[ ;])' || continue; fi; fi
+    nt=$(awk -v r="$r" '($1 == "published" || $1 == "amended") { if (!($2 in o)) o[$2] = ++k; for (i = 3; i <= NF; i++) if ($i ~ /^rows=/) R[$2] = substr($i, 6) } END { for (t in R) if (index("," R[t] ",", "," r ",") && o[t] > b) { b = o[t]; n = t } print n }' "$LOG"); if [ -n "$nt" ]; then nm=$(mrg "$nt" | cut -d' ' -f2); [ -n "$nm" ] && { [ "$nm" = "$X" ] || anc "$nm" "$X"; } || continue; fi
+    limited "$r" || grep -qxF "$r" .vid/round/cx || { printf '%s %s\n' "$r" "$(secs "$r")" >> "$1/rows"; [ -z "$dw" ] || echo "$r" >> "$1/owed"; ! printf '%s\n' "$mk" | grep -qE '(^|[ ;])seam($|[ ;])' || echo "$r" >> "$1/seam"; }; done < "$SX/cr"; }
 # ask --cs <N> (R4): the golden path, and the seam and staging-owed rows of stages up to N; each of a ticket merged at or before the
 # candidate whose newest ticket has merged, less limits and rows an open fix holds; chunked as C3, against staging
 cmd_ask_cs() { N=$1; KN=${2:-cs}; c=$(snc "$N"); [ "$KN" != cp ] || c=$(for o in $(ls "$SD/$N" | grep -E '^[0-9]+$' | sort -n); do [ -f "$SD/$N/$o/d2/passed" ] && [ ! -f "$SD/$N/$o/cp/ask" ] && echo "$o"; done | tail -n 1); F=$SD/$N/$c; case $KN in cs) PQ=d1; DW='owed-staging|seam'; HD=staging; TL='Staging run' ;; cr) PQ=rh; DW='owed-rehearsal'; HD=rehearsal; TL='Rehearsal run' ;; cp) PQ=d2; DW='owed-production'; HD=production; TL='Production run' ;; esac
   [ -n "$c" ] && [ -f "$F/$PQ/passed" ] && [ ! -f "$F/$PQ/nobackup" ] || die "no $PQ has passed for stage $N's newest candidate"; K=$F/$KN; [ ! -f "$K/ask" ] || die "$KN is asked already for stage $N"
   E=$(sed -n 's/^engines \(.*\) | stand-in.*/\1/p' "$HAND" | tail -n 1); [ -n "$E" ] || die 'the handed record names no engines yet'; set -- $E; P1=$1; shift; P2=$*; M=$(skey close-chunk-minutes); M=${M:-20}
-  X=$(cat "$F/commit"); case $KN in cs) A=$(sed -n "s/^staging$TAB//p" "$F/d1/read" | head -n 1) ;; cr) A=$(sed -n "s/^copy$TAB//p" "$F/rh/read" | head -n 1) ;; cp) A=$(sed -n "s/^production$TAB//p" "$F/d2/read" 2>/dev/null | head -n 1); [ -n "$A" ] || A=$(ls -t "$SD"/*/*/d2*/read 2>/dev/null | while read -r f; do sed -n "s/^production$TAB//p" "$f"; done | head -n 1) ;; esac; [ -n "$A" ] || die "no address for $KN"; upto "$N"; psteps; mkdir -p "$K"
-  G0=$(plan_block | awk -F' [|] ' '{ for (i = 2; i <= NF; i++) if ($i == "kind: skeleton") { s = $1; sub(/^[ \t]*step[ \t]+/, "", s); print s; exit } }')
-  awk -F'\t' -v s="$G0" '$1 == s { print $2 }' "$SX/ps" > "$SX/gp"
-  awk '$1 == "published" { k[$2] = 1 } $1 == "withdrawn" { delete k[$2] } END { for (n in k) print n }' "$LOG" | sort -n | while read -r t; do m=$(mrg "$t" | cut -d' ' -f2); [ -n "$m" ] && { [ "$m" = "$X" ] || anc "$m" "$X"; } || continue
-    awk '/^## / { x = substr($0, 4); next } x == "Rows" && /^> / { split(substr($0, 3), a, "|"); i = a[1]; gsub(/[ \t]/, "", i); if (i !~ /^[A-Z]+-[0-9]/) { i = a[2]; gsub(/[ \t]/, "", i) } print i } x == "Regression rows" && /^- [A-Z]+-[0-9]/ { print $2 }' ".vid/tw/out/issue-$t.md" 2>/dev/null; done | awk '!s[$0]++' > "$SX/cr"
-  { cmd_owned "$KN-$N"; fxo; } > .vid/round/cx; : > "$K/rows"; : > "$K/owed"
-  while read -r r; do mk=$(grep -h "^- $r marks: " $(tfile "$r") /dev/null 2>/dev/null | head -n 1); dw=''; printf '%s\n' "$mk" | grep -qE "(^|[ ;])($DW)(\$|[ ;])" && dw=1
-    # v0.26.10.27.1 (R2, R5): CR's and CP's golden path is its rows that are not deploy-owed at all
-    if [ -n "$dw" ]; then grep -qxF "$r" "$SX/up$N" || continue; else grep -qxF "$r" "$SX/gp" || continue; if [ "$KN" = cs ]; then ! printf '%s\n' "$mk" | grep -qE '(^|[ ;])owed-(production|rehearsal)($|[ ;])' || continue; else ! printf '%s\n' "$mk" | grep -qE '(^|[ ;])(owed-[a-z-]*|seam)($|[ ;])' || continue; fi; fi
-    nt=$(awk -v r="$r" '($1 == "published" || $1 == "amended") { if (!($2 in o)) o[$2] = ++k; for (i = 3; i <= NF; i++) if ($i ~ /^rows=/) R[$2] = substr($i, 6) } END { for (t in R) if (index("," R[t] ",", "," r ",") && o[t] > b) { b = o[t]; n = t } print n }' "$LOG"); if [ -n "$nt" ]; then nm=$(mrg "$nt" | cut -d' ' -f2); [ -n "$nm" ] && { [ "$nm" = "$X" ] || anc "$nm" "$X"; } || continue; fi
-    limited "$r" || grep -qxF "$r" .vid/round/cx || { printf '%s %s\n' "$r" "$(secs "$r")" >> "$K/rows"; [ -z "$dw" ] || echo "$r" >> "$K/owed"; }; done < "$SX/cr"
+  X=$(cat "$F/commit"); case $KN in cs) A=$(sed -n "s/^staging$TAB//p" "$F/d1/read" | head -n 1) ;; cr) A=$(sed -n "s/^copy$TAB//p" "$F/rh/read" | head -n 1) ;; cp) A=$(sed -n "s/^production$TAB//p" "$F/d2/read" 2>/dev/null | head -n 1); [ -n "$A" ] || A=$(ls -t "$SD"/*/*/d2*/read 2>/dev/null | while read -r f; do sed -n "s/^production$TAB//p" "$f"; done | head -n 1) ;; esac; [ -n "$A" ] || die "no address for $KN"; mkdir -p "$K"; cssel "$K"
   [ -s "$K/rows" ] || { STG=$N; CK=$KN; n=none; : > "$K/passed"; : > "$K/done"; ev "stage-$KN stage=$N result=passed rows=0"; echo "$KN $N passed, no row to run"; [ "$KN" != cp ] || pgreen; [ "$KN" != cr ] || yesask; return 0; }   # fields: stage-cs stage-cr stage-cp
   awk -v m=$((M * 60)) '{ if (n && t + $2 > m) { n++; t = 0 } else if (!n) n = 1; t += $2; c[n] = c[n] (c[n] == "" ? "" : " ") $1 } END { for (i = 1; i <= n; i++) print i "\t" c[i] }' "$K/rows" > "$K/packed"
   { printf 'close: %s-%s\ncommit: %s\nagainst: %s\n' "$HD" "$N" "$X" "$A"; [ "$KN" = cp ] || awk -F'\t' '$1 == "signin" { print "signin: " $2 " " $3 }' "$F/$PQ/read"; printf 'engines: %s\n\n' "$E"
@@ -446,8 +523,14 @@ cmd_ask_cs() { N=$1; KN=${2:-cs}; c=$(snc "$N"); [ "$KN" != cp ] || c=$(for o in
 cs_paid() { awk -F'\t' 'FILENAME == ARGV[1] { if ($1 == "chunk") { n = split($4, R, " "); m = split($3, E, " "); for (i = 1; i <= n; i++) for (j = 1; j <= m; j++) W[R[i] SUBSEP E[j]] = 1 } next }
     $1 == "row" { if ($5 == "passed") P[$4 SUBSEP $3] = 1; else X[$4] = 1 }
     END { for (k in W) { split(k, a, SUBSEP); if (!(k in P)) X[a[1]] = 1; else Y[a[1]] = 1 } for (y in Y) if (!(y in X)) print y }' "$K/ask" "$K/read" | grep -xF -f "$K/owed" | while read -r r; do [ "$(hstate "$r")" = paid ] && continue
+    # 0.26.11.1.1 (R4): at staging, a seam row is paid only when the candidate's passed D1 marks it real; else a stand-in item for the owner
+    if [ "${CK:-cs}" = cs ] && grep -h "^- $r marks: " $(tfile "$r") /dev/null 2>/dev/null | head -n 1 | grep -qE '(^|[ ;])seam($|[ ;])' && ! awk -F'\t' -v r="$r" '$1 == "seam" && $2 == r && $3 == "real" { f = 1 } END { exit !f }' "$SD/$STG/$CSM/d1/read" 2>/dev/null; then
+      wy=$(awk -F'\t' -v r="$r" '$1 == "seam" && $2 == r && $4 != "" { w = $4 } END { print (w == "" ? "not answered" : w) }' "$SD/$STG/$CSM/d1/read" 2>/dev/null)
+      grep -q "^stand-in $r " "$K/items" 2>/dev/null || { echo "stand-in $r $wy #$n" >> "$K/items"; ev "close-item step=staging-$STG what=stand-in-$r"; echo "stand-in $STG $r — $wy"; }; continue; fi
     { grep -v "^row $r " "$HAND" || true; printf 'row %s paid | stand-in: %s #%s\n' "$r" "$(echo "${CK:-cs}" | tr a-z A-Z)" "$n"; } > .vid/round/h || exit 1; put "$HAND" < .vid/round/h || exit 1; ev "stage-paid stage=$STG row=$r issue=$n"; echo "paid $r"; done || exit 1; }
-cs_green() { cs_paid; : > "$K/passed"; : > "$K/done"; [ "${CK:-cs}" = cs ] || gh_ close "$n" > /dev/null 2>&1 || true; ev "stage-${CK:-cs} stage=$STG result=passed issue=$n"; echo "stage-${CK:-cs} $STG passed"; [ "${CK:-cs}" != cp ] || pgreen; [ "${CK:-cs}" != cr ] || yesask; }   # v0.26.10.27.3 (8.1b R4): CS's issue closes at W1's end (walk.sh csclose) · # fields: stage-cs stage-cr stage-cp
+cs_green() { cs_paid; : > "$K/passed"; : > "$K/done"; [ "${CK:-cs}" = cs ] || gh_ close "$n" > /dev/null 2>&1 || true
+  # 0.26.11.1.1 (R4): a CS asked afresh after the walk ended (a stand-in's again) closes its issue once read
+  [ "${CK:-cs}" != cs ] || ! wfin "$SD/$STG/$CSM/w1" || { gh_ close "$n" > /dev/null 2>&1 && : > "$K/issue-closed"; }; ev "stage-${CK:-cs} stage=$STG result=passed issue=$n"; echo "stage-${CK:-cs} $STG passed"; [ "${CK:-cs}" != cp ] || pgreen; [ "${CK:-cs}" != cr ] || yesask; }   # v0.26.10.27.3 (8.1b R4): CS's issue closes at W1's end (walk.sh csclose) · # fields: stage-cs stage-cr stage-cp
 # --- v0.26.10.26.5 (R1, R2, R5): the stage close, at the newest candidate, from 7.1 to 7.4's records ---
 # sclosed <N>: the commit12 and candidate of the stage's newest close, `<commit12> <c>`
 sclosed() { sed -n "s/^stage-closed $1 | stand-in: RM at \([0-9a-f]*\) candidate \([0-9]*\).*/\1 \2/p" "$HAND" 2>/dev/null | tail -n 1; }
@@ -459,7 +542,7 @@ srows() { psteps; plr; for s in $(stp "$1"); do awk -F'\t' -v s="$s" '$1 == s { 
 # stix <N> <commit>: the stage's steps' tickets merged at or before the commit
 stix() { for s in $(stp "$1"); do tix "$s" | cut -d' ' -f1; done | sort -u | while read -r t; do m=$(mrg "$t" | cut -d' ' -f2); [ -n "$m" ] && { [ "$m" = "$2" ] || anc "$m" "$2"; } && echo "$t"; done; }
 # cconds <N>: each unmet condition of the close at the newest candidate, `<n> <why>` a line in $SX/cc<N>; exit 0 when none
-cconds() { N=$1; c=$(snc "$N"); F=$SD/$N/$c; U=$SX/cc$N; : > "$U"; [ -n "$c" ] && [ -f "$F/named" ] || { echo "0 no candidate" > "$U"; return 1; }; X=$(cat "$F/commit"); plr
+cconds() { N=$1; c=$(snc "$N"); F=$SD/$N/$c; U=$SX/cc$N; : > "$U"; [ -n "$c" ] && [ -f "$F/named" ] || { echo "0 no candidate" > "$U"; return 1; }; [ ! -f "$F/withdrawn" ] || { echo "0 its candidate $c withdrawn by a re-cut" > "$U"; return 1; }; X=$(cat "$F/commit"); plr
   srows "$N" > "$SX/sr$N"; while read -r r; do w=$(hstate "$r"); mk=$(awk -F'\t' -v r="$r" '$1 == r { print $7 }' "$SX/plr")
     case $w in paid|known-limit) ;; accepted|accepted-by-ruling) ! printf '%s\n' "$mk" | grep -qE '(^| )(seam|owed-staging)( |$)' || echo "1 $r $w, not paid at staging" ;; owed) printf '%s\n' "$mk" | grep -qE '(^| )owed-(rehearsal|production)( |$)' || echo "1 $r owed, not paid" ;; '') echo "1 $r not yet decided" ;; *) echo "1 $r $w" ;; esac; done < "$SX/sr$N" >> "$U"
   [ -f "$F/passed" ] || echo "2 C3 not passed" >> "$U"; [ -f "$F/d1/passed" ] || echo "2 D1 not passed" >> "$U"; [ -f "$F/cs/passed" ] || echo "2 CS not passed" >> "$U"
@@ -495,7 +578,8 @@ endconds() { U=$SX/end; : > "$U"; F=$(finals); [ "$F" -ge 1 ] || F=1; c=$(snc "$
   [ ! -s "$U" ]; }
 # wwords <w1 folder> (0.26.10.28.6, R1): the walk's words, when W1 is none or a limit: none's line, or the limit's words with who answered and when
 wwords() { if [ -f "$1/none" ]; then head -n 1 "$1/none"; elif [ -f "$1/limit" ]; then printf '%s (%s)\n' "$(sed -n 1p "$1/limit")" "$(sed -n 2p "$1/limit")"; fi; }
-# summary --stage <N> (R2): the facts the summary must name, <c>/facts.txt
+# summary --stage <N> (R2): the facts the summary must name, <c>/facts.txt: `working`, `went-back`, `decided <id> <words>` (0.26.10.29.5,
+# DP-1 R4: every answer not given by the owner, `<words> (by <who>)`; each DECISIONS.md line; each model_proposed PRD answer), `walk`
 cmd_summary() { N=${2:?}; c=$(snc "$N"); F=$SD/$N/$c; [ -n "$c" ] || die "no candidate for stage $N"; P=$(awk '$1 == "stage-closed" { for (i = 2; i <= NF; i++) if ($i ~ /^at=/) t = substr($i, 4) } $1 == "stage" && / name=run / && / state=start / && r == "" { for (i = 2; i <= NF; i++) if ($i ~ /^at=/) r = substr($i, 4) } END { print (t != "" ? t : r) }' .vid/metrics-events 2>/dev/null); PX=$(grep -c '^stage-closed ' .vid/metrics-events 2>/dev/null || true); [ "${PX:-0}" -gt 0 ] && PX=1 || PX=''   # since the newest close of any stage, else the run's start
   { sreqs "$N" | while read -r q; do [ "$(awk -F'\t' -v q="$q" '$1 == q { print $2 }' "$SD/$N/s1" 2>/dev/null)" = pass ] && printf 'working\t%s\t%s\n' "$q" "$(title "$q")"; done
     # went back: the regressions of the stage's closes and its candidates' C3 and CS, and its rows' resets at a landing
@@ -503,12 +587,16 @@ cmd_summary() { N=${2:?}; c=$(snc "$N"); F=$SD/$N/$c; [ -n "$c" ] || die "no can
     while read -r f; do [ -f "$f/result" ] || continue; d=$(dirname "$f"); case $f in */cs) pf='' ;; *) pf=$(for j in $(ls "$d" | grep -E '^[0-9]+$' | sort -n); do [ "$j" -lt "${f##*/}" ] && [ -f "$d/$j/result" ] && echo "$d/$j"; done | tail -n 1) ;; esac; [ -n "$pf" ] || continue
       awk -F'\t' 'NR == FNR { b[$1] = $2; next } $2 == "red" && b[$1] == "green" { print $1 }' "$pf/result" "$f/result" | while read -r r; do printf 'went-back\t%s\t%s\t%s\n' "$r" "$(rname "$r")" "a regression at ${f#.vid/decide/}"; done; done < "$SX/fd"
     srows "$N" > "$SX/srs"; for x in $(ls "$D/drafts" 2>/dev/null | grep -E '^[0-9]+$'); do [ -f "$D/drafts/$x/landed" ] || continue; awk -F'\t' '$1 == "reset" { print $2 }' "$D/drafts/$x/sets" 2>/dev/null | grep -xF -f "$SX/srs" | while read -r r; do printf 'went-back\t%s\t%s\t%s\n' "$r" "$(rname "$r")" "reset at draft $x's landing"; done; done
-    # decided for you: RM's answers since the newest close of any stage, and each D-NNN added to DECISIONS.md since
-    awk -F'\t' -v p="$P" -v x="$PX" -v I=.vid/decide/queue/ids 'BEGIN { while ((getline l < I) > 0) { split(l, y, "\t"); Q[y[1]] = y[2] } } $5 == "RM" && (x ? $1 > p : $1 >= p) { k = $2; if (k ~ /^held:/ && (k in Q)) k = Q[k]; print "decided\t" k "\t" $4 }' .vid/decide/queue/answers 2>/dev/null   # strictly after a close; a held row's by its Q line, never a row id
+    # decided for you: the answers not given by the owner since the newest close of any stage, and each D-NNN added to DECISIONS.md since
+    # 0.26.10.29.5 (DP-1 R4): lib.sh's notowner, the queue's answers and the held-row rulings alike (a delegate's, RM's, a stand-in's, the
+    # round's own), each with who gave it; a held row by its Q line, or by its row when it has none (the round's own ruling is asked of nobody)
+    notowner | awk -F'\t' -v p="$P" -v x="$PX" -v I=.vid/decide/queue/ids 'BEGIN { while ((getline l < I) > 0) { split(l, y, "\t"); Q[y[1]] = y[2] } } (x ? $1 > p : $1 >= p) { k = $2; if (k ~ /^held:/) k = (k in Q) ? Q[k] : substr(k, 6); print "decided\t" k "\t" ($4 == "" ? $3 : $4) " (by " $5 ")" }'   # strictly after a close
     git log --since="${P:-1970-01-01T00:00:00Z}" -p -- DECISIONS.md 2>/dev/null | sed -n 's/^+- \*\*\(D-[0-9][0-9]*\)\*\* \(.*\)/decided\t\1\t\2/p'
+    # 0.26.10.29.5 (DP-1 R4): each PRD answer row marked model_proposed added since, read from PRD.md's history as DECISIONS.md's, its answer's words
+    git log --since="${P:-1970-01-01T00:00:00Z}" -p -- PRD.md 2>/dev/null | grep -E '^\+[[:space:]]*A-[0-9]+([[:space:]]+AMENDED)?[[:space:]]*\|[[:space:]]*model_proposed[[:space:]]*\|' | awk -F'|' '{ k = $1; sub(/^\+[ \t]*/, "", k); sub(/[ \t].*/, "", k); a = ""; for (i = 2; i <= NF; i++) { y = $i; gsub(/^[ \t]+|[ \t]+$/, "", y); if (y ~ /^A:/) { a = y; sub(/^A:[ \t]*/, "", a) } } print "decided\t" k "\t" a " (model_proposed, PRD.md)" }'
     # 0.26.10.28.6 (R1): the walk, when no screen walk was owed or the owner closed without it; the summary carries the words as they stand
     wwords "$F/w1" | while IFS= read -r l; do printf 'walk\t%s\n' "$l"; done
-  } | awk -F'\t' '!s[$1 FS $2 FS $4]++' > "$SX/facts"
+  } | awk -F'\t' '!s[($1 == "decided") ? $0 : $1 FS $2 FS $4]++' > "$SX/facts"   # 0.26.10.29.5 (DP-1 R4): a decided fact by its whole line, so two rulings on one row are two facts and only one written alike is dropped
   # a went-back fact once only: not one an earlier close of this stage already named
   for o in $(sed -n "s/^stage-closed $N | stand-in: RM at [0-9a-f]* candidate \([0-9]*\).*/\1/p" "$HAND" 2>/dev/null); do [ "$o" = "$c" ] || cat "$SD/$N/$o/facts.txt" 2>/dev/null; done | awk -F'\t' '$1 == "went-back" { print $2 "\t" $4 }' | sort -u > "$SX/old"   # an earlier close's facts alone
   awk -F'\t' 'FILENAME == ARGV[1] { O[$1 FS $2] = 1; next } !($1 == "went-back" && (($2 FS $4) in O))' "$SX/old" "$SX/facts" > "$SX/ft" || exit 1; put "$F/facts.txt" < "$SX/ft" || exit 1; echo "facts $N $(grep -c . "$F/facts.txt") at $F/facts.txt"; }
@@ -570,15 +658,18 @@ pdue() { set -- $(lastc); [ $# = 2 ] && [ "$1" != 0 ] || return 1; N=$1; c=$2; F
 # yesask (R3): the owner's yes item, its words from the rehearsal's change.txt, at <c>/yes
 yesask() { R0=$F/rh/read; [ -f "$R0" ] || return 0; X=$(cat "$F/commit")
   w=$(awk -F'\t' -v c="$(printf %.12s "$X")" '$1 == "migrates" { m = $2 } $1 == "drops" { d = d "; drops " $2 " — confirm" } $1 == "rewrites" { r = r "; rewrites " $2 " — confirm" } $1 == "services" { s = s (s == "" ? "" : ", ") $2 }
-    $1 == "rh" && $2 == "no-backup" { nb = 1 } END { printf "Rehearsal of %s: %smigrates %s%s%s; outside services changing: %s. Deploy to production? yes or no", c, nb ? "no backup yet, the first deploy; " : "", (m == "" ? "no" : m), d, r, (s == "" ? "none" : s) }' "$R0")
+    $1 == "rh" && $2 == "no-backup" { nb = 1 } $1 == "kept" && $2 !~ /^none( |$)/ { k = k (k == "" ? "" : ", ") $2 }   # 0.26.11.1.1 (R5): the records kept
+    END { printf "Rehearsal of %s: %smigrates %s%s%s; outside services changing: %s; records kept: %s. Deploy to production? yes or no", c, nb ? "no backup yet, the first deploy; " : "", (m == "" ? "no" : m), d, r, (s == "" ? "none" : s), (k == "" ? "none" : k) }' "$R0")
   printf '%s\t%s\n' "$(yeskey)" "$w" > "$SX/ys" || exit 1; put "$F/yes" < "$SX/ys" || exit 1; ev "production-asked stage=$N candidate=$c"; echo "production-yes-asked $N $c"; }
 # okay --rehearsal|--production <N>: posted as 7.2's okay, at the newest closed candidate; staging's rules apply to staging okays alone
 cmd_okay_p() { KN=$1; N=$2; set -- $(lastc); [ "${1:-}" = "$N" ] || die "stage $N has no newest closed candidate"; c=$2; F=$SD/$N/$c; X=$(cat "$F/commit")
   if [ "$KN" = rh ]; then rhdue || die "no rehearsal is owed for stage $N"; [ ! -d "$F/rh" ] || { j=1; while [ -d "$F/rh-$j" ]; do j=$((j + 1)); done; mv "$F/rh" "$F/rh-$j"; rm -rf "$F/cr" "$F/yes"; }
-    B="Restore the newest production backup somewhere that is not production, sealed: no connection from it to anything outside it. Make it reachable only from where TM runs. Migrate it, boot it, and report vid-results/deploy-<this issue>-<k>, then \`vid: reported rh-<k>\`; \`vid: started\` when you start. Destroy the copy once its run is read or withdrawn. A first deploy, with no backup yet, reports so: \`outcome: no backup yet\`."; T0=rehearsal
+    B="Restore the newest production backup somewhere that is not production, sealed: no connection from it to anything outside it. Make it reachable only from where TM runs. Migrate it, boot it, and report vid-results/deploy-<this issue>-<k>, then \`vid: reported rh-<k>\`; \`vid: started\` when you start. Destroy the copy once its run is read or withdrawn. A first deploy, with no backup yet, reports so: \`outcome: no backup yet\`.
+
+Before the migration, note every row of each table the product only ever adds to. After it, check each of those rows is still there, word for word, and report \`kept:\` lines. Report.txt holds one \`kept: <table> — <n> rows\` line a table, or the one line \`kept: none — <why>\`, and the step \`kept\` in deploy.xml, after migrate and before boot. A lost or changed row is \`outcome: failed kept\`."; T0=rehearsal
   else pdue || die "no production okay is owed for stage $N"
-    B="Back up production first, and report it as the \`backup\` step. Deploy within the downtime tolerance the skeleton ticket's hosting states. Before a restore that would lose writes, ask here with the recovery point and the writes at risk. Report deploy-<this issue>-<k>, then \`vid: reported d2-<k>\`; \`vid: started\` when you start."; T0=production; fi
-  mkdir -p "$F/$KN"; printf 'okay: %s\ncommit: %s\n\n%s\n' "$T0" "$X" "$B" > "$F/$KN/body"
+    B="Back up production first, and report it as the \`backup\` step. Deploy within the downtime tolerance the skeleton ticket's hosting states. Before any restore, ask here with the recovery point and the writes at risk. Report deploy-<this issue>-<k>, then \`vid: reported d2-<k>\`; \`vid: started\` when you start. For a passed deploy also duties.txt: for each duty below, one line \`<duty>: done — <what and where>\`, \`<duty>: not needed — <why>\` or \`<duty>: not done — <why>\`."; T0=production; fi
+  mkdir -p "$F/$KN"; { printf 'okay: %s\ncommit: %s\n\n%s\n' "$T0" "$X" "$B"; [ "$KN" = rh ] || { printf '\n'; hostq; printf '\n'; dutyq production; }; } > "$F/$KN/body"   # 0.26.11.1.1 (R3)
   i=$(gh_ deploy-ask --stage "$N" --commit "$X" --title "Deploy to $T0: stage $N, candidate $c" --body-file "$F/$KN/body") || die "the $T0 okay could not be posted"
   printf 'issue\t%s\ncommit\t%s\nasked\t%s\n' "$i" "$X" "$(stamp)" > "$F/$KN/ask"; ev "stage-okay stage=$N candidate=$c issue=$i commit=$X kind=$KN"; echo "asked $i okay $T0-$N"; }
 # recovered <issue>: the commit of its newest `vid: recovered <commit|none> — …` comment
@@ -590,7 +681,7 @@ cpwd() { [ -f "$1/cp/ask" ] && [ ! -f "$1/cp/done" ] && [ ! -f "$1/cp/withdrawn"
 nrec() { awk -F'\t' -v n="$1" '$1 == "issue" && $2 == n { k = split($4, x, "\001"); for (j = 1; j <= k; j++) if (x[j] ~ /^vid: recovered /) r++ } END { print r + 0 }' "$RD" 2>/dev/null; }
 started_() { awk -F'\t' -v n="$1" '$1 == "issue" && $2 == n && index($4, "vid: started") { f = 1 } END { exit !f }' "$RD" 2>/dev/null; }
 # askrec: RM asks for recovery once on the okay
-askrec() { [ -f "$DK/recovery-asked" ] && return 0; rm -f "$DK/recovery-lost"; dcom "Production failed at $1. Recover as you judge; before a restore that would lose writes, ask here first; comment \`vid: recovered <the commit production runs now, or none if no production exists yet> — <what you did>\` here." ""; : > "$DK/recovery-asked"; ev "production-recovery-asked stage=$N issue=$i"; echo "recovery-asked $N #$i"; }
+askrec() { [ -f "$DK/recovery-asked" ] && return 0; rm -f "$DK/recovery-lost"; dcom "Production failed at $1. Recover as you judge; before any restore, ask here first, with the recovery point and the writes at risk; comment \`vid: recovered <the commit production runs now, or none if no production exists yet> — <what you did>\` here." ""; : > "$DK/recovery-asked"; ev "production-recovery-asked stage=$N issue=$i"; echo "recovery-asked $N #$i"; }
 # d2_decide <N> <c> (R4, R6): the report; a recovery or the owner's known settles it, final; a lost one the owner's at once
 d2_decide() { N=$1; F=$SD/$1/$2; c=$2; DK=$F/d2; [ -f "$DK/ask" ] || return 0
   i=$(sed -n "s/^issue$TAB//p" "$DK/ask"); X=$(sed -n "s/^commit$TAB//p" "$DK/ask"); touch "$DK/items" "$DK/again"
@@ -617,7 +708,9 @@ d2_decide() { N=$1; F=$SD/$1/$2; c=$2; DK=$F/d2; [ -f "$DK/ask" ] || return 0
   sh "$HERE/results.sh" deploy --stage "$N" --kind d2 --candidate "$c" > /dev/null 2> .vid/round/ce || die "D2 could not be read: $(tail -n 1 .vid/round/ce)"; set -- $(head -n 1 "$DK/read" | tr '\t' ' ')
   case $2 in
     passed) : > "$DK/passed"; prec "$X" "D2 #$i"; psettle "$i"; ev "stage-d2 stage=$N issue=$i result=passed"; echo "d2 $N passed"
-      lg=$(sed -n "s/^logs$TAB//p" "$DK/read"); [ -z "$lg" ] || echo "logs $N: $lg" ;;
+      lg=$(sed -n "s/^logs$TAB//p" "$DK/read"); [ -z "$lg" ] || echo "logs $N: $lg"
+      # 0.26.11.1.1 (R3): never refused for its duties; each missing or not done one the owner's (queue.sh), not needed said once
+      awk -F'\t' -v n="$N" '$1 == "duty" && ($3 == "missing" || $3 == "not done") { print "production-duty " n " " $2 ": " ($3 == "missing" ? "not answered" : $4) }' "$DK/read"; nneed d2 "$DK/read" ;;
     failed) st=$(head -n 1 "$DK/read" | cut -f4); pc=$(head -n 1 "$DK/read" | cut -f5); echo "$st" > "$DK/failed"; askrec "$st"; ! grep -q "^$i$TAB" "$D/production-lost" 2>/dev/null || printf '%s\t%s\t%s\treported\n' "$i" "$N" "$c" >> "$D/production-lost"
       [ "$pc" != yes ] || [ -f "$DK/door" ] || { : > "$DK/door"; echo "door d2-failed $N #$i at $st"; } ;;
     refused) k=$3; grep -qx "refused $k" "$DK/again" || { dcom "vid: refused d2-$k" "$(cut -f4- "$DK/read" | head -n 1)"; echo "refused $k" >> "$DK/again"; echo "d2-refused $N $k"; } ;;
@@ -642,6 +735,7 @@ case $CMD in owed) cmd_owed ;; out) cmd_out ;; owned) cmd_owned ;; why) cmd_why 
   conds) cconds "${1:?}"; cat "$SX/cc$1" ;;
   endconds) endconds && rc=0 || rc=1; cat "$SX/end"; exit $rc ;;   # v0.26.10.27.4 (R2)
   nextplan) cmd_nextplan ;;
+  step-stages) sst; cat "$SX/sst" ;;   # 0.26.10.29.2 (R9): `<step> TAB <stage>`, each step's stage by this file's rule (sst), for land.sh
   corrected) N0=${1:?}; set -- $(sclosed "$N0") ; [ -n "${1:-}" ] || exit 1; X=$(git --git-dir=.vid/code rev-parse "$1" 2>/dev/null); srows "$N0" > "$SX/crw"
     while IFS=$TAB read -r p t H M; do [ -n "$M" ] && [ "$M" != - ] || continue; [ "$M" = "$X" ] || anc "$M" "$X" && continue; trows "$t" | grep -qxF -f "$SX/crw" && exit 0; done < "$D/merges"; exit 1 ;;
   decide) [ -n "${1:-}" ] || die 'usage — decide <step> | --stage <N>'; case $1 in --stage) cmd_decide_stage "${2:?}" ;; stage-*) cmd_decide_stage "${1#stage-}" ;; *) cmd_decide "$1" ;; esac ;;

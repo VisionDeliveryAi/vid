@@ -54,6 +54,23 @@ them) and `now.html` (the latest). Nothing pops up.
   from the delegated marks vid-develop records (`metrics.sh delegated`).
 - Counts only, never percentages.
 
+## One document as a page
+
+When the owner asks to read one document rather than see the project —
+the PRD (`prd`), the technical foundation (`foundation`), the test list
+(`tests`), the stages (`stages`), the findings (`findings`), the plan
+(`plan`) or the whole book (`book`) — run, in the project:
+
+```
+sh "${CLAUDE_PLUGIN_ROOT}/checks/pages.sh" <page>
+```
+
+or `all` for every page, and do what its printed lines say: each page's
+file and its link where it has one, then whether to ask the owner about
+publishing, to publish, or to give each file's path. Publish nothing the
+lines do not say to. Unlike the viewer, a page shows the documents as
+they stand now, drafts included.
+
 ## When it fails
 
 It stops with one line saying why (no `PRD.md`, no commit, a folder inside

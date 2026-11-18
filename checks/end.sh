@@ -8,7 +8,8 @@
 # The report, in develop's order, each line naming its evidence by id or "unverified": the rows headline (rows by state, never tests);
 # completion; what shipped by requirement, with its newest grade and that grade's candidate; the deploy-owed rows ("N rows at deploy")
 # and the later items ("M later"); the rule rows' newest covers: counts; the metrics roll-up (each ticket's cost line, the flags,
-# regressions); the findings for the owner's ruling; the decisions ViD made on the owner's behalf; every open question. It is no
+# regressions); the findings for the owner's ruling; the decisions ViD made on the owner's behalf (0.26.10.29.5, DP-1 R4: every answer
+# not given by the owner, the queue's and the held-row rulings, with who gave it, and the DECISIONS.md lines with origin: proposal); every open question. It is no
 # production okay. Run at the top of ViD's repository.
 # Usage: sh checks/end.sh complete [--check]
 # serves: tickets (0.26.10.28.4, M9)
@@ -54,8 +55,12 @@ F=$(awk -F'|' '{ k = $1; gsub(/[ \t]/, "", k); if (k ~ /^STAGE-/) { sub(/^STAGE-
   printf '\nRegressions (each close'"'"'s numbers):\n\n'; for x in "$D"/close/*/* "$D"/stage/*/*; do [ -s "$x/numbers" ] || continue; printf -- '- %s: %s\n' "${x#$D/}" "$(head -n 1 "$x/numbers")"; done | grep . || echo '- none'
   sh "$HERE/queue.sh" keys > "$T/k" 2>/dev/null || : > "$T/k"
   printf '\n## 7. The findings for the owner'"'"'s ruling\n\n'; awk -F'\t' '$1 ~ /^(finding|findings|stage|grade):/ { print "- " $2 ": " $3 " (" $1 ")" }' "$T/k" | grep . || echo '- none'
-  printf '\n## 8. The decisions ViD made on the owner'"'"'s behalf\n\n'; awk -F'\t' '$5 == "RM" { print "- " $1 " " $2 ": " $4 " (the queue'"'"'s answers, by RM)" }' "$D/queue/answers" 2>/dev/null | sort | grep . || echo '- none by RM'
-  grep -o '^- \*\*D-[0-9][0-9]*\*\* [^|]*' DECISIONS.md 2>/dev/null | sed 's/^- \*\*\(D-[0-9]*\)\*\* /- \1: /; s/[[:space:]]*$/ (DECISIONS.md)/'
+  # 0.26.10.29.5 (DP-1 R4): develop's "on your behalf": every answer not given by the owner (lib.sh's notowner, the stage facts' set), each
+  # with who gave it, then the DECISIONS.md lines with origin: proposal alone, never every decision
+  printf '\n## 8. The decisions ViD made on the owner'"'"'s behalf\n\n'
+  { notowner | sort | awk -F'\t' '{ s = ($2 ~ /^held:/) ? "the held-row rulings" : "the queue'"'"'s answers"; print "- " $1 " " $2 ": " ($4 == "" ? $3 : $4) " (" s ", by " $5 ")" }'
+    grep -E '^- \*\*D-[0-9]+\*\* .*\|[[:space:]]*origin:[[:space:]]*proposal[[:space:]]*(\||$)' DECISIONS.md 2>/dev/null | grep -o '^- \*\*D-[0-9][0-9]*\*\* [^|]*' | sed 's/^- \*\*\(D-[0-9]*\)\*\* /- \1: /; s/[[:space:]]*$/ (DECISIONS.md, origin: proposal)/'; } > "$T/s8"
+  if [ -s "$T/s8" ]; then cat "$T/s8"; else echo '- none'; fi
   printf '\n## 9. The open questions\n\n'; awk -F'\t' '$1 !~ /^(production|production-lost|finding|findings|stage|grade):/ { print "- " $2 ": " $3 " (" $1 ")" }' "$T/k"
   awk -v I="$D/queue/ids" 'BEGIN { while ((getline l < I) > 0) { split(l, y, "\t"); O[y[2]] = 1 } } /^## Open product questions/ { on = 1; next } on && /^## / { exit } on && /^- Q[0-9]+ / && !($2 in O) { print "- " $2 ": " substr($0, 1, 120) " (RUN-STATE)" }' "$RS" | tee "$T/rq"   # the session's own
  grep -n '^VID-QUESTION: ' PRD.md 2>/dev/null | sed 's/^\([0-9]*\):/- PRD.md:\1 /' | cut -c1-160

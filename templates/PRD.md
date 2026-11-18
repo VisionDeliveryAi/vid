@@ -232,7 +232,19 @@ FEAT-01 | G1 | {{FEATURE_THE_OWNER_WOULD_NAME}}
      and a withdrawal against an effective answer settling the item;
      required under `grammar: 0.9.1`, reported (never convicted) before.
      No rewording or amendment anywhere loses an acceptance arm without
-     an accounted disposition. -->
+     an accounted disposition.
+     A kept arm in other words (0.26.10.29.4, phase 3 R4): an arm marked
+     retained or strengthened that no arm of the new fail-if equals
+     exactly (the same split, white space normalised; a condition added
+     counts as other words) is listed by `sh checks/prd.sh --arms`,
+     `<id> arm <n> <disposition> | was: <old arm> | now: <the item's
+     fail-if today>`, for the review passes to judge, until a later
+     revision restores the old arm exactly or the owner rules on it: a
+     findings row targeting the item, its evidence opening `arm <n>`,
+     `accepted A-NNN` or `overruled A-NNN`, A-NNN a human answer without
+     `delegated: yes`, in the amending row's append or a later one, and
+     none its source: cites. An answer that merely settles the item, a
+     blanket "all recommended" included, closes nothing. -->
 
 ```vid-prd
 REQ-001 | {{TYPE}} | {{TIER}} | {{STATEMENT}} | fail-if: {{FAILING_CASE}} | serves: {{PURPOSE}} | authority: authoritative | source: seed | covers: DIM-{{ID}} | phase: pilot | feature: FEAT-01 | plain: {{THE_RULE_IN_ONE_PLAIN_SENTENCE}}
@@ -242,7 +254,7 @@ REQ-001 | {{TYPE}} | {{TIER}} | {{STATEMENT}} | fail-if: {{FAILING_CASE}} | serv
 
 <!-- Every decision, tiered by whose it is.
      Columns: A-NNN | tier | date | Q: … | A: … | settles: … | unchanged:
-     … | importance: … | shown: …
+     … | importance: … | shown: … | delegated: yes
      tier: human (an owner decision — grounds `authoritative`) |
      model_proposed (a ViD decision — grounds at most `provisional`). An
      answer to a question ViD asked is human: the interview, the audit's
@@ -260,6 +272,11 @@ REQ-001 | {{TYPE}} | {{TIER}} | {{STATEMENT}} | fail-if: {{FAILING_CASE}} | serv
      T0 item cites it, or it resolves a question a T0 item routes to —
      `checks/prd.sh --pause` refuses such an answer without it); the
      owner may raise or lower any.
+     delegated: on human rows — `delegated: yes`, on an answer ViD wrote
+     under the owner's delegation (0.26.10.29.3 R2). The owner's
+     confirmation restates the answer A-NNN AMENDED without it. While
+     the row carries it, the court holds any fail-if arm withdrawn under
+     the answer as it holds one withdrawn under a ViD decision.
      shown: on model_proposed rows — `shown: pause-N <sum>`, written when
      the decision is presented at pause N; <sum> is the checksum
      `checks/prd.sh --pause` prints beside it, of the A: text as shown,
@@ -313,7 +330,14 @@ VID-QUESTION: (OQ-1) {{BLOCKING_PRODUCT_QUESTION}}
      is never manufactured to fill the block.
      Columns: F-NN | pass | severity | target | disposition, plus an
      optional labeled evidence: field.
-     pass: red-team | audit | review | lens. severity: blocking | advisory.
+     pass: red-team | audit | review | lens | final | strength (final:
+     the final pass's rows; strength: the test list's strength pass,
+     0.26.10.29.4 phase 3 R1, under a `review: whole` or, in append
+     mode, `review: delta` line). severity: blocking | advisory — a reviewer's own
+     "critical" or "major" is recorded blocking, its word kept at the
+     start of the evidence (after `arm <n>` on a row recording the
+     owner's ruling on a kept arm in other words, which --arms reads);
+     only "minor" or "advisory" is advisory.
      lens: one row per wording-lens rewording — `F-NN | lens | advisory
      | REQ-x | repaired | evidence: arms: … — now: <new fail-if>`; the
      old text stays in the diff; a declined rewording is `noted`.
@@ -321,13 +345,25 @@ VID-QUESTION: (OQ-1) {{BLOCKING_PRODUCT_QUESTION}}
      apart is recorded `F-NN | review | advisory | REQ-a, REQ-b | noted
      | evidence: near-duplicate kept — <why>`; the row is the record,
      and the pair is not shown again.
-     target: item, MECH-, or DIM- ids (comma-separated), thesis, or
-     seed — a finding with no target cannot be repaired or verified.
+     target: item, MECH-, DIM- or A- ids (comma-separated; a
+     contradiction lists every side), thesis, or seed, or another
+     document by form only — <doc> or <doc>:<id>, <doc> one of
+     DESIGN-BRIEF.md, a path under design/, ARCHITECTURE.md,
+     DECISIONS.md, BASELINE.md, INVENTORY.md, GRADING-CHECKLIST.md,
+     STAGES.md (the id is never looked up) — a finding with no target
+     cannot be repaired or verified.
      disposition: repaired | overruled A-NNN | accepted A-NNN |
      routed OQ-n | noted (advisory only — a blocking finding must carry
      a resolving disposition before its pause may commit).
      Repair traceability lives here: a repaired finding names its
-     target, so every repair edit traces to the finding it resolves. -->
+     target, so every repair edit traces to the finding it resolves.
+     A whole or final review (pause 3, 7b, the final passes) records
+     every round's and both readers' rows in its sitting's one block,
+     under the line (0.26.10.29.3, phase 2 R2)
+       review: <whole|final>, round <r>, <n> findings
+     with, on a final review, `, read: <the files it read>`; <r> is
+     the round the review ended on, <n> the rows of the heading's
+     findings block(s), which the court counts. -->
 
 ### {{DATE}} — pause 1 sitting
 
@@ -351,4 +387,13 @@ F-01 | red-team | {{SEVERITY}} | {{TARGET}} | {{DISPOSITION}} | evidence: {{WHY_
           continuing their prefix sequence. Behavior changes restate the full
      row with the marker AMENDED appended to the ID field: a later
      AMENDED row supersedes every earlier row with its ID, and carries
-     `arms:` for every arm of the row it supersedes. -->
+     `arms:` for every arm of the row it supersedes. An append holding
+     rows carries its delta review's record (0.26.10.29.3 R3): the
+     review's findings in its own ```vid-prd-findings block and the line
+     `review: delta, round <r>, <n> findings` — with 0 findings, the line
+     alone; the commit hook refuses a new append section without it.
+     A whole or final review's repair append carries
+     `review: <whole|final>, round <r>, 0 findings, see <heading>`,
+     <heading> its review's `### ` heading under ## Findings, where its
+     rows are. Phase 1's `review: delta, <n> findings` still passes,
+     read as round 1, its count never judged. -->

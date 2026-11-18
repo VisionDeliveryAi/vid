@@ -15,7 +15,7 @@
 - A ViD project in ticket mode whose run is going: `/vid:vid-run` publishes the tickets and decides on what this side returns.
 - A work folder outside that project, holding a job note. The note's head is `key: value` lines: `repo:` (owner/name), `labels-prefix:`, `work:` (the work folder), `time-limit:` (the loop's seconds), `agent-time-limit:` (one agent's seconds), `agent-turn-limit:` (one agent's turns) and, if another model is wanted, `model:`. The head of `dev-manager/dm.sh` describes each.
 
-**Where its deploys end, today.** DevAgent deploys staging, the rehearsal and production only as local copies on its own machine (`deployer/deploy.sh`). A deploy to a real host is done by your own DevAgent, in GitHub team, or comes in a later release.
+**Where its deploys end.** DevAgent deploys staging and production to the project's chosen host, the one its hosting names: its deployer (`devagent/agents/deployer.md`) sets the host up through the host's own command-line tool, which you log in yourself, and `deployer/deploy.sh` deploys there. The rehearsal is a sealed copy on this machine. Local copies of staging and production, with `deploy: local` in the job note, are for a test alone. A hosted deploy also needs `curl`.
 
 **An example job note** with working values is `job-note.example`, beside this file: copy it, fill in your repository and work folder, and save it outside the work folder and the project.
 

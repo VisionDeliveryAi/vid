@@ -46,6 +46,11 @@ engineering choices that preserve the intended outcome are the builder's
 and are not findings; an enhancement or edge case a reviewer can imagine
 is not a requirement because it can be imagined.*
 
+**A bound needs its number** (0.26.10.29.3 phase 2 R4). A bound named in
+an item — a limit, a timeout, a retention, a maximum, an "at most" — needs
+a number, a named setter, or an open question, whatever its dimension; a
+bound with none of the three is a `gap`.
+
 **A finding names its failure.** The `evidence:` field of a substantive
 finding states the situation, the affected actor, the plausible wrong
 outcome, the passages that permit, require or fail to resolve it, and

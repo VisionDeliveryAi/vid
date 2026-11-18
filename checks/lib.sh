@@ -1,6 +1,6 @@
 #!/bin/sh
 # Purpose: the ticket side's shared helpers (0.26.10.28.4, 9.3 R3, R4, M3, M4), each once: put, the settings reader, the plan-block reader, the
-# row-range expander, date to seconds, the timestamp, the event writer and the lock. Each of the 13 ticket scripts, and decisions.sh, loads it from
+# row-range expander, date to seconds, the timestamp, the answers not given by the owner (0.26.10.29.5, DP-1 R4), the event writer and the lock. Each of the 13 ticket scripts, and decisions.sh, loads it from
 # beside itself, `. "$HERE/lib.sh"`, after setting HERE; loaded, it defines and runs nothing else. plan.sh and develop's own scripts keep their own.
 # serves: tickets
 # put <file>: stdin into a dot file beside it, then renamed in, so a record is replaced whole and never emptied first (0.26.10.28.1, F3)
@@ -21,6 +21,15 @@ epoch() { date -u -j -f '%Y-%m-%dT%H:%M:%SZ' "$1" +%s 2>/dev/null || date -u -d 
 # stamp, now: the UTC time, ISO
 stamp() { date -u '+%Y-%m-%dT%H:%M:%SZ'; }
 now() { stamp; }
+# notowner (0.26.10.29.5, DP-1 R4): the answers not given by the owner, `<when>\t<key>\t<value>\t<words>\t<by>` a line, from two records
+# with no overlap: the queue's answers (.vid/decide/queue/answers) whose by is not owner, its held rows apart (their rulings are the
+# record) and control:hold apart (the hold's second record of one continue); and each held-row ruling (.vid/decide/rulings) whose who
+# is not owner, decide (a later head's undo) or SP (a landing's reset), keyed held:<row>, its words the ruling's word and words. A line
+# with no who is the owner's, the default. The stage facts (close.sh), the completion report (end.sh) and the status (queue.sh) read
+# this one set
+notowner() { { sed 's/^/A	/' .vid/decide/queue/answers 2>/dev/null; sed 's/^/R	/' .vid/decide/rulings 2>/dev/null; } | awk -F'\t' 'BEGIN { OFS = "\t" }
+    $1 == "A" && $6 != "" && $6 != "owner" && $3 !~ /^held:/ && $3 != "control:hold" { print $2, $3, $4, $5, $6 }
+    $1 == "R" && $6 != "" && $6 !~ /^(owner|decide|SP)$/ { print $2, "held:" $3, $4, ($5 == "" ? $4 : $4 ": " $5), $6 }'; }
 # ev <event line>: through the event.sh beside this file, at the run's home; a failure of event.sh is reported, never written past (9.3 R1, M1)
 ev() { sh "$HERE/event.sh" "$1" > /dev/null || echo "ViD: the event was not recorded, event.sh failed: $1" >&2; }
 # The lock (9.3 R4, M4): a folder naming its holder in one file, h, written whole and renamed in: `<pid> <start>`, its start as DevAgent's run.sh

@@ -52,9 +52,9 @@ printf '%s' "$G" | grep -qF "the completion report's last line is \"rule on the 
 # (a) the start's floor and the takeover
 has 'read `checks/records-version` first: absent or below 32' || no "vid-add's start does not stop below records 32"
 has 'whenever a session takes the add over, record it again with its first `base=`' || no "vid-add does not record the add's start again at a takeover"
-# (b) one review, in both modes, repairs in the same append
-RV=$(bullet "$A" '- After the append commit (and its placement')
-for _t in 'in the same append' 'not reviewed again' 'once per add'; do printf '%s' "$RV" | grep -qF -- "$_t" || no "the review bullet does not say $_t"; done
+# (b) one review, in both modes, repairs in the same append; 0.26.10.29.3 (phase 2 R1): what they land is read again, by create-prd's "Reviews converge"
+RV=$(bullet "$A" '- Before the append commit (0.26.10.29.3 R3')   # 0.26.10.29.3 (R3): the review comes before the append commit
+for _t in 'in the same append' 'vid-create-prd, "Reviews converge"' 'once per add'; do printf '%s' "$RV" | grep -qF -- "$_t" || no "the review bullet does not say $_t"; done
 printf '%s' "$RV" | grep -qiE 'ticket|outside' && no 'the review bullet carries a mode exception'
 has 'a further dated append' && no 'vid-add still says "a further dated append"'
 # (c) §3 hands over: the skill invoked, its "Before any work", the add's end; (d) §4 is "Throughout the add"

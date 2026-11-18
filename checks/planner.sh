@@ -12,7 +12,9 @@
 # outside service, no code read (the plan-change events and decisions are read, read only). v0.26.10.12.3.1 (R1, R2):
 # the setup's teams are .vid/tw/settings' `team: <name> | <area> | strict|core | <people>`
 # lines (none: devagent, core, 1); a team of one has the lane <name>, of n the lanes <name>-1 … <name>-n.
-#   check     one flag line per breach, `<kind> <id> — <why>`, exit 1 on any; clean, one `planner: clean` line. form,
+#   check [--block <file>] [--ceiling <n>]   one flag line per breach, `<kind> <id> — <why>`, exit 1 on any; clean, one
+#             `planner: clean` line (0.26.10.29.2, R1: --block reads that plan block for RUN-STATE's, --ceiling sets rule A's
+#             ceiling, as plan.sh change asks for a candidate and the plan it replaces). form,
 #             inventory (P1: a PLAN.md line out of form; a class line for no row; a repeated id; an `origin: plan` row
 #             of no kind and form ViD adds; inside a repository, INVENTORY.md changed since HEAD outside its origin:
 #             plan rows); protection (P2); class, moved, answer (P3: a row in no step but a known limit, a later-phase
@@ -94,7 +96,7 @@ PS='/^## The plan/ { s = 1; next } s && /^## / { exit } s && /^```vid-plan[ \t]*
 prose() { [ -f .vid/RUN-STATE.md ] && awk "$PS"' { b = 0; a = 1; next } a' .vid/RUN-STATE.md; }
 phash() { plan_block | { if command -v shasum > /dev/null 2>&1; then shasum -a 256; else sha256sum; fi; } | cut -c1-12; }
 recorded() { grep '^plan-change ' .vid/metrics-events 2>/dev/null | tail -n 1 | sed -n 's/^plan-change what=[^ ]* hash=\([0-9a-f]*\) .*/\1/p'; }
-ceil() { b=''; s=''; if [ -f .vid/budget ]; then b=$(sed -n 's/^unverified-rows=\([0-9][0-9]*\).*/\1/p' .vid/budget | tail -n 1); s=$(sed -n 's/^stacks=\([0-9][0-9]*\).*/\1/p' .vid/budget | head -n 1); fi; c=$((60 * ${s:-1})); [ -n "$b" ] || b=60
+ceil() { [ -z "${CEILOV:-}" ] || { echo "$CEILOV"; return 0; }; b=''; s=''; if [ -f .vid/budget ]; then b=$(sed -n 's/^unverified-rows=\([0-9][0-9]*\).*/\1/p' .vid/budget | tail -n 1); s=$(sed -n 's/^stacks=\([0-9][0-9]*\).*/\1/p' .vid/budget | head -n 1); fi; c=$((60 * ${s:-1})); [ -n "$b" ] || b=60
   if [ "$b" -gt "$c" ] && ! grep '^plan-change ' .vid/metrics-events 2>/dev/null | grep ' what=other ' | grep -q "unverified-rows=$b\([^0-9]\|$\)"; then b=$c; fi; echo "$b"; }
 mods() { [ -f ARCHITECTURE.md ] && awk -F'|' 'function tr(x) { gsub(/^[ \t`]+|[ \t`]+$/, "", x); return x }
   /^[ \t]*\|/ { if (done) next; if (!col) { for (k = 2; k < NF; k++) if (tr($k) == "Module") col = k; next } if ($0 ~ /^[ \t|:-]+$/) next; v = tr($col); if (v != "") print v; next } col { done = 1 }' ARCHITECTURE.md; }
@@ -102,8 +104,9 @@ mods() { [ -f ARCHITECTURE.md ] && awk -F'|' 'function tr(x) { gsub(/^[ \t`]+|[ 
 gaps() { awk '/^## Stack[ \t]*$/ { on = 1; next } on && /^## / { exit } on' BASELINE.md > "$T/sk" 2>/dev/null || :; sed -n '/^```vid-hosting[[:space:]]*$/,/^```[[:space:]]*$/p' ARCHITECTURE.md 2>/dev/null | grep -v '^```' > "$T/ho" || :
   grep -q '[^[:space:]]' "$T/sk" || echo "the stack: BASELINE.md's \`## Stack\` section is missing or empty; the skeleton ticket quotes it"
   grep -q '[^[:space:]]' "$T/ho" || echo "the hosting: ARCHITECTURE.md's \`vid-hosting\` block is missing or empty; the skeleton ticket quotes it"; }
-# planok: empty when the block is the newest recorded plan, else why not
-planok() { R=$(recorded); if [ -z "$R" ]; then echo 'no plan is recorded (sh checks/plan.sh change create "<why>" --trigger initial --expect "<one line>")'; elif ! plan_block | cmp -s - ".vid/plans/$R.plan"; then echo "the plan block is not the newest recorded plan ($R): record the change with sh checks/plan.sh change"; fi; }
+# planok: empty when the block is the newest recorded plan, else why not. 0.26.10.29.2 (R1): equal in the admission's canonical
+# form counts, through plan.sh canon (shared, not copied), so a block only re-spaced, or a step's rows only re-ordered, stays ratified
+planok() { R=$(recorded); if [ -z "$R" ]; then echo 'no plan is recorded (sh checks/plan.sh change create "<why>" --trigger initial --expect "<one line>")'; elif ! plan_block | cmp -s - ".vid/plans/$R.plan" && { [ ! -f ".vid/plans/$R.plan" ] || [ "$(plan_block | sh "$HERE/plan.sh" canon)" != "$(sh "$HERE/plan.sh" canon < ".vid/plans/$R.plan")" ]; }; then echo "the plan block is not the newest recorded plan ($R): record the change with sh checks/plan.sh change"; fi; }
 
 # load [rows]: $T/items (`id kind tier phase stage`), $T/answers, $T/stages (`n<TAB>name`, stage 0 first), $T/stageof
 # (`id stage`, every obligation and item stages.sh stages), $T/inv (the inventory's lines), $T/rowsblk, $T/stepsblk
@@ -125,7 +128,7 @@ load() {
   awk '/^```vid-prd-answers/ { a = 1; next } /^```/ { a = 0 } a && /^A-[0-9]+[[:space:]]/ { print $1 }' PRD.md > "$T/answers"
   block vid-inventory INVENTORY.md | grep -v '^[[:space:]]*grammar:' > "$T/inv" || true
   : > "$T/rowsblk"; [ ! -f PLAN.md ] || block vid-rows PLAN.md > "$T/rowsblk"
-  plan_block > "$T/stepsblk" || true; mods > "$T/mods" || true; cat .vid/tw/settings > "$T/set" 2>/dev/null || :; touch "$T/stepsblk" "$T/mods" "$T/set"
+  if [ -n "${BLK:-}" ]; then cat "$BLK"; else plan_block; fi > "$T/stepsblk" || true; mods > "$T/mods" || true; cat .vid/tw/settings > "$T/set" 2>/dev/null || :; touch "$T/stepsblk" "$T/mods" "$T/set"
 }
 
 # inventory: $T/irows (id kind parent items marks promise failif carried golden added, tab-separated, in the inventory's
@@ -279,6 +282,8 @@ model() {
         rlimset[id] = ("limit" in K); rmovset[id] = ("moved" in K); rmoved[id] = K["moved"]; rlimit[id] = K["limit"]; next }
       flag("form", "\"" substr($0, 1, 40) "\"", "a line of the rows block that is no class line or standing line"); next }
     # expand <rows: value> <owner>: its ids, each range <PREFIX>-a..<PREFIX>-b of one prefix written out
+    # 0.26.10.29.2 (R1): uniq, the rows of a step each once, as the admission and plan.sh canon read them
+    function uniq(v,   n, t, i, r, u) { n = split(v, t, " "); r = ""; for (i = 1; i <= n; i++) if (t[i] != "" && !(t[i] in u)) { u[t[i]] = 1; r = r (r == "" ? "" : " ") t[i] } return r }
     function expand(v, o,   n, t, i, x, a, b, pa, pb, w, lo, hi, k, r) { n = split(v, t, /[ ,]+/); r = ""
       for (i = 1; i <= n; i++) { x = t[i]; if (x == "") continue
         if (x !~ /^[A-Z]+-[0-9]+\.\.[A-Z]+-[0-9]+$/) { r = r (r == "" ? "" : " ") x; continue }
@@ -297,7 +302,7 @@ model() {
       fields(l, 2)
       if (id in sseen) { flag("form", id, "the step id is used twice"); next }; sseen[id] = 1; sorder[++ns] = id; sidx[id] = ns
       unknown(id, "name modules builds-on rows lane kind fakes"); need(id, "name modules rows")
-      sn[id] = K["name"]; smod[id] = K["modules"]; srows[id] = expand(K["rows"], id); sb[id] = (K["builds-on"] == "-" ? "" : K["builds-on"]); slane[id] = K["lane"]; skind[id] = K["kind"]; ssk[id] = (K["kind"] == "skeleton")
+      sn[id] = K["name"]; smod[id] = K["modules"]; srows[id] = uniq(expand(K["rows"], id)); sb[id] = (K["builds-on"] == "-" ? "" : K["builds-on"]); slane[id] = K["lane"]; skind[id] = K["kind"]; ssk[id] = (K["kind"] == "skeleton")
       sfk[id] = (K["fakes"] == "-" ? "" : K["fakes"]); if (skind[id] != "" && skind[id] !~ /^(skeleton|hardening)$/) flag("form", id, "kind " skind[id] "; a kind is skeleton, hardening, or absent")
       next }
     f == 8 { mod[$0] = 1; next }
@@ -537,7 +542,9 @@ stagepage() {
 
 CMD=${1:-check}; [ $# -gt 0 ] && shift
 case "$CMD" in
-  check)
+  check)   # 0.26.10.29.2 (R1): --block <file> reads that plan block in place of RUN-STATE's, --ceiling <n> sets rule A's ceiling (empty: as read)
+    while [ $# -ge 2 ]; do case $1 in --block) BLK=$2; [ -f "$BLK" ] || die "--block $BLK: no such file" ;; --ceiling) CEILOV=$2; case $CEILOV in *[!0-9]*) die "--ceiling $CEILOV is no number" ;; esac ;; *) die "check: unknown $1" ;; esac; shift 2; done
+    [ $# -eq 0 ] || die "check: unknown $1"
     model
     if [ -s "$T/flags" ]; then cat "$T/flags"; exit 1; fi
     echo "planner: clean — $(awk -F'\t' '$2 != "tr"' "$T/rows" | grep -c . || true) rows, $(grep -c . "$T/steps" || true) steps" ;;

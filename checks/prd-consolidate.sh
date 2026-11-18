@@ -5,8 +5,12 @@
 # or later (v0.9.4 3.9), `grammar: 0.9.1` otherwise, the migration — and
 # `Seed: SEED.md (sha256 <hash>)`
 # (the seed text moved verbatim to SEED.md, created once, hash verified and
-# never rewritten); Sources, Thesis, Actors and journeys, Mechanisms, Content
-# contract and Criticality tiers verbatim; `## Items` holding exactly the
+# never rewritten); Sources, Thesis, Actors and journeys, Content contract
+# and Criticality tiers verbatim; `## Mechanisms` verbatim but for its
+# ```vid-prd-mechanisms block, which holds exactly the effective mechanism
+# rows (base and appends, latest per id, AMENDED marker stripped, ordered by
+# first appearance — the rule `## Items` follows; 0.26.10.29.3, R1);
+# `## Items` holding exactly the
 # effective rows (latest per id, AMENDED marker stripped, ordered by first
 # appearance — prd.sh's EFF computation), each row given `phase: pilot` when
 # absent and its legacy priority column removed (3.6, 3.8), preceded by one
@@ -22,7 +26,10 @@
 # <date>.md lists, per amended item, its fail-if arms at first ratified text
 # and at consolidated text side by side, flagged arm-losing (fewer arms) or
 # arm-changed (an arm of the first text no longer found) — 7b reads it. Byte-level
-# reproducible; refuses to write unless checks/prd.sh passes on the output.
+# reproducible; refuses to write unless checks/prd.sh passes on the output,
+# given the input as `--before` (0.26.10.29.3, R1: the court compares the
+# effective mechanism rows), and unless the output's effective mechanism rows
+# are the input's, row for row.
 # 7a can only produce UNCHANGED rows and CHANGED-by-field-removal rows —
 # anything else is a script defect and refuses.
 # Usage: sh checks/prd-consolidate.sh [PRD.md] [--date YYYY-MM-DD]
@@ -47,6 +54,13 @@ sect() { awk -v h="## $1" '$0 == h { on = 1; print; next } on && /^## / { on = 0
 has_sect() { grep -qx "## $1" "$PRD"; }
 blk() { sed -n "/^\`\`\`$1\$/,/^\`\`\`\$/p" "$PRD" | grep -v '^```' | grep -v '^[[:space:]]*#' | grep -v '^[[:space:]]*$' || true; }
 trim() { printf '%s\n' "$1" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'; }
+# 0.26.10.29.3 (R1): meff — mechanism rows in, the effective rows out: latest per id, AMENDED stripped, fields trimmed and
+# joined by " | ", in first-appearance order (the features block's rule). mblk FILE: that file's mechanism rows.
+meff() { awk -F'|' 'function trim(s) { gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
+  NF { id = trim($1); sub(/[ \t]+AMENDED$/, "", id); out = id; for (i = 2; i <= NF; i++) out = out " | " trim($i)
+    row[id] = out; if (!(id in seen)) { order[++n] = id; seen[id] = 1 } }
+  END { for (i = 1; i <= n; i++) print row[order[i]] }'; }
+mblk() { sed -n '/^```vid-prd-mechanisms$/,/^```$/p' "$1" | grep -v '^```' | grep -v '^[[:space:]]*#' | grep -v '^[[:space:]]*$' || true; }
 
 for s in Items 'Answer ledger' 'Open decisions' Findings Ratifications Appends; do
   has_sect "$s" || { echo "ViD consolidate: no '## $s' section — the enriched layout is required." >&2; exit 1; }
@@ -92,6 +106,19 @@ MIDDLE=$(awk '
   /^## Seed$/ { inseed = 1; next }
   /^## / { if ($0 == "## Items") stop = 1; if (!started) started = 1; inseed = 0 }
   started && !inseed && !stop { print }' "$PRD")
+
+# --- mechanisms (0.26.10.29.3, R1): the effective rows replace the base block's ---
+# The appends hold the owner's `MECH-NN AMENDED` rows, and the appends are emptied below: `## Mechanisms` is written as
+# the effective rows, in the first ```vid-prd-mechanisms block of that section (a later one there is dropped); the rest of
+# the section stays verbatim. MECHROWS is what is written; the comparison after the assembly reads the output.
+MEFF=$(mblk "$PRD" | meff)
+MECHROWS=$MEFF
+if [ -n "$MECHROWS" ]; then printf '%s\n' "$MECHROWS" > "$T/mech.rows"; else : > "$T/mech.rows"; fi
+MIDDLE=$(printf '%s\n' "$MIDDLE" | awk -v rows="$T/mech.rows" '
+  /^## / { insec = ($0 == "## Mechanisms") }
+  insec && /^```vid-prd-mechanisms$/ { if (!done) { print; while ((getline l < rows) > 0) print l; print "```"; done = 1 } inb = 1; next }
+  inb { if ($0 ~ /^```$/) inb = 0; next }
+  { print }')
 
 # --- items: the effective rows, four fields, phase: pilot when absent -----
 ITEMS_RAW=$(blk vid-prd)
@@ -189,8 +216,22 @@ OUT="$T/PRD.md"
 } | awk '{ lines[NR] = $0 } END { last = NR; while (last > 1 && lines[last] ~ /^[ \t]*$/) last--; for (i = 1; i <= last; i++) print lines[i] }' > "$OUT"
 cp "$T/SEED.md" "$T/SEED.keep" 2>/dev/null || cp "$DIR/SEED.md" "$T/SEED.md"
 
-# --- the court gates the write ---------------------------------------------
-if ! sh "$COURT" "$OUT" >"$T/court.txt" 2>&1; then
+# --- 0.26.10.29.3 (R1): the output's effective mechanism rows are the input's, row for row ---
+OMEFF=$(mblk "$OUT" | meff)
+if [ "$OMEFF" != "$MEFF" ]; then
+  # the whole row is compared (a row's text may hold a tab): the first character says which side, the row follows it
+  MD=$( { printf '%s\n' "$MEFF" | sed 's/^/I/'; printf '%s\n' "$OMEFF" | sed 's/^/O/'; } | awk '
+    { w = substr($0, 1, 1); r = substr($0, 2); if (r == "") next; id = r; sub(/[ \t]*\|.*/, "", id) }
+    w == "I" { I[id] = r; if (!(id in s)) { o[++n] = id; s[id] = 1 } next }
+    { O[id] = r; if (!(id in s)) { o[++n] = id; s[id] = 1 } }
+    END { for (k = 1; k <= n; k++) { id = o[k]; if (!(id in O)) m = m (m == "" ? "" : ", ") id " lost"
+      else if (!(id in I)) m = m (m == "" ? "" : ", ") id " added"; else if (I[id] != O[id]) m = m (m == "" ? "" : ", ") id " changed" } print m }')
+  echo "ViD consolidate: script defect — the effective mechanism rows differ after the copy ($MD); refusing, nothing written." >&2
+  exit 1
+fi
+
+# --- the court gates the write (given the input: 0.26.10.29.3, R1) ---------
+if ! sh "$COURT" --before "$PRD" "$OUT" >"$T/court.txt" 2>&1; then
   echo 'ViD consolidate: refused — checks/prd.sh does not pass on the consolidated output; nothing written.' >&2
   grep '^GAP' "$T/court.txt" >&2 || cat "$T/court.txt" >&2
   exit 1

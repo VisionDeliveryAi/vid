@@ -7,6 +7,8 @@
 # and dump. The plant and a real failed step as on staging, change.txt with each. Refused: a change-migrates: other than yes or no, a none beside another line.
 # run.sh --plant-red <row> on a chunk against the copy: that row's cases read failed in the pushed report, nothing else, results.txt names the plant; refused for a
 # row with no case, a malformed id, a red ask. Skips where devagent/ is absent (a project's layout). Env: CHECKS.
+# 0.26.11.1.1 (R5): the step kept, after migrate and before boot: the record's kept: command, seeing DUMP and DATA_DIR, its kept: lines in report.txt;
+# a lost row, its non-zero exit, is outcome: failed kept, with its kept: lines; a rehearsal is refused while the record has no kept: line, a plant is not.
 set -eu
 [ -d "$CHECKS/../devagent" ] || { echo 'needs devagent/'; exit 77; }
 command -v nc > /dev/null 2>&1 || { echo 'devagent-prod-rehearsal: no nc, skipped' >&2; exit 0; }
@@ -40,6 +42,7 @@ change-migrates: yes
 change-drops: customer.colour
 change-rewrites: customer.name, to first and last
 change-services: the mail sender, a new sender address
+kept: n=\$(grep -c '^sample:' "\$DUMP"); m=\$(grep -c '^sample:' "\$DATA_DIR/data.txt" || true); echo "kept: customers — \$m rows"; [ "\$m" = "\$n" ]
 X
 dp() { RC=0; sh "$DP" "$@" > "$T/out" 2>&1 || RC=$?; }
 has() { $O rev-parse -q --verify "refs/heads/vid-results/$1" > /dev/null; }
@@ -51,7 +54,7 @@ CH="$(printf 'migrates: yes\ndrops: customer.colour\nrewrites: customer.name, to
 # no production yet: no backup yet, nothing started
 dp deploy --setup "$S" --target rehearsal --ask deploy-30 --commit "$C"; [ "$RC" = 0 ] && has deploy-30-1 || fail "a first rehearsal exited $RC"
 [ "$(tree deploy-30-1)" = 'deploy-30-1/change.txt deploy-30-1/deploy.xml deploy-30-1/report.txt ' ] || fail "the first rehearsal's tree: $(tree deploy-30-1)"
-[ "$(shw deploy-30-1 report.txt)" = "$(printf 'by: DP\ncommit: %s\noutcome: no backup yet' "$C")" ] && [ "$(shw deploy-30-1 change.txt)" = "$CH" ] || fail "the first rehearsal's report: $(shw deploy-30-1 report.txt)"
+[ "$(shw deploy-30-1 report.txt)" = "$(printf 'by: DP\ncommit: %s\ndecisions: none\noutcome: no backup yet' "$C")" ] && [ "$(shw deploy-30-1 change.txt)" = "$CH" ] || fail "the first rehearsal's report: $(shw deploy-30-1 report.txt)"
 shw deploy-30-1 deploy.xml | grep -q '<testcase name="restore"[^>]*><skipped message="no backup yet' && [ ! -s "$T/starts" ] || fail 'no backup yet deployed something'
 # production, then a rehearsal of it: a dump at its start, restored, migrated, sealed
 dp deploy --setup "$S" --target production --ask deploy-31 --commit "$C"; [ "$RC" = 0 ] || fail "the production deploy: $RC"
@@ -59,8 +62,8 @@ PD=$W/production/data/data.txt; BEFORE=$(cat "$PD")
 dp deploy --setup "$S" --target rehearsal --ask deploy-32 --commit "$C"; [ "$RC" = 0 ] && has deploy-32-1 || fail "a rehearsal exited $RC"
 [ "$(tree deploy-32-1)" = 'deploy-32-1/change.txt deploy-32-1/deploy.xml deploy-32-1/report.txt ' ] || fail "the rehearsal's tree: $(tree deploy-32-1)"
 A=$(shw deploy-32-1 report.txt | sed -n 's|^copy: \(http://127.0.0.1:[0-9][0-9]*\)$|\1|p'); [ -n "$A" ] || fail "no copy: line: $(shw deploy-32-1 report.txt)"
-[ "$(shw deploy-32-1 report.txt)" = "$(printf 'by: DP\ncommit: %s\noutcome: passed\nsealed: yes\ncopy: %s\nsignin: admin %s/_test/signin?role=admin\nsignin: member %s/_test/signin?role=member' "$C" "$A" "$A" "$A")" ] || fail "the rehearsal's report: $(shw deploy-32-1 report.txt)"
-[ "$(steps deploy-32-1)" = 'checkout restore migrate boot ' ] && ! shw deploy-32-1 deploy.xml | grep -q '<failure' && [ "$(shw deploy-32-1 change.txt)" = "$CH" ] || fail "the rehearsal's steps: $(steps deploy-32-1)"
+[ "$(shw deploy-32-1 report.txt)" = "$(printf 'by: DP\ncommit: %s\ndecisions: none\noutcome: passed\nkept: customers — 1 rows\nsealed: yes\ncopy: %s\nsignin: admin %s/_test/signin?role=admin\nsignin: member %s/_test/signin?role=member' "$C" "$A" "$A" "$A")" ] || fail "the rehearsal's report: $(shw deploy-32-1 report.txt)"
+[ "$(steps deploy-32-1)" = 'checkout restore migrate kept boot ' ] && ! shw deploy-32-1 deploy.xml | grep -q '<failure' && [ "$(shw deploy-32-1 change.txt)" = "$CH" ] || fail "the rehearsal's steps: $(steps deploy-32-1)"
 HD=$W/rehearsal/deploy-32-1; [ "$(cat "$HD/data/data.txt")" = "$(printf '%s\nmigrated by deploy-32-1' "$BEFORE")" ] && [ "$(cat "$PD")" = "$BEFORE" ] || fail "the copy's store, or production's: $(cat "$HD/data/data.txt")"
 grep -qx "deploy-31-1 $(cd "$W" && pwd -P)/rehearsal/deploy-32-1/dump" "$T/dumps" || fail "the dump was not taken of production for the rehearsal: $(cat "$T/dumps")"
 grep -qx 'deploy-32-1 rehearsal sealed' "$T/starts" && up "${A##*:}" || fail 'the copy was not started sealed, or is not up'
@@ -76,12 +79,21 @@ dp production --setup "$S"; grep -q "^production $C " "$T/out" || fail 'the rehe
 # the plant: a failed step reported with its change.txt, nothing restored or deployed
 n=$(wc -l < "$T/starts")
 dp deploy --setup "$S" --target rehearsal --ask deploy-34 --commit "$C" --fail-step migrate --product-change yes; [ "$RC" = 0 ] && has deploy-34-1 || fail "the plant exited $RC"
-[ "$(shw deploy-34-1 report.txt)" = "$(printf 'by: DP\ncommit: %s\noutcome: failed migrate\nproduct change: yes' "$C")" ] && [ "$(shw deploy-34-1 change.txt)" = "$CH" ] || fail "the plant's report: $(shw deploy-34-1 report.txt)"
+[ "$(shw deploy-34-1 report.txt)" = "$(printf 'by: DP\ncommit: %s\ndecisions: none\noutcome: failed migrate\nproduct change: yes' "$C")" ] && [ "$(shw deploy-34-1 change.txt)" = "$CH" ] || fail "the plant's report: $(shw deploy-34-1 report.txt)"
 [ "$(wc -l < "$T/starts")" -eq "$n" ] && [ ! -f "$W/rehearsal/live" ] || fail 'the plant deployed'
 # a real failed step: nothing pushed without a judgement, the copy destroyed; with one, reported
 sed 's|^restore: .*|restore: exit 3|' "$S" > "$S.f"; dp deploy --setup "$S.f" --target rehearsal --ask deploy-35 --commit "$C"; [ "$RC" = 4 ] && grep -q 'failed restore' "$T/out" && ! has deploy-35-1 || fail "a failed restore with no judgement: $RC"
 [ ! -d "$W/rehearsal/deploy-35-1/data" ] || fail 'a failed rehearsal left its store'
 dp deploy --setup "$S.f" --target rehearsal --ask deploy-35 --commit "$C" --product-change no; [ "$RC" = 0 ] && shw deploy-35-1 report.txt | grep -qx 'outcome: failed restore' && [ "$(shw deploy-35-1 change.txt)" = "$CH" ] || fail "a judged failed restore: $RC"
+# a lost row: failed kept, after migrate and before boot, its kept: lines in the report; the copy destroyed
+sed 's|^migrate: .*|migrate: sed -i.b "/^sample:/d" "$DATA_DIR/data.txt"|' "$S" > "$S.k"; n=$(wc -l < "$T/starts")
+dp deploy --setup "$S.k" --target rehearsal --ask deploy-38 --commit "$C"; [ "$RC" = 4 ] && grep -q 'failed kept' "$T/out" && ! has deploy-38-1 || fail "a lost row with no judgement: $RC"
+dp deploy --setup "$S.k" --target rehearsal --ask deploy-38 --commit "$C" --product-change no; [ "$RC" = 0 ] && has deploy-38-1 || fail "a judged lost row: $RC"
+[ "$(shw deploy-38-1 report.txt)" = "$(printf 'by: DP\ncommit: %s\ndecisions: none\noutcome: failed kept\nproduct change: no\nkept: customers — 0 rows' "$C")" ] || fail "the lost row's report: $(shw deploy-38-1 report.txt)"
+[ "$(steps deploy-38-1)" = 'checkout restore migrate kept ' ] && shw deploy-38-1 deploy.xml | grep -q '<testcase name="kept"[^>]*><failure' && [ "$(wc -l < "$T/starts")" -eq "$n" ] || fail "the lost row's steps, or the copy booted: $(steps deploy-38-1)"
+# no kept: line: a rehearsal refused, a plant not
+grep -v '^kept:' "$S" > "$S.b"; dp deploy --setup "$S.b" --target rehearsal --ask deploy-39 --commit "$C"; [ "$RC" = 1 ] && grep -q 'kept:' "$T/out" && ! has deploy-39-1 || fail "a rehearsal with no kept: line: $RC"
+dp deploy --setup "$S.b" --target rehearsal --ask deploy-39 --commit "$C" --fail-step boot --product-change no; [ "$RC" = 0 ] && has deploy-39-1 || fail "a plant with no kept: line: $RC"
 # change.txt from a record with none, and the refusals
 grep -v '^change-' "$S" > "$S.n"; dp deploy --setup "$S.n" --target rehearsal --ask deploy-36 --commit "$C" --fail-step boot --product-change no
 [ "$(shw deploy-36-1 change.txt)" = "$(printf 'migrates: no\ndrops: none\nservices: none')" ] || fail "change.txt with no change- lines: $(shw deploy-36-1 change.txt)"

@@ -139,7 +139,12 @@ sh "$DM" loop "$W/note.txt"; grep -q 'the stop file' "$W/dm-report.txt" && [ "$(
 # v0.26.10.25.1 R9: a pass's end saves the work folder less what is rebuilt on vid-dev/notes, and the loop puts it back in an empty folder
 git -C "$T/code.git" rev-parse -q --verify refs/heads/vid-dev/notes > /dev/null || fail 'no notes branch'; ! git -C "$T/code.git" ls-tree -r --name-only refs/heads/vid-dev/notes | grep -qE '^(agents|clones|runs|blind)/' || fail 'the notes hold what is rebuilt'; git -C "$T/code.git" ls-tree -r --name-only refs/heads/vid-dev/notes | grep -qx agents.txt || fail 'the notes lost the record'
 cp "$W/note.txt" "$T/nt"; rm -rf "$W"; mkdir -p "$W"; cp "$T/nt" "$W/note.txt"; echo x > "$W/dm-stop"; sh "$DM" loop "$W/note.txt"; [ -f "$W/agents.txt" ] && grep -q 'came back from vid-dev/notes' "$W/dm-report.txt" || fail 'the notes did not come back'; rm -f "$W/dm-stop"
+mkdir -p "$W/captures"; echo '{"real": "answer"}' > "$W/captures/mail.json"   # 0.26.11.1.1 (R2): the saved real answers are never committed, the notes repository already made
 n0=$(git -C "$T/code.git" rev-list --count refs/heads/vid-dev/notes); rm -f "$FC_LOG.script"; cp "$W/note.txt" "$W/n3"; DM_TICK=1 sh "$DM" loop "$W/n3"; [ "$(git -C "$T/code.git" rev-list --count refs/heads/vid-dev/notes)" -gt "$n0" ] || fail 'the notes did not go on from their history'
+! git -C "$T/code.git" ls-tree -r --name-only refs/heads/vid-dev/notes | grep -q '^captures/' || fail 'the notes hold captures/'
+# a captures/ already tracked by the notes repository is dropped, the save run from a subfolder of the work folder
+git --git-dir="$W/.notes.git" --work-tree="$W" add -f captures/mail.json && git --git-dir="$W/.notes.git" --work-tree="$W" -c user.name=t -c user.email=t@t commit -qm 'a tracked capture' || fail 'the capture could not be tracked'
+( cd "$W/clones/dm" && DM_TICK=1 sh "$DM" loop "$W/n3" ); ! git -C "$T/code.git" ls-tree -r --name-only refs/heads/vid-dev/notes | grep -q '^captures/' || fail 'the notes hold a tracked captures/, saved from a subfolder'
 # saved while a pass runs, and at a halt: a pass that is killed loses a tick at most
 rm -f "$W/dm-stop"; cat > "$FC_LOG.script" <<S
 echo mid > "\$DM_WORK/tickets/mid.txt"; n=0; until git -C "$T/code.git" ls-tree -r --name-only refs/heads/vid-dev/notes | grep -q tickets/mid.txt || [ "\$n" -ge 15 ]; do n=\$((n + 1)); sleep 1; done; echo "seen \$n" > "\$DM_WORK/mid-seen"; echo stop > "\$DM_WORK/dm-stop"

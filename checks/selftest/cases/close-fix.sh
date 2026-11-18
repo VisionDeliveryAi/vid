@@ -5,7 +5,8 @@
 # change accepted, the ask's issue closed, the asks kept by number; the fix ticket takes the line's three rows; the close is not owed again
 # while the fix ticket is open, and is once it merges, whole, at the fix's merge commit; a row red at an earlier close goes to the owner, a
 # `Q` line with both reasons and the three numbers, and no fix line, so the close is not owed again; the owner's again gives it its fix line;
-# the third close's numbers, a regression introduced; the owner's limit empties the unpublished line and the step closes. Env: CHECKS.
+# the third close's numbers, a regression introduced, red on another row than the second's, so the owner's (0.26.10.29.2, R7), whose
+# again gives it its fix line; the owner's limit empties the unpublished line and the step closes. Env: CHECKS.
 set -eu
 unset CLAUDE_CODE_SESSION_ID 2>/dev/null || true
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
@@ -69,7 +70,10 @@ QN=$(sed -n 's/^- \(Q[0-9]*\) · .*failed again after its fix.*/\1/p' .vid/RUN-S
 cs decide S01; ok '^close-fix S01 ROW-003$'; L2="fix ROW-003 | ROW-003: ROW-003 in alpha | close #$N of S01: req-$N-p1c1-1"; grep -qxF "$L2 | stand-in: RM" .vid/tw/handed || fail 'the again line is not written'
 tw_post fix "$(key "$L2")" || fail 'the again fix ticket was refused'; merge 'the fix again' 7 "$TW_N"; M3=$MC; cs owed; ok '^close S01$'; cs ask S01; N=$(sed -n 's/^asked \([0-9]*\) close.*/\1/p' "$T/out")
 rq p1c1-1 "$M3" ROW-003=pass ROW-004-T1=pass ROW-004-T2=pass ROW-004-T3=pass ROW-001=pass ROW-002=fail:new; fetch; cs decide S01
-ok '^close-numbers S01 3 regressions introduced 1 · defects still open 0 · fixed 1$'; ok '^close-fix S01 ROW-002$'; L3="fix ROW-002 | ROW-002: ROW-002 in alpha | close #$N of S01: req-$N-p1c1-1"
+ok '^close-numbers S01 3 regressions introduced 1 · defects still open 0 · fixed 1$'
+# 0.26.10.29.2 (R7): red on ROW-002 after ROW-003, not a strict subset: the owner's, no fix line; their again writes it
+ok '^close-shrink S01 ROW-002$'; no '^close-fix'; sh "$QS" sync > /dev/null 2>&1; QS3=$(sed -n 's/^- \(Q[0-9]*\) · .*did not shrink.*/\1/p' .vid/RUN-STATE.md); [ -n "$QS3" ] || fail 'the close that did not shrink has no Q line'
+sh "$QS" answer "$QS3" again 'one more fix' > "$T/out" 2>&1 || fail 'the again answer failed'; cs decide S01; ok '^close-fix S01 ROW-002$'; L3="fix ROW-002 | ROW-002: ROW-002 in alpha | close #$N of S01: req-$N-p1c1-1"
 # the owner rules ROW-002 a known limit: the unpublished line owes nothing, and the step closes
 printf 'ROW-002\taccepted\taccepted\t2\t%s\tx\n' "$(printf %.12s "$M")" >> .vid/decide/state; sh "$QS" sync > /dev/null 2>&1
 QR=$(sed -n 's/^- \(Q[0-9]*\) · .*the close of S01, chunk p1c1, failing:.*/\1/p' .vid/RUN-STATE.md); grep -q "failing: alpha:ROW-002 · regressions introduced 1 · defects still open 0 · fixed 1 · a fix ticket is written" .vid/RUN-STATE.md || fail 'the red Q line has no numbers'

@@ -21,6 +21,16 @@
 # (vid-test-inventory §4.6), which the inventory court needs at that commit,
 # and needs no Tests-by:. Every other file it adds under tests/invariants/,
 # and every later commit, is judged as before.
+# 0.26.10.29.3 (R2): a fourth refusal, by=owner — a commit that adds an owner
+# ruling carries at least one `Owner:` trailer quoting the owner's words —
+# `Owner: "<words>"`, or one per answer, `Owner: A-NNN "<words>"`. A ruling is
+# added when the staged PRD.md's effective answer set holds a `human` answer
+# whose id and `A:` text (whitespace collapsed) no effective `human` answer of
+# HEAD's PRD.md holds — a new id, a changed A:, or a ViD draft restated human
+# (during a merge, MERGE_HEAD's PRD.md counts as HEAD's too). Consolidation
+# (Q: dropped, AMENDED folded) and rows left as they were add none, and so does
+# the first commit of a PRD.md HEAD does not hold (an adopted file's rulings
+# were given where it was written).
 # serves: both (0.26.10.28.4, M9)
 set -eu
 
@@ -57,6 +67,30 @@ _st="$(dirname "$0")/../stages.sh"
 if [ -f "$_st" ] && ! sh "$_st" msg "$MSG_FILE"; then
   refused stages
   exit 1
+fi
+
+# 0.26.10.29.3 (R2): an owner ruling the commit adds carries the owner's words (the header above). rulings <blob>: the
+# effective human answers of that PRD.md, `<id><TAB><A: text, whitespace collapsed>` a line; nothing for no file.
+rulings() { git show "$1" 2>/dev/null | sed -n '/^```vid-prd-answers$/,/^```$/p' | grep -v '^```' | grep -v '^[[:space:]]*#' | grep -v '^[[:space:]]*$' | awk -F'|' '
+  function trim(s) { gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
+  { id = trim($1); sub(/[ \t]+AMENDED$/, "", id); a = ""
+    for (i = 4; i <= NF; i++) { f = trim($i); if (f ~ /^A:/) { sub(/^A:[ \t]*/, "", f); gsub(/[ \t]+/, " ", f); a = f; break } }
+    if (!(id in seen)) { o[++n] = id; seen[id] = 1 } T[id] = trim($2); A[id] = a }
+  END { for (k = 1; k <= n; k++) if (T[o[k]] == "human") print o[k] "\t" A[o[k]] }' || true; }
+if git diff --cached --name-only 2>/dev/null | grep -qxF PRD.md && git rev-parse -q --verify HEAD:PRD.md >/dev/null 2>&1; then
+  _old=$(rulings HEAD:PRD.md); if _mh=$(git rev-parse -q --verify MERGE_HEAD 2>/dev/null); then _old="$_old
+$(rulings "$_mh:PRD.md")"; fi
+  NEWR=$(rulings :PRD.md | OLD="$_old" awk 'BEGIN { n = split(ENVIRON["OLD"], a, "\n"); for (i = 1; i <= n; i++) O[a[i]] = 1 } NF && !($0 in O) { sub(/\t.*/, ""); print }' | paste -sd ' ' -)
+  if [ -n "$NEWR" ] && ! grep -v '^#' "$MSG_FILE" | grep -qE '^Owner:[[:space:]]+(A-[0-9]+[[:space:]]+)?("|“).+("|”)'; then
+    echo "ViD commit-msg: rejected — this commit adds the owner's ruling(s) $NEWR (a human answer HEAD's PRD.md does not hold) and carries no \"Owner:\" trailer quoting the owner's words." >&2
+    echo '' >&2
+    echo 'A human answer records what the owner said. Quote it in the message, once for the sitting or once per answer:' >&2
+    echo '    Owner: "<the owner'"'"'s words>"' >&2
+    echo '    Owner: A-NNN "<the owner'"'"'s words for that answer>"' >&2
+    echo 'An answer the owner has not seen is ViD'"'"'s draft: write it model_proposed, and restate it human (an AMENDED row) once the owner says yes.' >&2
+    refused owner
+    exit 1
+  fi
 fi
 
 # Tests-by: required when the commit adds a ledger file (v0.9.2 3.1c).

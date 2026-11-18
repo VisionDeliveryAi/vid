@@ -23,6 +23,10 @@
 # a decision file is overwritten at each decision, so this line alone keeps the time.
 # v0.26.10.25.5 (R4): an id landed after a ticket was published (.vid/decide/landed) is decided from none of its evidence, and a merge takes
 # nothing for it from a decision made before its landing. A `reset` ruling, the landing's, reads as none.
+# 0.26.10.29.5 (DP-1 R8): it reads the pull request's description too, through github.sh pr-body: with no Decisions section (neither the
+# line `Decisions: none` nor a `Decisions:` line with a `- ` line under it) the decision reads `ticket: not yet` with the one line
+# `decisions missing — the pull request's description has no Decisions section, nor Decisions: none`, against no row; no row's state,
+# count or hold moves for it, and the same head asked again once the section is there is answered without it.
 # serves: tickets (0.26.10.28.4, M9)
 set -eu
 LC_ALL=C; export LC_ALL
@@ -97,25 +101,29 @@ DE='function why(a, b) { return (a == "") ? b : (b == "") ? a : a "; " b }
       LN[i] = R " " TX; JB[i] = (R != B) ? B : ""; if (R != B && FI !~ /^(accepted|accepted by ruling|owed|known limit|passing|its state stands)$/) JN[B] = 1
       f2 = RD "/" R ".txt"; o = 0; dup = 0; while ((getline l < f2) > 0) { split(l, a, "\t"); o = (a[3] != "answered"); if (a[2] == H && a[4] == TX) dup = 1 } close(f2)
       if ((S == "failing" || S == "evidence missing") && !dup) { print NOWT "\t" H "\t" S "\t" TX >> f2; close(f2) } else if ((S == "accepted" || S == "passing" || S == "owed") && o) { print NOWT "\t" H "\tanswered" >> f2; close(f2) } }
-    if (KD != "reached") { if (gg != "read") SL = "sort evidence missing — " ((gg == "refused") ? "grade report refused, " ggid : "no grade report"); else if (ol && gs != "read") SL = "sort evidence missing — " ((gs == "refused") ? "sort report refused, " gid : "no sort report"); if (SL != "") NOT = 1 } if (BL != "" || n == 0) NOT = 1
+    if (KD != "reached" && FW == "") { if (gg != "read") SL = "sort evidence missing — " ((gg == "refused") ? "grade report refused, " ggid : "no grade report"); else if (ol && gs != "read") SL = "sort evidence missing — " ((gs == "refused") ? "sort report refused, " gid : "no sort report"); if (SL != "") NOT = 1 } if (BL != "" || n == 0) NOT = 1
+    if (DMS != "") NOT = 1   # 0.26.10.29.5 (DP-1 R8): a description with no Decisions section: a line of the ticket, against no row
     printf "vid: decision %s\nticket: %s\n", HEAD, (NOT ? "not yet" : "accepted") > CO
     for (i = 1; i <= n; i++) { print LN[i] >> CO; if (JB[i] != "" && JB[i + 1] != JB[i]) print JB[i] " " ((JB[i] in JN) ? "not accepted, by a transition above" : "accepted") >> CO }
     for (i = 1; i <= neg; i++) print eg[i] >> CO
     if (KD != "skeleton" && (nsp || (SPH + 0 && NASK + 0 < split(DECL, w, " ")))) { AL = DECL; nd = split(SE, w, " "); for (j = 1; j <= nd; j++) if (index(" " DECL " ", " " w[j] " ") == 0) AL = AL (AL == "" ? "" : " ") w[j]; print "split — every engine is now asked: " AL >> CO }
     if (an >= 5 && (AH == "" || AH == H)) { print "analyst due — " ae ", " an " cases could not run over " ak " runs" >> CO; if (AH == "") print N "\t" H > ANF }
-    if (SL != "") print SL >> CO; if (SP) print "Fix the whole harm, not the instance named: name what must not happen, find every other way to it, and fix those too." >> CO
+    if (SL != "") print SL >> CO; if (DMS != "") print "decisions missing — the pull request\047s description has no Decisions section, nor Decisions: none" >> CO; if (SP) print "Fix the whole harm, not the instance named: name what must not happen, find every other way to it, and fix those too." >> CO
     for (i = 1; i <= n0; i++) { split(c0[i], x, " "); if (!(x[1] in drop)) print c0[i] > CN } for (i = 1; i <= na; i++) { split(ad[i], x, " "); if (!(x[1] in drop)) print ad[i] >> CN } close(CN)
     for (k in drop) print k > DR }'
 cmd_decide() { N=''; P=''; HD=''; POST=''; while [ $# -gt 0 ]; do case $1 in --post) POST=1; shift ;; --ticket) N=$2; shift 2 ;; --pr) P=$2; shift 2 ;; --head) HD=$2; shift 2 ;; *) die "unknown $1" ;; esac; done
   [ -n "$N" ] && [ -n "$P" ] && [ -n "$HD" ] || die 'usage — sh checks/decide.sh decide --ticket <n> --pr <p> --head <commit> [--post]'
   H=$(printf %s "$HD" | cut -c1-12); E=.vid/results/pr-$P-$H.txt; [ -f "$E" ] || ref "no evidence file at $E: read the reports first"
-  F=.vid/tw/out/issue-$N.md; [ -f "$F" ] || die "no published ticket at $F"; KD=$(sed -n 's/^- kind: //p' "$F" | head -n 1)
+  F=.vid/tw/out/issue-$N.md; [ -f "$F" ] || die "no published ticket at $F"; KD=$(sed -n 's/^- kind: //p' "$F" | head -n 1); FW=$(sed -n 's/^- follows: //p' "$F" | head -n 1)   # FW: a follow-up's (0.26.10.28.10, R1)
+  # 0.26.10.29.5 (DP-1 R8): the description read as the blocked label is, through github.sh; no Decisions section (decisions.sh section's
+  # one reader: neither `Decisions: none` nor a `Decisions:` line with a `- ` line under it) makes the ticket not yet, beside every other line
+  sh "$HERE/github.sh" pr-body "$P" > "$T/body" || die 'the description could not be read'; DMS=''; [ "$(sh "$HERE/decisions.sh" section "$T/body" | head -n 1)" != missing ] || DMS=1
   BL=$(sh "$HERE/github.sh" decide-blocked "$N" "$P") || die 'the labels could not be read'; items "$F" > "$T/items"; : > "$T/new" ; : > "$T/dr"; : > "$T/ro"; : > "$T/co"; : > "$T/hn"; PH=$(cut -c1-12 "$D/last-pr-$P" 2>/dev/null || true)
   DECL=$(sed -n 's/^engines \([^|]*\)|.*/\1/p' .vid/tw/handed 2>/dev/null | tail -n 1 | sed 's/ *$//'); SPH=$(grep -c '^engine-split ' .vid/tw/handed 2>/dev/null || true); : > "$T/sp"; : > "$T/an"
   NASK=$(awk '/^## / { s = substr($0, 4); next } s == "Engines" && /^- (primary|also): / { n++ } END { print n + 0 }' "$F"); AH=$(awk -F'\t' -v n="$N" '$1 == n { print $2; exit }' "$D/analyst")
   : > "$T/stale"; [ ! -f .vid/tw/log ] || awk -v n="$N" '$1 == "published" && $2 == n { p = 1; next } p && $1 == "landed" { for (i = 2; i <= NF; i++) if ($i ~ /^ids=/) { m = split(substr($i, 5), a, ","); for (j = 1; j <= m; j++) print a[j] } }' .vid/tw/log > "$T/stale"   # R4 (v0.26.10.25.5): no evidence from a ticket published before a landing, by the log's order
   sh "$HERE/close.sh" owned > "$T/ow" 2>/dev/null || : > "$T/ow"; OWN=" $(sed -n 's/^- rows: //p' "$F" | head -n 1) "
-  W=$(now); awk -v N="$N" -v P="$P" -v H="$H" -v KD="$KD" -v BL="$BL" -v DECL="$DECL" -v SPH="$SPH" -v NASK="$NASK" -v AH="$AH" -v SPF="$T/sp" -v ANF="$T/an" -v NOWT="$W" -v RD="$D/rows" -v CF="$D/counts" -v LF="$D/limits" -v UF="$D/rulings" -v IF="$T/items" -v SF="$D/state" -v PF="$D/pr-$P-$PH.rows" -v PH="$PH" -v HF="$D/halted" -v OWF="$T/ow" -v STF="$T/stale" -v HN="$T/hn" -v CO="$T/co" -v RO="$T/ro" -v CN="$T/new" -v DR="$T/dr" "$DE" "$E"; cat "$T/hn" >> "$D/halted"; cat "$T/an" >> "$D/analyst"
+  W=$(now); awk -v N="$N" -v P="$P" -v H="$H" -v KD="$KD" -v FW="$FW" -v BL="$BL" -v DMS="$DMS" -v DECL="$DECL" -v SPH="$SPH" -v NASK="$NASK" -v AH="$AH" -v SPF="$T/sp" -v ANF="$T/an" -v NOWT="$W" -v RD="$D/rows" -v CF="$D/counts" -v LF="$D/limits" -v UF="$D/rulings" -v IF="$T/items" -v SF="$D/state" -v PF="$D/pr-$P-$PH.rows" -v PH="$PH" -v HF="$D/halted" -v OWF="$T/ow" -v STF="$T/stale" -v HN="$T/hn" -v CO="$T/co" -v RO="$T/ro" -v CN="$T/new" -v DR="$T/dr" "$DE" "$E"; cat "$T/hn" >> "$D/halted"; cat "$T/an" >> "$D/analyst"
   while IFS=$TAB read -r r e; do mkdir -p .vid/tw; grep -q "^engine-split $r " .vid/tw/handed 2>/dev/null || printf 'engine-split %s | stand-in: %s\n' "$r" "$e" >> .vid/tw/handed; done < "$T/sp"   # R11: once a row, never unwritten
   put "$D/counts" < "$T/new" || exit 1; for r in $(cat "$T/dr"); do grep -v "^$r " "$D/limits" > "$T/l" || true; put "$D/limits" < "$T/l" || exit 1; done
   put "$D/pr-$P-$H.rows" < "$T/ro" || exit 1; put "$D/pr-$P-$H.txt" < "$T/co" || exit 1; printf '%s\n' "$(sed -n '1s/^vid: decision //p' "$T/co")" > "$T/lp" || exit 1; put "$D/last-pr-$P" < "$T/lp" || exit 1

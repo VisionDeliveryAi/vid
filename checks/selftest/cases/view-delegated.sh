@@ -14,6 +14,8 @@ fail() { echo "view-delegated: $*" >&2; exit 1; }
 view_project "$T/repo"
 vview . --out "$T/out" > "$T/r1" 2>&1 || fail "the first run failed: $(cat "$T/r1")"
 vdata "$T/out/now.html" | grep -q '{"id":"A-002",.*"delegated":false}' || fail 'A-002 read as delegated from its wording alone'
+# 0.26.10.29.3 (R2): the mark asks for `delegated: yes` on the answer's row; the working tree's row is given it
+sed 's/^\(A-002 | human | .*\)$/\1 | delegated: yes/' PRD.md > "$T/prd" && cp "$T/prd" PRD.md
 sh checks/metrics.sh delegated --answer A-002 > /dev/null || fail 'the mark was refused'
 vview . --out "$T/out" > "$T/r2" 2>&1 || fail "the second run failed: $(cat "$T/r2")"
 if grep '^ViD view: computed ' "$T/r2" | grep -v 'computed now.html' | grep -q .; then fail "a past moment was computed again: $(grep computed "$T/r2")"; fi

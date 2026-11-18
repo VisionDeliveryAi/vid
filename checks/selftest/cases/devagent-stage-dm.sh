@@ -57,7 +57,7 @@ for l in 'skills/vid-grade/GRADING.md' 'You run nothing' '**pass:**' '**partial:
   grep -qF -- "$l" "$F" || fail "the stage grader's file lacks: $l"; done
 for l in '## A stage grade' '`<prefix>grade`' 'grade-<n>' 'vid: reported s1-<k>' 'lost s1 <k>' 'vid: again s1' '`vid: refused`' 'stage-grader' '--leave-out' 'req-<n>-p1cx' '**Who does each:**' 'close: stage-<N>'; do
   grep -qF -- "$l" "$RT/devagent/agents/dev-manager.md" || fail "the dev manager's file lacks: $l"; done
-! git -C "$RT" cat-file -e 00109a8 2> /dev/null || [ "$(git -C "$RT" rev-parse 00109a8:standin/agents/grader.md 2>/dev/null)" = "$(git -C "$RT" hash-object devagent/agents/grader.md)" ] || fail "the row grader's file changed since 00109a8"
+! git -C "$RT" cat-file -e 00109a8 2> /dev/null || [ "$(git -C "$RT" rev-parse 00109a8:standin/agents/grader.md 2>/dev/null)" = "$(sed -f "$CHECKS/selftest/fixtures/grader-dp1-r3.sed" "$RT/devagent/agents/grader.md" | git hash-object --stdin)" ] || fail "the row grader's file changed since 00109a8, beyond DP-1 R3's two sentences"
 case $(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' "$RT/.claude-plugin/plugin.json") in
   0.26.10.25.5.1|0.26.10.26.*) ! git -C "$RT" cat-file -e aa6e610 2> /dev/null || [ "$(git -C "$RT" rev-parse aa6e610:standin/agents/second-reviewer.md 2>/dev/null)" = "$(git -C "$RT" hash-object devagent/agents/second-reviewer.md)" ] || fail "the second reviewer's file changed in this release" ;;
 esac

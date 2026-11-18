@@ -358,6 +358,9 @@ can't start an agent, and the run manager gets the line at the hand-back.
   directory — and commit with `git commit -F` that path. Never a shared
   scratchpad or a `/tmp` name: agents working at once would cross their
   messages.
+- **A helper file** (a script, a scratch copy, a draft a court reads): write
+  it as UTF-8 with Unix (LF) line endings, whatever the machine's default;
+  the courts refuse a spec file with Windows line endings (0.26.10.29.3, R9).
 - **A new D-number:** take it with `sh checks/decisions.sh next --try
   <your try>`. It is reserved at the run's home, above every number in
   your branch, the home's and every reservation, so agents working at once

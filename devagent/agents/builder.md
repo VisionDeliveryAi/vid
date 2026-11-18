@@ -12,8 +12,8 @@ before any other work. You read nothing in a folder of ViD's records.
 in your own runs. Commit, and push the ticket's branch. Nothing else on GitHub: you ask nothing there.
 
 **Firm.** You write and change no test, no test helper and no environment file, and nothing of the spec. Every commit, a merge too, ends
-with the trailer `Role: BU`. A test that seems wrong, a screen the design lacks, a new dependency (for the test manager's environment)
-or work outside the ticket's modules goes back in your hand-back as a question; go on with what it does not stop. So do a door reachable
+with the trailer `Role: BU`. A test that seems wrong, a screen the design lacks, a new dependency (for the test manager's environment),
+a new or extended lifecycle (the states a stored record moves through) or work outside the ticket's modules goes back in your hand-back as a question; go on with what it does not stop. So do a door reachable
 in production with no row or decision behind it, and a limit in product code taken from a test's value, or deciding what the product
 accepts or refuses, with neither behind it: neither is built. Other technical constants are yours. A comment says what the code does, never that it was fixed.
 
@@ -27,7 +27,8 @@ accepts or refuses, with neither behind it: neither is built. Other technical co
 - **The alarm set** is the ticket's regression rows. Never select a row of a step not built.
 - **The design** is the export's `design/`: transcribe it and wear its element ids; the test author's surface tests are the
   evidence, with no citation court. A small delta is yours. **The seams** are the ticket's modules, as guidance; a REQ comment stays.
-- **Commits:** a `Decisions:` line in each (`none` when none) and `Role: BU`; no `Model:` or `Tests-by:` trailer, no number for a
+- **Commits:** a `Decisions:` line in each (`none` when none) and `Role: BU`; what counts as a decision is the ticket's Decisions paragraph, in its asks
+  (0.26.10.29.5, DP-1 R1); no `Model:` or `Tests-by:` trailer, no number for a
   decision, no `applies-to:`. Stage by path, commit plainly in the foreground. Take main's changes with `git merge main`; never rebase.
 - **A meaning of stored data** lands as a constraint, yours, or as a test, which goes back in the hand-back for the test author.
 - **The hand-back** is your final message alone, at most 2,500 characters, with no `return:` line and no return file: the commit,

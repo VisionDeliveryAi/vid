@@ -1928,6 +1928,12 @@ fi
 #     the latest row per id, AMENDED stripped — checks/prd.sh's own rule), for an answer of tier model_proposed
 #     (already ViD's), and for an id already marked. The mark says how the answer was made, never when: readers
 #     apply it wherever the answer is live. Run at the project's home (PRD.md and .vid/ beside it).
+# 0.26.10.29.3 (R2): also refused for an answer that a withdrawn arm cites — any item row (every ```vid-prd block,
+#     every row, superseded or not, as the court's join 14 judges them) whose `arms:` holds `<n> withdrawn <A-id>` —
+#     naming the item: an answer that takes a failure clause away is never the owner's by delegation; it stays ViD's draft
+#     (model_proposed) until the owner confirms it. Run before the commit, so the refusal comes in time.
+# 0.26.10.29.3 (R2): and refused for an answer whose effective row lacks the field `delegated: yes` — the row is what the
+#     court reads (checks/prd.sh join 14 holds a removal citing such an answer), so the row and this mark never differ.
 if [ "${1:-}" = delegated ]; then
   [ "${2:-}" = --answer ] && [ -n "${3:-}" ] && [ $# -eq 3 ] || { echo 'ViD metrics: usage — sh checks/metrics.sh delegated --answer <A-id>' >&2; exit 2; }
   DA=$3
@@ -1935,10 +1941,21 @@ if [ "${1:-}" = delegated ]; then
   case "$DA" in A-[0-9]*) ;; *) dlref "$DA is not an answer id (A-NNN)." ;; esac
   [ -f PRD.md ] && [ -d .vid ] || dlref 'run at the project'"'"'s home: PRD.md and .vid/ are not here.'
   DT=$(sed -n '/^```vid-prd-answers$/,/^```$/p' PRD.md | grep -v '^```' | grep -v '^[[:space:]]*#' | awk -F'|' -v a="$DA" '
-    { id = $1; gsub(/^[ \t]+|[ \t]+$/, "", id); sub(/[ \t]+AMENDED$/, "", id); if (id != a) next; t = $2; gsub(/^[ \t]+|[ \t]+$/, "", t); tier = t; f = 1 }
-    END { if (f) print tier }')
+    { id = $1; gsub(/^[ \t]+|[ \t]+$/, "", id); sub(/[ \t]+AMENDED$/, "", id); if (id != a) next; t = $2; gsub(/^[ \t]+|[ \t]+$/, "", t); tier = t; f = 1
+      d = "no"; for (i = 4; i <= NF; i++) { x = $i; gsub(/^[ \t]+|[ \t]+$/, "", x); if (x ~ /^delegated:[ \t]*yes$/) d = "yes" } }
+    END { if (f) print tier " " d }')
   [ -n "$DT" ] || dlref "$DA is not in the PRD's effective answer ledger."
+  DF=${DT#* }; DT=${DT% *}
   [ "$DT" != model_proposed ] || dlref "$DA is of tier model_proposed: it is already ViD's, so there is no delegation to mark."
+  DW=$(sed -n '/^```vid-prd$/,/^```$/p' PRD.md | grep -v '^```' | grep -v '^[[:space:]]*#' | awk -F'|' -v a="$DA" '
+    function trim(x) { gsub(/^[ \t]+|[ \t]+$/, "", x); return x }
+    { id = trim($1); sub(/[ \t]+AMENDED$/, "", id); if (id == "") next; h = 0
+      for (i = 2; i <= NF; i++) { f = trim($i); if (f !~ /^arms:/) continue; sub(/^arms:[ \t]*/, "", f); n = split(f, e, ",")
+        for (k = 1; k <= n; k++) { m = split(trim(e[k]), w, /[ \t]+/); if (m >= 3 && w[2] == "withdrawn" && w[3] == a) h = 1 } }
+      if (h) H[id] = 1; if (!(id in s)) { o[++c] = id; s[id] = 1 } }
+    END { for (k = 1; k <= c; k++) if (H[o[k]]) l = l (l == "" ? "" : ", ") o[k]; print l }')
+  [ -z "$DW" ] || dlref "$DA is cited by a withdrawn arm of $DW (arms: … withdrawn $DA): an answer that takes a failure clause away is never the owner's by delegation — it stays ViD's draft (model_proposed) until the owner confirms it at a sitting."
+  [ "$DF" = yes ] || dlref "$DA's row does not carry delegated: yes: an answer written under the owner's delegation says so on its own row (add | delegated: yes to it, an AMENDED restatement once it is committed), which is what the court reads."
   if [ -f "$EV" ] && awk -v a="$DA" "$AWKAT"' $1 == "delegated" && kv("answer") == a { f = 1 } END { exit f ? 0 : 1 }' "$EV"; then dlref "$DA is already marked delegated."; fi
   printf 'delegated answer=%s at=%s\n' "$DA" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >> "$EV"
   echo "ViD metrics: $DA marked delegated (tier $DT)"

@@ -259,12 +259,23 @@
 #                      plan=<hash>`, outside ticket mode; admission is otherwise unchanged.
 #   run-start          (R5) the place, `<at> <line>` tab-separated, of the first develop start after the newest start of
 #                      any other verb and the newest develop end, in the gate's order; exit 1 when none.
+# 0.26.10.29.2 (R1) — a change in the run is held to ticket mode's plan rules: with `mode: tickets` and the newest stage
+#   start `stage name=run`, `change` runs checks/planner.sh check on the candidate after the block's own check and before
+#   it records the plan, at the ceiling the change itself raises; it is refused, as any refusal (result=refused, the
+#   hash kept), only on a flag the newest recorded plan, checked at the same ceiling, did not have, the flags printed.
+#   /vid plan's session (stage plan) and develop never run it.
+# 0.26.10.29.2 (R9) — closed at its current rows: rule B (tickets) and breadth first's graded gate read a step built on as
+#   closed only with its `closed` line and every row it holds in the plan now in a settled handed state (accepted,
+#   accepted-by-ruling, owed, paid, held, known-limit, retired); rule B's other alternative (every row owed, paid, held
+#   or a known limit) is as it was.
+#   canon              stdin's plan block in the admission's canonical form (runs of space one space, each step's rows a
+#                      sorted set): planner.sh's ratified compares the block to the newest recorded plan through it.
 # Usage: sh checks/plan.sh gate | home-of | home --brief <f> | check | change <what> "<why>" [--trigger … --expect … ] [--not-needed-by <ids> "<why>"] | strategy <s> --by owner --words "<…>" | start <id> | admit --brief <f> | map [--all] | charged | base <id> | parse [<file>] | redstamp --staged | skeleton | guard --paths - | run-start
 # serves: both (0.26.10.28.4, M9)
 set -u
 IFS='
 '
-usage() { echo 'ViD plan: usage — sh checks/plan.sh gate | home-of | home --brief <f> | check | change <what> "<why>" --trigger <t>[,<t>…] [--evidence <ref>[,<ref>…]] --expect "<one line>" [--alternatives "<one line>"] [--not-needed-by <id>[,<id>…] "<why>"] | strategy <depth-first|breadth-first> --by owner --words "<the owner'"'"'s words>" | start <id> | admit --brief <f> | map [--all] | charged | base <id> | parse [<file>] | redstamp --staged | skeleton | guard --paths - | run-start' >&2; exit 2; }
+usage() { echo 'ViD plan: usage — sh checks/plan.sh gate | home-of | home --brief <f> | check | change <what> "<why>" --trigger <t>[,<t>…] [--evidence <ref>[,<ref>…]] --expect "<one line>" [--alternatives "<one line>"] [--not-needed-by <id>[,<id>…] "<why>"] | strategy <depth-first|breadth-first> --by owner --words "<the owner'"'"'s words>" | start <id> | admit --brief <f> | map [--all] | charged | base <id> | parse [<file>] | redstamp --staged | skeleton | guard --paths - | run-start | canon' >&2; exit 2; }
 top() { git rev-parse --show-toplevel 2>/dev/null || pwd -P; }
 # bound_here <home>: this checkout's branch has a live agent or an unfinished Codex job of the run at <home> bound to it
 # (v0.26.10.3 R8, R10: checks/testenv.sh bound, the one liveness rule; without it, nothing is bound)
@@ -481,6 +492,7 @@ mkmap() {
 states() { ( cd "$H" && sh checks/evidence.sh rows --at "$1" --map "$TMPD/map" ${VID_EVIDENCE_LEGACY:+--legacy} ) > "$TMPD/states" || { echo 'ViD plan: refused — checks/evidence.sh could not read the evidence.' >&2; return 1; }; }
 okstate() { case "$1" in pass|owed|deploy-owed|held|later) return 0 ;; *) return 1 ;; esac; }
 budget() {
+  [ -z "${BUDOV:-}" ] || { echo "$BUDOV"; return 0; }   # 0.26.10.29.2 (R1): the raise of the change being judged
   _b=''; _s=''; [ -f "$H/.vid/budget" ] && { _b=$(sed -n 's/^unverified-rows=\([0-9][0-9]*\).*/\1/p' "$H/.vid/budget" | tail -n 1); _s=$(sed -n 's/^stacks=\([0-9][0-9]*\).*/\1/p' "$H/.vid/budget" | head -n 1); }
   _base=$((60 * ${_s:-1})); [ -n "$_b" ] || _b=60
   if [ "$_b" -gt "$_base" ] && ! events plan-change | grep ' what=other ' | grep -q "unverified-rows=$_b\([^0-9]\|$\)"; then
@@ -569,13 +581,21 @@ tickets_mode() { [ "$(sed -n 's/^mode:[[:space:]]*//p' "$H/.vid/RUN-STATE.md" 2>
 hand() { [ -f "$H/.vid/tw/handed" ] && sed -n "s/^$1[[:space:]][[:space:]]*//p" "$H/.vid/tw/handed" | sed 's/[[:space:]]*|[[:space:]]*stand-in.*$//'; }
 trs() { tmpd; { hand row || true; } | awk '{ S[$1] = $2 } END { for (r in S) print r "\t" S[r] }' > "$TMPD/rs"; }
 TOK='function ok(x) { return x ~ /^(accepted|accepted-by-ruling|owed|paid|held|known-limit|retired)$/ }'
-# trules <step> <new rows file>: rule B — each step it builds on closed, or its rows owed, held or known limits; rule A —
-# the rows of started steps not accepted, ruled, owed, paid, held or limits, with the step's new rows, each once,
-# within budget() (60 × .vid/budget stacks=, or unverified-rows=: planner.sh's P12 reads the same)
+# 0.26.10.29.2 (R9): tclosed <step> (after trs): closed at its current rows — its `closed` line, and every row it holds in this
+# plan in a settled handed state (accepted, accepted by ruling, owed, paid, held, known limit, retired), so rows it gained after
+# its close, rows a landing reset and rows a later C3 marked failing all hold it open; TUN, the rows that are not settled,
+# set only when it has its closed line
+tclosed() { TUN=''; { hand closed || true; } | grep -qx "$1" || return 1
+  TUN=$(awk -F'\t' -v b="$1" "$TOK"' FILENAME == ARGV[1] { S[$1] = $2; next } $1 == "row" && $3 == b && !ok(S[$2]) { printf "%s%s", (n++ ? " " : ""), $2 }' "$TMPD/rs" "$TMPD/parsed"); [ -z "$TUN" ]; }
+# trules <step> <new rows file>: rule B — each step it builds on closed at its current rows (tclosed), or its rows owed, paid,
+# held or known limits; rule A — the rows of started steps not accepted, ruled, owed, paid, held or limits, with the step's
+# new rows, each once, within budget() (60 × .vid/budget stacks=, or unverified-rows=: planner.sh's P12 reads the same)
 trules() {
   _s=$1; _nr=$2; GAP=''; trs
   for _b in $(awk -F'\t' -v s="$_s" '$1 == "step" && $2 == s { print $5 }' "$TMPD/parsed" | tr ' ' '\n' | grep -v '^-$' | grep -v '^$'); do
-    hand closed | grep -qx "$_b" && continue
+    tclosed "$_b" && continue
+    if [ -n "$TUN" ]; then GAP="$GAP
+    $_s builds on $_b, which is closed, but its rows $TUN are not accepted, ruled, owed, paid, held, known limits or retired (gained or reset since its close, or failing)"; continue; fi
     _o=$(awk -F'\t' -v b="$_b" 'FILENAME == ARGV[1] { S[$1] = $2; next } $1 == "row" && $3 == b && S[$2] !~ /^(owed|paid|held|known-limit)$/ { printf "%s%s", (n++ ? " " : ""), $2 }' "$TMPD/rs" "$TMPD/parsed")
     [ -z "$_o" ] || GAP="$GAP
     $_s builds on $_b, which is not closed, and its rows $_o are not owed, held or known limits"
@@ -605,9 +625,11 @@ tlimit() {
   echo "ViD plan: refused — the open-ticket limit: ${_n%%:*} tickets open or owed (${_n#*: }) of open-tickets: $_l; $1 waits until one closes (sh checks/github.sh tw-sync)." >&2; refused_ev open-tickets "$1"; return 1
 }
 # tstepstate <ids, comma-separated>: breadth first's step states in ticket mode → $TMPD/ss, as metrics.sh step-state's
-# lines: a closed step (handed) is closed and graded (its rows' T5 is in their acceptance); a failing row a breach
+# lines: a closed step (handed) is closed and graded (its rows' T5 is in their acceptance); a failing row a breach.
+# 0.26.10.29.2 (R9): closed at its current rows, as rule B reads it (tclosed); a closed line with rows not settled since is
+# not closed, each such row a not-closed line
 tstepstate() { trs; : > "$TMPD/ss"; for _x in $(printf '%s\n' "$1" | tr ',' '\n'); do
-    if hand closed | grep -qx "$_x"; then _c=yes; _w=handed; else _c=no; _w=none; fi
+    if tclosed "$_x"; then _c=yes; _w=handed; elif [ -n "$TUN" ]; then _c=no; _w=handed; for _r in $(printf '%s\n' "$TUN" | tr ' ' '\n'); do printf 'not-closed step=%s row=%s\n' "$_x" "$_r" >> "$TMPD/ss"; done; else _c=no; _w=none; fi
     _d=$_c; [ "$_c" = no ] || ! awk -F'\t' -v s="$_x" 'FILENAME == ARGV[1] { S[$1] = $2; next } $1 == "row" && $3 == s && S[$2] == "held" { f = 1 } END { exit !f }' "$TMPD/rs" "$TMPD/parsed" 2>/dev/null || _d=no   # done: closed, with no held row (v0.26.10.25.3)
     printf 'step-state step=%s closed=%s graded=%s close=%s done=%s\n' "$_x" "$_c" "$_c" "$_w" "$_d" >> "$TMPD/ss"; done
   # v0.26.10.26.3 (R5): a breach is the row's newest decision failing or held on a product failure, whatever its handed line says; a
@@ -784,6 +806,34 @@ write_decision() {
     if [ "$1" = refused ]; then printf 'refusal=%s\n' "$2"; fi
   } > "$_dd/$DID.why.tmp" && mv "$_dd/$DID.why.tmp" "$_dd/$DID.why"
 }
+# 0.26.10.29.2 (R1): runstage, the newest stage start at the home (the gate's order) is `run`. tplanner: in ticket mode, while
+# the run's stage is `run` (never /vid plan's session, which records first and checks after, nor develop), the candidate is
+# held to ticket mode's own plan rules before it is recorded: planner.sh check on it, at the ceiling this change raises
+# (`other` naming unverified-rows=<n>, read as the kept plan's raise is), refused only on a flag the newest recorded plan,
+# checked at that same ceiling, did not have; so a flag outside the block, or one already there, never blocks a change.
+# The flags it adds are printed and the refusal is kept as any other (result=refused, the recorded hash unchanged).
+# planner.sh's P3 (a planned, moved or owed row in no step) refuses a change that orphans a started row, whatever its state
+runstage() { [ -f "$H/.vid/metrics-events" ] && [ "$(stage_order "$H/.vid/metrics-events" | awk -F'\t' '$3 == "stage" && $5 == "start" { l = $4 } END { print l }')" = run ]; }
+tplanner() {
+  tickets_mode && runstage || return 0
+  _pl=$(cd "$(dirname "$0")" && pwd)/planner.sh; _cl=''
+  [ "$WHAT" != other ] || _cl=$(printf '%s\n' "$WHY" | sed -n 's/.*unverified-rows=\([0-9][0-9]*\).*/\1/p' | head -n 1)
+  _rc=0; ( cd "$H" && sh "$_pl" check --ceiling "$_cl" ) > "$TMPD/pk" 2> "$TMPD/pk.err" || _rc=$?
+  [ "$_rc" != 0 ] || return 0
+  if [ "$_rc" != 1 ]; then echo "ViD plan: note — planner.sh check could not read the plan ($(tail -n 1 "$TMPD/pk.err")); the change is not held to the plan rules." >&2; return 0; fi
+  _pb=$H/.vid/plans/$PREV.plan; [ "$PREV" != none ] && [ -f "$_pb" ] || { _pb=$TMPD/none.plan; : > "$_pb"; }   # no recorded plan: an empty block's flags
+  ( cd "$H" && sh "$_pl" check --block "$_pb" --ceiling "$_cl" ) > "$TMPD/pk0" 2> /dev/null || :
+  # a flag is its whole line, counted: added when the candidate has a line more often than the recorded plan. Two forms read
+  # looser, so a change that only moves a row or shrinks a step is not refused for it: a size flag is its step's whatever its
+  # count, added only when the step holds more rows than it did; a needs flag's `in step <S>` names no step
+  awk 'function key(l,  i) { if (l ~ /^size /) { i = index(l, " — "); return i ? substr(l, 1, i - 1) : l } if (l ~ /^needs /) gsub(/in step [^ ,]+/, "in step -", l); return l }
+    function rows(l,  x) { if (l !~ /^size /) return -1; x = substr(l, index(l, " — ") + 1); sub(/^[^0-9]*/, "", x); return x + 0 }
+    FILENAME == ARGV[1] { k = key($0); B[k]++; if (rows($0) > N[k] + 0) N[k] = rows($0); next }
+    { k = key($0); C[k]++; if (C[k] > B[k] + 0 || ((k in N) && rows($0) > N[k] + 0)) print }' "$TMPD/pk0" "$TMPD/pk" > "$TMPD/pkn"
+  [ -s "$TMPD/pkn" ] || return 0
+  echo "ViD plan: refused — planner.sh check: this change adds $(grep -c . "$TMPD/pkn") flag(s) the recorded plan ($PREV) did not have: $(awk '{ printf "%s%s", (NR > 1 ? " · " : ""), $0 }' "$TMPD/pkn"). Change the plan to clear them; the plan keeps its recorded hash." >&2
+  sed 's/^/    /' "$TMPD/pkn" >&2; return 1
+}
 # change_body: the 0.9.6 checks of a plan change and, when they hold, the kept plan (run in a subshell; a refusal exits 1)
 change_body() {
   LANECHK=1; load_plan || exit 1
@@ -820,6 +870,9 @@ change_body() {
       if [ -s "$TMPD/newh" ]; then dep_safeguard || exit 1; fi
     fi
   fi
+  # 0.26.10.29.2 (R1): in ticket mode the change's own raise (`other` naming unverified-rows=<n>) is the ceiling its
+  # rows added to started steps are judged by, as planner.sh check reads it in tplanner
+  if tickets_mode && [ "$WHAT" = other ]; then BUDOV=$(printf '%s\n' "$WHY" | sed -n 's/.*unverified-rows=\([0-9][0-9]*\).*/\1/p' | head -n 1); fi
   for st in $(cat "$TMPD/started"); do
     grep -q "^step	$st	" "$TMPD/parsed" || continue
     if [ -n "$_pv" ]; then awk -F'\t' -v s="$st" 'FILENAME == ARGV[1] { if ($1 == "row" && $3 == s) C[$2] = 1; next } $1 == "row" && $3 == s && !($2 in C) { print $2 }' "$_pv" "$TMPD/parsed" > "$TMPD/added"
@@ -827,6 +880,7 @@ change_body() {
     [ -s "$TMPD/added" ] || continue
     if ! rules "$st" HEAD "$TMPD/added" no; then echo "ViD plan: refused — rows added to the started step $st are admitted like a new step; the plan keeps its recorded hash." >&2; exit 1; fi
   done
+  tplanner || exit 1
   mkdir -p "$H/.vid/plans"
   [ -f "$H/.vid/plans/$PLANHASH.plan" ] || cp "$TMPD/block" "$H/.vid/plans/$PLANHASH.plan"
   if [ "$WHAT" = other ]; then
@@ -942,6 +996,7 @@ case "${1:-}" in
     printf 'strategy set=%s by=owner decision=%s at=%s\n' "$SS" "$DID" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >> "$H/.vid/metrics-events"
     echo "ViD plan: strategy $SS, set by the owner — decision $DID (.vid/plans/decisions/$DID.why)"
     exit 0 ;;
+  canon) canon; exit 0 ;;   # 0.26.10.29.2 (R1): stdin's plan block in the admission's canonical form, for planner.sh's ratified, shared not copied
   parse)
     if [ -n "${2:-}" ]; then parse_block "$2" ''; exit $?; fi
     need_gate 'parsing the plan'; load_plan || exit 1; cat "$TMPD/parsed"; exit 0 ;;

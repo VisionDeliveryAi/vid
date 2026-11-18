@@ -38,7 +38,7 @@ round() { sh "$GS" spec-export > /dev/null 2>&1; sh "$GS" tw-sync > /dev/null 2>
       new) tw_post $a $b || fail "new $a $b failed" ;;
     esac; done < "$T/due"; }
 round; grep -q '^published 1 kind=skeleton step=S01 ' .vid/tw/log || fail 'the round published no skeleton'
-tw_hand 'engines chromium'; tw_hand 'closed S01'; tw_hand 'candidate 0'; tw_hand 'staged 0'; tw_close 1; tw_start S02 || fail 'S02 was refused'; round
+tw_hand 'engines chromium'; tw_closed S01; tw_hand 'candidate 0'; tw_hand 'staged 0'; tw_close 1; tw_start S02 || fail 'S02 was refused'; round
 for k in 'spec-repo owner/code-spec created' 'export ' 'sync main=' 'published 2 kind=step step=S02 ' 'sent ROW-001 ticket=2 hash='; do grep -q "^$k" .vid/tw/log || fail "the log lacks a $k line"; done
 grep '^sync ' .vid/tw/log | tail -n 1 | grep -q ' open=- ' || fail "the closed skeleton ticket is still counted open"
 sh "$GS" tw-sync > /dev/null 2>&1; grep '^sync ' .vid/tw/log | tail -n 1 | grep -q ' open=2 ' || fail 'the open ticket is not counted'

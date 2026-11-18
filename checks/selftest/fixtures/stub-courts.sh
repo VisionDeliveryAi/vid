@@ -11,6 +11,7 @@ for c in placement conformance imports seams inventory census design-cite prd ha
   printf '#!/bin/sh\n# Purpose: stub court %s\n: > .ran/%s\nif [ -f .fail/%s ]; then echo "%s refuses" >&2; exit 1; fi\necho "%s ok"\n' "$c" "$c" "$c" "$c" "$c" > "checks/$c.sh"
 done
 cp "$CHECKS/hooks/pre-commit" checks/hooks/pre-commit
+cp "$CHECKS/labels.sh" checks/labels.sh   # 0.26.10.29.3 (R7): the hook's decision-label join
 printf '# stub lawfiles\n' > checks/lawfiles
 printf '.ran/\n.fail/\n.vid/\n' > .gitignore
 printf 'x\n' > app/x.txt

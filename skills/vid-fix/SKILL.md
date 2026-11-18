@@ -17,7 +17,7 @@ visibility, not approval-seeking.
 **Ticket mode (v0.26.10.25.5, R1): one door, which only drafts and asks.** While `.vid/RUN-STATE.md` says `mode: tickets`, this verb is the one door for every change to rows during the run: a held row answered (d) amend, in the owner's words; a finding ruled `fix` or `row` (both end as a new row, whose ticket's T2 red shows the defect: a row never accepted has no fix line); an answer to a question that changes a row; the owner's own correction; an edit of ARCHITECTURE.md's module table that a merge shows, counted as zero rows. It runs inside `/vid run`'s session and records no stage event of its own, so the run's stage stays the newest and `plan.sh` stays on. The version skew, the internal skills, test runs, fixers, the Tier-0 ritual and the re-grade below are not part of it: it writes no test and touches no code. In order:
 
 1. **The law read and the question** ("Input", below): CLAUDE.md → PRD.md → BASELINE.md → ARCHITECTURE.md → DECISIONS.md; a load-bearing product question asked at once, through the owner's queue.
-2. **The change, in the working tree, uncommitted:** the PRD append in row grammar, a new item or an `AMENDED` restatement that keeps every clause the answer does not change, word for word; its inventory rows, the harm class named first ("Per correction", below); GRADING-CHECKLIST.md and DECISIONS.md lines when the change needs them; for new rows, the plan block as it will stand, in a file: the step each goes in, or a new step with its name, modules, lane and builds-on, and its `needs` line, so `sh checks/planner.sh check` passes; PLAN.md's standing lines when the change needs them, as a first stored entity needs its standing rehearsal. Run the courts on it (`sh checks/prd.sh`, `sh checks/inventory.sh --strict`; in ticket mode the inventory court reads no CLAUDE.md placement, v0.26.10.26.7) and the whole-set review in delta mode over the rows it touches, by a fresh agent (the Agent tool, `claude-opus-5-5`), given the change and the rows alone: its output, `none` or one `finding <row id> | <why>` a line, goes in a file, which the draft records (R5). Correct what it finds before drafting.
+2. **The change, in the working tree, uncommitted:** the PRD append in row grammar, a new item or an `AMENDED` restatement that keeps every clause the answer does not change, word for word; its inventory rows, the harm class named first ("Per correction", below); GRADING-CHECKLIST.md and DECISIONS.md lines when the change needs them; for new rows, the plan block as it will stand, in a file: the step each goes in, or a new step with its name, modules, lane and builds-on, and its `needs` line, so `sh checks/planner.sh check` passes; PLAN.md's standing lines when the change needs them, as a first stored entity needs its standing rehearsal. Run the courts on it (`sh checks/prd.sh`, `sh checks/inventory.sh --strict`; in ticket mode the inventory court reads no CLAUDE.md placement, v0.26.10.26.7) and the whole-set review in delta mode over the rows it touches, by a fresh agent (the Agent tool, `claude-opus-5-5`), given the change and the rows alone: its output, `none` or one `finding <row id> | <why>` a line, goes in a file, which the draft records (R5), and its record goes in the PRD append as at (a) below (0.26.10.29.3 R3: the landing commits through the hooks). Correct what it finds before drafting.
 3. **The draft:** `sh checks/land.sh draft --review <the review's file> --why "<one line: what changes, and whose words>" [--plan <the block file>] [--for <the item keys it answers>] [--replaces <n>]`; a finding's draft names the keys its `door:` line gives (v0.26.10.26.5), or the stage close waits on it. It runs the landing's dry run first (v0.26.10.26.7, R4): refused, no draft is made, the refusal names the failing check, and the tree stays for you to correct and draft again. A draft that replaces one already asked (a correction, or one gone stale) names it, `--replaces <n>`: its Q line closes, and the new draft is asked afresh; a yes is never carried over. Made, the files become draft `<n>`, the tree goes back to HEAD, and the count prints (`inventory.sh impact --tickets`): the lines reset, added and reached, and the records, which owe nothing.
 4. **The ask:** `sh checks/queue.sh ask draft <n>`, one `Q<n>` line: "This changes <n> rows, adds <a> in <steps>, and reaches <m> more: <ids>. Land it?" Tell the owner in one plain message, then back to /vid run's loop at 2. One draft a question: a second draft on the same base goes stale once the first lands.
 
@@ -54,6 +54,10 @@ When a request's result says `analyst due`, start the test analyst (`vid-test-ma
   `A-NNN` ledger row, the item's `AMENDED` row, and the carrier line
   rewritten `RESOLVED: (OQ-n) A-NNN — …` (the one line of the base that
   may change; the court refuses a pending item left pointing at it).
+  A `human` answer a fix adds is the owner's yes, and its commit quotes the
+  owner's words in an `Owner:` trailer (0.26.10.29.3 R2; vid-create-prd,
+  "The owner's words"); one ViD proposes is `model_proposed` until the
+  owner says yes. Raised questions (0.26.10.29.3 R4): a question an agent's report raises that ViD cannot settle from the record (a ruling, the seed, or an owner answer it can cite) becomes an open carrier at once, `VID-QUESTION: (OQ-n) <the question>` in a dated append, raised with the owner at the next sitting; one ViD settles from the record is answered in the message to the owner with the record line that settles it (vid-create-prd, "The owner's words, and the questions raised").
 
 Read the law first: CLAUDE.md → PRD.md (base + Appends) → BASELINE.md →
 ARCHITECTURE.md → DECISIONS.md. A correction that raises a load-bearing
@@ -138,6 +142,10 @@ inherited its narrowness. So, per accepted finding, BEFORE scoping:
    parses to zero records expires inventory"), never as the instance or
    the mechanism ("the expiry guard exists") — a mechanism-worded clause
    is satisfied by code that keeps the mechanism and still does the harm.
+4. A row the correction writes that guards or forbids is written with its
+   control sibling, by vid-test-inventory §4.4's step: the allowed case
+   shown working, so a fix that keeps the promise by doing nothing fails
+   (0.26.10.29.3, R5).
 
 The re-grade below carries the same question as a standing line.
 
@@ -179,12 +187,15 @@ dual-write):
   block form — the court is presence-gated and leaves it alone. Before
   (b) and (c): spawn
   `${CLAUDE_PLUGIN_ROOT}/skills/vid-create-prd/passes/whole-set-review.md`
-  in `mode: delta` on the append against the effective set (v0.9.1 3.2)
+  in `mode: delta` on the append against the effective set (v0.9.1 3.2),
+  its record written in the append before the commit (0.26.10.29.3 R3:
+  its findings, ruled, as rows of the section's own ```vid-prd-findings block (pass `review`), and the line `review: delta, round <r>, <n> findings` (`<r>` the round the review ended on, `<n>` the rows of the section's findings block, every round's; one round and no findings: `round 1, 0 findings`; vid-create-prd, "The findings record"); pre-commit refuses a new append section holding rows without it)
   — a `fix_from_record` finding is a further `AMENDED` row in the same
   append, a question goes to the owner before any code moves (v0.9.8.1
   R29: every finding that narrows or withdraws a fail-if arm, as one
   question for the review, listing each row, its arm and the answer it
-  follows; the answer settles every row it names); the run
+  follows; the answer settles every row it names); what the repairs and
+  the rulings land is read again by the same pass (vid-create-prd, "Reviews converge", in Pass mechanics: every repaired round is read again by the same pass, up to three rounds, and what remains goes to the owner as one list; 0.26.10.29.3 phase 2, R1); the run
   records `sh checks/event.sh 'tokens slice=N phase=review n=T'`.
 - (b) ledger test in tests/invariants/ keyed to that REQ, through the public
   surface only, fixture law respected — WRITTEN BY A TEST-AUTHOR PASS
@@ -249,8 +260,12 @@ A probe with no verified failing state is rejected at materialisation:
 checks/inventory.sh fails the commit that cites it unstamped, and a row
 with no usable `disable:` toggle is rejected outright — without the toggle
 the ritual cannot be re-run by anyone who comes later. If the protection
-already has a hostility sibling, the fix re-runs the ritual against it
-rather than adding a second row: the bound is ~one probe per protection,
+already has a hostility sibling that attempts this arm through this way
+in, the fix re-runs the ritual against it rather than adding a second
+row; an arm or a way in the correction shows unprobed gets its own
+hostility row, landed by the four steps above. The bound is
+vid-test-inventory §4.3's (one probe per Tier-0 rule or invariant; for a
+Tier-0 demand item, one per fail-if arm and, per arm, one per way in),
 and probes beyond the ratified protections are ceremony.
 
 **Robustify-proposed rows (§7).** A `/vid grade --robustify` report

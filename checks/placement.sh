@@ -2,6 +2,7 @@
 # Purpose: ViD court — every new staged file must land under a path prefix from
 # the ```vid-placement block in CLAUDE.md (a line may be an exact filename).
 # Root doc/config files, checks/, tests/ are always allowed. Fails closed.
+# 0.26.10.29.3 (R8, F33): so is .claude/settings.json, the one file under .claude/ init writes, on the owner's yes.
 # serves: both (0.26.10.28.4, M9)
 set -eu
 IFS='
@@ -18,7 +19,7 @@ fi
 FAIL=0
 for f in $(git diff --cached --name-only --diff-filter=A); do
   case "$f" in
-    checks/*|tests/*) continue ;;
+    checks/*|tests/*|.claude/settings.json) continue ;;
     */*) ;;
     *)
       case "$f" in

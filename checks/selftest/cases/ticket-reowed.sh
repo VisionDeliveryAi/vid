@@ -2,7 +2,7 @@
 # Purpose: selftest case — a ticket closed outside ViD owes its rows again, and its closed step opens again (v0.26.10.27.3, STAGE-8-1B-SPEC.md R2, R3), checks/writer.sh
 # through checks/round.sh on the toy and the fake gh. The skeleton, closed outside, is owed `new skeleton`, written and published
 # again; a step ticket the round published, closed outside, owes `new step <s>` for its rows (they were sent, so before R2 they
-# read as delivered); a step of a closed stage is owed nothing for them. S01's close and stage 0's staging are planted handed
+# read as delivered); a step of a closed stage is owed them again too (0.26.10.29.2 R4), the step left closed. S01's close and stage 0's staging are planted handed
 # lines, so that the round publishes a step ticket. Env: CHECKS.
 set -eu
 unset CLAUDE_CODE_SESSION_ID 2>/dev/null || true
@@ -19,7 +19,7 @@ rd next; [ "$RC" = 0 ] || fail "next failed: $(cat "$T/out")"; ok '^published 1$
 gh issue close 1 -R $R > /dev/null; rd step; ok '^closed-outside 1 S01$'; due; ok '^new skeleton$'
 rd next; ok '^published [0-9]'; N1=$(sed -n 's/^published \([0-9]*\)$/\1/p' "$T/out" | head -n 1); grep -q "^published $N1 kind=skeleton " .vid/tw/log || fail 'no new skeleton published'; due; no '^new skeleton'
 # a step ticket the round published (its rows sent), closed outside: its rows owed again
-tw_hand 'closed S01'; tw_hand 'candidate 0'; tw_hand 'staged 0'; tw_hand 'engines alpha'; rd next; N2=$(sed -n 's/^published \([0-9]*\)$/\1/p' "$T/out" | grep -vx "$N1" | head -n 1); [ -n "$N2" ] || fail "no step ticket published: $(cat "$T/out")"
+tw_closed S01; tw_hand 'candidate 0'; tw_hand 'staged 0'; tw_hand 'engines alpha'; rd next; N2=$(sed -n 's/^published \([0-9]*\)$/\1/p' "$T/out" | grep -vx "$N1" | head -n 1); [ -n "$N2" ] || fail "no step ticket published: $(cat "$T/out")"
 S=$(awk -v n="$N2" '$1 == "published" && $2 == n { for (i = 3; i <= NF; i++) if ($i ~ /^step=/) print substr($i, 6) }' .vid/tw/log); grep -q "^sent [A-Z0-9-]* ticket=$N2 " .vid/tw/log || fail 'its rows were not sent'
 # R3: its step closed meanwhile (a plant: the closed line, a green close ask) reopens: the line dropped, the old ask withdrawn, and the
 # next step does not close it again; the writer still runs
@@ -32,9 +32,9 @@ tw_hand "closed $S | stand-in: C3 #77 at 000000000000"; rd step; ok "^step-reope
 # with no stage candidate (the planted candidate line taken out), the step's close is owed again once its new ticket merges
 grep -v '^candidate 1 ' .vid/tw/handed > "$T/h"; cat "$T/h" > .vid/tw/handed; rd next; N4=$(sed -n 's/^published \([0-9]*\)$/\1/p' "$T/out" | head -n 1); [ -n "$N4" ] && grep -q "^published $N4 kind=step step=$S " .vid/tw/log || fail "no new ticket for $S: $(cat "$T/out")"
 W=$T/w; git clone -q "$T/code.git" "$W" 2>/dev/null; git -C "$W" checkout -q -B tk4 origin/main; git -C "$W" -c user.name=a -c user.email=a@b commit -q --allow-empty -m tk4; git -C "$W" push -q -f origin tk4; H4=$(git -C "$W" rev-parse HEAD)
-P4=$(gh pr create -R $R --head tk4 --base main --title t --body "ticket: #$N4" | sed 's/.*\///'); gh pr ready "$P4" -R $R; gh pr merge "$P4" -R $R --merge --match-head-commit "$H4" --body m > /dev/null; rd step; ok "^merged $P4"
+P4=$(gh pr create -R $R --head tk4 --base main --title t --body "$(printf 'ticket: #%s\n\nDecisions: none' "$N4")" | sed 's/.*\///'); gh pr ready "$P4" -R $R; gh pr merge "$P4" -R $R --merge --match-head-commit "$H4" --body m > /dev/null; rd step; ok "^merged $P4"
 sh "$CHECKS/close.sh" owed > "$T/out" 2>&1; ok "^close $S\$"
-# its stage closed: nothing owed again for them
+# its stage closed: its rows went out again in #N4, which merged, so nothing more is owed
 G=$(sed -n 's/^- stage: \([0-9]*\).*/\1/p' ".vid/tw/out/issue-$N2.md" | head -n 1)
 [ -n "$G" ] || fail 'no stage on the ticket'; tw_hand "stage-closed $G | stand-in: RM at 000000000000 candidate 1"; due; no "^new step $S\$"
 # R3: a ticket of a closed stage's step closed outside: the step stays closed, the owner's line once (a planted ticket)
@@ -48,5 +48,5 @@ printf '9\t%s\t%s\t%s\n' "$N1" "$(git --git-dir="$T/code.git" rev-parse main)" "
 printf 'landed draft=L1 at=2026-11-10T12:00:00Z ids=%s\n' "$r1" >> .vid/tw/log; N5=$(gh issue create -R $R --title "t S01 fix" --body b --label ticket | sed 's/.*\///')
 printf 'published %s kind=step step=S01 rows=%s at=2026-11-10T12:30:00Z\n' "$N5" "$r1" >> .vid/tw/log; G0=$(sed -n 's/^- stage: \([0-9]*\).*/\1/p' ".vid/tw/out/issue-$N1.md" | head -n 1); printf -- '- stage: %s\n' "$G0" > ".vid/tw/out/issue-$N5.md"
 due; no '^new step S01$'; gh issue close "$N5" -R $R > /dev/null; rd step; ok "^closed-outside $N5 S01\$"; due; ok '^new step S01$'
-tw_hand "stage-closed $G0 | stand-in: RM at 000000000000 candidate 1"; due; no '^new step S01$'
+tw_hand "stage-closed $G0 | stand-in: RM at 000000000000 candidate 1"; due; ok '^new step S01$'   # 0.26.10.29.2 (R4): a closed stage's step too
 exit 0

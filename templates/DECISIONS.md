@@ -27,6 +27,11 @@ hint or delegated the choice. `model:` is optional (§9 model-change
 durability): record it when the deciding model differs from the project's
 usual one, so a later model can see what it inherits.
 
+`origin: dev-side` marks a decision the dev side made in ticket mode,
+recorded by ViD in the dev side's words from a merged pull request's
+Decisions section (`enforced: ticket <n>`) or a deploy report's
+`decision:` lines (`enforced: deploy <id>`, `scope: project`).
+
 ## Log
 
 - **D-001** {{FIRST_DECISION}} | why: {{WHY}} | enforced: {{REF}} | {{LABEL}}

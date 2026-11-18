@@ -64,8 +64,8 @@ grep -qxE "law-changed row=ROW-001 sha=$H item=REQ-001 $ATRE" "$EVF" && grep -qx
 grep -q '^amended ' "$EVF" && fail 'a fail-if change wiped a row whose own obligation did not change (v0.26.10.3 R1)'
 # 4. an AMENDED row changing only phase: → no amended event
 : > "$EVF"
-L=$(grep '^REQ-003 | ' PRD.md)
-printf '\n### Append 2026-09-23 (/vid fix correction)\n\n```vid-prd\n%s | phase: pilot\n```\n' "$(printf '%s\n' "$L" | sed 's/^REQ-003 |/REQ-003 AMENDED |/')" >> PRD.md
+L=$(grep '^REQ-003 | ' PRD.md)   # 0.26.10.29.3 (R3): the append carries its delta review's line, as every new append does
+printf '\n### Append 2026-09-23 (/vid fix correction)\n\n```vid-prd\n%s | phase: pilot\n```\n\nreview: delta, 0 findings\n' "$(printf '%s\n' "$L" | sed 's/^REQ-003 |/REQ-003 AMENDED |/')" >> PRD.md
 g add PRD.md && g commit -qm 'REQ-003 phase only
 
 Decisions: none — membership stated, nothing changed' >/dev/null 2>&1 || fail 'the phase-only amendment was refused'

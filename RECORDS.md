@@ -472,6 +472,39 @@ now checks both ways, names and fields. The readers' gates stay below 32.
 A reader of 32 keeps working: what 33 adds is documentation of lines
 already written.
 
+## The pages: work in progress, not records *(usability)*
+
+`checks/pages.sh` makes a readable page of each document the owner is
+asked to read, and writes only `.vid/pages/` and `.vid/pagelinks`, only
+where `.vid/` exists. Nothing in ViD reads them back to decide anything:
+the documents stay the only truth, and a page lost is made again by one
+call.
+
+- `.vid/pages/<NAME>.md` and `.vid/pages/<NAME>.html` — a page's
+  markdown and its rendering by `checks/page.sh`: `PRD`, `FOUNDATION`,
+  `FINDINGS`, `TESTS`, `CUTS` (the cuts to choose from, read from the
+  rungs' scratch folders), `STAGES` (the committed cut), `BOOK` (the
+  product book: the pages as its chapters, made again by every `all` and
+  `for <stop>`, its waiting note and marks read from `face.sh waiting`
+  when it is made, never kept), and the plan's `PLAN-PAGE.html` (made by `planner.sh page`,
+  only indexed here). Never saved to the state repository, as the rest
+  of `.vid/pages/`.
+- `.vid/pages/index` — one line a page that exists, five fields
+  separated by tabs: the page's id (`prd`, `foundation`, `findings`,
+  `tests`, `cuts`, `stages`, `plan`, `book`), its title (no tab), the
+  html file's full path, its link or `-`, and the stops it is due at as
+  numbers separated by commas, or `-`. Written whole, by rename, at every
+  call; a page whose file is gone is left out. The cuts' line leaves only
+  when `pages.sh stages` is called by name (the pick; with no STAGES.md,
+  the project keeps one stage) or when `pages.sh cuts` writes a new one;
+  `for <stop>` and `all` never take it out. The panel reads it.
+- `.vid/pagelinks` — outside the pages folder, so emptying it loses
+  neither: `publish<TAB>yes|no<TAB><the owner's own words><TAB><UTC time>`,
+  the owner's one answer on publishing (the latest replaces the earlier),
+  and `link<TAB><page id><TAB><address>`, each page's private claude.ai
+  link (an address starting `https://claude.ai/`). This checkout's own:
+  not saved to the state repository, so after a restore ViD asks again.
+
 ## The viewer's own files *(19)*
 
 `/vid view` (the plugin's `viewer/view.sh`) reads the project's documents
@@ -481,6 +514,78 @@ the project (`--out <dir>`, else `~/ViD Viewer/<project folder name>/`):
 `.cache/`. They are the viewer's, not project records: nothing in VID
 reads them, and their shape is the viewer's data contract,
 `viewer/DATA.md` (`viewer-data 1`), not this file's version.
+
+## ViD's face: work in progress, not records *(0.26.10.29)*
+
+`checks/face.sh` writes two files for the panel in the Claude desktop app,
+`.vid/face/sitting.json` and `.vid/face/standing.json`, and only where
+`.vid/` exists. They are work in progress, not records: the PRD and its
+answer ledger stay the only truth, nothing in ViD reads them back, and a
+file lost is rewritten at the next sitting. The sitting is what ViD
+presents at one of the four PRD sittings (`format`, `sitting`, `stop`,
+`session`, `written`, `state` waiting or ended, `ended`, and `sections`,
+each `id`, `kind`, `title`, `source`, `empty`, `why`, `acts`, `items`);
+the standing is the nine stops (`format`, `written`, `current`, `turn`
+person or vid, `sitting`, `session`, `next`, `stops`). Both are written
+whole, by rename. Their shape is face.sh's head, not this file's version.
+
+*(usability, release A)* Both now say `format` 2. Each item of a sitting
+also carries `preset` (the answer it starts at: `choose:<choice>`,
+`<act>` or `<act>:<words>`, or empty), `presetBy` (`vid` for ViD's
+recommendation for that item, `standing` for its section's standing act,
+or empty), `alone` (asked on its own, never part of a bulk answer) and
+`norecommend` (ViD said it has none). A section may be of a seventh kind,
+`alone`; each pause ends with one, the checks ViD's draft would remove,
+filled from what `prd.sh --pause` prints under "owner questions". A
+sitting may stand at any stop from 2 to 9; a stop's `sitting` in the
+standing is true where face.sh's table holds one for it, and only the four
+PRD sittings close their stop when they end. The standing also carries
+`wait`: the parts of the wait now running (`parts`, each `name` and
+`state` done, now or to come) and `now`, what ViD is doing, from
+`.vid/face/wait` (`part`, `at` and `now` lines, tab-separated), which
+`sh checks/face.sh wait …` writes and a sitting written or ended clears.
+`.vid/face/run.<session id>` is one line, `<running|stopped> <since,
+UTC> <last step, UTC|->`: the plugin's `hooks/face-standing.sh` writes it
+at a prompt, after a step, at Stop and at StopFailure (by rename), and
+the panel module's recorder writes it stopped at the end of every turn,
+an interrupted one too. Every run of the standing removes `.standing.*`
+files older than a minute and `run.*` files older than seven days. These
+too are work in progress, not records.
+
+*(usability, release C)* A sitting also carries `ready`, its short phrase
+for when it waits, and its `state` may be `drafting` (written by
+`sh checks/face.sh draft`: only the session's sections given, never the
+person's turn, no marks kept); an item also carries `about`, the
+`<section>/<item>` a finding is about, or empty. When a sitting ends,
+face.sh appends `<stop><TAB><title>: <n> items, agreed <day> <month>` to
+`.vid/face/agreed`; each stop of the standing carries `agreed`, its latest
+line while the stop is done (`Done` with none), empty while it is not.
+
+*(usability, release B)* The standing also carries `pages`, one entry a
+line of `.vid/pages/index` (the pages section), in order: `id`, `title`,
+`file`, `link` (empty for none) and `stops` (numbers). Where
+`checks/pages.sh` is beside face.sh, writing or ending a sitting runs
+`pages.sh for <its stop>` once the sitting is in place, then recomputes
+the standing; a failure of that script leaves the sitting as written.
+`sh checks/face.sh waiting` prints the sitting that waits, for the book:
+`<name><TAB><stop><TAB><title>`, then `<item id><TAB><its words>` a line.
+
+*(0.26.10.29.6, the pauses)* face.sh's table also holds the eleven
+sittings of stops 6 to 9 (`technical`, `design-who`, `design-gaps`,
+`design-lines`, `design-approval`, `tests`, `tests-review`,
+`consolidation`, `settings`, `stages`, `stages-own`), none closing its
+stop. An item may also carry `look`, why ViD points to it (`An open
+finding`, `Shapes a rule that must never break` or `No recommendation`),
+or empty; the pointed items come first in their section. Pauses 2 and 3
+carry a section `changed`, of kind decided: each line of the PRD's thesis
+and mechanisms that differs from the commit named by the last line under
+`## Ratifications`, the line as it is now with the line as it was as its
+detail. Stop 7 of the standing is done, after the latest `stage
+name=design … state=start` event, only at that verb's `state=end` (with no
+design event, when `design/` exists, as before). Where the map, as the standing
+shows it, stands past a sitting's stop, `face.sh write` and `draft` write
+nothing and exit 0; `face.sh end` of a sitting not on disk, or at a stop
+the map has left, says so and exits 0; both leave the files as they are. Still no format change: both files say `format` 2.
 
 ## Reading rules
 
@@ -539,6 +644,10 @@ reads them, and their shape is the viewer's data contract,
 | `.vid/runs/<run-id>/` *(2)* | `checks/test.sh`, inside a 0.9.6 develop run | one folder per test run while it runs, at the run's home; deleted after publish; kept only when its teardown failed | a live run (its `holder`: `pid=`, `start=`, `kind=`, `worktree=`, `slot=`, `project=`, `tree=`, and `teardown-failed <UTC>` when that happened); temporary |
 | `.vid/requests/<ticket>/` *(6)* | `checks/test.sh request` (and the run it starts) | one folder per test request, at the run's home (in the checkout outside a develop run; *(27)* at the home `checks/plan.sh home-of` resolves, when it does; a `staging` request's `type=staging`); `<ticket>` is the UTC time and 4 hex; kept | `request` (`key=value` lines: `type=`, `role=`, `runrole=`, `why=`, `rows=`, `estimate=`, `cap=` (*(24)* gone: `silence=`, `startup=`, `limit=` in its place — the watcher's silence, start-up and run limits in seconds; an older ticket's `cap=` is still read as written), `startup=` (before 24 the estimate's start-up term; *(24)* the start-up limit, the estimate's start-up term then `estimate-startup=`), *(13)* `teardown=` (the teardown between two passes the estimate counts; 0 for one pass), `cases=`, `expect=`, `no-history=`, `cwd=`, `sel=`, `dsel=`, `steps=`, `gated=`, `prove=`, `created=`; *(15)* a close batch's `batch=yes`; *(25)* a full run's `stage=<N>` (`--stage N`: the analyst's setup and slow triggers count only the cases of stages 1 to N; *(28)* `stage=0` when STAGES.md holds STAGE-0, stages 0 to N); a chunk's `id=<ticket>/<n>`, `batch=<ticket>`, `chunk=<n>`, `phase=1\|2`, `export=`, `tree=`, `base=`), `rows` (the requested rows, one per line), `state` (`queued`, `running`, `done`, `capped`, `failed-to-start` or `stopped`), `running-at`, `result` (at most: `status=<n> ran-to-end=<yes\|no> capped=<yes\|no> report=<receipt\|none>`, `cases <status>=<n> …`, the red groups, `outside n=<n> rows=…`, `why: …`, `no-history rows=…`, *(7)* one `analyst due: <reason> request=<ticket> [rows=…] [cases=…] [group="…"]` line per test-analyst trigger that fired; *(18)* `retry: --expect <s>` on a capped result, s twice `cases=` (*(24)* gone); *(24)* a capped result's first line says why — `stopped: no new output for <n> min (last at HH:MM UTC)`, `stopped: the <inline\|deployed> pass's start-up passed <n> min`, or `stopped at the run limit (<n> h awake)`; `build failed: no test ran — <the build's last error line>`, the result's first line, when the image build failed — no later pass, no receipt; the ticket keeps it as `build-failed`), `exit`, `cap-hit` when the cap stopped it (*(24)* when its watcher stopped it: `reason=silent\|startup\|limit`, `pass=inline\|deployed`, `last-output=<UTC>` (the last new output it saw), `at=<UTC>`, one a line — before 24 a UTC time alone); *(24)* `watch` — the watcher's counts, rewritten each 5 s tick while the run runs: `awake=<s> silent=<s> pass=<inline\|deployed> phase=<startup\|tests> at=<UTC>` (ticks × 5 s, so a host sleep never counts; `wait` reads it); *(24)* `pass` — the pass in progress, `inline` or `deployed`; *(24)* `compose.inline.err` — the inline pass's Compose output as `up` writes it, removed when the pass is read; *(24)* `svcout.<pass>` — inside a develop run, each service's last log line, `<service><TAB><line>`, rewritten each poll of the services watcher from the pass's bring-up; `outside` (the rows it reached outside the request; *(14)* the report is kept all the same and credits none of them — before 14, the kept-out candidate report beside it); *(14)* `stopped` — the cause line when a service died while the tests ran (`stopped: service <name> exited code <c>\|killed for memory at <UTC> — see services.<pass>.txt`), also the result's first line; `services.<pass>.txt` (`inline`, `deployed`) — inside a develop run, each pass's containers' end states before its teardown, a header line then one line each, `<name> state= exit= memory-kill=yes\|no health= restarts= started-at= ready-at= finished-at=` (`ready-at` the first passing readiness check Docker kept, else `-`; *(20)* renamed `kept-healthy-at=` — the first passing check Docker still kept in its rolling health log when VID read it, not when the service became ready); `timeline.<pass>.log` — each pass's test-environment log lines with their times (the last 20,000, at most 20 MB), after its result and before its teardown; *(21)* a pass that is red or ran short of its end keeps `timeline.<pass>.log.gz` instead — its whole log, compressed, at most 100 MB keeping the end (when cut, its first line says so); *(21)* a pass stopped short (a cap, a cancel, any stop) keeps it too, and `last-lines.<pass>.log` — each service's last 200 lines — both taken before its down; *(21)* `tests-at` — when the tests container was first seen running (the cap counts from it; *(24)* one per pass, `tests-at.<pass>`: that pass's start-up ends there); *(21)* `slept` — the seconds of host sleep the cap watcher saw (a tick gap over 40 s), not counted against the cap, recorded as `slept=<n>` in `request` and said in `result` as `host slept <n> s during this run` (*(24)* no longer written: ticks never count a sleep; an older ticket's `slept`, `slept=` and line are still read as written); *(21)* `result`'s `deployed pass: ended outside completed (exit <n>), no receipt — the inline pass's receipt is kept` when only the deployed pass of an iterate ended outside completed; *(11)* `holders` — while the run waits for a test environment, one line per held slot on the host as of its latest try (`stack.<k>: held by pid <pid> — repository <path>, compose project <name>, for <s> s`, or `stack.<k>: STALE — pid <pid> is gone (repository <path>, compose project <name>), <s> s old. …`; *(15)* a chunk's `giving way: request <ticket> waits and this batch holds <n> of <k> slot(s)`), left as last written; *(13)* `timeline.log` — inside a develop run, when its inline pass's `overhead=` is over 120 s, the test environment's own log lines with their times (Compose `logs --timestamps`), saved before its teardown (*(14)* replaced by `timeline.<pass>.log`); *(13)* `run` — inside a develop run, the run folder's path: the result, `exit` and the final `state` are written when the last pass is published, before the final teardown, so a request can be `done` while its run folder and slot are still held (*(21)* written once the folder and its holder exist, and removed with the folder); `log`, `passes`, `pid`, `supervisor`, `watcher` are its working state; *(15)* a close batch's ticket also holds `groups` (its groups as asked, one per line: `G <phase> <phase.line> <rows,…> <inline words> <deployed words> <the line>`, tab-separated), `batch` (`id=`, `tree=`, `base=`, `steps=`, `chunk-seconds=`, `stacks=`, `export=`, `frozen-at=`, `frozen=computed\|reused from <ticket>`), `frozen/` (close-rows' required rows with sets, phases and shapes, the expected cases' inputs and the population reference, as frozen at its start; `key` — the tree, steps, slice, rows file and plan it was frozen for and the events line count then: a later batch reuses it while nothing else close-rows reads has changed), `layout` (`<n> <phase> run\|adopted <seconds\|source chunk>` a chunk a line), `receipts` (`<chunk> <receipt path> inline\|deployed`, the newest sub-ticket's each), `export` while it runs, and `chunks/<n>/` — a sub-ticket with the files above plus `groups`, `phase`, `outcome` (`green`, `red`, `incomplete`, `retry`, `stopped`), `why`, `judged`, `receipts`, and `adopted` (`<ticket>/<n>` of the chunk it took); `<n>-retry` is its one retry; a chunk never launched ends `stopped`. The parent's `result` is `green`, `red phase <p>[, rows <ids>][, chunks <ns>]`, `incomplete phase <p>, chunks <ns>` or `stopped: …`, then `chunks <n> retried= adopted= stacks-max= wall= chunk-seconds-sum=`, `incomplete chunk=<n> why=…` and `red row=<id> case=<case>` lines, a `chunk <n> phase=<p> <outcome> [adopted=…] [report=…]` line each, and the chunks' `analyst due:` lines; *(16)* `try=` in `request` for a builder's or fixer's ticket; `pid-start` beside `pid`; a `cancel` mark (`by=`, `at=`); the state `cancelled` (exit 77, the result's first line `cancelled by <who>`) |
 | `.vid/budget` | vid-init (`stacks=`, `memory-headroom-mb=`); the owner; *(2)* `checks/testenv.sh record` | at init; *(2)* at develop's test-environment step | `key=<number>` lines: `stacks`, `memory-headroom-mb`, `claims-per-slice`, `wall-hours-per-slice`, `court-seconds`; *(10)* `builder-context-tokens` (400000); *(15)* `chunk-seconds` (a close batch's chunk size in recorded case seconds, default 1200); *(2)* `unverified-rows` (60 per environment), `env-mb` (one environment's measured peak), `testenv=proved\|one` (two or more environments proved side by side, or one); *(13)* `testenv=proved harness=<cksum of docker-compose.test.yml>` — the harness it was proved on: admission and the checkpoint use `stacks=` only when it matches the requesting checkout's harness, else one environment; a bare `testenv=proved` reads as proved on no known harness; *(12)* `progress-notify` is gone — nothing is sent; *(17)* `builders-target=<n>`, the owner's: how many builders at once, shown by the progress table, never enforced; *(24)* `silence-minutes` (20), `startup-minutes` (60), `run-limit-minutes` (1440) — a test run's silence, start-up and run limits, read when it is requested |
+| `.vid/windows` *(0.26.10.29.3)* | `sh checks/lib/wsl.sh record yes\|no`, on the owner's answer to the one WSL question (init's first step, create-prd's when standalone); the owner, by editing it | once per machine, only on a native Windows shell with WSL available; at the main checkout (the parent of `git rev-parse --git-common-dir`; outside a repository, the working directory); untracked | one line, `wsl: yes` or `wsl: no`: with `yes`, the courts run directly (prd, inventory, design-join, imports, seams, stages) re-run under WSL, never under a git hook; while the file exists the question is not asked again; builder worktrees and other sessions read the main checkout's |
+| `.vid/reviewers` *(0.26.10.29.3, phase 2)* | `sh checks/lib/wsl.sh reviewers record yes\|no`, on the owner's answer to the one second-reviewer question (asked at the first whole-mode review, only when `codex` is on the PATH); the owner, by editing it | once per machine; at the main checkout, beside `.vid/windows`; untracked | one line, `codex: yes` or `codex: no`: with `yes` (and `codex` still on the PATH; `sh checks/lib/wsl.sh reviewers` prints the answer), every round of the whole-mode reviews (create-prd's §10, 7b, the final passes) has a second reader, Codex, beside the fresh agent; while the file exists the question is not asked again |
+| `.vid/briefs/<pass>-<n>.md` *(0.26.10.29.3, phase 2)* | the session that starts a review pass (vid-create-prd, "The second reader") | once per pass run that Codex reads, before it starts; `<n>` counts that pass's briefs | the pass's brief: its pass file and its inputs, as paths only, never their contents; Codex is started with one short sentence naming this file |
+| `.vid/reviews/<pass>-<date>-<n>-r<round>-<reader>.md` *(0.26.10.29.3, phase 2)* | the session that started the pass, from the reader's return, verbatim | once per reader per round, before the return is read; `<n>` counts that pass's runs that day, `<reader>` is `agent` or `codex` | the whole report, unedited; the PRD's findings rows for that review are written from these files, every finding one row, and the `review:` line's count is of those rows |
 | `.vid/close/<slice>.rows` *(3)* | vid-develop (the orchestrator or builder that made the change) | before each selected close, from the closing steps' diff | the rows the builder names as affected, one line each — `ROW-<id> \| <one-line reason>` — and `note \| <what was checked>` for a change to shared paths or uncited code; read by `checks/metrics.sh close-rows` as set 5 |
 | `.vid/plans/<hash>.plan` *(2)* | `checks/plan.sh change` | every accepted plan, copied whole when its change is recorded; never edited or removed | the plan a `step-start` was admitted under — with the events, what every started step held, rebuilt without RUN-STATE |
 | `.vid/PROGRESS.md` *(2)* | `checks/progress.sh --record` (the observer hourly and after a plan change; the session) | a table appended per update, newest last | the progress update — the fixed table below; the newest section is current |
@@ -573,12 +682,29 @@ reads them, and their shape is the viewer's data contract,
     the parts of the product the owner would name.
   - ```` ```vid-prd-answers ```` — the decisions: `A-NNN | <tier> |
     <date> | Q: … | A: … | settles: … | importance: priority | shown:
-    pause-N <sum>`. The tier `human` is the owner's decision,
+    pause-N <sum> | delegated: yes`. The tier `human` is the owner's decision,
     `model_proposed` a decision VID took; `importance: priority` marks the
-    owner's big decisions.
+    owner's big decisions; `delegated: yes` (0.26.10.29.3 R2) a human answer
+    VID wrote under the owner's delegation, until the owner confirms it
+    (restated without the field).
   - ```` ```vid-prd-mechanisms ````, ```` ```vid-prd-contract ````,
     ```` ```vid-prd-findings ```` — the thesis mechanisms, the coverage
-    contract, the review findings.
+    contract, the review findings. A findings row is `F-NN | pass |
+    severity | target | disposition | evidence: …`; pass `red-team |
+    audit | review | lens | final | strength` (`strength`, the test
+    list's strength pass; 0.26.10.29.4 phase 3 R1); a target names items, mechanisms,
+    dimensions or answers, the thesis or the seed, or another document by
+    form only (`INVENTORY.md:ROW-12`, `DESIGN-BRIEF.md:D-149`, a bare
+    name; 0.26.10.29.3 phase 2 R6).
+- **Review lines.** *(0.26.10.29.3 phase 2 R2)* A review's record is a line
+  `review: <delta|whole|final>, round <r>, <n> findings` (a final review
+  adds `, read: <files>`; a whole or final review's repair append says
+  `, 0 findings, see <its heading under ## Findings>`), in the append
+  section of a delta review or the dated `### ` heading under
+  `## Findings` of a whole or final one; `<n>` is the rows of the
+  findings block(s) under the same heading, checked by `checks/prd.sh`.
+  Phase 1's `review: delta, <n> findings` reads as round 1, its count not
+  judged.
 - **Open decisions.** `VID-QUESTION: (OQ-n) A-NNN — <question>` lines ask
   the owner to confirm a VID decision; `RESOLVED: (OQ-n) A-NNN` closes one.
 - **Appends.** Everything under `## Appends` supersedes by the latest-wins
@@ -689,6 +815,7 @@ release that began the file; *(33)* is when this contract first lists it.
 | `.vid/tw/log` | `checks/github.sh` (each act on GitHub: tw-post, tw-close, tw-sync, spec-setup, spec-export, the asks) | appended, one line an act | the writer's and the asks' history: `published\|amended <n> <the meta's fields> parts= at=`, then `sent <row> ticket=<n> hash=<h>` a row; `withdrawn <n> decision=`; `sync main=<sha>|none|absent open=<n,…>` (*v0.26.10.28.2*: `none` an empty code repository, `absent` heads but no main; a failed read writes no line); `export <c> from=<ViD commit> state=pushed\|unchanged`; `spec-repo <name> created\|exists`; `asked <n> close\|deploy\|grade step=\|stage= commit= at=` — what admission, the writer's `due`, the results reader and the round read for which ticket holds a row |
 | `.vid/tw/handed` | `checks/decide.sh` (merged, held and failing rows), `checks/results.sh declare` (the engines), `checks/close.sh` (`closed <step>`, fix lines, a stage's candidate), `checks/round.sh` (the interim `closed <step>`), `checks/land.sh` (`reached` lines, a landing's drops), `checks/queue.sh lesson` | appended, and rewritten when a landing drops a row's lines | what later roles hand in, each line ending `\| stand-in: <who>` until their stages: `engines <primary> <other>…`, `engine-split <row>`, `closed <step>`, `row <id> <state> [fault-proven]`, `fix <row> [<row> …] \| <reason> \| <links>`, `lesson <ids> \| <words>`, `reached <row> <REQ\|INV id> [<the landing>]`, `candidate <stage>` — what `plan.sh start` admits by and the writer reads |
 | `.vid/tw/out/` | `checks/writer.sh write` (`<kind>-<arg>.md` and its `.meta`: the log line's fields, then `sent <row> <hash>` a row; `parts` into a folder it is given); `checks/github.sh tw-post` (`issue-<n>.md`, the ticket as published) | at each write; at each publish or amendment | the tickets ViD wrote, before and as published; the results reader, the close and the writer's amend read `issue-<n>.md`. The skill reads only the file the write just printed, never one left from before |
+| `.vid/tw/named` *(0.26.10.29.5, DP-1 R5)* | `checks/writer.sh name <step> <D-id,…>` (RM, an unknown step or id refused before anything is written) | appended, one line a name | `<step> <D-id>,<D-id>…`: the decisions RM named for every ticket of that step, its fix tickets included; the writer joins them to each such ticket's Decisions section whatever their label and always keeps them, a decision about ViD's own settings apart; the section is in the ticket's hash, so a name for a step with an open ticket makes `writer.sh due` owe its amendment |
 | `.vid/tw/known-findings` | `checks/queue.sh answer` (a finding ruled `known`) | appended, a line once | one finding's words a line: what the owner keeps as a known limit, so it is not asked again |
 | `.vid/tw/stood-in-answers.txt` | `checks/round.sh` | appended, only under `stand-in: on` | `<UTC> TAB <row or ticket> TAB <the answer> TAB <why>`: each answer the round gave in the owner's place (a held row with only its evidence missing accepted, a held weak test ruled a known limit, each `--by stand-in`) |
 | `.vid/plan/setup` *(v0.26.10.26.7)* | `checks/planner.sh setup` | appended, one line a setup answer; the planner writes no event | `setup-answered key=<layout\|team\|split\|repo\|spec-repo\|github-mode> value="<the answer>" words="<the owner's words>" at=<t>`; until the first ratify, `planner.sh check` flags each setup key no line covers; `checks/devagent-start.sh` reads the newest `github-mode` line, the GitHub mode, for the start it prints and for vid-run's read-access line *(v0.26.10.28.8)* |
@@ -705,14 +832,15 @@ release that began the file; *(33)* is when this contract first lists it.
 | `.vid/decide/rulings`, `.vid/decide/rows/<row>.txt` | `checks/decide.sh rule` (the owner's answer for a held row, given through `checks/queue.sh answer`; `checks/land.sh` writes a landing's `reset`); `decide` | at each ruling; at each decision | `rulings`: date, row, word (`accept`, `limit`, `amend`, `more`, a landing's `reset`), words, who — tab-separated; `rows/<row>.txt`: the row's record, as the queue page shows it |
 | `.vid/decide/queue.md`, `.vid/decide/queue.html` | `checks/decide.sh queue` (rendered by `checks/page.sh --out`) | at each queue | the owner's queue page: the headline, each held row with its record and the four answers, the findings ranked; the markdown is the record |
 | `.vid/decide/merged-prs`, `.vid/decide/merges`, `.vid/decide/refused`, `.vid/decide/flags`, `.vid/decide/accepted-log`, `.vid/decide/ruled` | `checks/round.sh` | at each step of the round | `merged-prs`: a merged pull request a line, once its merge is recorded; `merges`: pull request, ticket, head, merge commit (tab), read by the grade asks and the status; `refused`: `<the work> <plan change>`, a refusal said once until the plan or the handed record changes; `flags`: `<word> <on>`, each alarm standing (cleared when it clears); `accepted-log`: `<epoch> <accepted rows>` a step; `ruled`: the count of rulings and answers last acted on |
-| `.vid/decide/landed`, `.vid/decide/drafts/<n>/` *(v0.26.10.25.5)* | `checks/land.sh` (draft, and the landing on the owner's yes) | at a draft; at a landing | `landed`: `<id> <the landing, 12> <time>`, each reset or added line, a journey's transitions with it — the ids no earlier evidence decides; a draft's `base`, `files/`, `plan` (the whole new vid-plan block when the change places rows), `why`, `count`, `sets`; *(v0.26.10.26.7)* `review` (the fresh-agent review's output the draft was made with, `none` or `finding <row id> \| <why>` lines) and `replaced` (the number of the draft that replaced it) |
+| `.vid/decide/landed`, `.vid/decide/drafts/<n>/` *(v0.26.10.25.5)* | `checks/land.sh` (draft, and the landing on the owner's yes) | at a draft; at a landing | `landed`: `<id> <the landing, 12> <time>`, each reset or added line, a journey's transitions with it — the ids no earlier evidence decides; a draft's `base`, `files/`, `plan` (the whole new vid-plan block when the change places rows), `why`, `count`, `sets`; *(v0.26.10.26.7)* `review` (the fresh-agent review's output the draft was made with, `none` or `finding <row id> \| <why>` lines) and `replaced` (the number of the draft that replaced it); *(0.26.10.29.2, R2)* `deleted` (a spec file the draft deletes, one a line: STAGES.md, a re-cut back to one stage) |
 | `.vid/decide/queue/` *(v0.26.10.25.3)* | `checks/queue.sh` (`update-at` by `checks/round.sh`; `status.txt` by `queue.sh status`, which `checks/observe.sh` runs on its ticket-mode ticks) | at each sync, ask, answer and status | `ids` (`<item key> TAB Q<n> TAB <UTC>`: a Q line's number, never reused), `answers` (`<UTC> TAB <item key> TAB <word> TAB <words> TAB <who> TAB <outcome>`, `<who>` owner, RM, delegate or stand-in *(v0.26.10.28.8)*; *(v0.26.10.26.7)* the keys `hold:<N>`, the setup hold answered `continue`, and `context:window`), `questions` (the dev side's questions and their state), `recommend` (`<item key> TAB <letter> TAB <why>`, the session's own), `seen` (what was announced once), `waited` (the questions told they wait on the lead), `doors` (the items sent to /vid fix's door), `started` (`run-start <epoch>`), `updated`, `update-at`, `status.txt` (the status block), *(v0.26.10.27.4)* `offer` (the owner's answer to the grade before the first go-live: `grade <ask>` or `yes`); every other file in it is working state |
 | `.vid/decide/stage/<N>/s1` *(v0.26.10.26.1)* | `checks/close.sh` (S1's read) | at each S1 report read whole | `<REQ id> TAB <pass\|partial\|facade\|absent> TAB <candidate>`: the newest grade of each requirement of stage N, by the candidate it was graded at; the end grade's (v0.26.10.27.4) holds every live requirement; `end.sh` reads the newest over every stage |
 | `.vid/decide/completion.md` *(v0.26.10.27.4)* | `checks/end.sh complete` | each completion run, met or unmet (never `--check`) | the completion report, nine parts in develop's order, each line naming its evidence; complete only when its part 2 says so, and only then is RUN-STATE's `run: complete`; it is no production okay |
-| `.vid/decide/close/<step>/<k>/` *(v0.26.10.25.3)* | `checks/close.sh` (`read` by `checks/results.sh close`; `withdrawn` and `reached` by `checks/land.sh`) | at the step's k-th ask and each decide | the step close's k-th ask: `ask` (its issue, commit, chunks), `again`, `items`, `read` (the results reader's chunk, row, split and engine lines), `chunks`, `rows`, `failed`, `acted`, `lined`, `fixes`, `result`, `numbers` (the three numbers after the first ask), `done`; *(v0.26.10.25.5)* `withdrawn` — a landing reopened the step; *(v0.26.10.26.7)* `reached` — the reached rows that withdrew it, one a line, gathered over the landings while it stays withdrawn; the close waits for the tickets holding them and is asked at their merge; *(v0.26.10.28.2)* a chunk DevAgent says lost on the issue, `vid: lost <chunk> <k>` at the current count of `vid: again <chunk>`, is `again` at once the first time and an `items` line `lost …` the second, with no quiet time. The newest k is the step's newest ask |
-| `.vid/decide/stage/<N>/<c>/` *(v0.26.10.26.1)* | `checks/close.sh` (the candidate, C3, S1, the okays and the staging run); `checks/walk.sh` (`w1/`); `checks/results.sh` (each `read`) | at each stage step | candidate c of stage N: `named`, `commit`; C3's `ask`, `body`, `rows`, `chunks`, `packed`, `read`, `again`, `items`, `result`, `passed`, `done`; S1's `s1ask`, `s1body`, `s1read`, `s1done`, `s1again`, `s1withdrawn`, `findings`; `d1/` (*(v0.26.10.26.2)* staging's okay: `ask`, `read`, `passed`, `again`, `items`, `closed`, `door`), `cs/` (the staging run, as a close), *(v0.26.10.27.1)* `rh/` and `cr/` (the rehearsal and its run), `d2/` (the production deploy), *(v0.26.10.26.4)* `w1/` (the walk: `<s>/` a start with its `brief.md`, `pid` and `walk.txt`; `done`, `withdrawn`, `findings`, `items`, `again`), *(v0.26.10.26.5)* `summary.md` (the stage's summary, before its close) |
+| `.vid/decide/close/<step>/<k>/` *(v0.26.10.25.3)* | `checks/close.sh` (`read` by `checks/results.sh close`; `withdrawn` and `reached` by `checks/land.sh`) | at the step's k-th ask and each decide | the step close's k-th ask: `ask` (its issue, commit, chunks), `again`, `items`, `read` (the results reader's chunk, row, split and engine lines), `chunks`, `rows`, `failed`, `acted`, `lined`, `fixes`, `result`, `numbers` (the three numbers after the first ask), `done`; *(v0.26.10.25.5)* `withdrawn` — a landing reopened the step; *(v0.26.10.26.7)* `reached` — the reached rows that withdrew it, one a line, gathered over the landings while it stays withdrawn; the close waits for the tickets holding them and is asked at their merge; *(v0.26.10.28.2)* a chunk DevAgent says lost on the issue, `vid: lost <chunk> <k>` at the current count of `vid: again <chunk>`, is `again` at once the first time and an `items` line `lost …` the second, with no quiet time; *(0.26.10.28.10)* `lostsig` — each lost attempt's unrun rows, `<chunk> <attempt> <signature>` (by engine and state, messages apart); `same` — the chunks lost as at the attempt before, one a line, for which a bare again is refused; `againwhy` — an owner's again's words, `<chunk> TAB <words>`, posted under its `vid: again` as `why:` and then dropped, as is its `same` line. The newest k is the step's newest ask |
+| `.vid/decide/stage/<N>/<c>/` *(v0.26.10.26.1)* | `checks/close.sh` (the candidate, C3, S1, the okays and the staging run); `checks/walk.sh` (`w1/`); `checks/results.sh` (each `read`) | at each stage step | candidate c of stage N: `named`, `commit`; *(0.26.10.29.2, R2)* `withdrawn` (`<the landing, 12> <time>`, `checks/land.sh`: a re-cut changed the stage; its C3 is read no more, its S1 gets `s1withdrawn`, its D1 okay a `d1/closed` of `withdrawn by the landing <12> <time>`, and close.sh names a new candidate once one is due); C3's `ask`, `body`, `rows`, `chunks`, `packed`, `read`, `again`, `items`, `result`, `passed`, `done`; S1's `s1ask`, `s1body`, `s1read`, `s1done`, `s1again`, `s1withdrawn`, `findings`; `d1/` (*(v0.26.10.26.2)* staging's okay: `ask`, `read`, `passed`, `again`, `items`, `closed`, `door`), `cs/` (the staging run, as a close), *(v0.26.10.27.1)* `rh/` and `cr/` (the rehearsal and its run), `d2/` (the production deploy), *(v0.26.10.26.4)* `w1/` (the walk: `<s>/` a start with its `brief.md`, `pid` and `walk.txt`; `done`, `withdrawn`, `findings`, `items`, `again`), *(v0.26.10.26.5)* `summary.md` (the stage's summary, before its close) |
 | `.vid/decide/grade/<n>/` *(v0.26.10.27.2)* | `checks/grade.sh` (`read` by `checks/results.sh grade`) | at an owner's grade ask and each step | `ask` (issue, commit, asked, reqs, deferred, vs, robustify, focus; tab), `body`, `read`, `grades` (REQ, word, reason, vs word, vs reason; tab), `findings`, `done`, `refused`, `again`, `allow`, `lost`, `withdrawn` |
 | `.vid/decide/production` *(v0.26.10.27.1)* | `checks/close.sh` | appended at each passed D2 | `<commit> TAB <the D2 issue> TAB <UTC>`: production's commit, the newest line now |
+| `.vid/decide/duties-known` *(0.26.11.1.1, R3)* | `checks/queue.sh answer` (the owner's `known` on a D1 duty not done); read by `checks/results.sh deploy` | appended, a line an answer | `<duty> TAB <the owner's words> TAB owner TAB <UTC>`: a staging duty the owner ruled a known limit of the project, whose `not done` a passed D1 may then say |
 | `.vid/decide/tmp.*` | `checks/decide.sh` | while it runs; removed at its exit | working state, never saved |
 | `.vid/results/pr-<p>-<head12>.txt`, `.html` *(v0.26.10.24.5)* | `checks/results.sh read`; `page` (the `.html`, by `checks/page.sh --out`) | at each head read | the evidence for that head: report lines, then a tab-separated line per row or transition (row, kind, red, t3, fault, reason), the grades' findings, `open grade line:` lines, `finding: note` lines, a fault folder for no row, and the head report's engines, environments and retested — what decide.sh decides from |
 | `.vid/results/stand-in-pr-<p>.txt`, `.vid/results/stand-in.txt` | `checks/results.sh read` | rebuilt at each read | `<head12> TAB <the line>`: every head report's stand-in lines, by pull request and all of them, each once |
@@ -741,10 +869,26 @@ Added by 0.26.10.28.1 to 0.26.10.28.8, after the ticket flow's files above; each
   report lists as a known limit; the events `walk-none` and `walk-limit`.
 - **`.vid/tw/log`'s `withdrawn <n> decision=known-limit rows=<rows>`** *(0.26.10.28.6)*, `checks/github.sh tw-close`: a fix ticket whose
   rows were all ruled known limits, withdrawn.
+- **`.vid/tw/log`'s `handover <n> pr=<p>[,<p>…]|- rows=<rows> at=`** *(0.26.10.29.2, R3)*, `checks/github.sh tw-handovers` (before the round or a hand-call writes any ticket), else `tw-close` and `tw-post --amend`:
+  the rows a plan change took out of ticket n, withdrawn (every row of its newest writing, `pr=` its open pull requests or `-`), or
+  amended while a pull request naming it is open (the rows it lost). The ticket the writer next writes holding any of them names n in its
+  header, `- earlier work: ticket #<n>[, pull request #<p>]`, until a later published or amended ticket has carried that row. A
+  withdrawn ticket's pull request is never decided again (checks/round.sh), and its withdrawal comment, on the issue and on each open
+  pull request, names the change's why and where each row went (`checks/writer.sh where <n>`).
+- **`.vid/tw/log`'s `withdrawn <n> decision=<D> kept=<step>` and `told <n> limits=<rows> at=`** *(0.26.10.29.2, R11)*, `checks/github.sh
+  tw-close` and `tw-tell`: a step or skeleton ticket withdrawn because more than half of the rows it held at its last writing are gone or
+  replaced, its step kept, which the writer counts as never sent (as a closed-outside one), so the step's kept rows go out in a new
+  ticket naming it; and a fix ticket whose every row was ruled a known limit while a pull request names it, told so once and left to
+  merge as it is. A ticket's `.meta` gains `tell <line>` lines at an amendment, its cause and each row added, removed or changed by id
+  and promise, which `tw-post --amend` posts on the issue and each open pull request.
 - **`.vid/shares/<run>.summary` and `.vid/shares/<run>.known`** *(0.26.10.28.7)*, `checks/share.sh build`, beside the bundle
   (`.vid/shares/<run>/`, in the table above): the summary, one item a line (`folder` relative to the project, `size`, `part`,
   `redacted`, `left-out`, `missing`, `split`, `scan`, `limit`), what `/vid:vid-share` shows; the known personal values the scan
   needs, mode 600, never in the bundle and never sent.
+- **DECISIONS.md's `| origin: dev-side`** *(0.26.10.29.5, DP-1 R2)*: a decision the dev side made, recorded by `checks/decisions.sh
+  record` from a merged pull request's Decisions section (`| enforced: ticket <n> |` and its label) or a passed deploy report's
+  `decision:` lines (`| enforced: deploy <id> | scope: project`), in the dev side's words; in ticket mode the pre-commit hook's
+  ledger-path test does not read such a line, which its ticket or deploy ref enforces.
 - **DECISIONS.md's `| about: vid-settings` mark** *(0.26.10.28.5)*: beside a decision's label, a decision about ViD's own settings,
   which no ticket quotes (vid-init records its budget with it).
 - **The recorded GitHub mode** *(0.26.10.28.8)*, `checks/planner.sh setup github-mode`: `.vid/tw/settings`' `github-mode:` key and its
@@ -768,13 +912,17 @@ Present only for a project delivered in stages (none: one stage). The
     split: REQ-x REQ-y -> STAGE-<n>                  a split feature's requirements placed in another stage
     row: <ROW|RULE|DIF|EXC|SUP>-x -> STAGE-<n>        a row placed: a ROW whose requirements span stages, or a census row later
     needs: FEAT-a needs FEAT-b — <source>            an ordering edge, with its source
+    rules: by-origin                                 (0.26.10.29.4) at most once: census rows placed by their origin (below); written by vid-stage only while no stage is closed or deployed, kept as it stands by a later re-cut
 
 What gets which stage: a requirement or invariant its feature's (a
 `split:` line overrides), none when `phase: later`; a ROW its items'
 when they agree, a `row:` line when they don't, stage 1 with no item
 (*(28)* stage 0 only by a `row:` line; its rows' requirements keep their
 own stages); a
-census row (RULE, DIF, EXC, SUP) stage 1 unless placed; a HOS row the
+census row (RULE, DIF, EXC, SUP) stage 1 unless placed (*(0.26.10.29.4)*
+with `rules: by-origin`, the earliest stage of the PRD items its `origin:`
+names; stage 1 still when it names none, when they are all `phase: later`,
+and for a Tier-0 rule row; a `row:` line first); a HOS row the
 stage of what its `protects:` names. Around the block, one card per stage
 in plain language (no reader parses them). A stage's close is tagged
 `vid/stage-N` (annotated, at the commit `stage-closed` names; a tag never
@@ -1123,7 +1271,7 @@ field. A writer that builds keys or a type at run time names them in a
 | `brief-written` | *(16)* `path=<brief> role=<role> try=<try\|-> bytes=<n>` | `checks/brief.sh write` | each brief written |
 | `builder-tool` | *(16)* `set=<claude\|codex> by=owner`, or `paused reason=codex-limit reset=<time\|unknown>` | `checks/job.sh` | the owner switches the builders' tool; Codex runs out |
 | `decision-labels` | *(18)* `applied=<n> widened=<n> changed=<n> skipped=<n>` | `checks/decisions.sh apply` | the labelling pass applied: labels written, of them written `scope: project` because the labeller was unsure (or the proposal could not be used), decisions changed since their proposal (left unlabelled), proposals skipped |
-| `delegated` | *(19)* `answer=<A-id>` | `checks/metrics.sh delegated` | vid-develop marks an answer it wrote under the owner's delegation, in the step that commits it, and once at the first session after the 0.9.7.4 refresh for the answers taken before; refused for an id not in the PRD's effective answer ledger, an answer of tier `model_proposed`, and an id already marked; the mark says how an answer was made, never when |
+| `delegated` | *(19)* `answer=<A-id>` | `checks/metrics.sh delegated` | vid-develop marks an answer it wrote under the owner's delegation, before its commit (0.26.10.29.3 R2; before it, in the step that commits it), and once at the first session after the 0.9.7.4 refresh for the answers taken before; refused for an id not in the PRD's effective answer ledger, an answer of tier `model_proposed`, an id already marked, and (0.26.10.29.3 R2) an answer that a withdrawn arm of any item row, superseded or not, cites (`arms:` … `withdrawn <A-id>`), and an answer whose effective row lacks `delegated: yes`; the mark says how an answer was made, never when |
 | `deferred` | *(17)* `row=<ROW-id> kind=product\|test why="<one line>" from=brief:<path>#<row>\|receipt:<name> by=<who>` | `checks/metrics.sh defer` | under breadth first, an edge finding — a row in a hardening step with an eligible BREACHED verdict — waits for its step; never a core or protected row |
 | `deferred-resolved` | *(17)* `row=<ROW-id> by=commit:<12 hex>\|verdict:<brief>` | `checks/metrics.sh defer-resolved` | an open deferral's disposition — never a verdict |
 | `context-high` | *(16)* `n=<tokens>` | `checks/brief.sh write`, `return` | the run manager's context is above 350000, once per crossing (none since its session's latest `session` event) |
@@ -1175,7 +1323,7 @@ field. A writer that builds keys or a type at run time names them in a
 | `red-observed` | *(2)* `row=<ROW-id> report=<receipt> case=<case id> assertion="<the failing assertion>"`; *(29)* ticket mode: `row=<ROW-id>` `pr=<n> commit=<code sha, 12>` *(not written from 0.26.10.28.1)* — the row's cases failing in the dev team's CI report for the tests-first commit; no receipt, no stamp | vid-develop; *(29)* `checks/ticket.sh import` (old ticket mode, removed in 0.26.10.28.1) | a new row's test observed failing on its real check, before its `proved-red:` stamp; *(29)* in ticket mode, at the import of the tests-first commit's CI report |
 | `re-verdict` | `slice=<N> round=<r> breached=<k>` | vid-develop | a re-verdict round |
 | `regressions` | `slice=<N> n=<k>` | vid-develop | at slice close |
-| `refused` | *(4)* `phase=pre-commit\|commit-msg\|admission by=<court or rule> attempt=<the UTC time plus 4 hex> [step=<id>]` | `checks/hooks/pre-commit` (`by=` the courts that refused, comma-separated, or `protected-paths`, `law-dirty`, `law-standalone`, `purpose-header`, `decisions-enforced`, `decisions-promissory`, *(18)* `decisions-label`, `index-copy`, `red-stamp`, `prd-grammar`, `selftest`; *(25)* `stages` among the courts); `checks/hooks/commit-msg` (`decisions`, `tests-by`, *(25)* `stages`); `checks/plan.sh` (`rule-A`, `rule-B`, `dirty-currency`, `unrecorded-plan`, `no-step`, `rows-not-of-step`, *(17)* `graded`, *(25)* `stage`, with `step=`) | every refusal of a commit or an admission, at the run's home |
+| `refused` | *(4)* `phase=pre-commit\|commit-msg\|admission by=<court or rule> attempt=<the UTC time plus 4 hex> [step=<id>]` | `checks/hooks/pre-commit` (`by=` the courts that refused, comma-separated, or `protected-paths`, `law-dirty`, `law-standalone`, `purpose-header`, `decisions-enforced`, `decisions-promissory`, *(18)* `decisions-label`, `index-copy`, `red-stamp`, `prd-grammar`, `selftest`; *(25)* `stages` among the courts; `append-review`, a new append section holding rows with no record of its delta review, 0.26.10.29.3 R3); `checks/hooks/commit-msg` (`decisions`, `tests-by`, *(25)* `stages`; `owner`, a human answer added with no `Owner:` trailer, 0.26.10.29.3 R2); `checks/plan.sh` (`rule-A`, `rule-B`, `dirty-currency`, `unrecorded-plan`, `no-step`, `rows-not-of-step`, *(17)* `graded`, *(25)* `stage`, with `step=`) | every refusal of a commit or an admission, at the run's home |
 | `reissued` | `row=<ROW-id> why=<answer id>` *(8)* `[rounds=<N>]` — the owner's allowance: the row is held, reason rounds, once N distinct briefs breach it with no KEPT | vid-develop | an owner ruling releases a held row |
 | `reverted` | `row=<ROW-id>` | (legacy, 0.9.2) | no longer written; wipes as 0.9.2 read it |
 | `rows-paid` | `slice=<N> n=<k>` | vid-develop | at slice close |
@@ -1187,7 +1335,7 @@ field. A writer that builds keys or a type at run time names them in a
 | `slot-reclaimed` | *(11)* `slot=<k> project=<the holder's compose project> holder-pid=<pid> age=<s>` | `checks/test.sh` | a run that found no free test environment freed a host slot left by a run that died: its holder pid gone, Docker answering, no container, running or stopped, of that compose project left; written at the run's home, once per slot freed |
 | `stage` | `name=<verb> state=start\|end\|pause-1\|pause-2\|pause-3 session=<id> [records=<n>]`; *(4)* `run=<the run id>` on every `state=start`, last, before the time (`checks/event.sh` adds it); *(29)* `made=spec` on vid-init's end for a spec-only init; *(30)* `base=<HEAD when it starts, 12 hex>` on vid-add's start | every verb but vid-grade, in a VID project | a verb starts or ends; vid-create-prd also at each pause commit; `records=` is the version the verb writes (vid-develop 8, vid-fix 8, vid-deploy 4, the others 1) *(20)* vid-develop and vid-fix write `records=20`. *(29)* the stage names `plan` and `replan` (vid-plan, vid-replan, `records=29`; `replan`: old ticket mode, removed in 0.26.10.28.1); vid-init's end carries `made=spec` for a spec-only init (an older init wrote no `made=`); vid-init and vid-develop write `records=29` *(30)* vid-add writes `records=30` and `base=<HEAD when it starts, 12 hex>` on its `state=start`, read by vid-develop's completion grade (the adds since the newest `completion unmet=0 strict-gaps=0`, from the earliest one's `base=`) |
 | `stage-closed` | *(25)* `n=<N> sha=<12 hex> ready rows=<n> debt=<n> stages-blob=<HEAD:STAGES.md blob\|none>`; *(29)* ticket mode: `n=<N> sha=<the code commit, 12> source=ci run=<id> rows=<n> debt=<n>` (`metrics.sh stage-close --ci --record`) — no `ready` token, so no reader of a close's ViD sha reads it; no tag | `checks/metrics.sh stage-close --record`; *(v0.26.10.26.5)* `checks/close.sh close-stage` in ticket mode, no tag | a ready stage close, with the tag vid/stage-N at sha (in develop); what vid-deploy reads, never recomputing a past commit |
-| `stage-cut` | *(25)* `n=<stages> answer=<A-id> [blob=<HEAD:STAGES.md blob>]` | vid-stage | the owner ratified a cut (n=1: one stage, no STAGES.md), at init or a re-cut |
+| `stage-cut` | *(25)* `n=<stages> answer=<A-id> [blob=<HEAD:STAGES.md blob>]` | vid-stage; *(0.26.10.29.2, R2)* `checks/land.sh`, at a re-cut's landing in ticket mode | the owner ratified a cut (n=1: one stage, no STAGES.md), at init or a re-cut |
 | `stage-deploy` | *(25)* `n=<N> staging=yes production=yes\|no`; *(28)* `staging=failed`, `[by=develop]`, `[why="<one line>"]` | vid-deploy | a stage deployed to staging and the owner's gate-3 answer; *(27)* written by each target — `production=no` by a staging deploy, `production=yes` by a production cutover; *(28)* `by=develop` for develop's own staging deploy under the standing authorization, `staging=failed` with its reason when that deploy ended without gate 2's pass |
 | `stage-hold` | *(27)* `n=<N> state=asked words="<the owner's words>"`; `n=<N> state=on`; `n=<N> state=off` | `checks/stages.sh hold --after N` (asked), `checks/metrics.sh stage-close --record` (on), `checks/stages.sh hold --off` (off); *(v0.26.10.26.5)* in ticket mode `checks/queue.sh control hold` (asked), `checks/close.sh close-stage` (on), `control continue` (off); *(30)* vid-add (off, for an asked hold the owner's yes to an add withdraws before the build) | the owner's "hold after this stage"; stage N's ready close under it; the owner's "continue"; *(28)* `words="staging setup"` is the setup hold, asked by vid-develop while no staging deploy has passed gate 2 (its close writes `run: stopped staging setup after stage N`), released by `checks/stages.sh hold --off --setup` once staging works — which, when the owner also asked to hold, records nothing and rewrites the run line to the owner's hold |
 | `staging-auth` | *(28)* `state=on\|off words="<the owner's words>"` | `checks/stages.sh staging-auth on\|off --words` (vid-stage's sitting; any verb, at the owner's word) | the standing staging authorization: develop may set staging up and deploy each closed stage to it on its own; the newest stands |
@@ -1239,12 +1387,14 @@ field. A writer that builds keys or a type at run time names them in a
 | `queue-stale` | *(v0.26.10.25.5)* `what=draft n=<k>` | `checks/queue.sh` | the owner's yes to a stale draft: SP redrafts it |
 | `queue-waits` | *(v0.26.10.25.5)* `what=draft n=<k>` | `checks/queue.sh` | the owner's yes while paused or stopped: it waits for continue |
 | `round-error` | *(v0.26.10.25.1)* `step=<what failed> count=<n>` | `checks/round.sh` | a round's step failed |
+| `decisions-recorded` | *(0.26.10.29.5, DP-1 R2)* `pr=<p> n=<k\|none\|missing\|refused>` or `deploy=<report id> n=<k\|none>` (k=0: every line held already) | `checks/decisions.sh record`; `checks/round.sh` (`n=missing` for a merge with no decision of ViD's) | the dev side's decisions of a merged pull request or a deploy report the reader did not refuse: k lines recorded in DECISIONS.md in one commit; `none`, its `Decisions: none` (or `decisions: none`); `missing`, no Decisions section; `refused`, the hooks refused the commit and nothing was written. Once a pull request or report, never tried again |
 | `round-merged` | *(v0.26.10.25.1)* `pr=<p> decision=none` | `checks/round.sh` | a pull request merged with no decision of ViD's |
 | `round-main-changed` | *(v0.26.10.28.2)* `main=<commit>\|none\|absent` | `checks/round.sh` | the step saw the code repository's main change, and printed `main-changed` for `next` |
 | `round-refused` | *(v0.26.10.25.1)* `what=<the work refused>` | `checks/round.sh` | ticket work or an admission the round was refused, recorded once |
 | `round-stop` | *(v0.26.10.25.1)* `stray=<n>` | `checks/round.sh` | the round stopped for a stray, its count |
 | `vid-defect` | *(v0.26.10.25.3)* `step=<where>` | `checks/queue.sh` | ViD's own defect, an entry in .vid/VID-FINDINGS.md |
 | `stage-candidate` | *(v0.26.10.26.1)* `stage=<N> commit=<sha> candidate=<c>` | `checks/close.sh` | a stage's candidate named, its C3 and S1 asked |
+| `stage-candidate-withdrawn` | *(0.26.10.29.2, R2)* `stage=<N> candidate=<c> by=<the landing, 12>` | `checks/land.sh` | a re-cut that changed stage N withdrew its newest candidate, with its C3, S1 and D1 okay still out; a new one is named once due |
 | `stage-c3` | *(v0.26.10.26.1)* `stage=<N> ask=<c> result=passed` | `checks/close.sh` | a stage's full run green: its steps closed |
 | `stage-s1` | *(v0.26.10.26.1)* `stage=<N> candidate=<c> graded=<n>` | `checks/close.sh` | a stage's grade read whole |
 | `grade-ask` | *(v0.26.10.27.2)* `issue=<n> commit=<c> reqs=<n>` [`vs=<c>`] [`robustify=yes`] | `checks/grade.sh` | the owner's grade ask posted |
@@ -1255,13 +1405,15 @@ field. A writer that builds keys or a type at run time names them in a
 | `queue-waiting` | *(v0.26.10.26.7)* `n=<issue or pull request> q=Q<m>` | `checks/queue.sh` | the dev side told, once, that its question waits on the lead |
 | `stage-okay` | *(v0.26.10.26.2)* `stage=<N> candidate=<c> issue=<n> commit=<sha>`; *(v0.26.10.27.1)* `kind=rh\|d2` on the rehearsal's and the production deploy's okay (none on staging's) | `checks/close.sh` | the staging okay posted, for DevAgent's D1 |
 | `stage-okay-withdrawn` | *(v0.26.10.26.2)* `issue=<n> by=<the newer okay>` | `checks/close.sh` | an earlier okay with no D1 passed withdrawn by a newer one |
-| `stage-okay-again` | *(v0.26.10.26.2)* `stage=<N> candidate=<c> kind=d1\|rh` — the okay asked again | `checks/close.sh` | a failed okay asked again at the same commit, on the owner's again |
+| `stage-okay-again` | *(v0.26.10.26.2)* `stage=<N> candidate=<c> kind=d1\|rh` — the okay asked again; *(0.26.11.1.1, R4)* `kind=stand-in`, D1 and CS asked afresh on the owner's again to a stand-in row | `checks/close.sh` | a failed okay asked again at the same commit, on the owner's again |
+| `staging-seed` | *(0.26.11.1.1, R6)* `seed=production\|synthetic by=owner` | `checks/queue.sh` | the owner's word for staging's data (`control seed`), which each later staging okay's `seed:` follows |
 | `stage-d1` | *(v0.26.10.26.2)* `stage=<N> issue=<n> result=passed attempt=<k>`; `result=failed step=<step> change=yes\|no` | `checks/close.sh` | a D1 report read |
 | `stage-staged` | *(v0.26.10.26.2)* `stage=<N> issue=<n>` | `checks/close.sh` | the run's first passed D1: the setup hold ends |
 | `stage-differs` | *(v0.26.10.26.2)* `stage=<N> issue=<n>` | `checks/close.sh` | a passed D1 named a new difference from production, for the door |
 | `stage-cs` | *(v0.26.10.26.2)* `stage=<N> result=passed issue=<n>` (`rows=0` when none ran) | `checks/close.sh` | a staging run green |
 | `stage-cs-withdrawn` | *(v0.26.10.26.2)* `stage=<N> issue=<n>` | `checks/close.sh` | an older candidate's staging run withdrawn by a newer candidate |
-| `stage-paid` | *(v0.26.10.26.2)* `stage=<N> row=<id> issue=<n>` | `checks/close.sh` | a seam or staging-owed row passed at CS: `paid` |
+| `stage-paid` | *(v0.26.10.26.2)* `stage=<N> row=<id> issue=<n>`; *(0.26.11.1.1, R4)* `by=limit` when the owner's `limit` pays a stand-in row against its stand-in (`checks/queue.sh`) | `checks/close.sh` | a seam or staging-owed row passed at CS: `paid` |
+| `duty-known` | *(0.26.11.1.1, R3)* `duty=<duty> by=owner` | `checks/queue.sh` | the owner ruled a staging duty not done a known limit of the project: `.vid/decide/duties-known` |
 | `stage-rh` | *(v0.26.10.27.1)* `stage=<N> issue=<n> result=passed attempt=<k>`; `result=no-backup`; `result=failed step=<step> change=yes\|no` | `checks/close.sh` | the rehearsal's report read |
 | `stage-cr` | *(v0.26.10.27.1)* `stage=<N> result=passed issue=<n>` (`rows=0` when none ran) | `checks/close.sh` | the rehearsal run green |
 | `stage-d2` | *(v0.26.10.27.1)* `stage=<N> issue=<n> result=passed`; `result=failed` `step=<step>` *(not written from 0.26.10.27.3)* | `checks/close.sh` | the production deploy's report read |

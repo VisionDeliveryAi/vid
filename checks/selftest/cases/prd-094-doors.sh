@@ -32,7 +32,7 @@ git config core.hooksPath checks/hooks
 # door <heading> <body> <message>: append a dated section and commit it through the hooks; prints ACCEPTED or REFUSED
 door() {
   cp PRD.md PRD.base
-  printf '\n### 2026-09-26 (%s)\n\n%s\n' "$1" "$2" >> PRD.md
+  printf '\n### 2026-09-26 (%s)\n\n%s\n\nreview: delta, 0 findings\n' "$1" "$2" >> PRD.md   # 0.26.10.29.3 (R3): with its review's line
   g add PRD.md
   if g commit -qm "$3
 

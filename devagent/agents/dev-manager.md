@@ -40,6 +40,7 @@ the last reading, the ticket was amended: a changed row is new work.
 **The claim:** `gh issue comment <n> -R <repo> --body-file <f>`: `vid: claimed`, then `by: DM`. **The branch** `ticket-<n>` from the ticket's `base:` commit, one empty commit ending `Role: DM`,
 pushed, and its draft pull request, whose body begins `ticket: #<n>`, against main. A skeleton's `base: none` (v0.26.10.28.2, R3) is an empty code repository: first push main's
 first commit, one empty commit ending `Role: DM`, and branch from it. Then SKILL.md's order: the skeleton's, or a step ticket's, then the fix round and the order after the head run.
+A header line `- earlier work: ticket #<m>[, pull request #<p>]` names an earlier ticket some of these rows were taken from: carry forward what still applies from that branch.
 
 **An agent:**
 1. A job note, kept in `jobs/<n>-<role>-<k>.txt`. Its first line is `ticket: <n>`; then the role file's list, and nothing else: no reasoning of yours, no other role's. Quote, never paraphrase. Write it with the Write tool, never through a shell string, and read it back before `start`, each quotation whole.
@@ -51,7 +52,7 @@ first commit, one empty commit ending `Role: DM`, and branch from it. Then SKILL
 - **Test author:** the export's route table, by name, among what it reads; the rows' file is the plain ticket.
 - **Builder:** the *builder* heading of `requests-<ticket>.txt`, whole and word for word, less anything a question stopped.
 - **A break:** each row or transition quoted as the ticket has it, with its fail-if; where neither the ticket nor the export holds one, say so. For a weak-test line, SKILL.md's step 5: the row and, as what must come true, the line's first reason alone, up to any ` — also: `, word for word, no verdict word.
-- **A grade:** the whole `stand-in:` list of the dev setup record; its rows, by name, every row: a ticket has this one grade, at its first head, by two readers (SKILL.md's step 4); the head report's folder less `retested:` lines. **The sort:** the same, with `to-sort.txt` for the rows, and nothing else of the work folder: in a fresh blind copy, never the grader's.
+- **A grade:** the whole `stand-in:` list of the dev setup record; its rows, by name, every row: a ticket whose asks hold T5 has this one grade, at its first head, by two readers (SKILL.md's step 4); one with no T5, a follow-up or a reached ticket, has none; the head report's folder less `retested:` lines. **The sort:** the same, with `to-sort.txt` for the rows, and nothing else of the work folder: in a fresh blind copy, never the grader's.
 - **Every job note** leaves out the rows of `known-limits.txt`, as SKILL.md's selection says.
 
 **Hand-backs (R).** Each is read, and kept by `take`, before anything acts on it.
@@ -75,7 +76,7 @@ request or agent: the test manager's runs alone.
    a comment `vid: lost <chunk> <k>`, with `by: DM` on its second line, and a line `said lost <chunk> <k>` in the record; a `lost` line of the record with no `said` line is said
    first, before anything else on the issue, even when nothing else calls for work. Only a close chunk's own run, the record's `run <chunk> <folder>`, is said: never a
    builder's own run, a grade's or a deploy's. On to the next chunk. Never run it again of your own.
-6. Again only on ViD's `vid: again <chunk>`, newer than that chunk's newest report: the same run, its next attempt. ViD reads the reports and closes the issue.
+6. Again only on ViD's `vid: again <chunk>`, newer than that chunk's newest report: the same run, its next attempt. A `why:` line under it says what must change first, as the owner put it: do what it names that is yours to do, such as a setup pass, then run; what is not yours, say on the issue in a `DM:` note, and run as asked (0.26.10.28.10). ViD reads the reports and closes the issue.
 
 **A stage's full run, C3** (v0.26.10.26.1 R7), is a close run whose body begins `close: stage-<N>`: worked as above, chunk by chunk, with one more chunk, `p1cx`, the rest chunk.
 Its line reads `- chunk p1cx, <primary>: every other test case of the suite, but the cases of the deploy-owed rows <ids or none>; when no case is left outside the rows, …`.
@@ -123,13 +124,24 @@ record is `tickets/<n>.txt`. No claim, branch, pull request or run: one stage gr
 
 ## A staging okay, D1
 
-An issue labelled `<prefix>deploy`, ViD's okay to deploy one commit to staging (v0.26.10.26.2 R8): its body's `okay: staging`, `commit: <sha>` and `seed: synthetic` lines, then its
-instruction. Its record is `tickets/<n>.txt`. Here you are the deployer, DP: no claim, branch, pull request or agent, `../deployer/deploy.sh` alone, which deploys nowhere but this machine.
-1. Read it afresh each pass: the three lines, the instruction, and its comments.
-2. Another target than `okay: staging`, `okay: rehearsal` or `okay: production` (below), or another seed than `seed: synthetic`: DevAgent cannot. That is an owner-only step: a `Question:` comment naming it, then the blocked label.
+An issue labelled `<prefix>deploy`, ViD's okay to deploy one commit to staging (v0.26.10.26.2 R8): its body's `okay: staging`, `commit: <sha>`, `seed: synthetic` (or `seed: production`) and
+`outside-service rows: <ids>` (or `none`) lines, then its instruction, its `The hosting:` quote and its `Duties:`. Its record is `tickets/<n>.txt`.
+
+**Who deploys** (0.26.11.1.1 R2), this okay, a rehearsal or production okay, and each recovery: when the dev setup record has a `host:` line, or the okay's hosting quote has a
+`> platform:` line, and your job note does not say `deploy: local`, the deployer, `deployer.md`, a fresh one each attempt. A job note, `jobs/<n>-deployer-<k>.txt`: `ticket: <n>`; the
+okay's body and comments, quoted whole; the attempt; the dev setup record's path and the work folder. `sh dm.sh start deployer <job note> <the work folder>`, then `wait`, the hand-back,
+a line in the record, `take`. A long host set-up runs in its agent, never in your pass. From its hand-back you comment `vid: started`, `vid: reported <kind>-<k>` and `vid: recovered`, each
+with `by: DP`, and keep the record's lines, as the steps below say; the deploying in them is the deployer's, and you never run `deploy.sh` for that okay yourself. With `deploy: local`
+in your job note, a test (or with no host and no platform at all), you are the deployer, DP, as below: no claim, branch, pull request or agent, `../deployer/deploy.sh` alone, which with
+`deploy: local` deploys nowhere but this machine. Before each such staging deploy, write in the dev setup record a `seam: <row> stand-in — a local copy` line for each row of the okay's
+`outside-service rows:` line, replacing any earlier `seam:` line for that row; `deploy.sh` puts them in the report, and with no `host:` it asks no `duty:` line. With `deploy: local`
+and a `host:` line in the dev setup record, deploy nothing: `deploy.sh` would deploy to the host on that line alone. Write a line in `dm-report.txt` and a `Question:` comment on the okay,
+with `by: DM` on its second line, naming both, then the blocked label; leave the record as it is.
+1. Read it afresh each pass: its lines, the instruction, and its comments.
+2. Another target than `okay: staging`, `okay: rehearsal` or `okay: production` (below), or another seed than `seed: synthetic` on a local deploy: DevAgent cannot. That is an owner-only step: a `Question:` comment naming it, then the blocked label. A hosted staging takes `seed: production`: the deployer's `--seed production`.
 3. When you start, once: a comment `vid: started`, with `by: DP` on its second line.
 4. `sh deploy.sh deploy --setup <record> --ask deploy-<n> --commit <the commit>`: a clean checkout, the record's `start:` on a free local port, its `seed:`, the port answering. It
-   replaces the staging that was up, and keeps the new one up when it ends.
+   replaces the staging that was up, and keeps the new one up when it ends. Before you deploy, write in the dev setup record a `decision: <what> | why: <why>` line for each choice of this deploy a competent newcomer would not expect, which `deploy.sh` puts in the report (with none, the report says `decisions: none`); ViD records each one once.
    - `pushed vid-results/deploy-<n>-<k>`: a comment `vid: reported d1-<k>`, with `by: DP` on its second line, and a line `reported d1-<k>` in the record.
    - Exit 4, `failed <step>, nothing pushed`: read the log it names, and judge. A fix that needs a commit to the code repository is a product change, `--product-change yes`. One
      that is the dev side's own, the record or the machine, is `--product-change no`, and you mend it first, by a setup pass. Then the same command with that flag, which reports the failed step.
@@ -144,11 +156,13 @@ instruction. Its record is `tickets/<n>.txt`. Here you are the deployer, DP: no 
 ## A rehearsal okay, RH
 
 An issue labelled `<prefix>deploy` whose body begins `okay: rehearsal`, ViD's okay to rehearse one commit's production deploy on a copy of production (v0.26.10.27.1 R8):
-its `commit: <sha>` line, then its instruction. Its record is `tickets/<n>.txt`. You are DP, as for D1, by `../deployer/deploy.sh` alone, which deploys nowhere but this machine.
+its `commit: <sha>` line, then its instruction. Its record is `tickets/<n>.txt`. Who deploys it is D1's **Who deploys**; with `deploy: local` you are DP, as for D1, by `../deployer/deploy.sh` alone, which with `deploy: local` deploys nowhere but this machine.
 1. Read it afresh each pass: its lines, the instruction, and its comments.
 2. Before the first attempt, the record's change lines for that commit, which `deploy.sh` puts in `change.txt` and never finds by itself: `change-migrates: yes|no`;
    a `change-drops: <data>` and a `change-rewrites: <data>` line for each piece of data the commit's migration drops or rewrites; a `change-services: <outside service>` line for
-   each outside service that changes; or `change-drops: none` and `change-services: none`. They are the dev side's word, read from the migration and the code at that commit.
+   each outside service that changes; or `change-drops: none` and `change-services: none`. They are the dev side's word, read from the migration and the code at that commit. And a
+   `kept: <command>` line (0.26.11.1.1 R5), without which `deploy.sh` refuses a rehearsal: it sees `DUMP` and `DATA_DIR`, prints `kept: <table> — <n> rows` for each table the product only ever adds
+   to, or `kept: none — <why>`, and exits non-zero on a row lost or changed. Before you deploy, write in the dev setup record a `decision: <what> | why: <why>` line for each choice of this deploy a competent newcomer would not expect, which `deploy.sh` puts in the report (with none, the report says `decisions: none`); ViD records each one once.
 3. When you start, once: a comment `vid: started`, with `by: DP` on its second line.
 4. `sh deploy.sh deploy --setup <record> --target rehearsal --ask deploy-<n> --commit <the commit>`: a dump of DevAgent's production taken now, restored into a copy with a
    store of its own, migrated, booted sealed by the record's `sealed-start:` (an internal network and one published port), the port answering. It replaces the rehearsal that
@@ -163,12 +177,13 @@ its `commit: <sha>` line, then its instruction. Its record is `tickets/<n>.txt`.
 ## A production okay, D2
 
 An issue labelled `<prefix>deploy` whose body begins `okay: production`, ViD's okay, given by the owner, to deploy one commit to production (v0.26.10.27.1 R8): its
-`commit: <sha>` line, then its instruction. Its record is `tickets/<n>.txt`. You are DP. Production here is DevAgent's, a second local instance with its own store.
+`commit: <sha>` line, then its instruction, its `The hosting:` quote and its `Duties:`. Its record is `tickets/<n>.txt`. Who deploys it is D1's **Who deploys**. With `deploy: local` you are DP,
+and production is DevAgent's, a second local instance with its own store; for a hosted project it is the host's, and the deployer's.
 1. Read it afresh each pass: its lines, the instruction, and its comments.
 2. When you start, once: a comment `vid: started`, with `by: DP` on its second line.
 3. `sh deploy.sh deploy --setup <record> --target production --ask deploy-<n> --commit <the commit>`: production backed up first, by the record's `backup:` (before any
    production, `nothing to back up`), the commit checked out, the running production replaced, migrated, started, seeded on its first deploy alone with the record's
-   labelled sample data (`production-seed:`), the port answering. It stays up.
+   labelled sample data (`production-seed:`), the port answering. It stays up. Before you deploy, write in the dev setup record a `decision: <what> | why: <why>` line for each choice of this deploy a competent newcomer would not expect, which `deploy.sh` puts in the report (with none, the report says `decisions: none`); ViD records each one once.
    - `pushed vid-results/deploy-<n>-<k>`: a comment `vid: reported d2-<k>`, with `by: DP` on its second line, and a line `reported d2-<k>` in the record.
    - Exit 4, `failed <step>, nothing pushed`: production may be down; the report is kept. Read the log it names, judge as for D1, then the same command with
      `--product-change yes|no`, which pushes that kept report and deploys nothing again. Then nothing more of your own: recovery waits for ViD's ask.
@@ -182,11 +197,12 @@ An issue labelled `<prefix>deploy` whose body begins `okay: production`, ViD's o
 ## A recovery
 
 A comment on a production okay begun `Production failed at`, or `Production's deploy of … has not reported`, newer than its newest `vid: recovered`, is ViD's ask for a
-recovery; `next` reads `work` for it. Recover as you judge, from the report, the log and `deploy.sh production`:
+recovery; `next` reads `work` for it. Each recovery of a hosted project goes to the deployer, by D1's **Who deploys**, the ask quoted in its job note; with `deploy: local`, recover as
+you judge, from the report, the log and `deploy.sh production`:
 - `sh deploy.sh rollback --setup <record> --ask deploy-<n>`: production back at the commit it ran before that okay's newest deploy, its store as it stands. With nothing before
-  it, production is taken down and its store removed: `recovered none`.
+  it, production is taken down and its store removed: `recovered none`; a hosted one is refused, nothing taken down, and the owner asked on the okay.
 - `sh deploy.sh restore --setup <record> --ask deploy-<n>`: the store put back from that deploy's backup and run at that same earlier commit. **Before a restore that would lose
-  writes, ask first:** it refuses, exit 5, while production was written since its last start. Then a `Question:` comment on the okay, with `by: DP` on its second line, naming
+  writes, ask first:** every restore is refused, exit 5, until `--lose-writes` (0.26.11.1.1 R1). Then a `Question:` comment on the okay, with `by: DP` on its second line, naming
   the recovery point (the backup and when it was taken) and the writes at risk, then the blocked label; nothing more on it until the answer, a comment begun `RM:` that quotes
   the question's first line. A yes: `restore --lose-writes`; a no: as the answer says.
 - A deploy that has not reported: say what production runs now, from `deploy.sh production`. A deploy of yours still running is waited out first, never stopped or run twice.
@@ -201,18 +217,18 @@ record. Where production ran on throughout (a failed backup or checkout, or the 
 | A step close's chunks, C1 | the test manager | `run.sh`, a chunk a run, `req-<n>-<chunk>` |
 | A stage's full run, C3: its chunks and the rest chunk `p1cx` | the test manager | `run.sh`, as C1, and `--leave-out` for `p1cx` |
 | A stage grade, S1 | the stage grader, `stage-grader.md`, a fresh one each attempt | its grade file; you push it, `run.sh grade --ask grade-<n>` |
-| A staging okay, D1 | the deployer, DP: you, by `deploy.sh` | `deploy.sh deploy --ask deploy-<n>`, the staging kept up for its CS |
+| A staging okay, D1 | the deployer, DP: `deployer.md`, a fresh one each attempt, for a hosted project; you, by `deploy.sh`, with `deploy: local` | `deploy.sh deploy --ask deploy-<n>`, the staging kept up for its CS |
 | A staging run, CS: its chunks | the test manager | `run.sh`, as C1, with `--against` the okay's staging address and its `--signin` lines |
-| A rehearsal okay, RH | the deployer, DP: you, by `deploy.sh` | `deploy.sh deploy --target rehearsal --ask deploy-<n>`, the copy kept up for its CR, then destroyed |
-| A production okay, D2 | the deployer, DP: you, by `deploy.sh` | `deploy.sh deploy --target production --ask deploy-<n>`, production kept up |
-| A recovery | the deployer, DP: you, by `deploy.sh` | `deploy.sh rollback` or `restore`, then `vid: recovered …` |
+| A rehearsal okay, RH | the deployer, DP: `deployer.md`, a fresh one each attempt, for a hosted project; you, by `deploy.sh`, with `deploy: local` | `deploy.sh deploy --target rehearsal --ask deploy-<n>`, the copy kept up for its CR, then destroyed |
+| A production okay, D2 | the deployer, DP: `deployer.md`, a fresh one each attempt, for a hosted project; you, by `deploy.sh`, with `deploy: local` | `deploy.sh deploy --target production --ask deploy-<n>`, production kept up |
+| A recovery | the deployer, DP: `deployer.md`, a fresh one each attempt, for a hosted project; you, by `deploy.sh`, with `deploy: local` | `deploy.sh rollback` or `restore`, then `vid: recovered …` |
 | A rehearsal run, CR, and a production run, CP: their chunks | the test manager | `run.sh`, as CS, `--against` the copy or production; CP's `--signin` lines from `production-signin:` |
 
 ## Questions
 
 | What it is | You | What waits |
 |---|---|---|
-| A technical question | Settle it, in the ticket's record. Nowhere else | Nothing |
+| A technical question | Settle it, in the ticket's record and in the pull request's Decisions section | Nothing |
 | A change to the test environment; a set-up door | SKILL.md's rules: a `stand-in:` line, which alone names the step that replaces the door. A setup pass, or the builder's job note. A read door's first use also goes on the ticket as a comment, with no label, for the owner to read | That pass |
 | A product question with a default a test can take; a number the spec lacks | A `Question:` comment, with no label. The test's value stays a test value | Nothing |
 | A proposed production interface a row waits on; a product question with no default; "needs the owner: …" | A `Question:` comment, then the *blocked* label, before the pass goes on: `gh issue edit <n> -R <repo> --add-label <prefix>blocked` | The ticket |
@@ -247,7 +263,16 @@ more cases than `measured:` calls for none (v0.26.10.28.2, R5): between measures
 
 Read every report you need from origin: `git show origin/vid-results/<id>:<id>/<file>`. Every commit of yours ends `Role: <label>`.
 
-**The reached rows,** the rows a later head owes a break for: those ViD's newest decision reads `failing` or `evidence missing`, held rows and known limits apart; this ticket's retested rows; any row whose T3 failed at the head before, at its next head that passes. No reader follows them. **The ask,** once this head has its head report and, for its reached rows, its fault results and, at the first head, its grade: `gh pr ready <p>`, then a comment `vid: decide <the head>`, with `by: MR` on its second line. Add `asked <head>` to the record. Then nothing, until ViD's comment for that head.
+**The Decisions section** (0.26.10.29.5, DP-1 R1): at each head, as soon as its build or fix hand-back is in, rewrite the pull request's
+body's Decisions section, before the head graders' job notes (SKILL.md's step 4, at the first head) and before each `vid: decide <the head>`.
+Its lines come from each `Decisions:` line of the messages of `git log origin/main..<the head>` and each technical question you settled in
+the ticket's record. A `none` line is left out; each other is a line `- ` and its words as written (`<what was chosen> | why: <the reason>`
+where they give one), under the line `Decisions:`; with nothing left, the one line `Decisions: none`. The section is that line and the `- `
+lines right under it: replaced where it stands, else added at the end after a blank line. The rest of the body stays as it is, its
+`ticket: #<n>` line first. Write the body with the Write tool, read it back, then `gh pr edit <p> -R <repo> --body-file <f>`. What a
+decision is: the ticket's asks, its Decisions paragraph.
+
+**The reached rows,** the rows a later head owes a break for: those ViD's newest decision reads `failing` or `evidence missing`, held rows and known limits apart; this ticket's retested rows; any row whose T3 failed at the head before, at its next head that passes. No reader follows them. **The ask,** once this head has its head report, its Decisions section rewritten (above) and, for its reached rows, its fault results and, at the first head, its grade: `gh pr ready <p>`, then a comment `vid: decide <the head>`, with `by: MR` on its second line. Add `asked <head>` to the record. Then nothing, until ViD's comment for that head.
 
 **The merge,** on `merge <n>`: only `ticket: accepted`, in `vid: decision <this exact head>`. A row it reads `known limit` goes in `known-limits.txt` first. Check again that the head has its report and, for its reached rows, its faults. If origin/main is not in the head, bring the branch up to date with a merge commit ending
 `Role: MR`, a new head that reaches no row: its head report alone, and the ticket goes back to asking. A merge that conflicts goes to the builder. Otherwise
@@ -255,7 +280,8 @@ Read every report you need from origin: `git show origin/vid-results/<id>:<id>/<
 
 **A "not yet"** on `not-yet <n>`: a line a row, for this exact head. `sort evidence missing` goes first of all, by its route below: the sort reads the grade's lines, which no later head changes. Then a line naming `its test could not run`, before any report at this head for another line's sake: its job note quotes the case's first line from the report, and it goes by the door table to a test author, the setup or a builder, never the fixer. Then the same-head routes, then the ask again:
 - `sort evidence missing`: what its words name: a grade, or SKILL.md's sort, once a ticket. With no failing row in the decision, each `test it` line to a test author, then the head report alone, a `retested:` line for any row whose existing case it changed, that row's break, and the ask. With one, the lines wait for the first route below. A line it left out goes on the ticket as a `Question:` comment naming its row, with no label;
-- `evidence missing`: the test manager reports again at this head, by what the line names.
+- `evidence missing`: the test manager reports again at this head, by what the line names;
+- `decisions missing`: rewrite the pull request's Decisions section, as above, from this head's branch commits and your settled questions; no agent, no new head (0.26.10.29.5, DP-1 R1).
 
 Only when none of those is left, the routes that make a new head, each after the one before, then T3 whole and the reached rows' breaks:
 - `failing, a weak test`, and every open `test it` line: word for word, to one test author in one job, for one `Role: TA` commit, all of this head's together, with the siblings the lines name. Each failing weak row's job note also quotes its line from the grade, whole, ` — also: ` included, and never its patch. The row is retested, by a `retested: <row id> …` line, ids alone, in the next head report, whether its case changed or a case was added, and in each head report after it, until its break reads proven or not proven;

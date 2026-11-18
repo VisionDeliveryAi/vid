@@ -8,8 +8,8 @@
 >
 > The ```vid-stages block below is law (checks/lawfiles): a change to it is
 > a standalone law commit, and a change to which stage anything is in — a
-> `STAGE-` line, a `split:` or a `row:` line, or this file created or
-> deleted — cites the owner's answer (`A-NNN`) in its commit message.
+> `STAGE-` line, a `split:`, `row:` or `rules:` line, or this file created
+> or deleted — cites the owner's answer (`A-NNN`) in its commit message.
 > The cards are the owner's reading; nothing reads them mechanically.
 
 ## The cut
@@ -24,6 +24,12 @@
      A ROW whose requirements sit in different stages, placed (a census
      rule row is stage 1 unless placed later the same way):
        row: ROW-x -> STAGE-<n>
+     Census rows by their origin, once (written only while no stage is
+     closed or deployed; a later re-cut keeps it as it stands): each RULE,
+     DIF, EXC and SUP row whose origin: names PRD items takes the earliest
+     stage of them; one naming none, all of them later, or a Tier-0 rule
+     row stays stage 1; a row: line still places any of them:
+       rules: by-origin
      A technical stage 0, the walking skeleton (init's cut only; never
      released; it holds rows only, each placed by a row: line — its rows'
      requirements keep their own stages):

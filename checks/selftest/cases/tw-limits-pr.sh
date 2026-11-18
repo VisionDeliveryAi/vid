@@ -20,7 +20,7 @@ tw_hand 'fix ROW-003 | ROW-003: ROW-003 in chromium | close #9 of S01: req-9-p1c
 rd next; F=$(sed -n 's/^published \([0-9]*\)$/\1/p' "$T/out"); [ -n "$F" ] && grep -q "^published $F kind=fix step=S01 rows=ROW-003 " .vid/tw/log || fail 'the fix ticket was not published'
 # the dev side's pull request naming it, ROW-003 failing at its head, the regression row ROW-004 passing
 Wd=$T/w; git clone -q "$T/code.git" "$Wd" 2>/dev/null; git -C "$Wd" checkout -q -B fix-a origin/main 2>/dev/null; git -C "$Wd" -c user.name=a -c user.email=a@b commit -q --allow-empty -m fix-a; git -C "$Wd" push -q -f origin fix-a; H=$(git -C "$Wd" rev-parse HEAD); h=$(printf %s "$H" | cut -c1-12)
-P=$(gh pr create -R $R --head fix-a --base main --title t --body "ticket: #$F" | sed 's/.*\///')
+P=$(gh pr create -R $R --head fix-a --base main --title t --body "$(printf 'ticket: #%s\n\nDecisions: none' "$F")" | sed 's/.*\///')
 send() { rm -rf "$T/x"; mkdir -p "$T/x"; cp -R "$T/r/$1" "$T/x/"; git -C "$T/x" init -q; git -C "$T/x" add -A; git -C "$T/x" -c user.name=a -c user.email=a@b commit -qm "$1"; git -C "$T/x" push -q -f "$T/code.git" "HEAD:refs/heads/vid-results/$1"; }
 rr_put "pr-$P-$h-1" results.txt "$(printf 'by: TM\ncommit: %s\nengines: chromium\nenvironments: 2' "$H")"; rr_put "pr-$P-$h-1" cases-chromium.xml "$(rr_cases ROW-003=fail:broke ROW-004-T1=pass ROW-004-T2=pass ROW-004-T3=pass)"; send "pr-$P-$h-1"
 rr_put "grade-pr-$P-$h-1" grade.txt "$(printf 'by: GR\ncommit: %s\nROW-003 kept — a' "$H")"; send "grade-pr-$P-$h-1"

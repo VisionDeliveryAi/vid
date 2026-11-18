@@ -9,10 +9,12 @@
 #          <s> <N>` for a stage already closed, R3); answers each unanswered `vid: decide <head>`, saving before it posts; the closes owed
 #          (close.sh owed, each step's `close.sh decide`), the walk's pending acts (walk.sh pending) and the owner's grade asks (grade.sh step);
 #          `summary <N>` for a stage close owed with no summary yet, `plan-stage <N>` while the next stage has no step; the queue's lines
-#          (queue.sh sync) and `update` when the progress update is due; the alarms; RUN-STATE.md; the save. One line for each thing done and
+#          (queue.sh sync) and `update` when the progress update is due; the alarms; RUN-STATE.md; the save. 0.26.10.29.5 (DP-1 R2): after the
+#          grade asks, `decisions.sh record`, its lines as they are. One line for each thing done and
 #          each thing that waits: `decided`, `merged`, `held <row>`, `question <n>`, `flag <word>`, `nothing-left` (no ticket open and no step
 #          can start) or `idle`, and `progress:`.
-#   next   renews the lock; nothing if the run is stopped, which a recorded pause is; the export; the sync; each line `writer.sh due` owes, in order;
+#   next   renews the lock; nothing if the run is stopped, which a recorded pause is; the export (0.26.10.29.5, DP-1 R2: before the owed asks);
+#          the closes' owed asks; the sync; each line `writer.sh due` owes, in order;
 #          then each step in plan order `plan.sh start` passes, up to the open-ticket limit. A save follows each post. `published <n>`; a refusal is
 #          a line once, tried again only after the plan or the handed record changed.
 # An error names its step and exits 1; a lost lock prints `lock-lost` and exits 3; an open ticket the log does not hold prints `stop stray …` and exits 4, in step and in next, and nothing more is written.
@@ -27,14 +29,14 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 [ -f .vid/RUN-STATE.md ] && [ -f .vid/tw/settings ] || { echo "ViD round: run it at the top of ViD's repository, in ticket mode" >&2; exit 2; }
 D=.vid/decide; L=.vid/round; LOG=.vid/tw/log; HAND=.vid/tw/handed; mkdir -p "$D" "$L"; touch "$D/merged-prs" "$D/refused" "$D/flags" "$D/accepted-log" "$D/rulings"
 TAB=$(printf '\t'); DID=''
-gh_() { sh "$HERE/github.sh" "$@"; }; dec() { sh "$HERE/decide.sh" "$@"; }; wr() { sh "$HERE/writer.sh" "$@"; }
+gh_() { VID_CALLER=round sh "$HERE/github.sh" "$@"; }; dec() { sh "$HERE/decide.sh" "$@"; }; wr() { sh "$HERE/writer.sh" "$@"; }   # 0.26.10.29.2 (R12): the round marks its own calls
 PX=$(skey labels-prefix)
 fail() { n=$(($(cat .vid/round-errors 2>/dev/null || echo 0) + 1)); echo "$n" > "$L/re" || exit 1; put .vid/round-errors < "$L/re" || exit 1; ev "round-error step=$1 count=$n"; echo "error $1 ($n running): $2"; exit 1; }
 stray() { for n in $(tickets); do grep -qE "^(published|asked) $n " "$LOG" 2>/dev/null || { ev "round-stop stray=$n"; echo "stop stray: #$n is an open ticket the log does not hold: a publication's save was lost, so nothing more is published"; exit 4; }; done; }
 renew() { rc=0; gh_ lock-renew > "$L/e" 2>&1 || rc=$?; [ "$rc" != 3 ] || { echo 'lock-lost'; exit 3; }; [ "$rc" = 0 ] || fail lock-renew "$(tail -n 1 "$L/e")"; }
 read_() { gh_ round-read > "$L/rd" 2> "$L/e" || fail round-read "$(tail -n 1 "$L/e")"; put "$L/read" < "$L/rd" || fail round-read "$(tail -n 1 "$L/e")"; }
 # what is new from the dev side: unanswered asks, unrecorded merges, blocked questions
-sig_() { awk -F'\t' -v M="$D/merged-prs" -v B=",${PX}blocked," -v W=" $(cow | tr '\n' ' ') " 'BEGIN { while ((getline l < M) > 0) m[l] = 1 } $1 == "open" && $7 + 0 > $8 + 0 && index(W, " " $3 " ") == 0 { print "ask", $2, $4 } $1 == "merged" && !($2 in m) { print "merged", $2 } $1 == "issue" && index("," $3 ",", B) { print "question", $2 } $1 == "open" && index("," $6 ",", B) { print "question", $2 }
+sig_() { awk -F'\t' -v M="$D/merged-prs" -v B=",${PX}blocked," -v W=" $(wdn | tr '\n' ' ') " 'BEGIN { while ((getline l < M) > 0) m[l] = 1 } $1 == "open" && $7 + 0 > $8 + 0 && index(W, " " $3 " ") == 0 { print "ask", $2, $4 } $1 == "merged" && !($2 in m) { print "merged", $2 } $1 == "issue" && index("," $3 ",", B) { print "question", $2 } $1 == "open" && index("," $6 ",", B) { print "question", $2 }
   function cnt(h, p,   c, i, n, k) { n = split(h, c, "\001"); for (i = 1; i <= n; i++) if (c[i] ~ p) k++; return k + 0 }
   $1 == "issue" && (index("," $3 ",", RUN) || index("," $3 ",", GRD) || index("," $3 ",", DPL)) { print "reported", $2, cnt($4, "^vid: reported ") }
   $1 == "issue" { q = cnt($4, "^(Question:|[A-Z][A-Z]: [Qq]uestion)"); if (q) print "qs", $2, q } $1 == "open" { q = cnt($10, "^(Question:|[A-Z][A-Z]: [Qq]uestion)"); if (q) print "qs", $2, q }
@@ -81,11 +83,17 @@ cl() { sh "$HERE/close.sh" "$@" 2> "$L/e" || fail close "$(tail -n 1 "$L/e")"; }
 plan_stage() { sh "$HERE/close.sh" nextplan 2>/dev/null || true; }   # v0.26.10.26.5 (R4)
 merged_() { awk -F'\t' '$1 == "merged"' "$L/read" | sort -t"$TAB" -k2,2n > "$L/m"; while IFS=$TAB read -r x p t H M _r <&3; do grep -qx "$p" "$D/merged-prs" && continue
     if dec merged --pr "$p" > "$L/o" 2>&1; then [ "$t" = - ] || { gh_ close "$t" > /dev/null 2> "$L/e" || fail close "$(tail -n 1 "$L/e")"; }; printf '%s\t%s\t%s\t%s\n' "$p" "$t" "$H" "$M" >> "$D/merges"; echo "merged $p"
-    elif grep -q 'no decision for pull request' "$L/o"; then ev "round-merged pr=$p decision=none"; echo "merged $p, no decision"; else fail merged "$(tail -n 1 "$L/o")"; fi; echo "$p" >> "$D/merged-prs"; DID=1; done 3< "$L/m"; }
+    elif grep -q 'no decision for pull request' "$L/o"; then ev "round-merged pr=$p decision=none"; ev "decisions-recorded pr=$p n=missing"; echo "merged $p, no decision"; else fail merged "$(tail -n 1 "$L/o")"; fi; echo "$p" >> "$D/merged-prs"; DID=1; done 3< "$L/m"; }
+# 0.26.10.29.5 (DP-1 R2): a merge with no decision of ViD's states no decisions ViD reads (decisions-recorded n=missing, as a description
+# with no section); record_, the dev side's decisions of the merges recorded and of the deploy reports read, into DECISIONS.md (decisions.sh
+# record): its lines as they are, `decisions recorded`, `decisions refused pr=<p> …` (RM's own defect) or `decisions wait draft=<n>`
+record_() { sh "$HERE/decisions.sh" record > "$L/dr" 2> "$L/e" || fail decisions "$(cat "$L/dr" "$L/e" | tail -n 1)"; cat "$L/dr"; ! grep -qE '^decisions (recorded|refused) ' "$L/dr" || DID=1; }
 # v0.26.10.27.3 (8.1b R1): a published ticket not withdrawn, not open in the read and no merged pull request naming it (merges, merged-prs
 # with the read's merged lines, merged-tickets): its issue read once by tw-outside; CLOSED is withdrawn closed-outside, and its open pull
 # request, no longer decided, gets one comment
 cow() { awk '$1 == "withdrawn" && $3 == "decision=closed-outside" { print $2 }' "$LOG" 2>/dev/null | sort -u; }
+# 0.26.10.29.2 (R3): wdn, every withdrawn ticket, closed outside or by a plan change: its pull request is never decided again (sig_, step)
+wdn() { awk '$1 == "withdrawn" { print $2 }' "$LOG" 2>/dev/null | sort -u; }
 outside_() { awk '$1 == "published" { p[$2] = 1 } $1 == "withdrawn" { delete p[$2] } END { for (n in p) print n }' "$LOG" 2>/dev/null | sort > "$L/pub"
   awk -F'\t' '$1 == "issue" { print $2 }' "$L/read" | sort -u > "$L/oi"
   { cut -f2 "$D/merges" 2>/dev/null; awk -F'\t' -v M="$D/merged-prs" 'BEGIN { while ((getline l < M) > 0) m[l] = 1 } $1 == "merged" && ($2 in m) { print $3 }' "$L/read"; cut -f1 "$D/merged-tickets" 2>/dev/null; } | sort -u > "$L/mt"
@@ -145,7 +153,7 @@ cmd_step() { FT=''; renew; read_; sig_ > "$L/now"; cmp -s "$L/now" "$L/seen" || 
   # an ask, or a ruling or answer made since the last step: rule leaves no comment, so a decided head it touches is decided again (R4,
   # v0.26.10.28.6: only the open pull requests it touches, by their head's rows, their ticket, or the issue or pull request asked on;
   # on results fetched first, and posted only when the decision changed)
-  merged_; outside_; reopen_; touch_; awk -F'\t' -v OFS='\t' -v D="$D" -v TF="$L/touch" -v W=" $(cow | tr '\n' ' ') " 'BEGIN { while ((getline l < TF) > 0) { split(l, x, "\t"); if (x[1] == "row") { R[x[2]] = 1; b = x[2]; sub(/-T[0-9]+$/, "", b); R[b] = 1 } else if (x[1] == "on") O[x[2]] = 1; else K[x[2]] = 1 } }
+  merged_; outside_; reopen_; touch_; awk -F'\t' -v OFS='\t' -v D="$D" -v TF="$L/touch" -v W=" $(wdn | tr '\n' ' ') " 'BEGIN { while ((getline l < TF) > 0) { split(l, x, "\t"); if (x[1] == "row") { R[x[2]] = 1; b = x[2]; sub(/-T[0-9]+$/, "", b); R[b] = 1 } else if (x[1] == "on") O[x[2]] = 1; else K[x[2]] = 1 } }
     function hit(p, t, h,   f, l, y, r, b, n, i) { if ((p in O) || (t in O) || (t in K)) return 1; f = D "/pr-" p "-" h ".rows"; while ((getline l < f) > 0) { split(l, y, "\t"); r = y[1]; b = r; sub(/-T[0-9]+$/, "", b); if ((r in R) || (b in R)) { close(f); return 1 } } close(f)
       # the head evidence too: a row a landing reset out of the rows file can still stand in its grade lines
       f = ".vid/results/pr-" p "-" h ".txt"; while ((getline l < f) > 0) { gsub(/[^A-Za-z0-9-]+/, " ", l); n = split(l, y, " "); for (i = 1; i <= n; i++) if (y[i] in R) { close(f); return 1 } } close(f); return 0 }
@@ -154,6 +162,7 @@ cmd_step() { FT=''; renew; read_; sig_ > "$L/now"; cmp -s "$L/now" "$L/seen" || 
   for r in $(held_ | sort -u); do echo "held $r"; done; sig_ | grep '^question '
   cl owed > "$L/ow2"; cat "$L/ow2"; for s in $(cl out | cut -d' ' -f2); do cl decide "$s"; done; sh "$HERE/walk.sh" pending 2>/dev/null || true
   sh "$HERE/grade.sh" step 2> "$L/e" || fail grade "$(tail -n 1 "$L/e")"   # v0.26.10.27.2: the owner's grade asks, read
+  record_   # 0.26.10.29.5 (DP-1 R2): after the merges and the deploy reports this step read, before a stage summary's facts
   # v0.26.10.26.5: `summary <N>` while a close is owed with no summary yet (its facts written); `plan-stage <N+1>` while the next stage has no step
   sed -n 's/^close-stage //p' "$L/ow2" | while read -r x; do c=$(ls ".vid/decide/stage/$x" | grep -E '^[0-9]+$' | sort -n | tail -n 1); [ -s ".vid/decide/stage/$x/$c/summary.md" ] || { cl summary --stage "$x" > /dev/null; echo "summary $x"; }; done
   PS=$(plan_stage); [ -z "$PS" ] || echo "plan-stage $PS"   # v0.26.10.26.4: walk-read <N>, the walker ended
@@ -163,16 +172,19 @@ cmd_step() { FT=''; renew; read_; sig_ > "$L/now"; cmp -s "$L/now" "$L/seen" || 
   alarms; state_; gh_ state-save > /dev/null 2> "$L/e" || fail state-save "$(tail -n 1 "$L/e")"; sig_ | grep -v '^ask ' > "$L/sn" || true; put "$L/seen" < "$L/sn" || exit 1; rm -f .vid/round-errors
   left=''; for s in $(plan_steps); do started "$s" || refused "start $s" || left=1; done
   if [ -z "$(open_ | awk -v L=" $(sh "$HERE/grade.sh" lost 2>/dev/null | tr '\n' ' ') " 'index(L, " " $1 " ") == 0')" ] && [ -z "$left" ] && [ -z "$PS" ] && [ -z "$(wr due 2>/dev/null)" ] && [ -z "$(cl owed)$(cl out)" ] && [ -z "$(sh "$HERE/grade.sh" out 2>/dev/null)" ]; then echo nothing-left; elif [ -z "$DID" ]; then echo idle; fi; }
-post_() { gh_ "$@" > "$L/o" 2> "$L/e" || fail post "$(tail -n 1 "$L/e")"; sed -n -e 's/.*published ticket #\([0-9]*\).*/published \1/p' -e 's/.*amended ticket #\([0-9]*\).*/amended \1/p' -e 's/.*withdrew ticket #\([0-9]*\).*/withdrawn \1/p' "$L/o"; gh_ state-save > /dev/null 2> "$L/e" || fail state-save "$(tail -n 1 "$L/e")"; }
-due_() { wr due > "$L/due" 2> "$L/e" || fail due "$(tail -n 1 "$L/e")"; while IFS= read -r w <&3; do refused "$w" && continue; set -- $w
-    case $1 in withdraw) post_ tw-close "$2" ;;
+post_() { gh_ "$@" > "$L/o" 2> "$L/e" || fail post "$(tail -n 1 "$L/e")"; sed -n -e 's/.*published ticket #\([0-9]*\).*/published \1/p' -e 's/.*amended ticket #\([0-9]*\).*/amended \1/p' -e 's/.*withdrew ticket #\([0-9]*\).*/withdrawn \1/p' -e 's/.*told ticket #\([0-9]*\).*/told \1/p' "$L/o"; gh_ state-save > /dev/null 2> "$L/e" || fail state-save "$(tail -n 1 "$L/e")"; }
+# 0.26.10.29.2 (R3): the handovers of what is owed are logged before any ticket is written, so their order never matters
+due_() { wr due > "$L/due" 2> "$L/e" || fail due "$(tail -n 1 "$L/e")"; ! grep -qE '^(withdraw|amend) ' "$L/due" || gh_ tw-handovers > /dev/null 2> "$L/e" || fail handovers "$(tail -n 1 "$L/e")"; while IFS= read -r w <&3; do refused "$w" && continue; set -- $w
+    case $1 in withdraw) post_ tw-close "$2" ;; tell) post_ tw-tell "$2" ;;   # 0.26.10.29.2 (R11)
       amend) if F=$(wr write amend "$2" 2> "$L/e"); then post_ tw-post --amend "$2" "$F"; else refuse "$w" "$(tail -n 1 "$L/e")"; fi ;;
       new) shift; if F=$(wr write "$@" 2> "$L/e"); then post_ tw-post "$F"; else refuse "$w" "$(tail -n 1 "$L/e")"; fi ;; esac; done 3< "$L/due"; }
 cmd_next() { renew; read_; stray; case $(sed -n 's/^run:[[:space:]]*//p' .vid/RUN-STATE.md | head -n 1) in 'stopped owner asked to hold after stage '*) ;; stopped*) echo 'stopped: nothing is published'; return 0 ;; esac   # v0.26.10.26.5 (R3): a hold stops the next stage alone
+  # 0.26.10.29.5 (DP-1 R2): the export before any owed ask is posted, so a grade asked after a merge reads that merge's decisions
+  gh_ spec-export > /dev/null 2> "$L/e" || fail spec-export "$(tail -n 1 "$L/e")"
   cl owed > "$L/ow"; while read -r w s x <&3; do case $w in stage) cl ask --stage "$s" ;; okay) case $s in rehearsal) cl okay --rehearsal "$x" ;; production) cl okay --production "$x" ;; *) cl okay --stage "$x" ;; esac ;; cs) cl ask --cs "$s" ;; cr) cl ask --cr "$s" ;; cp) cl ask --cp "$s" ;; walk) continue ;;
       close-stage) [ -s ".vid/decide/stage/$s/$(ls ".vid/decide/stage/$s" | grep -E '^[0-9]+$' | sort -n | tail -n 1)/summary.md" ] || continue; cl close-stage --stage "$s"; gh_ state-save > /dev/null 2>&1 || true; return 0 ;;   # v0.26.10.26.5 (R1): nothing more in this call
       *) cl ask "$s" ;; esac; gh_ state-save > /dev/null 2> "$L/e" || fail state-save "$(tail -n 1 "$L/e")"; done 3< "$L/ow"
-  gh_ spec-export > /dev/null 2> "$L/e" || fail spec-export "$(tail -n 1 "$L/e")"; gh_ tw-sync > "$L/o" 2> "$L/e" || fail tw-sync "$(tail -n 1 "$L/e")"; due_
+  gh_ tw-sync > "$L/o" 2> "$L/e" || fail tw-sync "$(tail -n 1 "$L/e")"; due_
   gh_ tw-sync > "$L/o" 2> "$L/e" || fail tw-sync "$(tail -n 1 "$L/e")"; O=$(sed -n 's/.*open tickets //p' "$L/o" | tr ',' '\n' | grep -c '^[0-9]'); C=$(skey open-tickets); C=${C:-0}
   for s in $(plan_steps); do started "$s" && continue; refused "start $s" && continue; [ "$C" = 0 ] || [ "$O" -lt "$C" ] || break
     if sh "$HERE/plan.sh" start "$s" > "$L/o" 2>&1; then due_; O=$((O + 1)); else refuse "start $s" "$(tr '\n' ' ' < "$L/o" | cut -c1-200)"; fi; done; }

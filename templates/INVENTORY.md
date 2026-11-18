@@ -287,7 +287,9 @@ is visible to the vacuity extractor.
 
     hostility | HOS-NNN | attempt | protects: <RULE-NNN|REQ-NNN|ROW-NNN> | disable: <toggle> | test [| proved-red: <sha>]
 
-- One row per **Tier-0 protection**: the sibling of a ratified Tier-0 rule
+- One row per **Tier-0 protection**, and for a Tier-0 requirement one per
+  fail-if arm and, per arm, one per way in that reaches its subject (the
+  bounded set, below): the sibling of a ratified Tier-0 rule
   row (`tier` = 0) or Tier-0 requirement, which *attempts the forbidden
   thing* against the locally running app through its real public surface,
   in the same Docker-only harness as every other ledger test. Reads confirm
@@ -319,7 +321,14 @@ is visible to the vacuity extractor.
 ### The bounded set
 
 Derived mechanically from the ratified Tier-0 protections, never invented:
-~one probe per Tier-0 protection (10–15 for a mid-sized product). A fixed
+one probe per Tier-0 rule or invariant; for a Tier-0 requirement, one per
+fail-if arm (as `checks/prd.sh` splits them) and, per arm, one per way in
+that reaches its subject — the design's screens, each journey's entry
+control, every input boundary ARCHITECTURE.md declares — the way in named
+in the `attempt` sentence (0.26.10.29.4 phase 3, R3). checks/inventory.sh
+prints `NOTE  REQ-n — <a> arms, <p> probes` for a requirement that fewer
+rows protect than it has arms, counted as `arm-probes=<n>` on its
+`inventory notes:` line; never owed. A fixed
 list — explicitly not a fuzzer, not a scanner, no generated or open-ended
 input exploration. Probes beyond the ratified protections are ceremony and
 are deleted under the complexity law; the way to add one is to ratify the
@@ -368,7 +377,10 @@ row stays `owed:` until the ritual is performed. checks/inventory.sh
 enforces the mechanical half — a missing `protects:`, a missing or `none`
 `disable:` toggle, and a cited test with no `proved-red` are GAPs that fail
 the commit; a Tier-0 rule row with no hostility sibling is owed debt that
-blocks completion (`--strict`). The honesty of steps 1–3 is the builder's,
+blocks completion (`--strict`); a ROW a hostility row's `protects:` names
+by its ROW id, with no control sibling, is a NOTE, counted on its own line
+(`inventory notes: control-siblings=<n>`) and never owed (0.26.10.29.3,
+R5). The honesty of steps 1–3 is the builder's,
 and the row is what the graders read.
 
 Granularity is **screen × state** — the zero-results, expired, and error

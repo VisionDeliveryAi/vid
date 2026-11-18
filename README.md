@@ -77,10 +77,12 @@ project, check that your install works, as below.
 - For GitHub auto: the `claude` command, signed in, since DevAgent's agents run on it; and, for a product
   with screens in either GitHub mode, a browser already on the machine ViD runs on, for ViD's walk through
   the screens (a container image that holds one, or an installed browser). ViD never installs one.
-- **On a PC: WSL2 is required.** Do everything — the clone, Claude Code,
-  git, `/vid:vid-init` — inside a WSL2 distribution, with Docker Desktop's
-  WSL2 integration enabled for that distribution. Native Windows
-  (PowerShell or Git Bash) is not supported.
+- **On a PC:** native Windows (Git Bash) works, but ViD's checks are
+  slower there, since starting a process is slow on Windows. With WSL
+  installed, ViD asks you once, at `/vid:vid-init`, whether it may run its
+  checks there; the answer is kept for that PC in `.vid/windows`, and you
+  change it by editing that file. Without WSL, or without your yes, ViD
+  carries on natively.
 
 ### Install
 
@@ -91,7 +93,7 @@ The three commands in the Install section above.
 An install is checked the way ViD checks anything: the judges prove they
 convict, and one real init completes. Three steps, in order:
 
-1. **Version.** Type `/vid:vid-help`. It shows the installed version, which must be **0.26.10.28.9**.
+1. **Version.** Type `/vid:vid-help`. It shows the installed version, which must be **0.26.11.1.1**.
 2. **Court self-test.** Ask Claude: *"Run ViD's court self-test suite —
    `checks/selftest/run.sh` under the installed plugin root — and report
    the verdict line."* Expected: every case that ran convicts, `selftest:
@@ -182,8 +184,8 @@ plugin is `vid`, and each verb is one of its skills.
   counterexample lens on every row. Runs inside init, and again after PRD
   changes, showing the row-set difference.
 - **vid-stage** (`/vid:vid-stage`): cuts the product into stages, at the end of init or on
-  request. Through four lenses (what each stage lets people do, what must
-  be built first, your constraints, the risks) it finds the finest cut in
+  request. Through five lenses (what each stage lets people do, what must
+  be built first, your constraints, the risks, how much each stage holds) it finds the finest cut in
   which every stage is usable and safe to release, then coarser versions
   of it, shown as one ladder with counts; you pick a rung in one sitting,
   adjust it, or keep a single stage. The cut
@@ -272,6 +274,20 @@ plugin is `vid`, and each verb is one of its skills.
 adjudicate the findings (fix, dispute or defer), fix applies. And grade is
 not test: the ledger runs the tests, deterministically; grade reviews,
 adversarially.
+
+### ViD's panel in the Claude desktop app
+
+In the Claude desktop app, a ViD project gets a panel beside the chat: the
+map of the nine stops of defining a project, and, at each of the four PRD
+sittings (the interview and the three pauses), what ViD asks laid out to
+answer, mark and send in one message. It opens by itself when a sitting
+waits on you, or with `/vid-panel`. It only shows: everything ViD asks is
+in the chat as before, the answer is your message in the chat, and the
+PRD stays the only record. It sends only into the conversation that asked;
+anywhere else it puts your answers in the message box for you to send.
+The other stops (the technical hints, the design, the test list, the
+releases) are answered in the chat for now. The terminal, VS Code and the
+mobile app show no panel and nothing changes there.
 
 ## What's in the box
 

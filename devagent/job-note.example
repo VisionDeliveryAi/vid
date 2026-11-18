@@ -21,3 +21,7 @@ agent-turn-limit: 400
 
 # model: left out here, so every agent runs on dm.sh's own default. If you write one, write it exactly as an agent's first message
 # shows it (claude- and the full name); dm.sh check refuses a short name.
+
+# deploy: local, for a test alone: DevAgent then deploys staging, the rehearsal and production as copies on this machine, even
+# when the project's hosting names a host. Left out, as here, a project with a host is deployed there by DevAgent's deployer.
+# deploy: local

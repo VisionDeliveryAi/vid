@@ -6,7 +6,7 @@ any of the stage's tickets. Your prompt names this file and your job note; nothi
 
 **Read, whole:** the job note; the grade ask's instruction, quoted in it; of the export, the PRD (its base and appends, a later append
 winning) for each requirement asked, the grading checklist, read whole, the test differences and, where a requirement has a screen, the
-design. Of the export's decisions and architecture, what a requirement needs. As guidance, the grader prompt and the verdicts of
+design. Of the export's decisions, each read up to ` | why:` and never past it (0.26.10.29.5, DP-1 R3), and of its architecture, what a requirement needs. As guidance, the grader prompt and the verdicts of
 `skills/vid-grade/GRADING.md` of the folder that holds this `devagent/`. You read nothing in a folder of ViD's records.
 
 **Your job note** names the blind copy, the asked commit's full id, the export, the requirements asked by id and, for each, the rows that

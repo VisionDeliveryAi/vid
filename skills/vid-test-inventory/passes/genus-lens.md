@@ -31,6 +31,16 @@ ceiling; the seed library's proposals; and one question:
 > denominator, or a grader's question. A candidate that cannot name the
 > harm it prevents does not enter.
 
+**The bar (0.26.10.29.4 phase 3, R5).** A candidate is kept only when it
+names a believable wrong build that no existing row, item or earlier
+candidate fails, with a consequence for a user, their data or a release.
+A candidate that names no such build, or one an existing row or item
+already fails, does not count toward the round: the session's dedup
+applies this bar (the calling skill's §2, "Loop until dry"). A lens stops
+at the first of: a round that keeps no candidate; a round that keeps no
+fewer than the round before; the end of round 3. No caller caps how many
+candidates a round returns.
+
 **Universal shapes — the floor (always true, any project), each with its
 finding provenance.** Stated as behaviour so they carry to any stack.
 (P) marks a protection-class shape: a Tier-0 candidate that, once

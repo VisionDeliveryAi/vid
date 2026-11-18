@@ -47,7 +47,7 @@ awk '$0 == "## Golden sets" { s = 1; next } s && /^## / { s = 0 } !s' "$P" > "$T
 # a step's name, RM's words, is checked
 pt_rs 's/^\(step S04 | name: \)limits, backups, failures and the data move/\1limits kept in app\/limits.py/'
 sh "$CHECKS/plan.sh" change other 'S04 renamed' --trigger initial --expect 'S04 named' > "$T/out" 2>&1 || fail 'the rename was refused'
-tw_hand 'closed S02'; tw_hand 'closed S03'; tw_close 2; sh "$GS" tw-sync > /dev/null 2>&1; tw_start S04 || fail 'S04 was refused'
+tw_closed S02; tw_closed S03; tw_close 2; sh "$GS" tw-sync > /dev/null 2>&1; tw_start S04 || fail 'S04 was refused'
 if sh "$W" write step S04 > "$T/out" 2>&1; then fail 'a step name naming a file was written'; fi; has 'a file path — app/limits.py'
 # a fix's reason
 tw_hand 'fix ROW-003 | the {json} body broke under --hard reloads | decision on pull request 4'

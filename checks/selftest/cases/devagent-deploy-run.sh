@@ -8,6 +8,9 @@
 # recorded groups, refused for another ask. Refused, nothing pushed: a short commit, one not on origin, a malformed ask, a plant with no --product-change or a
 # word other than yes or no, another seed. run.sh run --against: the asked rows against that address, the runner given BASE_URL and the signin: lines, nothing
 # started, no services read; refused with no product, a line, a rest chunk, a red or head ask, the builder's own run, a non-address, a signin: with no --against.
+# 0.26.11.1.1 (R3, R4, R6): with no host: in the record, a passed staging's duties.txt says each staging duty `not needed — a local copy, for a test`,
+# with no duty: line asked; its staging.txt holds the record's seam: lines and seed: synthetic, and no stays:; --seed production is refused, a local
+# copy holding no production data; a failed deploy carries no duties.txt.
 # Skips where devagent/ is absent (a project's layout). Env: CHECKS.
 set -eu
 [ -d "$CHECKS/../devagent" ] || { echo 'needs devagent/'; exit 77; }
@@ -38,6 +41,7 @@ signin: admin /_test/signin?role=admin
 signin: member /_test/signin?role=member
 differs: the /_ops/ door — open — absent
 differs: VID_TEST — 1 — unset
+seam: SEAM-001 stand-in — a local copy
 X
 dp() { RC=0; sh "$DP" "$@" > "$T/out" 2>&1 || RC=$?; }
 has() { $O rev-parse -q --verify "refs/heads/vid-results/$1" > /dev/null; }
@@ -47,11 +51,12 @@ up() { nc -z -w 1 127.0.0.1 "$1" > /dev/null 2>&1; }
 port() { shw "$1" staging.txt | sed -n 's|^staging: http://127.0.0.1:\([0-9][0-9]*\)$|\1|p'; }
 # a deploy: pushed, its three files, the staging up and kept
 dp deploy --setup "$S" --ask deploy-5 --commit "$C"; [ "$RC" = 0 ] && grep -qx 'pushed vid-results/deploy-5-1' "$T/out" || fail "a deploy exited $RC"
-[ "$(tree deploy-5-1)" = 'deploy-5-1/deploy.xml deploy-5-1/report.txt deploy-5-1/staging.txt ' ] || fail "the deploy's tree: $(tree deploy-5-1)"
+[ "$(tree deploy-5-1)" = 'deploy-5-1/deploy.xml deploy-5-1/duties.txt deploy-5-1/report.txt deploy-5-1/staging.txt ' ] || fail "the deploy's tree: $(tree deploy-5-1)"
 [ "$($O rev-list --count vid-results/deploy-5-1)" = 1 ] && $O log -1 --format=%B vid-results/deploy-5-1 | grep -qx 'Role: DP' || fail 'the deploy is not one commit by DP'
-[ "$(shw deploy-5-1 report.txt)" = "$(printf 'by: DP\ncommit: %s\noutcome: passed' "$C")" ] || fail "the passed report: $(shw deploy-5-1 report.txt)"
+[ "$(shw deploy-5-1 report.txt)" = "$(printf 'by: DP\ncommit: %s\ndecisions: none\noutcome: passed' "$C")" ] || fail "the passed report: $(shw deploy-5-1 report.txt)"
 P1=$(port deploy-5-1); [ -n "$P1" ] || fail "no staging: line: $(shw deploy-5-1 staging.txt)"
-[ "$(shw deploy-5-1 staging.txt)" = "$(printf 'staging: http://127.0.0.1:%s\nsignin: admin http://127.0.0.1:%s/_test/signin?role=admin\nsignin: member http://127.0.0.1:%s/_test/signin?role=member\ndiffers: the /_ops/ door — open — absent\ndiffers: VID_TEST — 1 — unset' "$P1" "$P1" "$P1")" ] || fail "the staging.txt: $(shw deploy-5-1 staging.txt)"
+[ "$(shw deploy-5-1 staging.txt)" = "$(printf 'staging: http://127.0.0.1:%s\nsignin: admin http://127.0.0.1:%s/_test/signin?role=admin\nsignin: member http://127.0.0.1:%s/_test/signin?role=member\ndiffers: the /_ops/ door — open — absent\ndiffers: VID_TEST — 1 — unset\nseam: SEAM-001 stand-in — a local copy\nseed: synthetic' "$P1" "$P1" "$P1")" ] || fail "the staging.txt: $(shw deploy-5-1 staging.txt)"
+LD='not needed — a local copy, for a test'; [ "$(shw deploy-5-1 duties.txt)" = "$(for d in log-in environments outside-services sending-domain deploy-notes captures; do echo "$d: $LD"; done)" ] || fail "a local staging's duties.txt: $(shw deploy-5-1 duties.txt)"
 [ "$(shw deploy-5-1 deploy.xml | sed -n 's/.*<testcase name="\([^"]*\)".*/\1/p' | tr '\n' ' ')" = 'checkout start seed ready ' ] && ! shw deploy-5-1 deploy.xml | grep -q '<failure' || fail "the deploy's steps: $(shw deploy-5-1 deploy.xml)"
 up "$P1" || fail 'the staging is not up after the deploy ended'
 grep -qx 'deploy-5-1 1 synthetic' "$T/starts" && [ "$(cat "$T/seeded-deploy-5-1")" = "synthetic http://127.0.0.1:$P1" ] || fail "start: or seed: not given the staging's names: $(cat "$T/starts")"
@@ -60,7 +65,7 @@ L1=$(cat "$T/listen-deploy-5-1")
 # the labelled plant: a failed step reported, nothing deployed, the live staging untouched
 dp deploy --setup "$S" --ask deploy-5 --commit "$C" --fail-step migrate --product-change no; [ "$RC" = 0 ] && grep -qx 'pushed vid-results/deploy-5-2' "$T/out" || fail "the plant exited $RC"
 [ "$(tree deploy-5-2)" = 'deploy-5-2/deploy.xml deploy-5-2/report.txt ' ] || fail "the plant's tree: $(tree deploy-5-2)"
-[ "$(shw deploy-5-2 report.txt)" = "$(printf 'by: DP\ncommit: %s\noutcome: failed migrate\nproduct change: no' "$C")" ] || fail "the plant's report: $(shw deploy-5-2 report.txt)"
+[ "$(shw deploy-5-2 report.txt)" = "$(printf 'by: DP\ncommit: %s\ndecisions: none\noutcome: failed migrate\nproduct change: no' "$C")" ] || fail "the plant's report: $(shw deploy-5-2 report.txt)"
 shw deploy-5-2 deploy.xml | grep -q '<testcase name="migrate"[^>]*><failure message="a labelled plant' || fail "the plant's step: $(shw deploy-5-2 deploy.xml)"
 [ "$(wc -l < "$T/starts")" -eq 1 ] && up "$P1" || fail 'the plant deployed, or took the staging down'
 dp deploy --setup "$S" --ask deploy-5 --commit "$C" --fail-step boot --product-change yes; shw deploy-5-3 report.txt | grep -qx 'product change: yes' || fail 'a yes plant'
@@ -83,18 +88,19 @@ no --ask deploy-x --commit "$C"; grep -q 'deploy-<issue>' "$T/out" || fail 'a ma
 no --ask deploy-7 --commit "$C" --fail-step migrate; grep -q 'product-change' "$T/out" || fail 'a plant with no product change'
 no --ask deploy-7 --commit "$C" --fail-step migrate --product-change maybe; grep -q 'yes or no' "$T/out" || fail 'a plant with maybe'
 no --ask deploy-7 --commit "$C" --seed 'production data'; grep -q 'synthetic' "$T/out" || fail 'another seed'
+no --ask deploy-7 --commit "$C" --seed production; grep -q 'host:' "$T/out" || fail 'a production-data seed on a local copy'
 [ "$(wc -l < "$T/starts")" -eq 3 ] || fail 'a refused deploy started something'
 # a real failed step: nothing pushed without a judgement; with one, its step and nothing left up
 W2=$T/work2; mkdir -p "$W2"; sed -e 's|^start: .*|start: nc -lk 127.0.0.1 "$PORT" > /dev/null 2>\&1 \& echo $! > "$SP_T/l2"; echo "boom"; exit 3|' "$S" > "$W2/dev-setup.txt"
 dp deploy --setup "$W2/dev-setup.txt" --ask deploy-8 --commit "$C"; [ "$RC" = 4 ] && grep -q 'failed start' "$T/out" && ! has deploy-8-1 || fail "a failed start with no judgement: $RC"
 ! kill -0 "$(cat "$T/l2")" 2> /dev/null || fail 'a failed start left its process up'
 dp deploy --setup "$W2/dev-setup.txt" --ask deploy-8 --commit "$C" --product-change yes; [ "$RC" = 0 ] && has deploy-8-1 || fail "a judged failed start: $RC"
-[ "$(shw deploy-8-1 report.txt)" = "$(printf 'by: DP\ncommit: %s\noutcome: failed start\nproduct change: yes' "$C")" ] && [ "$(tree deploy-8-1)" = 'deploy-8-1/deploy.xml deploy-8-1/report.txt ' ] || fail "the failed start's report: $(tree deploy-8-1)"
+[ "$(shw deploy-8-1 report.txt)" = "$(printf 'by: DP\ncommit: %s\ndecisions: none\noutcome: failed start\nproduct change: yes' "$C")" ] && [ "$(tree deploy-8-1)" = 'deploy-8-1/deploy.xml deploy-8-1/report.txt ' ] || fail "the failed start's report: $(tree deploy-8-1)"
 shw deploy-8-1 deploy.xml | grep -q '<testcase name="checkout"' && shw deploy-8-1 deploy.xml | grep -q '<testcase name="start"[^>]*><failure' && ! shw deploy-8-1 deploy.xml | grep -q 'name="ready"' || fail "the failed start's steps: $(shw deploy-8-1 deploy.xml)"
 sed 's|^start: .*|start: :|' "$S" > "$W2/dev-setup.txt"; dp deploy --setup "$W2/dev-setup.txt" --ask deploy-9 --commit "$C" --product-change no
 [ "$RC" = 0 ] && shw deploy-9-1 report.txt | grep -qx 'outcome: failed ready' || fail "a port that never answered: $RC"
 sed '/^signin:/d; /^differs:/d' "$S" > "$W2/dev-setup.txt"; dp deploy --setup "$W2/dev-setup.txt" --ask deploy-10 --commit "$C"; [ "$RC" = 0 ] || fail "a record with no sign-ins: $RC"
-[ "$(shw deploy-10-1 staging.txt | sed 1d)" = 'differs: none' ] || fail "no differences, no differs: none: $(shw deploy-10-1 staging.txt)"
+[ "$(shw deploy-10-1 staging.txt | sed 1d)" = "$(printf 'differs: none\nseam: SEAM-001 stand-in — a local copy\nseed: synthetic')" ] || fail "no differences, no differs: none: $(shw deploy-10-1 staging.txt)"
 dp stop --setup "$W2/dev-setup.txt" --ask deploy-10; [ "$RC" = 0 ] || fail 'the second staging would not stop'
 # run.sh --against: the rows against that address, nothing started
 : > "$T/services"; n=$(wc -l < "$T/starts"); m=$(wc -l < "$T/stops")

@@ -3,7 +3,8 @@
 # (fixtures/stages.sh), a three-stage cut whose stage 2 lists no feature (`features: -`) and holds REQ-003 by a split:
 # line passes the court (staged, as pre-commit reads it); scope and stage-of read it (ROW-003 in stage 2), and
 # `stages.sh counts` gives each stage the numbers `scope --upto k [--reqs]` minus `--upto k-1` give (requirements by
-# REQ id), and the block's row: lines; with no STAGES.md (the single-stage rung) it gives stage 1 the whole scope. A
+# REQ id), its journey rows (journeys=, 0.26.10.29.4 phase 4 R3: ROW-006 in stage 3), and the block's row: lines; with
+# no STAGES.md (the single-stage rung) it gives stage 1 the whole scope. A
 # stage that lists no feature and receives no split: is refused, named.
 # Env: CHECKS.
 set -eu
@@ -20,15 +21,15 @@ sh checks/stages.sh > "$T/out" 2>&1 || fail 'a stage fed only by a split: line w
 [ "$(sh checks/stages.sh stage-of ROW-003)" = 2 ] && [ "$(sh checks/stages.sh stage-of REQ-003)" = 2 ] || fail 'REQ-003 and its row are not in stage 2'
 sh checks/stages.sh counts > "$T/out" 2>&1
 d() { _a=$(sh checks/stages.sh scope --upto "$1" $2 | grep -c "^$3" || true); _b=$(sh checks/stages.sh scope --upto "$(($1 - 1))" $2 | grep -c "^$3" || true); echo $((_a - _b)); }
-for k in 1 2 3; do
-  W="stage $k requirements=$(d "$k" --reqs REQ-) rows=$(d "$k" '' '[A-Z]')"
-  grep -q "^$W |" "$T/out" || fail "counts does not say '$W' (scope's differences)"
+for kj in '1 0' '2 0' '3 1'; do k=${kj% *}
+  W="stage $k requirements=$(d "$k" --reqs REQ-) rows=$(d "$k" '' '[A-Z]') journeys=${kj#* }"
+  grep -q "^$W |" "$T/out" || fail "counts does not say '$W' (scope's differences, the journey rows)"
 done
-grep -qx 'stage 2 requirements=1 rows=1 | tags' "$T/out" && grep -qx 'row-lines=1' "$T/out" || fail 'counts does not give stage 2 one requirement and one row, and one row: line'
+grep -qx 'stage 2 requirements=1 rows=1 journeys=0 | tags' "$T/out" && grep -qx 'row-lines=1' "$T/out" || fail 'counts does not give stage 2 one requirement, one row and no journey, and one row: line'
 # the single-stage rung: no STAGES.md, every stage-able obligation and requirement in stage 1
 rm STAGES.md
 sh checks/stages.sh counts > "$T/out" 2>&1
-W="stage 1 requirements=$(sh checks/stages.sh scope --upto 1 --reqs | grep -c '^REQ-') rows=$(sh checks/stages.sh scope --upto 1 | grep -c .)"
+W="stage 1 requirements=$(sh checks/stages.sh scope --upto 1 --reqs | grep -c '^REQ-') rows=$(sh checks/stages.sh scope --upto 1 | grep -c .) journeys=1"
 grep -q "^$W |" "$T/out" && grep -qx 'row-lines=0' "$T/out" || fail "with no STAGES.md counts does not say '$W' and row-lines=0"
 st_stages 'STAGE-1 | the basics | features: FEAT-01 FEAT-02' 'STAGE-2 | nothing | features: -' 'STAGE-3 | sharing | features: FEAT-03' 'row: ROW-006 -> STAGE-3'
 git add -A

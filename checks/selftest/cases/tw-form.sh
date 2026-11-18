@@ -53,12 +53,12 @@ A=$(sec "$S" Asks); for t in T1 T3 T4 T5; do printf '%s\n' "$A" | grep -q "^- $t
 printf '%s\n' "$A" | grep -q 'ViD results format 1' || fail 'the results format is not named'
 printf '%s\n' "$A" | grep -qxF "Work on any branch, from the base above; open one pull request into main whose body begins ticket: #, then this issue's number." || fail 'the ticket does not say how to return'   # v0.26.10.26.7 (R6)
 # a step ticket: engines first
-tw_hand 'row ROW-003 accepted'; tw_hand 'row ROW-004 accepted'; tw_hand 'closed S01'; tw_hand 'candidate 0'; tw_hand 'staged 0'; tw_close 1; sh "$GS" tw-sync > /dev/null 2>&1
+tw_hand 'row ROW-003 accepted'; tw_hand 'row ROW-004 accepted'; tw_closed S01; tw_hand 'candidate 0'; tw_hand 'staged 0'; tw_close 1; sh "$GS" tw-sync > /dev/null 2>&1
 tw_start S02 || fail 'S02 was refused'
 if sh "$W" write step S02 > "$T/out" 2>&1; then fail 'a step ticket was written before the engines are known'; fi; grep -q 'no engines line' "$T/out" || fail 'the missing engines are not named'
 tw_hand 'engines chromium firefox'; tw_post step S02 || fail 'the step ticket was refused'; P=$TW_F
 grep -q '^gh label create blocked' "$T/gh/log" || fail 'the blocked label was not made'
-sec "$P" Asks | grep -q "at the ticket's first head alone, two fresh GRs, each in its own blind copy" && sec "$P" Asks | grep -q 'No later head has a grade or a sort' || fail "T5 is not the grade and the sort"; sec "$P" Asks | grep -q "a later head may plant a row's earlier patch again" && ! sec "$P" Asks | grep -q 'change, always' || fail 'T4 is not this flow'; grep -q '^2\. GR is a separate agent.*A GR writing a break at a later head is not told an earlier decision or a fix\. In a fix ticket, GR reads the ticket without its failed: lines, its History and the why: of each decision: the rows, the code and the results alone\.$' "$P" || fail 'rule 2 is not this flow'; grep -q '^- MR, merger:' "$P" && grep -q '^- SR, second reviewer:' "$P" && grep -q '^7. SR is a fresh agent' "$P" && grep -q '^8. DevAgent reads the spec repository.s main alone' "$P" || fail 'no merger or second reviewer in the roles'
+sec "$P" Asks | grep -q "at the ticket's first head alone, two fresh GRs, each in its own blind copy" && sec "$P" Asks | grep -q 'No later head has a grade or a sort' || fail "T5 is not the grade and the sort"; sec "$P" Asks | grep -q "a later head may plant a row's earlier patch again" && ! sec "$P" Asks | grep -q 'change, always' || fail 'T4 is not this flow'; grep -q '^2\. GR is a separate agent.*A GR writing a break at a later head is not told an earlier decision or a fix\. GR reads the ticket without the why: of each decision, and a fix ticket also without its failed: lines and its History: the rows, the code and the results alone\.$' "$P" || fail 'rule 2 is not this flow'; grep -q '^- MR, merger:' "$P" && grep -q '^- SR, second reviewer:' "$P" && grep -q '^7. SR is a fresh agent' "$P" && grep -q '^8. DevAgent reads the spec repository.s main alone' "$P" || fail 'no merger or second reviewer in the roles'
 # a stale file is never posted (fix 2, the demo's #10): each refusal names what moved, and GitHub sees no write
 ghw() { grep -c '^gh issue \(create\|edit\|comment\|close\)\|^gh api' "$T/gh/log" || true; }
 stale() { _n=$(ghw); if sh "$GS" tw-post ${3:-} "$1" > "$T/out" 2>&1; then fail "a stale file was posted: $1"; fi
@@ -84,7 +84,7 @@ grep -q '^> seam | SEAM-001 | the mail provider .* | evidence: tests/contract' "
 grep -q '^> seam | SEAM-001 .*module:\|^> seam | SEAM-001 .*match:' "$TW_F" && fail "SEAM-001's module: or match: was not left out"
 # a stale export is refused; a ticket over 60,000 bytes goes out in parts
 awk 'BEGIN { for (i = 1; i <= 700; i++) printf "- **D-%d** every page keeps one plain wording for the same thing, so readers learn it once and trust it after that | why: a large decision set | enforced: convention\n", 100 + i }' >> DECISIONS.md; g commit -qam 'many decisions'
-tw_close 2; tw_close 3; sh "$GS" tw-sync > /dev/null 2>&1; tw_hand 'closed S02'; tw_hand 'closed S03'
+tw_close 2; tw_close 3; sh "$GS" tw-sync > /dev/null 2>&1; tw_closed S02; tw_closed S03
 tw_start S04 || fail 'S04 was refused'; F=$(sh "$W" write step S04 2> "$T/werr") || fail 'the large ticket was refused'
 if sh "$GS" tw-post "$F" > "$T/out" 2>&1; then fail 'a ticket naming a stale export was posted'; fi; grep -q 'is not the spec repository.s main at ViD.s HEAD' "$T/out" || fail 'the stale export is not named'
 sh "$GS" spec-export > /dev/null 2>&1; stale "$F" 'the export moved: .* written at the export [0-9a-f]*; the newest is [0-9a-f]*'

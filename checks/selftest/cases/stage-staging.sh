@@ -10,7 +10,8 @@
 # a rule row with no covers: line asked again; paid, failing, a fix line with CS's link, a row red at an earlier CS the owner's;
 # a row whose newest ticket merged after the candidate left out; a refused report's quiet; stage 2's okay once stage 1's
 # CS is done; stage 2's: a step with brackets, a retry's quiet, a started okay holding staging until lost, none under a
-# later stage's candidate; paid only in every engine; the status line; the writer's CS fix ticket, with the staged line in the handed record. Env: CHECKS.
+# later stage's candidate; paid only in every engine; the status line; the writer's CS fix ticket, with the staged line in the handed record.
+# 0.26.11.1.1: its passed D1 reports carry duties.txt and seed: and seam: lines; one that says `stays: up` is up in `addresses` after its run (R1). Env: CHECKS.
 set -eu
 unset CLAUDE_CODE_SESSION_ID 2>/dev/null || true
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
@@ -25,7 +26,8 @@ send() { rm -rf "$T/x"; mkdir -p "$T/x"; cp -R "$T/r/$1" "$T/x/"; git -C "$T/x" 
 rq() { Q=req-$N-$1; C0=$2; E=$3; shift 3; rm -rf "$T/r/$Q"; rr_put "$Q" results.txt "$(printf 'by: TM\ncommit: %s%s' "$C0" "${COV:+
 $COV}")"; rr_put "$Q" "cases-$E.xml" "$(rr_cases "$@")"; send "$Q"; }
 # dp <okay> <k> <report.txt lines> [<staging.txt lines>]: a D1 report
-dp() { Q=deploy-$1-$2; rm -rf "$T/r/$Q"; rr_put "$Q" report.txt "$3"; rr_put "$Q" deploy.xml "$(rr_cases build=pass)"; [ -z "${4:-}" ] || rr_put "$Q" staging.txt "$4"; send "$Q"; }
+DU=$(for d in log-in environments outside-services sending-domain deploy-notes captures; do printf '%s: done — on the host\n' "$d"; done)   # 0.26.11.1.1 (R3): a passed D1's duties, each done
+dp() { Q=deploy-$1-$2; rm -rf "$T/r/$Q"; rr_put "$Q" report.txt "$(printf '%s\ndecisions: none' "$3")"; rr_put "$Q" deploy.xml "$(rr_cases build=pass)"; [ -z "${4:-}" ] || { rr_put "$Q" staging.txt "$(printf '%s\nseed: synthetic\nseam: SEAM-001 real\nseam: SEAM-002 real' "$4")"; rr_put "$Q" duties.txt "$DU"; }; send "$Q"; }   # 0.26.11.1.1 (R3, R4, R6): its seed, seam and duty lines
 fetch() { sh "$GS" results-fetch > /dev/null 2>&1; sh "$GS" round-read > .vid/round/read 2>/dev/null; }
 tk() { { printf '# t\n\n## Header\n\n- number: %s\n- kind: %s\n\n## Rows\n\n' "$1" "$2"; for r in $(echo "$4" | tr , ' '); do printf '> %s | behavior | a | b | n/a | x | REQ-001 | o\n- %s marks: %s\n' "$r" "$r" "$(echo "$5" | tr ' ' '\n' | sed -n "s/^$r=//p" | tr '+' ' ' | grep . || echo none)"; done
   printf '\n## Regression rows\n\n'; } > ".vid/tw/out/issue-$1.md"; gh issue create -R $R --title "t$1" --body b --label ticket > /dev/null
@@ -36,14 +38,14 @@ gh issue create -R $R --title t0 --body b > /dev/null; tw_close 1
 tk 2 skeleton S01 ROW-003,ROW-004 'ROW-004=owed-production'; mg 20 2; tk 3 step S02 ROW-001,SEAM-002 'SEAM-002=seam'; mg 21 3
 tk 4 step S03 ROW-006,SEAM-001,RULE-001,ROW-007 'SEAM-001=seam RULE-001=rule;+owed-staging ROW-007=owed-staging'; mg 22 4; tk 5 step S04 ROW-002,DIF-001 'DIF-001=owed-staging'; mg 23 5
 for r in ROW-003 ROW-001 ROW-006 ROW-002; do tw_hand "row $r accepted"; done; for r in ROW-004 SEAM-001 SEAM-002 RULE-001 DIF-001 ROW-007; do tw_hand "row $r owed"; done
-tw_hand 'closed S01'; sh "$GS" tw-sync > /dev/null 2>&1
+tw_closed S01; sh "$GS" tw-sync > /dev/null 2>&1
 # C3 asked: no okay yet
 X=$(git --git-dir="$T/code.git" rev-parse main); fetch; cs ask --stage 1; ok '^candidate 1 1$'; N=$(sed -n 's/^asked \([0-9]*\) close stage-1$/\1/p' "$T/out"); K=.vid/decide/stage/1/1
 cs owed; no '^okay staging'
 # the setup hold: S05, stage 2, refused at the candidate
 printf 'step-start step=S02 at=2026-11-09T09:00:00Z\nstep-start step=S03 at=2026-11-09T09:00:00Z\nstep-start step=S04 at=2026-11-09T09:00:00Z\n' >> .vid/metrics-events
 mkdir -p checks; cp "$CHECKS/stages.sh" "$CHECKS/prd.sh" checks/; sed 's/^stage: 0$/stage: 1/' .vid/RUN-STATE.md > "$T/rs" && cat "$T/rs" > .vid/RUN-STATE.md
-tw_hand 'closed S02'; ! sh "$CHECKS/plan.sh" start S05 > "$T/out" 2>&1 || fail 'S05 was admitted under the setup hold'; ok 'outside stages 0 to 1'
+tw_closed S02; ! sh "$CHECKS/plan.sh" start S05 > "$T/out" 2>&1 || fail 'S05 was admitted under the setup hold'; ok 'outside stages 0 to 1'
 sh "$QS" status > "$T/out" 2>&1; ok '^setup hold: the next stage waits until staging has passed once'
 mkdir -p .vid/decide/drafts/9; echo x > .vid/decide/drafts/9/base; echo w > .vid/decide/drafts/9/words; echo y > .vid/decide/drafts/9/why; sh "$QS" ask draft 9 > /dev/null 2>&1; touch .vid/decide/drafts/9/declined   # a silent sync first
 sh "$QS" sync > "$T/out" 2>&1; ok '^hold 1 Q[0-9][0-9]*$'; QH=$(sed -n 's/^hold 1 \(Q[0-9]*\)$/\1/p' "$T/out")   # v0.26.10.26.7 (R2): the hold is a Q line, announced once
@@ -71,7 +73,7 @@ grep -q 'deploy' "$T/gh/issues/$O/labels" || fail 'the okay is not labelled depl
 cs owed; no '^okay staging'; cs out; ok '^out stage-1$'
 sed 's/^close-wait-minutes: 0$/close-wait-minutes: 600/' .vid/tw/settings > "$T/s" && cat "$T/s" > .vid/tw/settings
 # the report, on its form: refused for each fault; posted back once, the second the owner's
-GOOD=$(printf 'staging: http://127.0.0.1:5001\nsignin: subscriber http://127.0.0.1:5001/signin\ndiffers: VID_TEST — 1 — unset\ndiffers: the /_ops/ door — open — absent')
+GOOD=$(printf 'staging: http://127.0.0.1:5001\nsignin: subscriber http://127.0.0.1:5001/signin\ndiffers: VID_TEST — 1 — unset\ndiffers: the /_ops/ door — open — absent\nstays: up')   # 0.26.11.1.1 (R1): a staging that stays up
 dp "$O" 1 "$(printf 'by: DP\ncommit: %s\noutcome: passed' "$(git --git-dir="$T/code.git" rev-parse main~1)")" "$GOOD"; fetch; sh "$RS" deploy --stage 1 > "$T/out" 2>&1; ok 'refused.*is not the one asked for'
 cs decide --stage 1; ok '^d1-refused 1 1$'; grep -q '^vid: refused d1-1' "$T/gh/issues/$O/comments/1" || fail 'the refusal was not posted'
 cs decide --stage 1; no 'again'; sed 's/^close-wait-minutes: 600$/close-wait-minutes: 0/' .vid/tw/settings > "$T/s" && cat "$T/s" > .vid/tw/settings
@@ -126,6 +128,8 @@ grep -q "^row DIF-001 failing | stand-in: CS #$N" .vid/tw/handed && grep -q "^ro
 # the status counts by the inventory's marks: of the toy's five seam and staging-owed rows of stages 0 and 1, SEAM-001 is paid
 # (RULE-001 is staging-owed in its ticket alone)
 sh "$QS" status > "$T/out" 2>&1; ok '^stage 1: candidate 1 at [0-9a-f]* · C3 green · .* · D1 passed · CS red · paid 1 of 5 · findings [0-9]* of [0-9]* ruled · the close waits on [0-9, ]* · test site: http://127.0.0.1:5001, up$'   # v0.26.10.28.8 (R7): a passed D1, its CS red
+# 0.26.11.1.1 (R1): a staging that stays up is up after its run's issue closes, never taken down
+: > $K/cs/issue-closed; sh "$QS" addresses 1 > "$T/out" 2>&1; ok '^test site: http://127.0.0.1:5001, up$'; no 'taken down'; rm -f $K/cs/issue-closed
 # the writer reads the handed record with its staged line, and writes CS's fix ticket in the first red row's own step
 FL=$(sed -n 's/^\(fix DIF-001 .*\) | stand-in: RM$/\1/p' .vid/tw/handed); KF=$(printf '%s' "$FL" | cksum | cut -d' ' -f1); sh "$GS" spec-export > /dev/null 2>&1
 F=$(sh "$CHECKS/writer.sh" write fix "$KF" 2> "$T/out") || fail 'the CS fix ticket was refused'; grep -qx -- '- step: S04' "$F" || fail "the CS fix ticket's step: $(grep -- '- step:' "$F")"

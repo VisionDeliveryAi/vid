@@ -4,7 +4,8 @@
 # HOS-003 protecting ROW-002: `scope --upto 0` is exactly ROW-001 ROW-002 HOS-003 — the placed rows and their probe,
 # no census row (RULE-001 stays in stage 1) and, with --reqs, no requirement (theirs keep their stages); `scope
 # --upto 1` includes them; `stage-of` prints 0 for a placed row and 1 for its requirement; `current` gives 0 with no
-# `stage:` line (1 without STAGE-0); `counts` prints `stage 0 requirements=0 rows=3`. Env: CHECKS.
+# `stage:` line (1 without STAGE-0); `counts` prints `stage 0 requirements=0 rows=3 journeys=0` (journeys=, 0.26.10.29.4
+# phase 4 R3). Env: CHECKS.
 set -eu
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 . "$CHECKS/selftest/fixtures/stages.sh"
@@ -27,8 +28,8 @@ mkdir -p .vid; printf 'run: active\nstage: 1\n' > .vid/RUN-STATE.md
 [ "$(sh checks/stages.sh current)" = 1 ] || fail 'current does not read stage: 1'
 rm .vid/RUN-STATE.md
 sh checks/stages.sh counts > "$T/n"
-grep -qx 'stage 0 requirements=0 rows=3 | the skeleton' "$T/n" || fail "counts does not print stage 0: $(cat "$T/n")"
-grep -qx 'stage 1 requirements=2 rows=2 | the basics' "$T/n" || fail "counts' stage 1 is not 2 requirements and 2 rows: $(cat "$T/n")"
+grep -qx 'stage 0 requirements=0 rows=3 journeys=0 | the skeleton' "$T/n" || fail "counts does not print stage 0: $(cat "$T/n")"
+grep -qx 'stage 1 requirements=2 rows=2 journeys=0 | the basics' "$T/n" || fail "counts' stage 1 is not 2 requirements, 2 rows and no journey: $(cat "$T/n")"
 # without STAGE-0, current is 1 again
 st_stages 'STAGE-1 | the basics | features: FEAT-01 FEAT-02' 'STAGE-2 | sharing | features: FEAT-03' 'split: REQ-003 -> STAGE-2' 'row: ROW-006 -> STAGE-2'
 [ "$(sh checks/stages.sh current)" = 1 ] || fail 'current is not 1 without STAGE-0'

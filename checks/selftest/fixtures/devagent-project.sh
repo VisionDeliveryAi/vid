@@ -6,6 +6,7 @@
 # background process. v0.26.10.24.4: product.txt, ROW-005 reads it, and ROW-006 stays green whatever it says. The runner honours SELECTION as a pattern over case names, CASE_LIMIT and RESULTS, and four
 # selections of its own: noreport writes no results report; noreport-once writes none the first time; stray leaves a
 # process behind; quiet and dies go silent, dies after marking a service dead. Reads only files under checks/. Env: T.
+# 0.26.11.1.1 (R5): the record's kept: line, which a rehearsal needs; the toy keeps no permanent records.
 SP_T=$T; export SP_T
 sp_git() { git -c user.email=sp@selftest -c user.name=sp "$@"; }
 sp_project() {
@@ -53,5 +54,6 @@ case-limit: 3
 start: [ -n "\$NO_PRODUCT" ] || { sleep 300 > /dev/null 2>&1 & echo \$! > "\$SP_T/product.pid"; }
 stop: [ ! -f "\$SP_T/product.pid" ] || { kill "\$(cat "\$SP_T/product.pid")"; mv "\$SP_T/product.pid" "\$SP_T/product.was"; }
 run: sh tests/runner.sh
+kept: echo 'kept: none — the toy keeps no permanent records'
 R
 }

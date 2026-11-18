@@ -8,7 +8,7 @@
 # `propose` gives the line. lb_prop <lines…>: .vid/decision-labels.proposed.
 . "$CHECKS/selftest/fixtures/stub-courts.sh"
 mkdir -p .vid
-cp "$CHECKS/decisions.sh" "$CHECKS/lib.sh" "$CHECKS/event.sh" checks/
+cp "$CHECKS/decisions.sh" "$CHECKS/lib.sh" "$CHECKS/event.sh" "$CHECKS/labels.sh" checks/
 cp "$CHECKS/hooks/commit-msg" checks/hooks/   # the labels commit passes the project's commit-msg hook too
 lb_files() {
   printf '# Inventory\n\n```vid-inventory\ngrammar: 0.9.3\nROW-001 | behavior | login | anon | LOGIN/form | x | REQ-001 | owed: prerequisite — later\nROW-002 | behavior | leak | anon | n/a | x | REQ-002 | owed: prerequisite — later | divergence: DIF-001\nROW-003 | behavior | audit | anon | n/a | x | REQ-001 | owed: prerequisite — later\nrule | RULE-001 | sessions expire | grep x | 0 | owed: census-armed — later | origin: REQ-001\nrule | RULE-002 | audits ordered | grep y | 1 | owed: census-armed — later | origin: REQ-009\n```\n' > INVENTORY.md

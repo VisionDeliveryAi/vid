@@ -15,7 +15,7 @@ first. Never call `gh` yourself, never ask for, print or store a token, and neve
 
 ## 1. Build
 
-Ask, one at a time, taking a plain default when the user does not care:
+Ask, one at a time, never in one message, taking a plain default when the user does not care:
 
 - **The run's name**, `<yyyy-mm>-<mode>-<short-name>`, the short name from the project; the user can change it.
 - **A logs folder**, if any: in GitHub auto, the dev side's work folder. In GitHub team, the DevAgent's side is out of reach,
