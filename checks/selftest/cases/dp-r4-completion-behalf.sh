@@ -9,7 +9,7 @@ unset CLAUDE_CODE_SESSION_ID 2>/dev/null || true
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 fail() { echo "dp-r4-completion-behalf: $*" >&2; cat "$T/s8" >&2 2>/dev/null; exit 1; }
 cd "$T"; git init -q; g() { git -c user.email=vid@selftest -c user.name=vid "$@"; }
-mkdir -p .vid/tw .vid/decide/queue .vid/round; printf '# Run state\n\nrun: active\nstage: 1\n' > .vid/RUN-STATE.md; : > .vid/tw/handed; printf '.vid/\n' > .gitignore
+mkdir -p .vid/tw .vid/decide/queue .vid/round; printf '# Run state\n\nrun: active\nstage: 1\n' > .vid/RUN-STATE.md; : > .vid/tw/handed; printf '# Inventory\n\n```vid-inventory\ngrammar: 0.9.3\n```\n' > INVENTORY.md; printf '.vid/\n' > .gitignore   # 0.26.11.1.2 (R6): an INVENTORY.md with no rows, so the plan's rows read empty, never unreadable
 { printf '# Decisions\n\n'
   printf -- '- **D-001** cursor pagination | why: the dev side chose it | enforced: ticket 4 | scope: project | origin: dev-side\n'
   printf -- '- **D-002** a digest at eight in the morning | why: the owner skipped the choice | enforced: convention | scope: project | origin: proposal\n'

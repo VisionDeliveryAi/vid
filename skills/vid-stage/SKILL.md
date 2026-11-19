@@ -164,7 +164,7 @@ owner sees why the cut is not finer.
 finest cut, which keeps the five constraints and the court's rules. At
 most four rungs: the finest; one or two in between, merging at the cut
 lines whose separation buys the least; and a single stage. A merge
-renumbers the stages in `row:` and `split:` lines and drops the `row:`
+renumbers the stages in `row:`, `split:` and `screen:` lines and drops the `row:`
 lines and `split:` entries it makes redundant. On a re-cut a merge never takes in a stage already
 closed or deployed.
 
@@ -401,6 +401,7 @@ Counts only; no scores, no percentages.
    in `mode: delta` on the answer's append against the effective set, rule
    its findings in the sitting, and write its record in the append —
    its findings, ruled, as rows of the section's own ```vid-prd-findings block (pass `review`), and the line `review: delta, round <r>, <n> findings` — `<r>` the round the review ended on, `<n>` the rows of the section's findings block, every round's rows (vid-create-prd, "The findings record", gives the line's rules); pre-commit refuses a new append section holding rows without it.
+   Run every helper in the foreground (`run_in_background: false` on the Agent call), wait for its result, and never end a turn, nor schedule a wake-up, while one, or a command you started in the background, is running.
 2. **A single stage:** no `STAGES.md`; record `sh checks/event.sh
    'stage-cut n=1 answer=A-NNN'`, run `sh "${CLAUDE_PLUGIN_ROOT}/checks/pages.sh"
    stages` (The sitting, "The page of the cut picked") and hand back.
@@ -410,8 +411,9 @@ Counts only; no scores, no percentages.
    stage; with stage 0, `STAGE-0 | <name> | technical` and a `row: ROW-x ->
    STAGE-0` line for each of its rows; `split:` lines for a split feature's requirements; `row:` lines
    placing a row whose requirements span stages, or a rule row placed
-   later; `needs:` lines, each with its source; the line `rules: by-origin`,
+   later; `screen:` lines, below; `needs:` lines, each with its source; the line `rules: by-origin`,
    once at most, below). No placeholder survives.
+   **The `screen:` lines** (0.26.11.1.2, R8): one `screen: <screen id> -> STAGE-<n>` line for each screen whose states' requirements fall in different stages, naming the stage that first builds the screen; a row testing that screen (its subject, or its marker before `/`) then waits for that stage, and a `row:` line may place it later, or in stage 0, never earlier. When the move leaves a requirement whose every row sits in a later stage, the cut moves that requirement to the screen's stage too, with a `split:` line.
    **The `rules: by-origin` line** (0.26.10.29.4 phase 4 R2): write it,
    creating STAGES.md or re-cutting, only when no stage is closed or
    deployed. Once any stage is, a re-cut keeps the line exactly as the
@@ -425,7 +427,8 @@ Counts only; no scores, no percentages.
    requirement's only rows may sit in a later stage than the requirement:
    split the row, bring its prerequisite forward, or move the requirement
    itself with a `split:` line. Membership moves only by these lines: a
-   requirement between stages by a `split:` line, a row by a `row:` line.
+   requirement between stages by a `split:` line, a row by a `row:` line,
+   a screen's rows by a `screen:` line.
    Commit STAGES.md as a law commit, alone or with INVENTORY.md when the
    cut's doors wrote rows (below), with the
    answer cited in the message (`Stages: A-NNN`): commit-msg refuses a
@@ -500,6 +503,7 @@ checks/stages.sh check` and `sh checks/stages.sh counts`, each run on its
 own, never piped. Its rounds, its second reader and its record follow
 vid-create-prd, "Reviews converge", "The second reader" and "The findings
 record", as at init (vid-init, "6b. The final review").
+Run every helper in the foreground (`run_in_background: false` on the Agent call), wait for its result, and never end a turn, nor schedule a wake-up, while one, or a command you started in the background, is running.
 
 ViD repairs by the same rule as at init, but everything is committed by
 now, so each repair goes through its document's own door:

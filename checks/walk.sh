@@ -54,11 +54,11 @@ cmd_pending() { for F0 in $(ls -d "$SD"/*/* 2>/dev/null); do wfin "$F0/w1" || co
     s=$(ns "$W"); [ -n "$s" ] && [ -f "$W/$s/pid" ] && [ ! -f "$W/$s/read" ] || continue; alive "$W/$s" || echo "walk-read $x"; done; return 0; }
 # --- the brief's scope (R1) ---
 SX=$(mktemp -d "$PWD/.vid/round/walk.XXXXXX" 2>/dev/null || mktemp -d); trap 'rm -rf "$SX"' EXIT
-plr() { [ -f "$SX/plr" ] || { sh "$HERE/planner.sh" rows 2>/dev/null || true; } | grep -v '^#' > "$SX/plr"; }
+plr() { [ -f "$SX/plr" ] || { mustread "$SX/plr0" planner rows; grep -v '^#' "$SX/plr0" > "$SX/plr"; }; }   # R6: an unreadable plan stops the walk
 # inv: `<id> TAB <kind> TAB <screen state or n/a> TAB <promise>` for each row of INVENTORY.md's block
 inv() { [ -f "$SX/inv" ] || sed -n '/^```vid-inventory/,/^```$/p' INVENTORY.md | awk -F'|' 'function t(x) { gsub(/^[ \t]+|[ \t]+$/, "", x); return x } t($1) ~ /^[A-Z]+-[0-9]+$/ { print t($1) "\t" t($2) "\t" t($5) "\t" t($6) }' > "$SX/inv"; }
 # upto <N>: the rows of stages 1 to N, as the admission's join reads them
-upto() { [ -f "$SX/up$1" ] && return 0; plr; { sh "$HERE/stages.sh" scope --upto "$1" 2>/dev/null || true; } > "$SX/st0"
+upto() { [ -f "$SX/up$1" ] && return 0; plr; mustread "$SX/st0" stages scope --upto "$1"
   awk -F'\t' -v c="$1" 'FILENAME == ARGV[1] { if ($5 ~ /^[0-9]+$/ || $5 == "later") P[$1] = ($5 != "later" && $5 + 0 <= c); next } !($1 in P) || P[$1] { print } END { for (r in P) if (P[r]) print r }' "$SX/plr" "$SX/st0" | sort -u > "$SX/up$1"; }
 golden() { plan_block | awk -F' [|] ' '{ for (i = 2; i <= NF; i++) if ($i == "kind: skeleton") for (j = 2; j <= NF; j++) if ($j ~ /^rows: /) { x = $j; sub(/^rows: /, "", x); print x } }' | tr ' ' '\n' | grep . |
   awk "$RNG"' { q = split(rng($0), e, " "); for (k = 1; k <= q; k++) print e[k] }' || true; }   # a range expanded, as the plan reads it
@@ -96,6 +96,7 @@ cmd_brief() { [ "${1:-}" = --stage ] && [ -n "${2:-}" ] || die 'usage — brief 
   grep -vxF -f "$SX/g" "$SX/scope" | sort -u > "$SX/rs" || true
   promise() { awk -F'\t' -v r="$1" '$1 == r { p = $8; if (p ~ /^[ \t]*(never|fail-if|fails if)[: ]/ || tolower(p) ~ /fails? if /) p = "(walk it as a user would, by its screen)"; print p; exit }' "$SX/plr"; }   # the planner's promise; a clause in fail-if form is kept from the walker
   { printf '# The walk\n\ncandidate: %s\nstaging: %s\n' "$X" "$A"; awk -F'\t' '$1 == "signin" { print "signin: " $2 " " $3 }' "$F/d1/read"
+    awk -F'\t' '$1 == "mail" || $1 == "clock" { print $1 ": " $2 " — " $3 }' "$F/d1/read"   # 0.26.11.1.2 (R9): the staging's mail and clock, the dev side's words
     printf '\nUse the product at the address above as a user would, signed in through the lines above. Walk each item below, then wander. Write walk.txt in this folder, in the form your instructions give, one line for each item here.\n'
     # 0.26.11.1.1 (R6): a staging on production data
     ! grep -q "^seed${TAB}production\$" "$F/d1/read" 2>/dev/null || printf '\nThis staging holds real people'"'"'s data, copied from production: send nothing to anyone, and use no real person'"'"'s address or number.\n'

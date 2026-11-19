@@ -36,7 +36,7 @@ gh_fake() {
 gh_vid() {
   . "$CHECKS/selftest/fixtures/stages.sh"
   mkdir -p "$1/checks"; cd "$1"; git init -q
-  cp "$CHECKS/github.sh" "$CHECKS/lib.sh" "$CHECKS/event.sh" "$CHECKS/prd.sh" "$CHECKS/stages.sh" "$CHECKS/plan.sh" "$CHECKS/brief.sh" checks/   # lib.sh beside github.sh (0.26.10.28.4)
+  cp "$CHECKS/github.sh" "$CHECKS/lib.sh" "$CHECKS/event.sh" "$CHECKS/prd.sh" "$CHECKS/stages.sh" "$CHECKS/plan.sh" "$CHECKS/brief.sh" "$CHECKS/planner.sh" checks/   # lib.sh beside github.sh (0.26.10.28.4); planner.sh beside plan.sh (0.26.11.1.2, R6)
   st_files
   { cat STAGES.md; printf '\n## Stage 1 — the basics\n\n- **Usable:** sign in and keep notes.\n\n## Stage 2 — sharing\n\n- **Usable:** share a note.\n'; } > STAGES.x && mv STAGES.x STAGES.md
   printf '# Architecture\n\n| Module | Responsibility | Owned tables/data | Public surface | Dependents |\n|---|---|---|---|---|\n| app/login | signing in | sessions | `app.login` | none |\n| app/notes | notes | notes | `app.notes` | none |\n\n```vid-code\nrepo: owner/code\nlabels-prefix: vid:\n```\n' > ARCHITECTURE.md

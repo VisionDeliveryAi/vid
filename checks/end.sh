@@ -26,7 +26,7 @@ T=$(mktemp -d "$PWD/.vid/round/end.XXXXXX"); trap 'rm -rf "$T"' EXIT
 RC=0; sh "$HERE/close.sh" endconds > "$T/u" 2> /dev/null || RC=$?
 if [ "$CHK" = yes ]; then if [ "$RC" = 0 ]; then echo complete; exit 0; fi; head -n 1 "$T/u"; exit 1; fi
 # the report's parts
-sh "$HERE/planner.sh" rows 2>/dev/null | grep -v '^#' > "$T/plr" || : > "$T/plr"
+mustread "$T/plr0" planner rows; grep -v '^#' "$T/plr0" > "$T/plr"   # R6: an unreadable plan stops the report
 hst() { sed -n "s/^row $1 \([^ |]*\).*/\1/p" "$HAND" 2>/dev/null | tail -n 1; }
 # each row's state: the handed record's, else a later item's (`later`) or a plan limit (`known-limit, by the plan`) by its class
 awk -F'\t' '$2 == "row" { print $1 "\t" $5 "\t" $6 "\t" $7 }' "$T/plr" | while IFS=$TAB read -r r g cl mk; do w=$(hst "$r")

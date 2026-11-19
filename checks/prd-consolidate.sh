@@ -68,6 +68,11 @@ done
 
 GRAMMAR=$(awk '/^## /{exit} /^grammar:[ \t]*[0-9.]+[ \t]*$/{sub(/^grammar:[ \t]*/,""); sub(/[ \t]*$/,""); print; exit}' "$PRD")
 [ -n "$GRAMMAR" ] || GRAMMAR=legacy
+# 0.26.11.1.2 (R13): at or past 0.26.11.1.2 a fail-if is numbered parts, and the arm ledger splits on the numbers.
+GNUM=no
+[ "$GRAMMAR" = legacy ] || GNUM=$(printf '%s\n' "$GRAMMAR" | awk -F. '{ split("0.26.11.1.2", w, ".")
+  for (i = 1; i <= 5; i++) { a = $i + 0; if (a > w[i] + 0) { print "yes"; exit } if (a < w[i] + 0) { print "no"; exit } }
+  print "yes" }')
 # v0.9.4 3.9: the output keeps a grammar at or past 0.9.4; everything older migrates to 0.9.1.
 OUTGRAMMAR=0.9.1
 [ "$GRAMMAR" = legacy ] || OUTGRAMMAR=$(printf '%s\n' "$GRAMMAR" | awk -F. '{ split("0.9.4", w, ".")
@@ -256,7 +261,7 @@ LEDGER="$DIR/.vid/consolidation-arms-$DATE.md"; NLOSING=0; NLEDGER=0
 if [ "$NAMENDED" -gt 0 ]; then
   {
     printf '# Consolidation arm ledger — %s\n\n' "$DATE"
-    printf '<!-- Per effective item amended since first ratification: its fail-if arms at\n     first ratified text and at consolidated text, side by side (an arm is one\n     clause split at top-level " or " / ", or " / "; or ", spec 3.5b). arm-losing\n     marks an item whose consolidated text carries fewer arms; arm-changed one\n     whose count held while an arm of the first text is no longer found. Read\n     by 7b, which proposes restorations; counts, never scores. -->\n\n'
+    printf '<!-- Per effective item amended since first ratification: its fail-if arms at\n     first ratified text and at consolidated text, side by side (an arm is one\n     clause split at top-level " or " / ", or " / "; or ", spec 3.5b; under grammar\n     0.26.11.1.2 or later, one numbered part (1), (2) …). arm-losing\n     marks an item whose consolidated text carries fewer arms; arm-changed one\n     whose count held while an arm of the first text is no longer found. Read\n     by 7b, which proposes restorations; counts, never scores. -->\n\n'
     for row in $EFF; do
       id=$(trim "$(printf '%s\n' "$row" | cut -d'|' -f1)")
       n=$(printf '%s\n' "$ITEMS_RAW" | grep -cE "^[[:space:]]*$id([[:space:]]+AMENDED)?[[:space:]]*\|" || true)
@@ -264,9 +269,13 @@ if [ "$NAMENDED" -gt 0 ]; then
       first=$(printf '%s\n' "$FIRST" | grep -E "^$id \|" || true)
       f1=$(printf '%s\n' "$first" | tr '|' '\n' | sed -n 's/^[[:space:]]*fail-if:[[:space:]]*//p' | head -n 1)
       f2=$(printf '%s\n' "$row" | tr '|' '\n' | sed -n 's/^[[:space:]]*fail-if:[[:space:]]*//p' | head -n 1)
-      printf '%s\n%s\n' "$f1" "$f2" | awk -v id="$id" -v n="$n" '
+      printf '%s\n%s\n' "$f1" "$f2" | awk -v id="$id" -v n="$n" -v gnum="$GNUM" '
         function norm(s) { gsub(/[ \t]+/, " ", s); gsub(/^ | $/, "", s); return s }
-        function arms(s, arr,   k, depth, i, c, cur, L) {
+        # under the numbered grammar (0.26.11.1.2, R13) an arm is a numbered part: (1), then each "; (<n+1>) "
+        function arms(s, arr,   k, depth, i, c, cur, L, m) {
+          if (gnum == "yes" && substr(s, 1, 4) == "(1) ") { s = substr(s, 5); k = 0
+            while ((i = index(s, m = "; (" (k + 2) ") ")) > 0) { arr[++k] = norm(substr(s, 1, i - 1)); s = substr(s, i + length(m)) }
+            arr[++k] = norm(s); return k }
           k = 0; depth = 0; cur = ""; i = 1; L = length(s)
           while (i <= L) {
             c = substr(s, i, 1)

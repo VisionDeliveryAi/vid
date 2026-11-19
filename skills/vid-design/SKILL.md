@@ -131,10 +131,10 @@ itself so the authoring tool sees them:
 
    Dynamic content as `{{ placeholders }}`; canvas chrome — annotations,
    token swatches, headings — outside the marked blocks.
-3. **The pack returns an index**: marker → REQ IDs → states drawn. Under
-   the join court its absence fails the import instead of being a dead
-   request — a pack without markers fails immediately, with the row list
-   naming exactly what is missing.
+3. **The screen markers are the index**: marker → REQ IDs → states drawn,
+   read from the canvases themselves, so the pack need not return one.
+   Under the join court a pack without markers fails the import at once,
+   with the row list naming exactly what is missing.
 4. **One components canvas** (v0.9.1 3.7a, R12-iv): *"the pack contains
    one components canvas, `C00 Components.dc.html`, holding the shared
    elements — the shell (header, nav, footer, both auth states, both
@@ -171,16 +171,17 @@ itself so the authoring tool sees them:
 6. **One canvas per screen** (v0.9.8.1 R20; new packs only): *"each
    screen is its own canvas, named by its marker — `P03 <name>.dc.html` —
    holding all its states; the shared components are small group files,
-   `C00-<group>.dc.html` (forms, navigation, cards …); and the pack
-   carries `design/screens/index.json`: `{"layout": "per-screen",
-   "files": [every file of the pack], "components": {"P03": [the
-   component files that screen uses]}}`."* The join court runs its
-   per-screen checks only under that declared layout — each manifest
-   screen other than C00 has its own file (a screen whose rows are all
-   owed, descoped, fenced or later needs none), and every file the index
-   lists exists — so an existing pack, in one canvas, is judged as
-   before. Writers and graders are briefed only their screen's file and
-   the component files the index lists for it (`checks/brief.sh`).
+   `C00-<group>.dc.html` (forms, navigation, cards …)."* `design/screens/index.json` is optional:
+   `{"layout": "per-screen", "files": [every file of the pack],
+   "components": {"P03": [the component files that screen uses]}}`. The
+   join court runs its per-screen checks only when the pack carries it
+   and declares that layout — each manifest screen other than C00 has its
+   own file (a screen whose rows are all owed, descoped, fenced or later
+   needs none), and every file the index lists exists — so a pack without
+   it, or in one canvas, is judged as before. Writers and graders are
+   briefed only their screen's file and the component files the index
+   lists for it, or, with no index, the files holding the screen's marker
+   and those holding C00's (`checks/brief.sh`).
 
 **The manifest** — emitted with the brief, spent at import, persisted as
 the inventory's surface rows. A ```vid-design-manifest block in
@@ -374,6 +375,7 @@ always, listed as `context:` — a changed P03 can contradict an
 unchanged P07 or C00 on a detail the PRD never states, and the rows
 cannot reconstruct that visual baseline; a context marker is never a
 finding's target on its own. Record `sh "${CLAUDE_PLUGIN_ROOT}/checks/event.sh" 'tokens slice=0 phase=review n=T'`.
+Run every helper in the foreground (`run_in_background: false` on the Agent call), wait for its result, and never end a turn, nor schedule a wake-up, while one, or a command you started in the background, is running.
 
 **The sitting.** Present the lines as returned — one per disagreement,
 never a count — and the owner rules each: `design wins` · `PRD wins` ·
@@ -426,7 +428,7 @@ under one machine block:
     ## The return contract (the same in every change list)
     - Every element keeps its marker.
     - Every identifier stays unique within its marker section.
-    - `design/screens/index.json` lists every screen.
+    - `design/screens/index.json`, when the pack carries one, lists every file of the pack.
 
     ## (a) Design changes
     - D-01 — P03: remove the Edit target control; the deletion page carries one Remove control only.
@@ -523,6 +525,7 @@ has run:
   outside the marked screens (the consistency pass sees only
   marker-linked rows), and only the affected-set review sees that; its findings are ruled in this ratification sitting, what the repairs and the rulings land read again by the same pass (vid-create-prd, "Reviews converge", in Pass mechanics: every repaired round is read again by the same pass, up to three rounds, and what remains goes to the owner as one list; 0.26.10.29.3 phase 2, R1), the run
   recording `sh "${CLAUDE_PLUGIN_ROOT}/checks/event.sh" 'tokens slice=0 phase=review n=T'`.
+  Run every helper in the foreground (`run_in_background: false` on the Agent call), wait for its result, and never end a turn, nor schedule a wake-up, while one, or a command you started in the background, is running.
   An answer the append adds is `human` only after the owner's yes at this sitting, and commit B quotes the owner's
   words in an `Owner:` trailer (0.26.10.29.3 R2; vid-create-prd, "The owner's words").
   Raised questions (0.26.10.29.3 R4): a question an agent's report raises that ViD cannot settle from the record (a ruling, the seed, or an owner answer it can cite) becomes an open carrier at once, `VID-QUESTION: (OQ-n) <the question>` in a dated append, raised with the owner at the next sitting; one ViD settles from the record is answered in the message to the owner with the record line that settles it (vid-create-prd, "The owner's words, and the questions raised").

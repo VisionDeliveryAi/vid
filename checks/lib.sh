@@ -1,7 +1,8 @@
 #!/bin/sh
 # Purpose: the ticket side's shared helpers (0.26.10.28.4, 9.3 R3, R4, M3, M4), each once: put, the settings reader, the plan-block reader, the
 # row-range expander, date to seconds, the timestamp, the answers not given by the owner (0.26.10.29.5, DP-1 R4), the event writer and the lock. Each of the 13 ticket scripts, and decisions.sh, loads it from
-# beside itself, `. "$HERE/lib.sh"`, after setting HERE; loaded, it defines and runs nothing else. plan.sh and develop's own scripts keep their own.
+# beside itself, `. "$HERE/lib.sh"`, after setting HERE; loaded, it defines these, sets one trap (mustread's, below) and runs nothing else. plan.sh
+# and develop's own scripts keep their own.
 # serves: tickets
 # put <file>: stdin into a dot file beside it, then renamed in, so a record is replaced whole and never emptied first (0.26.10.28.1, F3)
 put() { _p=$(dirname "$1")/.put.$$.$(basename "$1"); cat > "$_p" && mv -f "$_p" "$1"; }
@@ -16,6 +17,12 @@ rkey() { { plan_block; cat .vid/tw/handed 2>/dev/null; sed -n 's/^sync main=\([^
 # RNG: the awk function rng(<id or range>), its ids space-separated: <P>-<a>..<P>-<b> written out at a's width, as the plan reads it; prepended to an awk program
 RNG='function rng(y,   a, b, p, lo, hi, w, k, r) { if (y !~ /\.\./) return y; a = y; sub(/\.\..*/, "", a); b = y; sub(/.*\.\./, "", b); p = a; sub(/-[0-9]+$/, "", p)
   lo = a; sub(/^.*-/, "", lo); hi = b; sub(/^.*-/, "", hi); w = length(lo); r = ""; for (k = lo + 0; k <= hi + 0; k++) r = r (r == "" ? "" : " ") sprintf("%s-%0" w "d", p, k); return r }'
+# PROF (0.26.11.1.2, R7): the word check, awk functions prepended to a program, the one list: profw(<word>), a word of the list; prof(<line>),
+# its first such word, lower case, or ""; profx(<line>), the line with each such word (a run of letters, digits and _) written "(a word)", every other
+# character as it was. The writer refuses or blanks by it; the spec export (github.sh exptree) blanks by it and refuses nothing
+PROF='function profw(w) { return tolower(w) ~ /^(f+u+c+k[a-z0-9_]*|shit[a-z0-9_]*|bullshit[a-z0-9_]*|damn[a-z0-9_]*|goddam[a-z0-9_]*|crap[a-z0-9_]*|bitch[a-z0-9_]*|bastard[a-z0-9_]*|asshole[a-z0-9_]*|arsehole[a-z0-9_]*|piss[a-z0-9_]*|cunt[a-z0-9_]*|dick(head)?s?|wtf|motherf[a-z0-9_]*|bloody|bollocks)$/ }
+  function prof(l,   n, w, i) { n = split(tolower(l), w, /[^a-z0-9_]+/); for (i = 1; i <= n; i++) if (profw(w[i])) return w[i]; return "" }
+  function profx(l,   r, w) { r = ""; while (match(l, /[A-Za-z0-9_]+/)) { w = substr(l, RSTART, RLENGTH); r = r substr(l, 1, RSTART - 1) (profw(w) ? "(a word)" : w); l = substr(l, RSTART + RLENGTH) } return r l }'
 # epoch <UTC ISO time>: its seconds, BSD's date or GNU's, else 0
 epoch() { date -u -j -f '%Y-%m-%dT%H:%M:%SZ' "$1" +%s 2>/dev/null || date -u -d "$1" +%s 2>/dev/null || echo 0; }
 # stamp, now: the UTC time, ISO
@@ -30,12 +37,22 @@ now() { stamp; }
 notowner() { { sed 's/^/A	/' .vid/decide/queue/answers 2>/dev/null; sed 's/^/R	/' .vid/decide/rulings 2>/dev/null; } | awk -F'\t' 'BEGIN { OFS = "\t" }
     $1 == "A" && $6 != "" && $6 != "owner" && $3 !~ /^held:/ && $3 != "control:hold" { print $2, $3, $4, $5, $6 }
     $1 == "R" && $6 != "" && $6 !~ /^(owner|decide|SP)$/ { print $2, "held:" $3, $4, ($5 == "" ? $4 : $4 ": " $5), $6 }'; }
+# lread <file> planner|stages <args…> (0.26.11.1.2, R6): `sh "$HERE/<planner|stages>.sh" <args…>`, the plan's rows or the stage scope,
+# into <file> whole. A failed read is never an empty list: it prints `ViD <script>: refused — the plan's rows cannot be read (checks/planner.sh
+# rows): <its first error line>` (the stage scope's alike) and returns 1. mustread: the same, then the script stops, exit 1, from inside a $(…)
+# or a pipe too: its USR1 reaches the script's own shell, whose trap exits 1 (a subshell's exit alone would leave the script going on)
+lread() { _lf=$1; _lx=$2; shift 2; if sh "$HERE/$_lx.sh" "$@" > "$_lf" 2> "$_lf.err"; then rm -f "$_lf.err"; return 0; fi
+  case $_lx in planner) _lw="the plan's rows" ;; *) _lw='the stage scope' ;; esac; _le=$(grep -v '^[[:space:]]*$' "$_lf.err" 2>/dev/null | head -n 1)
+  _la=$(printf ' %s' "$@"); echo "ViD $(basename "$0" .sh): refused — $_lw cannot be read (checks/$_lx.sh$_la): ${_le:-it failed with no message}" >&2; rm -f "$_lf" "$_lf.err"; return 1; }
+mustread() { lread "$@" || { kill -s USR1 $$ 2>/dev/null; exit 1; }; }
+trap 'exit 1' USR1
 # ev <event line>: through the event.sh beside this file, at the run's home; a failure of event.sh is reported, never written past (9.3 R1, M1)
 ev() { sh "$HERE/event.sh" "$1" > /dev/null || echo "ViD: the event was not recorded, event.sh failed: $1" >&2; }
 # The lock (9.3 R4, M4): a folder naming its holder in one file, h, written whole and renamed in: `<pid> <start>`, its start as DevAgent's run.sh
 # stamp writes one (/proc where it is: boot id and ticks, Git Bash seconds; else ps), so a reader never takes one holder's pid with another's start. A
 # holder that is gone, or whose pid another process now has, is no holder: its lock is taken over by one waiter at a time (<folder>.steal), which reads
 # h again before it removes anything. A live holder's lock is never taken: lock_take waits for it
+# Stated limit (K-1): a clearer killed inside its guard leaves one moment with no release; portable shell has no atomic compare-and-remove to close it
 pstamp() { if [ -r "/proc/$1/stat" ]; then _t=$(sed 's/^.*) //' "/proc/$1/stat" | cut -d' ' -f20); case $(uname -s) in MINGW*|MSYS*|CYGWIN*) _b=$(sed -n 's/^btime //p' /proc/stat 2>/dev/null); echo $((${_b:-0} + _t / $(getconf CLK_TCK))) ;; *) echo "$(cat /proc/sys/kernel/random/boot_id 2>/dev/null):$_t" ;; esac; else LC_ALL=C TZ=UTC0 ps -o lstart= -p "$1" 2>/dev/null; fi; }   # one locale and one time zone for every reader
 # palive <pid> <start>: it lives and is the process that start names (under Git Bash, within the second the two round to)
 palive() { kill -0 "$1" 2>/dev/null || return 1; _s=$(pstamp "$1"); [ -n "$_s" ] || return 1; [ "$_s" = "$2" ] && return 0

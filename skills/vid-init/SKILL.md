@@ -149,7 +149,9 @@ findings, and ratification shas — adopt it instead of delegating:
 - skip delegation entirely, and **never re-interview what the document
   settles**: its ledger, thesis, contract, and items are ratified.
   Product questions init hits later go to the owner freely as always and
-  land as typed-row appends.
+  land as typed-row appends. A ratified PRD carries no Test Inventory
+  (vid-create-prd writes none), so step 4 derives it here, as for a PRD
+  init authored.
 
 A pre-enrichment `PRD.md` (no ```vid-prd block) is not adoptable: it is a
 document the owner can hand to the skill through its import door (seed
@@ -431,6 +433,7 @@ INVENTORY.md and GRADING-CHECKLIST.md. Its rounds, its second reader and
 its record follow vid-create-prd: "Reviews converge", "The second
 reader" and "While a pass runs" (in "Pass mechanics"), and "The findings
 record" — never a rule of this skill's own.
+Run every helper in the foreground (`run_in_background: false` on the Agent call), wait for its result, and never end a turn, nor schedule a wake-up, while one, or a command you started in the background, is running.
 
 **ViD repairs what it wrote, the test list included.** Every repair is
 read again by the pass's next round in `mode: delta`, so none goes unread:

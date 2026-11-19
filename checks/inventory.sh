@@ -686,13 +686,19 @@ fi
 NARM=0
 if [ -n "${T0REQS:-}" ] && [ -n "$HOSTS" ]; then
   PRDSH=$(dirname "$0")/prd.sh; [ -f "$PRDSH" ] || PRDSH=checks/prd.sh
+  # PRDGNUM: PRD.md's header grammar at or past 0.26.11.1.2 (prd.sh's GNUM, read the same way)
+  PRDGNUM=$(awk '/^## /{exit} /^grammar:[ \t]*[0-9.]+[ \t]*$/{sub(/^grammar:[ \t]*/,""); sub(/[ \t]*$/,""); print; exit}' PRD.md | awk -F. '
+    NF { split("0.26.11.1.2", w, "."); for (i = 1; i <= 5; i++) { a = $i + 0; if (a > w[i] + 0) { print "yes"; exit } if (a < w[i] + 0) { print "no"; exit } }
+      print "yes" }')
   ARMNOTES=$( { printf '%s\n' "$T0REQS" | awk '$0 != "" { print "T\t" $0 }'
     { sh "$PRDSH" --failifs PRD.md 2> /dev/null || true; } | awk '{ print "F\t" $0 }'
     for h in $HOSTS; do
       prot_reqs "$(labeled "$h" protects | tr ' ,' '\n\n' | grep -v '^$' || true)" | grep -v '^$' | sort -u | awk -v h="$(field "$h" 2)" '{ print "H\t" h "\t" $0 }'
-    done; } | awk -F'\t' '
-    # narms: arms_of in checks/prd.sh, as awk — the depth of the parentheses read in order, a trailing ";" or "," dropped
+    done; } | awk -F'\t' -v gnum="$PRDGNUM" '
+    # narms: arms_of in checks/prd.sh, as awk — the depth of the parentheses read in order, a trailing ";" or "," dropped;
+    # under the numbered grammar (PRDGNUM, 0.26.11.1.2, R13) the parts (1), then each "; (<n+1>) " in turn
     function narms(s,   d, cur, p, i, j, c, n, a) { d = 0; cur = ""; n = 0
+      if (gnum == "yes") { if (substr(s, 1, 4) != "(1) ") return 1; n = 1; while (index(s, "; (" (n + 1) ") ")) n++; return n }
       while ((i = index(s, " or ")) > 0) { p = substr(s, 1, i - 1); s = substr(s, i + 4)
         for (j = 1; j <= length(p); j++) { c = substr(p, j, 1); if (c == "(") d++; else if (c == ")" && d > 0) d-- }
         cur = cur p

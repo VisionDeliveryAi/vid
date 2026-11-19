@@ -251,9 +251,9 @@ decide_k() { K=$KD/$k; [ ! -f "$K/withdrawn" ] || return 0; n=$(akey issue); tou
 # --- v0.26.10.26.1 (R1–R5): a stage's candidate, its full run C3 and its grade S1, in .vid/decide/stage/<N>/<c>/ ---
 SD=$D/stage; SX=$(mktemp -d "$PWD/.vid/round/stg.XXXXXX"); trap 'rm -rf "$SX"' EXIT
 snc() { c0=''; for d in $(ls "$SD/$1" 2>/dev/null | grep -E '^[0-9]+$' | sort -n); do [ -f "$SD/$1/$d/ask" ] && c0=$d; done; echo "$c0"; }
-plr() { [ -f "$SX/plr" ] || { sh "$HERE/planner.sh" rows 2>/dev/null || true; } | grep -v '^#' > "$SX/plr"; }
+plr() { [ -f "$SX/plr" ] || { mustread "$SX/plr0" planner rows; grep -v '^#' "$SX/plr0" > "$SX/plr"; }; }   # R6: an unreadable plan stops the close
 # upto <N>: every row of stages 1 to N, by the admission's join: planner.sh rows' stage (its moved: counts), else stages.sh's; a seam stage 1
-upto() { [ -f "$SX/up$1" ] && return 0; plr; { sh "$HERE/stages.sh" scope --upto "$1" 2>/dev/null || true; } > "$SX/st0"
+upto() { [ -f "$SX/up$1" ] && return 0; plr; mustread "$SX/st0" stages scope --upto "$1"
   awk -F'\t' -v c="$1" 'FILENAME == ARGV[1] { if ($5 ~ /^[0-9]+$/ || $5 == "later") P[$1] = ($5 != "later" && $5 + 0 <= c); if ($1 ~ /^SEAM-/ && c >= 1) S[$1] = 1; next }
     !($1 in P) || P[$1] { print } END { for (r in P) if (P[r]) print r; for (r in S) print r }' "$SX/plr" "$SX/st0" | sort -u > "$SX/up$1"; }
 sstages() { plr; x=$(awk -F'\t' '$5 ~ /^[0-9]+$/ { print $5 }' "$SX/plr" | sort -nu); echo "${x:-1}"; }
@@ -290,8 +290,8 @@ sdue() { N=$1; W=$SX/why$N; : > "$W"; plr
 newest_merge() { MS=$(cut -f4 "$D/merges" 2>/dev/null | grep -v '^-*$'); last=''
   for c in $MS; do a=1; for o in $MS; do [ "$o" = "$c" ] || anc "$o" "$c" || a=''; done; [ -z "$a" ] || last=$c; done; [ -n "$last" ] || last=$(printf '%s\n' "$MS" | tail -n 1); echo "$last"; }
 # sreqs <N>: the stage's requirements, invariants left out
-sreqs() { { sh "$HERE/stages.sh" scope --upto "$1" --reqs 2>/dev/null || true; } | grep '^REQ-' | sort -u > "$SX/rq$1"; : > "$SX/rp$1"
-  [ "$1" -lt 1 ] || { sh "$HERE/stages.sh" scope --upto "$(($1 - 1))" --reqs 2>/dev/null || true; } | grep '^REQ-' | sort -u > "$SX/rp$1"; comm -23 "$SX/rq$1" "$SX/rp$1"; }
+sreqs() { mustread "$SX/sq$1" stages scope --upto "$1" --reqs; grep '^REQ-' "$SX/sq$1" | sort -u > "$SX/rq$1"; : > "$SX/rp$1"
+  [ "$1" -lt 1 ] || { mustread "$SX/sp$1" stages scope --upto "$(($1 - 1))" --reqs; grep '^REQ-' "$SX/sp$1" | sort -u > "$SX/rp$1"; }; comm -23 "$SX/rq$1" "$SX/rp$1"; }
 # v0.26.10.27.4 (R1): lreqs, every live requirement of every stage
 # (`later` ones apart, in $SX/dfr); pmap, the plan block as `M <step> <module>` and `R <step> <row>` lines, ranges expanded;
 # addset <time>, the requirements of every /vid add landed after <time>: its rows', and those of the rows of every step sharing a
@@ -335,7 +335,10 @@ cmd_ask_stage() { N=$1; sdue "$N" || die "no candidate is due for stage $N: $(pa
   # S1's requirements (R3): at the first candidate the stage's all; later the touched since the previous candidate, and those with no grade yet
   # v0.26.10.27.4 (R1): at the final stage, the end grade: every live requirement of every stage, `later` ones deferred; after an add, its set too
   FN=no; [ "$N" -ge 1 ] && [ "$N" = "$(finals)" ] && FN=yes; : > "$SX/dfr"
-  if [ ! -f "$K/s1ask" ]; then if [ "$FN" = yes ]; then lreqs > "$SX/all"; else sreqs "$N" > "$SX/all"; fi; if [ "$c" -gt 1 ]; then PX0=$(cat "$SD/$N/$((c - 1))/commit" 2>/dev/null)
+  # 0.26.11.1.2 (R10): at the final stage the full set is asked, and its s1ask marked `end yes`, until an earlier candidate's end grade
+  # is done (its s1ask marked and its s1done); the candidate's number no longer decides. Records before the marker: one more full ask
+  FULL=no; if [ "$FN" = yes ]; then FULL=yes; for o in $(ls "$SD/$N" | grep -E '^[0-9]+$'); do [ "$o" -lt "$c" ] && grep -qx "end${TAB}yes" "$SD/$N/$o/s1ask" 2>/dev/null && [ -f "$SD/$N/$o/s1done" ] && FULL=no; done; fi
+  if [ ! -f "$K/s1ask" ]; then if [ "$FN" = yes ]; then lreqs > "$SX/all"; else sreqs "$N" > "$SX/all"; fi; if [ "$c" -gt 1 ] && [ "$FULL" = no ]; then PX0=$(cat "$SD/$N/$((c - 1))/commit" 2>/dev/null)
       while IFS=$TAB read -r p t H M2; do [ -n "$M2" ] && [ "$M2" != - ] || continue; [ -z "$PX0" ] || ! anc "$M2" "$PX0" || continue; trows "$t"; done < "$D/merges" | sort -u > "$SX/tr"
       for o in $(ls "$SD/$N" | grep -E '^[0-9]+$'); do O=$SD/$N/$o; [ "$o" -eq $((c - 1)) ] && [ -f "$O/s1ask" ] && [ ! -f "$O/s1done" ] && sed -n "s/^reqs$TAB//p" "$O/s1ask" | tr ' ' '\n'; done > "$SX/wr"   # the previous candidate's S1, withdrawn or still out, ungraded
       PA=$(sed -n "s/^asked$TAB//p" "$SD/$N/$((c - 1))/ask" 2>/dev/null); [ "$FN" = yes ] && ( addset "${PA:-0}" ) > "$SX/add" || : > "$SX/add"   # a subshell: addset's loop leaves X, the candidate's commit, alone
@@ -347,7 +350,7 @@ cmd_ask_stage() { N=$1; sdue "$N" || die "no candidate is due for stage $N: $(pa
         [ "$FN" != yes ] || { printf 'This is the end grade: grade the joins across stages, every journey whole, and each line of the grading checklist.\n\n'; [ ! -s "$SX/dfr" ] || printf 'Deferred, not asked: %s\n\n' "$(paste -sd ' ' "$SX/dfr")"; }
         printf 'Grade each requirement, in a fresh context, against the grading checklist and its rows'"'"' fail-ifs: pass, partial, facade (looks built, isn'"'"'t) or absent, each with its reason; then each finding, tagged bug or rule. One line per requirement, `REQ-<n> <word> — <reason>`, then `finding: bug|rule — <line>`. Report it as vid-results/grade-<this issue>-<k>, its grade.txt by: GR, its commit the one above, then comment `vid: reported s1-<k>` here. Comment `vid: started` when it starts; send it again only after a comment `vid: again s1`, or a refusal.\n'; } > "$K/s1body"
       i=$(gh_ grade-ask --stage "$N" --commit "$X" --title "Stage grade: stage $N, candidate $c" --body-file "$K/s1body") || die 'the S1 ask could not be posted'
-      printf 'issue\t%s\ncommit\t%s\nasked\t%s\nreqs\t%s\n' "$i" "$X" "$(stamp)" "$RQ" > "$K/s1ask"; echo "asked $i grade stage-$N"; fi; fi
+      { printf 'issue\t%s\ncommit\t%s\nasked\t%s\nreqs\t%s\n' "$i" "$X" "$(stamp)" "$RQ"; [ "$FULL" = no ] || printf 'end\tyes\n'; } > "$K/s1ask"; echo "asked $i grade stage-$N"; fi; fi
   # the candidate's line once both are posted, or C3's alone
   # v0.26.10.26.2 (R1): naming a newer candidate withdraws the stage's earlier CS still out, which then counts as done
   [ -f "$K/named" ] || for o in $(ls "$SD/$N" | grep -E '^[0-9]+$'); do O=$SD/$N/$o/cs; [ "$o" -lt "$c" ] && [ -f "$O/ask" ] && [ ! -f "$O/done" ] && [ ! -f "$O/withdrawn" ] || continue
@@ -438,7 +441,7 @@ cmd_okay() { N=$1; okdue "$N" || die "no okay is due for stage $N"; X=$(cat "$F/
   { printf 'okay: staging\ncommit: %s\nseed: %s\noutside-service rows: %s\n\n' "$X" "$SW" "${RW:-none}"
     printf 'Deploy this commit to staging, within the downtime tolerance the skeleton ticket'"'"'s hosting states. Report it as vid-results/deploy-<this issue>-<k>, by: DP, its commit the one above: report.txt with `outcome: passed` or `outcome: failed <step>`, and for a failed step `product change: yes` or `product change: no`; deploy.xml, one case per deploy step; and for a passed deploy staging.txt, with `staging: <address>`, one `signin: <role> <address>` line for each role you can sign in as, and one `differs: <what> — <on staging> — <on production>` line for each way staging differs from production beyond the head reports'"'"' stand-in: lines, or `differs: none`. Then comment `vid: reported d1-<k>` here; `vid: started` when you start. An owner-only step is your question here, labelled blocked.\n'
     # 0.26.11.1.1 (R1, R3, R4, R6): the further lines of a passed deploy, the seed's sentence, the hosting and the duties
-    printf '\nIn staging.txt also: `seed: synthetic` or `seed: production`, as the seed above; for each outside-service row above, `seam: <row> real` when its outside service is the real one on this staging, or `seam: <row> stand-in — <why>`; and `stays: up` when staging stays up between deploys. For a passed deploy also duties.txt: for each duty below, one line `<duty>: done — <what and where>`, `<duty>: not needed — <why>` or `<duty>: not done — <why>`.\n'
+    printf '\nIn staging.txt also: `seed: synthetic` or `seed: production`, as the seed above; for each outside-service row above, `seam: <row> real` when its outside service is the real one on this staging, or `seam: <row> stand-in — <why>`; and `stays: up` when staging stays up between deploys. When the product sends mail, also `mail: <address> — <how to read it>`, and when it acts on time, `clock: <address> — <how to move it>`: where the walker reads the mail and moves the clock on this staging, in your words. For a passed deploy also duties.txt: for each duty below, one line `<duty>: done — <what and where>`, `<duty>: not needed — <why>` or `<duty>: not done — <why>`.\n'
     [ "$SW" != production ] || printf '\nLoad a copy of production'"'"'s newest backup into staging in place of the made-up data, before the migration. It holds real customers'"'"' data: keep every outside service on staging limited, so nothing reaches a real person.\n'
     printf '\n'; hostq; printf '\n'; dutyq staging
     grep -q '^staged ' "$HAND" 2>/dev/null || grep -q '^setup-hold off ' "$HAND" 2>/dev/null || if [ "$((N + 1))" -le "$(finals)" ]; then printf '\nUntil this deploy passes, or the owner says continue, no ticket of stage %s is published.\n' "$((N + 1))"

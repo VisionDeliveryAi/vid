@@ -12,7 +12,7 @@
 # 0.26.10.29.6 lane K1: S1's sitting in each pause's own step and consolidation's sitting, S2's items asked on their
 # own, recommendations and blanket yes, S4's changed-since section and repairs in two groups, S5's research request,
 # S6's priority marks after answers are written, S7's plain words and counted numbers, S10's where to look, S11's wait
-# parts and drafts; the join of its lanes: consolidation's section ids as face.sh takes them);
+# parts and drafts; the join of its lanes: consolidation's section ids as face.sh takes them; 0.26.11.1.2: R3's foreground sentence, R7's rule, R13's numbered parts);
 # the added paragraphs are exactly two, writing the interview and each pause and ending each; and no line of them makes anything depend on a panel being present.
 # 0.26.10.29.6 (S1): also convicts unless each of the six skills that owns a sitting of stops 6 to 9 carries the
 # `face.sh" write <sitting>` call for each, and names each section id face.sh's table holds for that sitting
@@ -23,7 +23,7 @@ F="$CHECKS/../skills/vid-create-prd/SKILL.md"
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 fail() { echo "face-r4-skill: $*" >&2; exit 1; }
 awk '/^\*\*The face \(0\.26\.10\.29\)/ { skip = 1 } skip && /^$/ { skip = 0; next } !skip { print }' "$F" > "$T/base"
-[ "$(cksum < "$T/base" | awk '{ print $1, $2 }')" = '1814903128 70317' ] || fail 'the skill changed beyond its face paragraphs'
+[ "$(cksum < "$T/base" | awk '{ print $1, $2 }')" = '3636632412 71872' ] || fail 'the skill changed beyond its face paragraphs'
 awk '/^\*\*The face \(0\.26\.10\.29\)/ { on = 1 } on && /^$/ { on = 0 } on' "$F" > "$T/face"
 [ "$(grep -c '^\*\*The face (0\.26\.10\.29)' "$F")" = 2 ] || fail 'the face paragraphs are not two'
 for c in 'face.sh" write interview' 'face.sh" end interview' 'face.sh" write pause-N' 'face.sh" end pause-N'; do

@@ -188,7 +188,9 @@ sitting's order (0.26.10.29.6, S1; § The court gate, "Every pause"):
 2. **The judged half:** one restricted reader, in the foreground, with
    `${CLAUDE_PLUGIN_ROOT}/skills/vid-create-prd/scorecard-reader.md` as
    its whole brief, the candidates file, and PRD.md. It writes its lines
-   to `.vid/scorecard-reader.txt` and spawns nothing. If it cannot read
+   to `.vid/scorecard-reader.txt` and spawns nothing.
+   Run every helper in the foreground (`run_in_background: false` on the Agent call), wait for its result, and never end a turn, nor schedule a wake-up, while one, or a command you started in the background, is running.
+   If it cannot read
    its input whole, say so and show the counted half alone; never split
    it. **The scorecard waits for its reader** (0.26.10.29.3 phase 2, R7):
    no part of it is shown while the reader runs; tell the owner the reader
@@ -296,6 +298,13 @@ sub-heading of its own at every round it runs. A review held only in
 The rule for every door that writes PRD answers — this verb's pauses, the
 inventory's sitting, design's sitting, add, fix, stage and develop's
 answers, delegated answers included; each door's skill points here.
+
+**The owner's words live in the commit's `Owner:` trailer alone.** An
+answer row, a decision line and a golden set's provenance state the
+ruling in ViD's own words and cite its id; they never quote the owner.
+Records are copied into briefs and into the spec an outside team reads,
+and no rule on a quote's form can tell the owner's words from a quoted
+screen string, so the copy stops at the source.
 
 **An answer is the owner's only with the owner's words.** Between
 sittings ViD drafts every answer as `model_proposed`: its own decision,
@@ -625,9 +634,9 @@ the seed, the sources, the contract. The framing sentence:
 > here exists to make that derivation guess-free.
 
 The field mandates ride the grammar (`templates/PRD.md`): the file starts
-from that template, whose header line `grammar: 0.9.8.1` puts it under the
+from that template, whose header line `grammar: 0.26.11.1.2` puts it under the
 0.9.5 court's rules and later ones (v0.9.8.1 R38: join 17 reads every
-answer a `source:` cites) from its first commit — four positional fields (there is no
+answer a `source:` cites; 0.26.11.1.2 R13: a fail-if in numbered parts) from its first commit — four positional fields (there is no
 priority column; v0.9.1 3.8), `phase`, `feature:` and `plain:` on every
 demand item and invariant, `arms:` on every amendment, `unchanged:` on
 rulings. The authoring mandates:
@@ -641,6 +650,17 @@ rulings. The authoring mandates:
 
   The failing case named — never "works as expected", never "meets the
   requirement".
+
+  **A fail-if in numbered parts** (0.26.11.1.2, R13). Under
+  `grammar: 0.26.11.1.2` the fail-if is written `fail-if: (1) <what a wrong
+  product does>; (2) <another> …`, in the falsifier wording, one failure a
+  part, still one field on one line. Each part is one arm: the count of
+  `arms:` entries, the hostility rows per arm and the consolidation's arm
+  ledger read the numbers, never a guess at "or". `checks/prd.sh` refuses a
+  fail-if that does not open `(1) `, numbers that skip and an empty part;
+  whether a part holds one failure is yours to write and the wording
+  lens's to read. A PRD under an older grammar keeps its sentences as
+  written.
 - **The unit of a requirement, and what the record does not decide:**
 
   > **The unit of a requirement.** A requirement is the smallest statement
@@ -1042,7 +1062,9 @@ ViD repairs nothing it says, and it stays one round, no loop.
 - **How.** Write the pass's brief to `.vid/briefs/<pass>-<n>.md`: the
   pass file and every input as a path, never their contents (an input
   that is not yet a file, such as a re-read round's rows, is written to
-  a file beside the brief and named). Start the fresh agent on that
+  a file beside the brief and named).
+  Run every helper in the foreground (`run_in_background: false` on the Agent call), wait for its result, and never end a turn, nor schedule a wake-up, while one, or a command you started in the background, is running.
+  Start the fresh agent on that
   brief and, in the same message, in the background:
 
       codex exec --skip-git-repo-check -s read-only -o .vid/reviews/<pass>-<date>-<n>-r<round>-codex.md -C <project> "Read .vid/briefs/<pass>-<n>.md and the files it lists, and do what it says." < /dev/null

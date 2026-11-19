@@ -14,6 +14,12 @@
 #   STAGE-0 | <name> | technical                   v0.26.10.8 (R2): the technical stage 0 — the walking skeleton, never
 #                                                  released; it holds rows only, each placed by a row: line (its rows'
 #                                                  requirements keep their own stages). Stages then run 0..k.
+#   screen: <screen id> -> STAGE-<n>               0.26.11.1.2 (R8): the stage that first builds the screen. A ROW
+#                                                  whose subject, or whose marker before /, names it is placed at the
+#                                                  later of its own stage and the screen's (its HOS rows follow it); a
+#                                                  row: line placing it earlier is refused, but for STAGE-0 (stage 0's
+#                                                  rows are placed by row: lines alone). Stated limit: a row whose
+#                                                  subject is a capability, not a screen, is not caught.
 # How each thing gets its stage (R3): a PRD item (requirement or invariant) —
 # its feature's stage, unless a split: line moves it; `phase: later` has no
 # stage (`later`). A ROW — its items' stage (the effective PRD items its
@@ -39,7 +45,8 @@
 #                  id, a later-phase item or an unknown stage (0.26.10.29.4, phase 4 R5: but the commit whose
 #                  staged PRD.md makes items `phase: later` that HEAD's did not may keep the split: lines and the
 #                  row: lines naming them — their removal is the next, law commit, and every commit after is
-#                  refused until then); a rules: line twice or other than `rules: by-origin`; a ROW whose
+#                  refused until then); a rules: line twice or other than `rules: by-origin`; a screen: line to an
+#                  unknown stage, a screen placed twice, a row: line placing a screen's row before it (R8); a ROW whose
 #                  items span stages with no row: line; a requirement of
 #                  stage k whose rows all sit in later stages; a needs: edge
 #                  to a later stage, transitively, or a cycle. v0.26.10.8 (R2): `technical` on a stage but
@@ -47,7 +54,7 @@
 #                  no row: line places a row in; a STAGE-0 line added or removed by any commit but the one that
 #                  creates STAGES.md (init's cut only).
 #   msg <message file>  commit-msg: a change to stage membership (the STAGE-,
-#                  split:, row: and rules: lines, STAGES.md created or deleted)
+#                  split:, row:, screen: and rules: lines, STAGES.md created or deleted)
 #                  between HEAD and the index whose message cites no owner
 #                  answer (an A-NNN token) is refused. Silent while neither
 #                  HEAD nor the index holds STAGES.md.
@@ -66,6 +73,11 @@
 #                  reading; v0.26.10.7 (R2, R11): two targets (see `deploy` below).
 #   candidate --target staging|production   v0.26.10.7 (R2): the candidate alone, one line for the readers
 #                  (checks/metrics.sh deploy-check).
+#   debt --target production   0.26.11.1.2 (R2): deploy's `owed:` lines alone, for the scope of the newest
+#                  gate-2 pass's candidate (its stage from a vid/stage-N or vid/stage-N.k tag at its commit; every
+#                  stage without one, without STAGES.md, or the project complete), with no HEAD comparison: gate 1
+#                  pays its rows in a law commit after the pass. Exit 1, one line, when the inventory, the pass or the
+#                  cut cannot be read. checks/deploy-gate.sh 3 start reads it.
 #   hold --after N --words "<…>" | hold --off [--setup]   v0.26.10.7 (R12, R14): the owner's hold after stage N;
 #                  v0.26.10.8 (R3): the setup hold (`--words "staging setup"`) and its release by develop.
 #   staging-auth on|off --words "<the owner's words>"   v0.26.10.8 (R6): the standing staging authorization.
@@ -158,6 +170,10 @@ resolve() {
         if (t ~ /^row:/) { x = t; sub(/^row:[ \t]*/, "", x); if (x !~ /^[A-Z]+-[0-9]+[ \t]*->[ \t]*STAGE-[0-9]+$/) { err("row: line does not parse (row: <id> -> STAGE-n): \047" t "\047"); continue }
           id = x; sub(/[ \t]*->.*$/, "", id); st = x; sub(/^.*->[ \t]*/, "", st)
           if (id in RL) { err("row: " id " is placed twice"); continue } RL[id] = stno(st); RLO[++nrl] = id; continue }
+        # 0.26.11.1.2 (R8): the stage that first builds a screen
+        if (t ~ /^screen:/) { x = t; sub(/^screen:[ \t]*/, "", x); if (x !~ /^[^ \t|\/]+[ \t]*->[ \t]*STAGE-[0-9]+$/) { err("screen: line does not parse (screen: <screen id> -> STAGE-n): \047" t "\047"); continue }
+          id = x; sub(/[ \t]*->.*$/, "", id); st = x; sub(/^.*->[ \t]*/, "", st)
+          if (id in SCR) { err("screen: " id " is placed twice"); continue } SCR[id] = stno(st); SCO[++nsc] = id; continue }
         if (t ~ /^needs:/) { x = t; sub(/^needs:[ \t]*/, "", x); if (x !~ /^FEAT-[0-9]+[ \t]+needs[ \t]+FEAT-[0-9]+[ \t]+(—|--)[ \t]*[^ \t]/) { err("needs: line does not parse (needs: FEAT-a needs FEAT-b — <source>): \047" t "\047"); continue }
           split(x, a, /[ \t]+/); NA[++ne] = a[1]; NB[ne] = a[3]; continue }
         # 0.26.10.29.4 (phase 4 R2): census rows placed by their origin
@@ -168,6 +184,7 @@ resolve() {
       for (s = LO; s <= K; s++) if (!(s in SD)) err("no STAGE-" s ": stages run " LO ".." K ", once each")
       for (f in TWO) err("feature " f " is in two stages:" TWO[f])
       if (hasst == "yes") for (f in PF) if (!(f in FST) && (f in HF)) err("feature " f " (pilot) is in no stage")
+      for (k = 1; k <= nsc; k++) { id = SCO[k]; if (!(SCR[id] in SD)) { err("screen: " id " -> STAGE-" SCR[id] ", which is no stage"); delete SCR[id] } }
       for (k = 1; k <= nsp; k++) { id = SPN[k]; s = SPS[k]
         if (!(id in IT)) { err("split: " id " is no item of the PRD"); continue }
         # phase 4 R5: kept at the commit making it later, where it still holds its stage (a stage fed by it alone is no empty stage)
@@ -190,6 +207,9 @@ resolve() {
     # the inventory block: rows in order
     { c1 = tr($1) }
     c1 ~ /^ROW-[0-9]+$/ { id = c1; RO[++nr] = id; RC[id] = "ROW"; RK[id] = tr($2); RI[id] = ""; d = tr($7); m = split(d, a, /[ ,]+/)
+      # 0.26.11.1.2 (R8): the screen its subject, or its marker before /, names with a screen: line (the later one)
+      x = tr($5); sub(/\/.*$/, "", x); y = tr($3); RSC[id] = ""
+      if (y in SCR) RSC[id] = y; if ((x in SCR) && (RSC[id] == "" || SCR[x] > SCR[RSC[id]])) RSC[id] = x
       for (k = 1; k <= m; k++) if (a[k] in IT) RI[id] = RI[id] " " a[k]
       t = tr($8); sub(/ .*/, "", t); CI[id] = (t ~ /^tests\//) ? t : "-"; next }
     c1 == "rule" || c1 == "difference" || c1 == "exception" || c1 == "suppression" { id = tr($2); if (id !~ /^(RULE|DIF|EXC|SUP)-[0-9]+$/) next; RO[++nr] = id; RC[id] = toupper(substr(id, 1, index(id, "-") - 1))
@@ -217,6 +237,10 @@ resolve() {
           else if (S == "") OS[id] = 1
           else if (index(S, ",")) { err(id " derives from items of stages " S " and no row: line places it"); OS[id] = mx }
           else OS[id] = S + 0
+          # R8: a screen row sits no earlier than the stage that builds its screen; a row: line to stage 0 stays as written
+          if (RSC[id] != "" && OS[id] != "later") { sc = RSC[id]; ss = SCR[sc]
+            if (id in RL) { if (RL[id] != 0 && RL[id] < ss) err("row: " id " -> STAGE-" RL[id] " places a row of screen " sc " before STAGE-" ss ", the stage that builds the screen") }
+            else if (OS[id] + 0 < ss) OS[id] = ss }
         } else if (c != "HOS") {
           # 0.26.10.29.4 (phase 4 R2): with rules: by-origin, the earliest stage of the items its origin names; a Tier-0 rule, an origin naming
           # no staged item (none, domain, finding-NNN, every item later): stage 1; a row: line first, always
@@ -255,9 +279,9 @@ current() {
   _c=$(sed -n 's/^stage:[[:space:]]*\([0-9][0-9]*\).*/\1/p' "$_rs" 2>/dev/null | head -n 1)
   echo "${_c:-$(lowest)}"
 }
-# membership <file>: the STAGE-, split:, row: and rules: lines of a STAGES.md, whitespace normalised (rules:, 0.26.10.29.4
+# membership <file>: the STAGE-, split:, row:, screen: and rules: lines of a STAGES.md, whitespace normalised (rules:, 0.26.10.29.4
 # phase 4 R2: it moves census rows between stages)
-membership() { block vid-stages "$1" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//;s/[[:space:]][[:space:]]*/ /g' | grep -E '^(STAGE-[0-9]+ ?\||split:|row:|rules:)' || true; }
+membership() { block vid-stages "$1" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//;s/[[:space:]][[:space:]]*/ /g' | grep -E '^(STAGE-[0-9]+ ?\||split:|row:|screen:|rules:)' || true; }
 
 # 0.26.10.29.3 (R9, F53): eol.sh's test on the spec files this reads, before every subcommand — those that read STAGES.md
 # without load (current, the deploy readings) among them; a CR LF file is refused, never misread
@@ -291,7 +315,7 @@ case "$CMD" in
     if [ "$HH" = "$HI" ] && [ "$(membership "$T/h")" = "$(membership "$T/i")" ]; then exit 0; fi
     if grep -v '^#' "$MF" | grep -qE '(^|[^A-Za-z0-9-])A-[0-9]+([^0-9]|$)'; then exit 0; fi
     case "$HH$HI" in
-      yesno) W='deletes STAGES.md' ;; noyes) W='creates STAGES.md' ;; *) W='changes stage membership (a STAGE-, split:, row: or rules: line)' ;;
+      yesno) W='deletes STAGES.md' ;; noyes) W='creates STAGES.md' ;; *) W='changes stage membership (a STAGE-, split:, row:, screen: or rules: line)' ;;
     esac
     echo "ViD commit-msg: rejected — this commit $W and its message cites no owner answer (A-NNN)." >&2
     echo 'Which stage a feature, requirement or row is in is the owner'"'"'s: name the answer that ratified it, e.g. "Stages: A-031 (the owner ratified the cut)".' >&2
@@ -318,8 +342,8 @@ case "$CMD" in
       $1 == "nstages" { K = $2 + 0 } $1 == "item" && $2 ~ /^REQ-/ && $3 ~ /^[0-9]+$/ { R[$3 + 0]++ } $1 == "obl" && $3 ~ /^[0-9]+$/ { O[$3 + 0]++; if ($4 == "ROW" && $6 == "journey") J[$3 + 0]++ }
       END { if (K == 0) K = 1; for (k = ((0 in NM) ? 0 : 1); k <= K; k++) printf "stage %d requirements=%d rows=%d journeys=%d | %s\n", k, R[k], O[k], J[k], (k in NM ? NM[k] : "-"); printf "row-lines=%d\n", rl + 0 }' "$T/table"
     exit 0 ;;
-  deploy|candidate|hold|staging-auth) ;;   # below
-  *) echo 'ViD stages: usage — sh checks/stages.sh [check] | msg <file> | scope [--upto N] [--reqs] | stage-of <id> | current | counts | deploy [--target staging|production] [--by develop] [--platform none|present] [--tree <dir>] | candidate --target staging|production [--by develop] | hold --after N --words "<the owner'"'"'s words>" | hold --off [--setup] | staging-auth on|off --words "<the owner'"'"'s words>"' >&2; exit 2 ;;
+  deploy|candidate|debt|hold|staging-auth) ;;   # below
+  *) echo 'ViD stages: usage — sh checks/stages.sh [check] | msg <file> | scope [--upto N] [--reqs] | stage-of <id> | current | counts | deploy [--target staging|production] [--by develop] [--platform none|present] [--tree <dir>] | candidate --target staging|production [--by develop] | debt --target production | hold --after N --words "<the owner'"'"'s words>" | hold --off [--setup] | staging-auth on|off --words "<the owner'"'"'s words>"' >&2; exit 2 ;;
 esac
 
 
@@ -441,6 +465,34 @@ forward() {
   CK=refused; CWHY="candidate: refused — production runs $PRODC, and the candidate $CSHA does not descend from it; production only moves forward (a newer candidate carries every fix already live)"
 }
 
+# owed <N>: the deploy debt — each deploy-owed row of stages 1 to N (every stage for 999999) with no paid-at:, one
+# `owed: <id> gate <g>` line each; deploy's and debt's one reading
+owed() {
+  load work; resolve
+  awk -v n="$1" '$1 == "obl" && $3 != "later" && $3 + 0 <= n { print $2 }' "$T/table" > "$T/scope"
+  sed -n '/^```vid-inventory/,/^```$/p' INVENTORY.md 2>/dev/null | awk -F'|' -v sf="$T/scope" 'BEGIN { while ((getline l < sf) > 0) S[l] = 1 }
+    { id = $1; gsub(/^[ \t]+|[ \t]+$/, "", id); if (!(id in S)) next; t = $8; gsub(/^[ \t]+|[ \t]+$/, "", t)
+      if (t !~ /^owed: paid by \/vid deploy gate/ || $0 ~ /\|[ \t]*paid-at:/) next; g = t; sub(/^owed: paid by \/vid deploy gate[ \t]*/, "", g); sub(/[^0-9].*$/, "", g); print "owed: " id " gate " g }'
+}
+
+if [ "$CMD" = debt ]; then
+  [ $# -eq 2 ] && [ "$1" = --target ] && [ "$2" = production ] || { echo 'ViD stages: usage — debt --target production' >&2; exit 2; }
+  { [ -f INVENTORY.md ] && grep -q '^```vid-inventory' INVENTORY.md; } || { echo 'debt: refused — INVENTORY.md cannot be read: no vid-inventory block'; exit 1; }
+  G2=$(gate2_pass); [ -n "$G2" ] || { echo 'debt: refused — no gate-2 pass is recorded, so its candidate'"'"'s scope cannot be read'; exit 1; }
+  GC=$(git rev-parse -q --verify "$G2^{commit}" 2>/dev/null) || { echo "debt: refused — the newest gate-2 pass names $G2, which is no commit here"; exit 1; }
+  UP=999999
+  if [ "$STAGED" = yes ]; then
+    for _t in $(git tag -l 'vid/stage-*' 2>/dev/null); do
+      _n=$(printf '%s\n' "$_t" | sed -n 's#^vid/stage-\([0-9][0-9]*\)\(\.[0-9][0-9]*\)\{0,1\}$#\1#p'); [ -n "$_n" ] || continue
+      [ "$(git rev-parse -q --verify "refs/tags/$_t^{commit}" 2>/dev/null)" = "$GC" ] || continue
+      if [ "$UP" = 999999 ] || [ "$_n" -gt "$UP" ]; then UP=$_n; fi
+    done
+  fi
+  owed "$UP" > "$T/owed"
+  if grep -q '^err ' "$T/table"; then echo "debt: refused — the stage cut cannot be read: $(sed -n 's/^err //p' "$T/table" | head -n 1)"; exit 1; fi
+  cat "$T/owed"; exit 0
+fi
+
 # hold_kinds N: the kinds of hold asked in stage N's current cycle (its asked records since its last `off`), one per
 # line — `setup` (words="staging setup", v0.26.10.8 R3) and `owner` (any other words)
 hold_kinds() { [ -f "$EV" ] || return 0; awk -v n="$1" 'function kv(k,  i) { for (i = 2; i <= NF; i++) if (index($i, k "=") == 1) return substr($i, length(k) + 2); return "" }
@@ -549,12 +601,8 @@ case "$CK" in
     fi
     if [ -n "$TREE" ]; then mkdir -p "$TREE" && git archive "$CSHA" | tar -x -C "$TREE" && echo "tree: $CSHA extracted to $TREE"; fi
     # the deploy debt: stages 1 to N (every stage without STAGES.md, or the project complete)
-    load work; resolve
     UP=$CN; [ "$UP" = - ] && UP=999999
-    awk -v n="$UP" '$1 == "obl" && $3 != "later" && $3 + 0 <= n { print $2 }' "$T/table" > "$T/scope"
-    sed -n '/^```vid-inventory/,/^```$/p' INVENTORY.md 2>/dev/null | awk -F'|' -v sf="$T/scope" 'BEGIN { while ((getline l < sf) > 0) S[l] = 1 }
-      { id = $1; gsub(/^[ \t]+|[ \t]+$/, "", id); if (!(id in S)) next; t = $8; gsub(/^[ \t]+|[ \t]+$/, "", t)
-        if (t !~ /^owed: paid by \/vid deploy gate/ || $0 ~ /\|[ \t]*paid-at:/) next; g = t; sub(/^owed: paid by \/vid deploy gate[ \t]*/, "", g); sub(/[^0-9].*$/, "", g); print "owed: " id " gate " g }' ;;
+    owed "$UP" ;;
 esac
 if [ -n "$PRODC" ]; then echo "first-deploy: no (the deploy log holds a production row: $PRODC) — gate 1 applies"
 elif [ "$G3" = yes ]; then echo 'first-deploy: no (a gate-3 start was recorded and the deploy log holds no row: an interrupted cutover) — reconcile first: record in the deploy log what production now runs, then gate 1 applies'

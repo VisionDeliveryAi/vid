@@ -181,7 +181,7 @@ protected row, a protection (hostility) row and a row of a must-never-happen (T0
 needs allow, never held back to group a topic; the note on rows held late shows where one is not.
 The note that a step's needs lines only repeat its `builds-on:`: read its rows one by one. The note on rows held 10 or
 more steps late: move them, or say in the prose why they stand. The split's agent is a helper. Run every helper in the
-foreground (`run_in_background: false` on the Agent call), wait for its result, and never end a turn, nor schedule a wake-up, while one is running.
+foreground (`run_in_background: false` on the Agent call), wait for its result, and never end a turn, nor schedule a wake-up, while one, or a command you started in the background, is running.
 
 **Every row's needs, written down** (v0.26.10.12.3.1, R10), once the steps are drafted. The block's order is the
 build order: fix it first. Then, for every row of every step (every kind but a transition; a journey by its id), decide
@@ -198,7 +198,7 @@ earliest on a tie), or, when that would put a step before one it builds on, stay
 later stage's, and a row whose step does not build on a step it needs ("only a dashed link" when it fakes it); what a
 row needs stays your judgement. Whoever records a plan change writes the needs lines with the steps.
 Run every helper in the foreground (`run_in_background: false` on the Agent call), wait for its result, and never end a turn, nor schedule a
-wake-up, while one is running: in a headless run the turn's end ends the run, and an unfinished helper's work is lost.
+wake-up, while one, or a command you started in the background, is running. In a headless run the turn's end ends the run, and an unfinished helper's work is lost.
 
 **Rows provable only at a later stage** (v0.26.10.12.3.1, R9), after the needs pass and before the page; skipped with
 no STAGES.md (one stage), the heading then saying so. The stage cut places a row at its requirement's stage and never
@@ -250,7 +250,7 @@ and record it: `sh checks/planner.sh review --in <file>`. Fix each finding's row
 again), or, when the row is right as written, leave the finding on the page for the owner to keep (`sh
 checks/planner.sh answer <n> keep --words "<the owner's words>"`) or have fixed.
 Run every helper in the foreground (`run_in_background: false` on the Agent call), wait for its result, and never end a
-turn, nor schedule a wake-up, while one is running.
+turn, nor schedule a wake-up, while one, or a command you started in the background, is running.
 
 ## The page
 

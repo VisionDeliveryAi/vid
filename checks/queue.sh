@@ -274,7 +274,7 @@ EP='function ep(s,   y, m, d, a) { if (s !~ /^[0-9]{4}-[0-9][0-9]-[0-9][0-9]T[0-
 # rjoin: $Q/rst, `<row> TAB <state> TAB <stage> TAB <class> TAB <marks> TAB <fault-proven 1|0>` for each row of planner.sh rows: its handed
 # `row` line where one stands, else its newest decision (.vid/decide/state); a journey with neither, its transitions' (failing or held if any
 # is, accepted only when every one is). States in one word: accepted-by-ruling, known-limit, evidence-missing; `-` for none
-rjoin() { sh "$HERE/planner.sh" rows 2>/dev/null | grep -v '^#' > "$Q/plr" || : > "$Q/plr"; cat "$HAND" > "$Q/hd" 2>/dev/null || : > "$Q/hd"; cat "$D/state" > "$Q/ds" 2>/dev/null || : > "$Q/ds"
+rjoin() { mustread "$Q/plr0" planner rows; grep -v '^#' "$Q/plr0" > "$Q/plr"; cat "$HAND" > "$Q/hd" 2>/dev/null || : > "$Q/hd"; cat "$D/state" > "$Q/ds" 2>/dev/null || : > "$Q/ds"
   awk -F'\t' 'FILENAME == ARGV[1] { if ($0 ~ /^row /) { split($0, a, " "); w = a[3]; sub(/\|.*/, "", w); H[a[2]] = w; FP[a[2]] = (index($0, " fault-proven ") > 0) } next }
     FILENAME == ARGV[2] { s = $2; gsub(/ /, "-", s); S[$1] = s; next }
     $2 == "tr" { TR[$3] = TR[$3] " " $1; next } $2 == "row" { O[++n] = $1; G[$1] = $5; C[$1] = $6; M[$1] = $7 }
@@ -344,10 +344,10 @@ st_lines() { rjoin; tix; P0=$(plan_block "$RS"); BF=$(sed -n 's/^strategy:[[:spa
   { cat "$Q/tix"; grep '^step-start ' .vid/metrics-events 2>/dev/null || true; } > "$Q/tixs"
   awk -F'\t' -v c="$cur" 'FILENAME == ARGV[1] { if ($0 ~ /^closed /) { split($0, a, " "); CL["closed " a[2]] = 1 } next } FILENAME == ARGV[2] { if ($0 ~ /^step-start /) { for (i = split($0, r, " "); i > 0; i--) if (r[i] ~ /^step=/) PS[substr(r[i], 6)] = 1; next } if ($6 == 0) for (i = split($5, r, " "); i > 0; i--) IN[r[i]] = 1; PS[$3] = 1; next }
     FILENAME == ARGV[3] { if (!($1 in PS) && !(("closed " $1) in CL)) ns++; next }
-    $4 ~ /^(record|limit|retired)$/ { next }
-    { s = $2; dw = ($5 ~ /(^| )(owed-staging|owed-production|owed-rehearsal|seam)( |$)/) && s !~ /^(paid|known-limit|retired)$/; lt = ($4 == "later" || $3 == "later" || ($3 ~ /^[0-9]+$/ && $3 + 0 > c + 0))
-      if (s == "failing") f++; else if (s == "held") h++; else if (dw) d++; else if (lt && s !~ /^(accepted|accepted-by-ruling|owed|passing|paid|known-limit|retired)$/) l++
-      else if (s ~ /^(accepted|accepted-by-ruling|owed|passing|paid|known-limit|retired)$/) next; else if (s != "-" || ($1 in IN)) u++; else z++ }
+    $4 ~ /^(record|limit)$/ { next }
+    { s = $2; dw = ($5 ~ /(^| )(owed-staging|owed-production|owed-rehearsal|seam)( |$)/) && s !~ /^(paid|known-limit)$/; lt = ($4 == "later" || $3 == "later" || ($3 ~ /^[0-9]+$/ && $3 + 0 > c + 0))
+      if (s == "failing") f++; else if (s == "held") h++; else if (dw) d++; else if (lt && s !~ /^(accepted|accepted-by-ruling|owed|passing|paid|known-limit)$/) l++
+      else if (s ~ /^(accepted|accepted-by-ruling|owed|passing|paid|known-limit)$/) next; else if (s != "-" || ($1 in IN)) u++; else z++ }
     END { printf "left: steps not started %d · rows failing %d · held %d · not yet decided %d · in no ticket %d · apart: deploy-owed %d · later stages %d\n", ns, f, h, u, z, d, l }' "$Q/hd" "$Q/tixs" "$Q/steps" "$Q/rst"
   # tests: the environments declared, the newest close's red rows by chunk
   nc=$(awk "$EP"' $1 == "close-asked" { print kv($0, "step") "/" kv($0, "ask") }' .vid/metrics-events 2>/dev/null | while read -r x; do [ -f "$D/close/$x/result" ] && echo "$x"; done | tail -n 1)
@@ -366,13 +366,13 @@ st_lines() { rjoin; tix; P0=$(plan_block "$RS"); BF=$(sed -n 's/^strategy:[[:spa
         if ($5 == "red") R2[id] = 1; if ($7 ~ /^proven/) FP[id] = 1; if (!(id in TO) || $2 + 0 >= TO[id]) { TO[id] = $2 + 0; T3[id] = ($6 == "passed") } next }
     FILENAME == ARGV[3] { if ($2 == "tr") TR[$3] = TR[$3] " " $1; next }
     function has(A, r,   m, x, k) { if (TR[r] == "") return (r in A) && A[r]; m = split(TR[r], x, " "); for (k = 1; k <= m; k++) if (!((x[k] in A) && A[x[k]])) return 0; return 1 }
-    $4 ~ /^(record|limit|retired)$/ { next } { n++; if (has(R2, $1)) a++; if (has(T3, $1)) p++; if (has(FP, $1) || ($6 == 1 && !($1 in LD))) q++ }
+    $4 ~ /^(record|limit)$/ { next } { n++; if (has(R2, $1)) a++; if (has(T3, $1)) p++; if (has(FP, $1) || ($6 == 1 && !($1 in LD))) q++ }
     END { printf "test state: of %d rows · red seen at T2 %d · T3 passed %d · fault proven %d\n", n, a, p, q }' "$Q/ord" "$Q/evd" "$Q/plr" "$Q/rst"
   # the debt: rows whose state is owed, by kind (an undecided deploy-owed row is left's); held rows with their Q lines, deferred rows (breadth first), the regressions carried
-  ow=$(awk -F'\t' '$4 ~ /^(record|limit|retired)$/ || $2 != "owed" { next } { for (k = split("staging production rehearsal", K, " "); k > 0; k--) if ($5 ~ ("(^| )owed-" K[k] "( |$)")) c[K[k]]++ } END { printf "staging %d · production %d · rehearsal %d", c["staging"], c["production"], c["rehearsal"] }' "$Q/rst")
+  ow=$(awk -F'\t' '$4 ~ /^(record|limit)$/ || $2 != "owed" { next } { for (k = split("staging production rehearsal", K, " "); k > 0; k--) if ($5 ~ ("(^| )owed-" K[k] "( |$)")) c[K[k]]++ } END { printf "staging %d · production %d · rehearsal %d", c["staging"], c["production"], c["rehearsal"] }' "$Q/rst")
   hl=$(awk -F'\t' 'FILENAME == ARGV[1] { if ($1 ~ /^held:/) { r = substr($1, 6); sub(/-T[0-9]+$/, "", r); Q[r] = Q[r] (Q[r] == "" ? "" : ",") $2 } next } $2 == "held" { o = o (n++ ? ", " : "") $1 ($1 in Q ? " " Q[$1] : " no Q line") } END { printf "%d%s", n, (n ? " (" o ")" : "") }' "$Q/ids" "$Q/rst")
   df=0; if [ "$BF" = breadth-first ]; then cat .vid/tw/log > "$Q/tw" 2>/dev/null || : > "$Q/tw"; df=$(awk -F'\t' "$EP"' FILENAME == ARGV[1] { K[$1] = $3; for (i = split($4, r, " "); i > 0; i--) if (r[i] !~ /\.\./) ST[r[i]] = $1; next } FILENAME == ARGV[2] { if ($0 ~ /^(published|amended) / && K[kv($0, "step")] != "hardening") for (i = split(kv($0, "rows"), r, ","); i > 0; i--) FT[r[i]] = 1; next }
-      ($1 in ST) && K[ST[$1]] == "hardening" && ($1 in FT) && $2 !~ /^(accepted|accepted-by-ruling|known-limit|retired)$/ { n++ } END { print n + 0 }' "$Q/steps" "$Q/tw" "$Q/rst"); fi
+      ($1 in ST) && K[ST[$1]] == "hardening" && ($1 in FT) && $2 !~ /^(accepted|accepted-by-ruling|known-limit)$/ { n++ } END { print n + 0 }' "$Q/steps" "$Q/tw" "$Q/rst"); fi
   rg=$(cmd_regress carried | paste -sd ',' - | sed 's/,/, /g')
   echo "debt: owed $ow · held $hl · deferred $df · regressions ${rg:-none}"
   # landings: rows reset over the run, from each landed draft's saved sets
@@ -385,7 +385,7 @@ st_lines() { rjoin; tix; P0=$(plan_block "$RS"); BF=$(sed -n 's/^strategy:[[:spa
       printf "cost: steps closed since the last update %s · median published to accepted %s of %d tickets · %d with no accepted-at\n", (CL == "" ? "none" : CL), (n ? hm(d[int((n + 1) / 2)]) : "none"), n, u }' CL="$cl" "$Q/aa" "$Q/tix"
   for s in $cl; do grep "^  $s #" "$Q/cost"; done
   if [ "$BF" = breadth-first ]; then awk -F'\t' 'FILENAME == ARGV[1] { if ($3 == "hardening") { for (i = split($4, r, " "); i > 0; i--) HS[r[i]] = $1 } next }
-      ($1 in HS) && $2 !~ /^(accepted|accepted-by-ruling|owed|paid|known-limit|retired)$/ { n++; K[HS[$1]] = 1 } END { for (s in K) k++; printf "hardening: %d rows in %d steps not accepted\n", n, k }' "$Q/steps" "$Q/rst"
+      ($1 in HS) && $2 !~ /^(accepted|accepted-by-ruling|owed|paid|known-limit)$/ { n++; K[HS[$1]] = 1 } END { for (s in K) k++; printf "hardening: %d rows in %d steps not accepted\n", n, k }' "$Q/steps" "$Q/rst"
   else echo 'hardening: none, depth first'; fi
   echo 'estimate: none in ticket mode: DevAgent'"'"'s pace is its own (V2 §3.7)'; }
 # orn <value> [<word>]: the value, or a word for nothing, "none" by default, so no field is a bare colon (0.26.10.28.5, R3)

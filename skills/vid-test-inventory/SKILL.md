@@ -331,6 +331,7 @@ already trusts.
 **The lenses.** Spawn each as `passes/genus-lens.md` — the lens brief and
 the universal floor live there; the session derives WHICH lenses (at least
 4, at most 8) from the PRD's own genus statement, as the brief says.
+Run every helper in the foreground (`run_in_background: false` on the Agent call), wait for its result, and never end a turn, nor schedule a wake-up, while one, or a command you started in the background, is running.
 
 **Loop until dry.** Per lens, round by round: the session dedups the
 round's candidates against stated REQs, existing rows, and every earlier
@@ -416,6 +417,7 @@ never piped. All of a round's readers start together (vid-create-prd,
 "While a pass runs"). The pass is `mode: whole` in init and re-derivation
 modes; in append mode it is `mode: delta`, and its round 1 reads the
 delta's rows and the rows sharing a subject with them.
+Run every helper in the foreground (`run_in_background: false` on the Agent call), wait for its result, and never end a turn, nor schedule a wake-up, while one, or a command you started in the background, is running.
 
 **Its rounds.** They follow vid-create-prd, "Reviews converge": round 1
 reads the whole table (in append mode, the delta and its neighbours), with
@@ -645,8 +647,9 @@ against the realistic corpus, its path stated in the behavior row, the
 row's obligation written against it. **Proposed by the fresh-context
 lenses, never by the build or tuning context** — a session must not
 propose the queries it is judged on — and ratified by the owner at
-recognition speed; owner authoring is optional, never required. The
-hand-back counts queries and triples.
+recognition speed; owner authoring is optional, never required. Its
+provenance states the ruling and cites its answer id, never the owner's words, which stay in the commit's `Owner:`
+trailer (vid-create-prd, "The owner's words, and the questions raised"). The hand-back counts queries and triples.
 
 **The paying step.** Where a `difference` row legalises a model or engine
 divergence on that item's path (a stand-in embedder, a harness threshold
@@ -789,6 +792,7 @@ without it (0.26.10.29.3 R3). In init mode, consolidation follows this sitting a
 precedes the initial commit (§7): the scheduled event of vid-create-prd's
 "Consolidation" — 7a `sh checks/prd-consolidate.sh`, 7b's review, one
 row-set-diff sitting, two commits.
+Run every helper in the foreground (`run_in_background: false` on the Agent call), wait for its result, and never end a turn, nor schedule a wake-up, while one, or a command you started in the background, is running.
 
 **The `tests-review` sitting (0.26.10.29.6, S1, S2),** the append's
 review, written (`sh "${CLAUDE_PLUGIN_ROOT}/checks/face.sh" write
@@ -889,6 +893,7 @@ not exist yet, so there is nothing to disable and the ritual (§7) cannot
 be performed; they are materialised in develop, in the slice that builds
 the protection. Report the ledger honestly: **red, green 0 / N** is the
 correct state at the end of init — and the red gate (§7) enforces it.
+Run every helper in the foreground (`run_in_background: false` on the Agent call), wait for its result, and never end a turn, nor schedule a wake-up, while one, or a command you started in the background, is running.
 
 **Two tiers.** `tests/invariants/` is the ledger — the law tier, cited by
 rows, evidence. `tests/scaffolding/` is the builder's non-law tier:
@@ -1039,6 +1044,7 @@ its draft, which /vid run lands) or, standalone, name the next verb.
 Fresh-context passes are spawned exactly where the chain marks them (the
 genus lenses, the strength pass (the counterexample lens, run last), the delta coherence review of §5,
 the test-author passes of §6).
+Run every helper in the foreground (`run_in_background: false` on the Agent call), wait for its result, and never end a turn, nor schedule a wake-up, while one, or a command you started in the background, is running.
 Each brief names what the sub-session receives — and what it must not:
 
 | Pass | File | Receives | Must not receive |

@@ -43,7 +43,9 @@ a harm is carried as it stands):
 
 `arms:` carries one entry per arm of the fail-if as it stands, by
 ordinal (an arm is one clause split at top-level " or " / ", or " /
-"; or "), from `retained · strengthened · moved <id> · withdrawn
+"; or "; under `grammar: 0.26.11.1.2` an arm is one numbered part, `(1)`,
+`(2)` …, and the restated fail-if keeps the numbered form, one failure a
+part), from `retained · strengthened · moved <id> · withdrawn
 <A-NNN>`: `strengthened` for a clause restated as its harm, `retained`
 for one carried as written; a rewording never loses an arm — an arm you
 cannot restate as a harm is retained, and `withdrawn` needs a ruling

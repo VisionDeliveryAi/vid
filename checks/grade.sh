@@ -42,7 +42,7 @@ cmd_ask() { RQ=''; FO=''; VS=''; RB=''; AC=''; while [ $# -ge 2 ]; do case $1 in
     [ -z "$RQ$VS" ] || die 'a robustify ask asks no requirement and no second commit'; : > "$T/ask"
   elif [ -n "$RQ" ]; then printf '%s\n' "$RQ" | tr ' ,' '\n\n' | grep . | sort -u > "$T/ask"; bad=$(grep -v '^REQ-[0-9]' "$T/ask" | paste -sd ' ' -); [ -z "$bad" ] || die "not requirements: $bad (invariants are left out)"
     bad=$(comm -23 "$T/ask" "$T/live" | paste -sd ' ' -); [ -z "$bad" ] || die "no live requirement: $bad"
-  elif [ -f STAGES.md ]; then { sh "$HERE/stages.sh" scope --upto "${N:-1}" --reqs 2>/dev/null || true; } | grep '^REQ-[0-9]' | sort -u | comm -12 - "$T/live" > "$T/ask"
+  elif [ -f STAGES.md ]; then mustread "$T/sc" stages scope --upto "${N:-1}" --reqs; grep '^REQ-[0-9]' "$T/sc" | sort -u | comm -12 - "$T/live" > "$T/ask"
   else live pilot > "$T/ask"; fi
   [ -n "$RB" ] || [ -s "$T/ask" ] || die 'no requirement to ask'
   VS0=$VS; [ -z "$VS" ] || [ -d .vid/code ] || die "vs $VS: no copy of the code repository to find it in (sh checks/github.sh results-fetch)"; [ -z "$VS" ] || VS=$(git --git-dir=.vid/code rev-parse -q --verify "$VS^{commit}" 2>/dev/null) || die "vs ${VS0:-?}: the code repository's copy has no such commit (sh checks/github.sh results-fetch)"   # a full id, as the runs need

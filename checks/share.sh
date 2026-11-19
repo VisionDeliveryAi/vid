@@ -190,8 +190,10 @@ gzr() {
 # account (an account or organisation id), host, literal-file (the user's file of literals, one a line). Each match becomes
 # [REDACTED:<kind>]; an assignment keeps its name and separator. Every form: an unquoted value stops at a quote, a backslash or a space,
 # so it is caught as plain text, inside a JSON string (\"key\": \"value\", a value ending at a literal \n) and doubly escaped
-# (\\\"key\\\": \\\"value\\\"). A kind's match at a word's inside is skipped where a boundary is needed; a backslash
-# escape (\n, \t, \r) counts as a boundary. No interval braces: repeats are spelled out (rp), for every awk.
+# (\\\"key\\\": \\\"value\\\"). A kind's match at a word's inside is skipped where a boundary is needed, by one rule for the
+# tokens and the names alike (bnd): the text before the match is empty, or ends in a character not a letter, digit or _, or in
+# \b \f \n \r \t, \u and 4 hex digits, \x and 2 hex digits, a colour code, or % and 2 hex digits. Its one named limit: an octal
+# escape (\342) is not a boundary. No interval braces: repeats are spelled out (rp), for every awk.
 # The kinds, in the order they apply:
 #   private-key      from any BEGIN … PRIVATE KEY (or PRIVATE KEY BLOCK, PGP's) marker to its END marker, wherever on the line each sits, over lines
 #                    and inside \n-escaped strings; with no END, to the JSON string's end, else to the file's end
@@ -220,14 +222,19 @@ gzr() {
 #                    (so a drive's, a WSL mount's and Git Bash's forms, and JSON's escaped ones), and its encoded form
 #                    (every character not a letter or digit as -) after -Users- or -home-, as Claude's folder names hold it
 REDLIB='function rp(c, n,   s) { s = ""; while (n-- > 0) s = s c; return s }
-function lastc(out, pre,   t) { t = pre; if (length(t) < 2) t = substr(out, length(out) - 1) t; return substr(t, length(t) - 1) }
-function bnd(t,   c) { if (t == "") return 1; c = substr(t, length(t), 1); if (c !~ /[A-Za-z0-9_]/) return 1; return (length(t) == 2 && substr(t, 1, 1) == "\\" && c ~ /[nrt]/) }
+# bnd: the one boundary, the rule stated in the header, tested on the whole text t before a match (a colour code has no fixed length)
+function bnd(t,   c, n, H) { n = length(t); if (n == 0) return 1; c = substr(t, n, 1); if (c !~ /[A-Za-z0-9_]/) return 1; H = "^[0-9A-Fa-f]+$"
+  if (c ~ /[bfnrt]/ && substr(t, n - 1, 1) == "\\") return 1
+  if (n >= 6 && substr(t, n - 5, 2) == "\\u" && substr(t, n - 3) ~ H) return 1
+  if (n >= 4 && substr(t, n - 3, 2) == "\\x" && substr(t, n - 1) ~ H) return 1
+  if (n >= 3 && substr(t, n - 2, 1) == "%" && substr(t, n - 1) ~ H) return 1
+  return (c == "m" && t ~ SGR) }
 function skipv(v,   lv) { lv = tolower(v); if (v ~ /^[$<]/ || v ~ /^[*]+$/ || lv ~ /^example/ || v ~ /^\[REDACTED:[a-z-]*\]$/) return 1
   return (lv == "none" || lv == "null" || lv == "true" || lv == "false" || lv == "unset" || lv == "changeme" || lv == "required") }
 function mark(k) { C[k]++; return "[REDACTED:" k "]" }
 function tok(s, k, re, b,   out, pre, m) { out = ""
   while (match(s, re)) { pre = substr(s, 1, RSTART - 1); m = substr(s, RSTART, RLENGTH); s = substr(s, RSTART + RLENGTH)
-    if (b && !bnd(lastc(out, pre))) { out = out pre substr(m, 1, 1); s = substr(m, 2) s; continue }
+    if (b && !bnd(out pre)) { out = out pre substr(m, 1, 1); s = substr(m, 2) s; continue }
     out = out pre mark(k) }
   return out s }
 # asg: an assignment, name then separator then value. The value is the run of class vc characters (at least mn); after a
@@ -313,15 +320,14 @@ function line(s,   i, ls) {
   if (nw) { ls = tolower(s); for (i = 1; i <= nw; i++) if (index(ls, BW[i])) { s = om(s, BW[i], BK[i], 1); ls = tolower(s) } }
   return s }
 # 0.26.10.28.9 (S3). om: the value v replaced in the text outside the [REDACTED:…] markers, so a marker is never cut into; with bare,
-# as a whole word in any case (a boundary is a character not a letter, digit or _, or before it a backslash escape \b \f \n \r \t,
-# a \u escape of four hex digits, a terminal colour code or a %XX escape)
+# as a whole word in any case (bnd before it, a character not a letter, digit or _ after it)
 function om(s, v, k, bare,   o, p, q) { o = ""
   while ((p = index(s, "[REDACTED:")) > 0 && (q = index(substr(s, p), "]")) > 0) { o = o rw(substr(s, 1, p - 1), v, k, bare) substr(s, p, q); s = substr(s, p + q) }
   return o rw(s, v, k, bare) }
-function rw(s, v, k, bare,   o, ls, n, p, st, a, b, ok) { n = length(v); ls = bare ? tolower(s) : s; o = ""; st = 1
+function rw(s, v, k, bare,   o, ls, n, p, st, b, ok) { n = length(v); ls = bare ? tolower(s) : s; o = ""; st = 1
   while ((p = index(substr(ls, st), v)) > 0) { p += st - 1; ok = 1
-    if (bare) { a = substr(s, p - 1, 1); b = substr(s, p + n, 1)
-      ok = (p == 1 || a !~ /[A-Za-z0-9_]/ || (a ~ /[bfnrt]/ && substr(s, p - 2, 1) == "\\") || (substr(s, p - 6, 2) == "\\u" && substr(s, p - 4, 4) ~ /^[0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f]$/) || (a == "m" && substr(s, 1, p - 1) ~ SGR) || (substr(s, p - 3, 1) == "%" && substr(s, p - 2, 2) ~ /^[0-9A-Fa-f][0-9A-Fa-f]$/)) && (b == "" || b !~ /[A-Za-z0-9_]/) }
+    if (bare) { b = substr(s, p + n, 1)
+      ok = bnd(substr(s, 1, p - 1)) && (b == "" || b !~ /[A-Za-z0-9_]/) }
     if (ok) { o = o substr(s, st, p - st) mark(k); st = p + n } else { o = o substr(s, st, p - st + 1); st = p + 1 } }
   return o substr(s, st) }
 function srt(A, n,   i, j, t) { for (i = 2; i <= n; i++) { t = A[i]; for (j = i - 1; j >= 1 && length(A[j]) < length(t); j--) A[j + 1] = A[j]; A[j + 1] = t } }
@@ -343,7 +349,7 @@ BEGIN { MODE = ENVIRON["SHARE_MODE"]; SCAN = (MODE == "scan")
   SAN = "([A-Za-z][A-Za-z0-9_-]*)?([Tt][Oo][Kk][Ee][Nn]|[Ss][Ee][Cc][Rr][Ee][Tt]|[Pp][Aa][Ss][Ss][Ww][Oo][Rr][Dd]|[Pp][Aa][Ss][Ss][Ww][Dd]|[_-][Kk][Ee][Yy]|[Aa][Pp][Ii][Kk][Ee][Yy]|[a-z]Key)"
   HPRE = "(@|[Hh][Oo][Ss][Tt]([Nn][Aa][Mm][Ee])?" Q "[ \t]*[:=\t][ \t]*" Q ")$"
   UPRE = "[/\\\\]+([Uu]sers|home)[/\\\\]+$"; EPRE = "-([Uu]sers|home)-$"
-  KF = ENVIRON["SHARE_KNOWN"]; SGR = "(\\\\u001[bB]|" sprintf("%c", 27) ")\\[[0-9;]*m$"
+  KF = ENVIRON["SHARE_KNOWN"]; SGR = "(\\\\u001[bB]|\\\\x1[bB]|" sprintf("%c", 27) ")\\[[0-9;]*m$"
   # the words a transcript, a marker or the folders of the bundle are made of, never taken as a bare name or an organisation (S3)
   n = split("vid records logs conversations subagents findings user assistant system tool human type role content text message name home root admin redacted literal github token anthropic key openai stripe aws slack google npm jwt bearer url secret assignment header account email host org author password private", X, " ")
   for (i = 1; i <= n; i++) STOP[X[i]] = 1

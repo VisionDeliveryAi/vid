@@ -184,8 +184,9 @@ No gate 1, no gate 3, no owner confirmation, no stage close.
    (in a project held at stage N it also tags `vid/stage-N.k`);
 6. gate 1 on the candidate, except a first production deploy (v0.26.10.5
    R15, under Stages);
-7. gate 3: the owner's one-touch confirmation, as always; it cannot open
-   with a row owed to gate 1 or 2 unpaid;
+7. gate 3: the owner's one-touch confirmation, as always, recorded; then
+   `deploy-gate.sh 3 start`, which refuses while a step before it is not
+   recorded or a row owed to gate 1 or 2 is unpaid;
 8. cutover, smoke, tag, deploy log row; in a staged project, `sh
    checks/event.sh 'stage-deploy n=N staging=yes production=yes'`.
 
@@ -204,6 +205,7 @@ commit (vid-fix, "Recording a correction already made").
 contract tests, or a fixer, runs `sh checks/plan.sh home --brief <its
 brief file>` as its first act, as its brief's header names, so its test
 runs publish at the project and its hand-back is read here.
+Run every helper in the foreground (`run_in_background: false` on the Agent call), wait for its result, and never end a turn, nor schedule a wake-up, while one, or a command you started in the background, is running.
 
 ## Stages — what deploy ships (v0.26.10.5 R11–R15)
 
@@ -341,16 +343,24 @@ Record the gate the same way: `sh checks/deploy-gate.sh 2 start
 --result pass|fail`.
 
 **Gate 3 — PROD CUTOVER (the owner's, always).** One-touch confirmation on
-EVERY deploy, even with gates 1 and 2 green: "deploy vN to prod? migration:
-yes/no; providers changing: <list or none>". Deploys happen from the owner's
-hands — made literal. Record the gate (`sh checks/deploy-gate.sh 3 start
---candidate <commit> --env <name>`, then `sh checks/deploy-gate.sh 3 end
---result pass|fail [--rollback-target <ref>]`), and every owner
-confirmation this verb asks, this one and the migration questions alike:
-`sh checks/deploy-gate.sh confirm ask --what "<the question>"` when you ask
-and `sh checks/deploy-gate.sh confirm answer --what "<the question>"
---result yes|no` when the owner answers. The script records and never
-refuses.
+EVERY deploy, even with gates 1 and 2 green: "cutover <c>: deploy vN to
+prod? migration: yes/no; providers changing: <list or none>", `<c>` the
+candidate's 12-character commit. Deploys happen from the owner's hands —
+made literal. Record every owner confirmation this verb asks, this one and
+the migration questions alike: `sh checks/deploy-gate.sh confirm ask --what
+"<the question>"` when you ask and `sh checks/deploy-gate.sh confirm answer
+--what "<the question>" --result yes|no` when the owner answers. The cutover
+answer is recorded before the gate opens: then `sh checks/deploy-gate.sh 3
+start --candidate <commit> --env <name>`, and after the cutover `sh
+checks/deploy-gate.sh 3 end --result pass|fail [--rollback-target <ref>]`.
+`3 start` refuses (exit 1, one line naming the first missing fact, nothing
+written) unless the newest gate-2 pass is the candidate, a ready production
+`deploy-check` names it, gate 1 passed on it after that (or was skipped for
+a first deploy), the owner's cutover yes for it follows gate 1 and any
+earlier gate-3 start, and `sh checks/stages.sh debt --target production`
+shows no row owed to gate 1 or 2 unpaid. A refusal ends this deploy: the
+owner's yes never stands in for a missing record. Gates 1 and 2, `end`,
+`confirm` and `rollback` only record, so a rollback is never blocked.
 
 **The deploy-owed rows.** Gates 1–3 read the inventory rows born `owed:
 paid by /vid deploy gate N — <what the rung observes>` as their checklist

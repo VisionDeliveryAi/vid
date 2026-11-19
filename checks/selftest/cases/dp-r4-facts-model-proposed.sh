@@ -8,7 +8,7 @@ unset CLAUDE_CODE_SESSION_ID 2>/dev/null || true
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 fail() { echo "dp-r4-facts-model-proposed: $*" >&2; cat "$T/out" >&2 2>/dev/null; exit 1; }
 cd "$T"; git init -q; g() { git -c user.email=vid@selftest -c user.name=vid "$@"; }
-mkdir -p .vid/tw .vid/decide/queue .vid/round; printf '# Run state\n\nrun: active\nstage: 1\n' > .vid/RUN-STATE.md; : > .vid/tw/handed; printf '.vid/\n' > .gitignore
+mkdir -p .vid/tw .vid/decide/queue .vid/round; printf '# Run state\n\nrun: active\nstage: 1\n' > .vid/RUN-STATE.md; : > .vid/tw/handed; printf '# Inventory\n\n```vid-inventory\ngrammar: 0.9.3\n```\n' > INVENTORY.md; printf '.vid/\n' > .gitignore   # 0.26.11.1.2 (R6): an INVENTORY.md with no rows, so the plan's rows read empty, never unreadable
 printf '# Decisions\n' > DECISIONS.md
 printf '# PRD\n\n```vid-prd-answers\nA-001 | model_proposed | 2026-11-01 | Q: - | A: a week | settles: REQ-001\n```\n' > PRD.md
 g add -A; ( GIT_COMMITTER_DATE=2026-11-01T00:00:00Z GIT_AUTHOR_DATE=2026-11-01T00:00:00Z; export GIT_COMMITTER_DATE GIT_AUTHOR_DATE; g commit -qm root )   # before the close; in a subshell, as sh keeps an assignment before a function

@@ -10,6 +10,10 @@ Format:
     - **D-NNN** <what> | why: <why> | enforced: <test/hook ref, or "convention"> | applies-to: <ids and codes> [| origin: proposal] [| model: <id>]
     - **D-NNN** <what> | why: <why> | enforced: <test/hook ref, or "convention"> | scope: project [| origin: proposal] [| model: <id>]
 
+`why:` gives the reason in ViD's own words and cites the answer it rests
+on (`A-NNN`), never the owner's words, which stay in the commit's `Owner:`
+trailer (vid-create-prd, "The owner's words, and the questions raised").
+
 The label says where a brief quotes the decision. `applies-to:` items,
 comma separated: ROW, RULE or REQ ids of INVENTORY.md; screen codes (the
 part before `/` of an INVENTORY marker); DIF ids, when rows carry a

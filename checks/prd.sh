@@ -153,6 +153,13 @@ G0981=no
 [ "$GRAMMAR" = legacy ] || G0981=$(printf '%s\n' "$GRAMMAR" | awk -F. '{ split("0.9.8.1", w, ".")
   for (i = 1; i <= 4; i++) { a = $i + 0; if (a > w[i] + 0) { print "yes"; exit } if (a < w[i] + 0) { print "no"; exit } }
   print "yes" }')
+# gnum (0.26.11.1.2, R13): the same comparison, on all five components, against 0.26.11.1.2, the grammar whose fail-if is written in
+# numbered parts, `fail-if: (1) <one failure>; (2) …` — arms_of then splits on the numbers, and join 3 refuses a fail-if
+# that does not open `(1) `, numbers that skip and an empty part; an older grammar keeps its split and its checks.
+GNUM=no
+[ "$GRAMMAR" = legacy ] || GNUM=$(printf '%s\n' "$GRAMMAR" | awk -F. '{ split("0.26.11.1.2", w, ".")
+  for (i = 1; i <= 5; i++) { a = $i + 0; if (a > w[i] + 0) { print "yes"; exit } if (a < w[i] + 0) { print "no"; exit } }
+  print "yes" }')
 # Positional fields (v0.9.1 3.8): legacy rows carry five (ID | type | tier |
 # priority | statement); under `grammar: 0.9.1` the priority column is gone
 # and rows carry four (ID | type | tier | statement). Labeled fields follow.
@@ -250,8 +257,29 @@ _depth() { _q=$1; while :; do case $_q in *[\(\)]*) ;; *) return 0 ;; esac
   _q=${_q#"${_q%%[\(\)]*}"}; case $_q in '('*) _d=$((_d + 1)) ;; *) [ "$_d" -eq 0 ] || _d=$((_d - 1)) ;; esac; _q=${_q#?}; done; }
 _arm_push() { _o=$IFS; IFS=" $TB"; set -f; set -- $_cur; set +f; IFS=' '; _a="$*"; IFS=$_o
   ARMS=$ARMS$NL$_a; [ -z "$_a" ] || NARMS=$((NARMS + 1)); _cur=''; return 0; }
+# Under GNUM the arms are the numbered parts: the text after `(1) `, then after each `; (<n+1>) ` in turn, the markers
+# dropped; ARMBAD names what join 3 refuses — `unnumbered` (no opening `(1) `), `skip` (a part marker left in a part:
+# a number skipped or repeated, a marker of any length, or one after another separator than `; `) or `empty` (a part
+# with no text) — and is empty for a well-formed fail-if.
+# _hasmark <part>: the part holds a marker, `(<digits>) ` anywhere or `(<digits>)` at its end.
+_hasmark() { _hq=$1
+  while :; do case $_hq in *'('*) ;; *) return 1 ;; esac
+    _hq=${_hq#*'('}; _hm=${_hq%%')'*}; case $_hm in ''|*[!0-9]*) continue ;; esac
+    case $_hq in "$_hm) "*|"$_hm)") return 0 ;; esac; done; }
 arms_of() {
-  _s=$1; _d=0; _cur=''; ARMS=''; NARMS=0
+  _s=$1; _d=0; _cur=''; ARMS=''; NARMS=0; ARMBAD=''
+  if [ "$GNUM" = yes ]; then
+    case $_s in '(1) '*) _s=${_s#'(1) '} ;; *) ARMBAD=unnumbered; _cur=$_s; _arm_push; ARMS=${ARMS#"$NL"}; return 0 ;; esac
+    _k=1; _s="$_s "
+    while :; do _n=$((_k + 1))
+      case $_s in *"; ($_n) "*) ;; *) break ;; esac
+      _cur=${_s%%"; ($_n) "*}; _s=${_s#*"; ($_n) "}; _k=$_n
+      _hasmark "$_cur" && ARMBAD=skip; _arm_push
+    done
+    _cur=${_s% }; _hasmark "$_cur" && ARMBAD=skip; _arm_push; ARMS=${ARMS#"$NL"}
+    [ "$NARMS" -eq "$_k" ] || [ -n "$ARMBAD" ] || ARMBAD=empty
+    while :; do case $ARMS in *"$NL") ARMS=${ARMS%"$NL"} ;; *) return 0 ;; esac; done
+  fi
   while :; do
     case $_s in *' or '*) ;; *) break ;; esac
     _p=${_s%%' or '*}; _s=${_s#*' or '}; _depth "$_p"; _cur=$_cur$_p
@@ -464,6 +492,14 @@ for r in $EFF; do
   labeled "$r" fail-if; fi_=$LV; labeled "$r" serves; sv=$LV
   labeled "$r" authority; au=$LV; labeled "$r" confirms_via; cv=$LV
   labeled "$r" source; src=$LV; labeled "$r" covers; cov=$LV; labeled "$r" derives; dv=$LV
+  # join 3 under GNUM (0.26.11.1.2, R13): the fail-if in numbered parts, one failure a part
+  if [ "$GNUM" = yes ] && [ -n "$fi_" ]; then arms_of "$fi_"
+    case $ARMBAD in
+      unnumbered) gap "join 3 ($id): the fail-if does not open '(1) ' — under grammar $GRAMMAR it is written in numbered parts, fail-if: (1) <what a wrong product does>; (2) …, one failure a part." ;;
+      skip) gap "join 3 ($id): the fail-if's part numbers skip or repeat — the parts run (1), (2), (3) … in order, each after '; '." ;;
+      empty) gap "join 3 ($id): the fail-if has an empty part — each numbered part names one failure." ;;
+    esac
+  fi
   if [ "$demand" = yes ]; then
     [ -n "$fi_" ] || gap "join 3 ($id): a demand row with no fail-if: — every demand item names its falsifier."
     [ -n "$sv" ] || gap "join 4 ($id): a demand row with no serves: — purpose is what resolves the unanticipated tradeoff."
@@ -1062,7 +1098,7 @@ END {
         nw = split(pl, PW, /[ \t]+/); if (nw > 30) gap("join 21 (" id "): plain: runs to " nw " words — at most 30.")
         if (match(" " pl, /[^A-Za-z0-9_](REQ|INV|NG|A|OQ|FEAT|MECH|ROW|D)-[0-9]+/)) gap("join 21 (" id "): plain: names the id \047" substr(" " pl, RSTART + 1, RLENGTH - 1) "\047 — say the rule in words.")
         else if (match(" " pl, /[^A-Za-z0-9_](DIM|SRC)-[A-Za-z]/)) gap("join 21 (" id "): plain: names an id (\047" substr(" " pl, RSTART + 1, RLENGTH - 1) "…\047) — say the rule in words.")
-        npv = vals(pl, PV); split("", SV); valset(ISTMT[id] " " IL[id, "fail-if"], SV)
+        npv = vals(pl, PV); split("", SV); fv21 = IL[id, "fail-if"]; if (gnum == "yes") { sub(/^\([0-9]+\) /, "", fv21); gsub(/; \([0-9]+\) /, "; ", fv21) } valset(ISTMT[id] " " fv21, SV)
         for (k = 1; k <= npv; k++) if (!(PV[k] in SV)) gap("join 21 (" id "): plain: holds the number \047" PV[k] "\047, which neither its statement nor its fail-if holds — the sentence says its own rule and adds nothing.")
       }
     }
@@ -1254,7 +1290,7 @@ JOUT=$( {
   printf '\001THESIS\n'; [ -z "$THESIS" ] || printf '%s\n' "$THESIS"
   printf '\001SOURCES\n'; [ -z "$SOURCES" ] || printf '%s\n' "$SOURCES"
   printf '\001SUMS\n'; [ -z "$SUMS" ] || printf '%s\n' "$SUMS"
-} | LC_ALL=C awk -v g094="$G094" -v g095="$G095" -v g0981="$G0981" -v pause="$PAUSE" -v npos="$NPOS" -v sect="$SECT" -v grammar="$GRAMMAR" "$CITE17$J094") \
+} | LC_ALL=C awk -v g094="$G094" -v g095="$G095" -v g0981="$G0981" -v gnum="$GNUM" -v pause="$PAUSE" -v npos="$NPOS" -v sect="$SECT" -v grammar="$GRAMMAR" "$CITE17$J094") \
   || { echo 'ViD prd: the 0.9.4 pass (joins 16-20) did not run — failing closed.' >&2; exit 1; }
 JCOUNTS=$(printf '%s\n' "$JOUT" | sed -n '$p')
 JBODY=$(printf '%s\n' "$JOUT" | sed '$d')

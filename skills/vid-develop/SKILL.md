@@ -523,7 +523,9 @@ done, where the build is, what's left, the owner's open questions, the
 estimate and how it was calculated. Add your one line with `sh
 checks/progress.sh --now "<one line>"`. Never write a status table or an
 estimate of your own: the format and the arithmetic are ViD's, and when
-there is not enough data the table says "no estimate yet".
+there is not enough data the table says "no estimate yet". What the
+product does now is said from the newest run's results and the stage
+report's `passing ahead` line, never from the stage plan.
 
 **Clean up what you start (v0.9.6 3.10, R10).** Whatever the run starts,
 it stops when it no longer uses it: dev servers, background tasks and
@@ -546,7 +548,8 @@ builders and fixers run in their own worktree with `vid-build` preloaded.
 `.vid/budget` may name `model-<role>=` and `effort-<role>=`: pass them as
 the Agent tool's model and effort; the effective values are recorded at
 the return. The prompt is the repository path and the brief file, nothing
-else of this session.
+else of this session. Run every helper in the foreground (`run_in_background: false` on the Agent call), wait for its
+result, and never end a turn, nor schedule a wake-up, while one, or a command you started in the background, is running.
 
 ```
 role: builder|fixer|grader|test-author    slice: <N>    step: <id>   (builder, fixer)
@@ -687,7 +690,9 @@ a supervised job, under the same brief, rules, courts and evidence:
    refuses to launch when the worktree's test requests would miss the
    run's shared ledger. Wait for its one line, `job <try> exit=<n>
    return=<path|missing>`, in bounded calls; nothing streams to you, and no
-   message reaches a running job — a correction goes into a successor brief;
+   message reaches a running job — a correction goes into a successor brief. Run every helper in the foreground
+   (`run_in_background: false` on the Agent call), wait for its result, and never end a turn, nor schedule a wake-up,
+   while one, or a command you started in the background, is running.
 3. on its line: `sh checks/brief.sh return <the path> --agent codex:<try>`,
    then `sh checks/job.sh status <try>` (a `coordination fault` line is an
    incident: fix its cause) and `sh checks/job.sh clean <try>`;

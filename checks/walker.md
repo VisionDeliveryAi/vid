@@ -28,6 +28,9 @@ Read `brief.md` whole. For each item:
 - **Each screen:** put the product's screen beside its canvas, here in this folder: `matches`, or `differs — <what>`. Judge what a
   user would see: layout, order, wording, what is missing or extra. Never a pixel count. `not done — <why>` only when you could
   not reach the screen.
+- **The mail and the clock:** a `mail:` line in the brief names where the staging's mail is read and, after the dash, how; a `clock:` line,
+  where the product's time is moved and how. Use them as their words say, when a journey sends mail or waits. A journey that needs mail
+  the brief gives no `mail:` line for is `not done — no inbox`; one that needs a wait the brief gives no `clock:` line for, `not done — no clock`.
 - **The wander:** use the product as a user would: unusual inputs, interrupted flows, the same thing done twice, the back button,
   a page reloaded mid-way. `done`, or `not done — <why>`.
 

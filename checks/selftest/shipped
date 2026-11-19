@@ -902,3 +902,14 @@ ticket-reowed-stage.sh
 tw-tell.sh
 tw-hand.sh
 tw-fix-moved.sh
+design-brief-demands.sh
+devagent-setup-question.sh
+end-grade-recut.sh
+foreground.sh
+owner-words-source.sh
+plan-rows-unreadable.sh
+prd-arms-numbered.sh
+share-token-boundary.sh
+spec-export-profanity.sh
+stage-walk-mail-clock.sh
+stages-screen-line.sh

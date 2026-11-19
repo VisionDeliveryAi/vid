@@ -23,7 +23,7 @@ sed 's|sh checks/github\.sh access||g' "$SK/SKILL.md" > "$T/sk"; out "$T/sk" > "
 for p in 'then gh issue create' 'sh checks/github.sh publish' 'sh checks/ticket.sh body' 'git -C .vid/code fetch' 'a test under tests/acceptance'; do
   { cat "$T/sk"; echo "$p"; } > "$T/s.md"; [ -n "$(out "$T/s.md")" ] || fail "a planted \"$p\" is not convicted"
 done
-S='Run every helper in the foreground (`run_in_background: false` on the Agent call), wait for its result, and never end a turn, nor schedule a wake-up, while one is running'
+S='Run every helper in the foreground (`run_in_background: false` on the Agent call), wait for its result, and never end a turn, nor schedule a wake-up, while one, or a command you started in the background, is running.'
 for h in 'With `split: fine`' "Every row's needs" 'Spawn a fresh agent'; do awk -v RS= -v h="$h" 'index($0, h)' "$SK/SKILL.md" | tr '\n' ' ' | grep -qF "$S" || fail "the foreground sentence is not beside: $h"; done
 [ "$(tr '\n' ' ' < "$SK/SKILL.md" | grep -oF "$S" | grep -c .)" = 3 ] || fail 'the foreground sentence is not in exactly three places'
 grep -q 'ScheduleWakeup' "$SK/SKILL.md" && fail 'vid-plan names ScheduleWakeup'

@@ -17,6 +17,6 @@ printf '%s\n' "$OUT" | grep -qF 'GAP  join 17 (REQ-011): authoritative but its s
 sed "s/^\(REQ-006 .*\)| source: A-005 |/\1| source: per the decision (A-005) |/" G.md > PROV.md
 grep -q '^REQ-006 .*source: per the decision (A-005) |' PROV.md || fail 'the provisional mutation did not apply'
 run PROV.md; [ "$RC" -eq 0 ] || fail 'a provisional item citing its ViD decision in brackets was refused'
-# a new PRD starts under the refusing grammar: the template's header is 0.9.8.1 (plugin repository only)
-TPL="$CHECKS/../templates/PRD.md"; [ ! -f "$TPL" ] || sed -n 2p "$TPL" | grep -qx 'grammar: 0.9.8.1' || fail "the PRD template's grammar is not 0.9.8.1"
+# a new PRD starts under the refusing grammar: the template's header is 0.26.11.1.2, past 0.9.8.1 (plugin repository only; 0.26.11.1.2, R13)
+TPL="$CHECKS/../templates/PRD.md"; [ ! -f "$TPL" ] || sed -n 2p "$TPL" | grep -qx 'grammar: 0.26.11.1.2' || fail "the PRD template's grammar is not 0.26.11.1.2"
 exit 0

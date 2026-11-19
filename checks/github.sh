@@ -184,6 +184,20 @@ exptree() {
     git update-index --add --cacheinfo "100644,$(cat "$W/difb"),TEST-DIFFERENCES.md" || gref 'TEST-DIFFERENCES.md could not be made'; echo TEST-DIFFERENCES.md >> "$W/xp"
   elif [ -n "${1:-}" ]; then echo "ViD github: INVENTORY.md at HEAD has no difference row — TEST-DIFFERENCES.md not exported"; fi
   [ -s "$W/xp" ] || gref "nothing to export: none of R2's paths is at HEAD"
+  # 0.26.11.1.2 (R7): in the exported copy alone, each text file's profane words (lib.sh's PROF, the writer's list) written "(a word)";
+  # a binary file, a file with none, and ViD's own files are left as they are, and nothing is refused
+  # git's raw names, NUL-separated (-z) both ways; a newline in a name read as \001 between the two, and given back
+  git ls-files -s -z > "$W/xl0" || gref 'the export index could not be read'; _x1=$(printf '\001')
+  # a raw name holding \001 itself is refused, named (the carrier would turn it into a newline); each record read whole, split at its first tab
+  _xa=$(tr '\000' '\n' < "$W/xl0" | grep -F "$_x1" | head -n 1) || true; [ -z "$_xa" ] || gref "a file name holds a \\001 byte, which the export cannot carry: ${_xa#*	}"
+  tr '\n\000' '\001\n' < "$W/xl0" > "$W/xl"; : > "$W/xu"; _xf=''
+  while IFS= read -r _xr; do _xm=${_xr%%	*}; _xp=${_xr#*	}; case ${_xm%% *} in 100*) ;; *) continue ;; esac; _xb=${_xm#* }; _xb=${_xb%% *}
+    git cat-file blob "$_xb" > "$W/xb" || { _xf=$_xp; break; }; grep -Iq . "$W/xb" || continue   # a binary file as it is
+    awk "$PROF"' prof($0) != "" { f = 1; exit } END { exit !f }' "$W/xb" || continue
+    { awk "$PROF"' { print profx($0) }' "$W/xb" > "$W/xc" && { [ -z "$(tail -c 1 "$W/xb")" ] || { printf '%s' "$(cat "$W/xc")" > "$W/xd" && mv -f "$W/xd" "$W/xc"; }; } &&   # no final newline added
+      _xn=$(git hash-object -w "$W/xc") && { printf '%s %s\t' "${_xm%% *}" "$_xn"; printf '%s' "$_xp" | tr '\001' '\n'; printf '\000'; } >> "$W/xu"; } || { _xf=$_xp; break; }
+  done < "$W/xl"; [ -z "$_xf" ] || gref "a profane word in $_xf could not be blanked in the export"
+  [ ! -s "$W/xu" ] || git update-index -z --index-info < "$W/xu" || gref 'the blanked copies could not be put in the export'
   TR=$(git write-tree) || gref 'the export tree could not be written'; unset GIT_INDEX_FILE; }
 # stpriv <repo>: ST and SU, its URL, or a refusal unless it is private (R6). sturl: the same for state-repo:, or the spec repository
 stpriv() { ST=$1; [ "$(ghc repo view "$ST" --json isPrivate --jq .isPrivate 2>/dev/null)" = true ] || gref "$ST is not a private repository: ViD's records never go there"; SU=$(ghc repo view "$ST" --json url --jq .url) && [ -n "$SU" ] || gref "no access to $ST"; }

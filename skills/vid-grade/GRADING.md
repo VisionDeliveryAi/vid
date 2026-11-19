@@ -24,6 +24,7 @@ word for the other.
 - Batch REQs by domain, ~25–30 per grader, so each grader holds a whole
   domain's coherence. Spawn one fresh `vid:grader` subagent per batch
   (Agent tool), in parallel.
+  Run every helper in the foreground (`run_in_background: false` on the Agent call), wait for its result, and never end a turn, nor schedule a wake-up, while one, or a command you started in the background, is running.
 - **Every brief is a file (v0.9.3 3.1).** The session writes each brief
   this engine composes — slice verdict, end grade, fix re-grade — as a file
   in vid-develop's "Spawned roles" format (`.vid/briefs/<slice>/grader-<n>.md`:
@@ -205,6 +206,7 @@ never see the wanderer's; findings meet only in the owner's adjudication
 table. Blindness is what makes the overlap informative — the same defect
 from two independent referents is strong confirmation, and disjoint sets
 say the population is larger than either observer sees.
+Run every helper in the foreground (`run_in_background: false` on the Agent call), wait for its result, and never end a turn, nor schedule a wake-up, while one, or a command you started in the background, is running.
 
 The wanderer's brief contains: the repo path; how to bring the product up
 (the same Docker harness the ledger's browser class uses);

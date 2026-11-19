@@ -67,7 +67,8 @@ recut() { head -n 1 "$1/why" 2>/dev/null | grep -q '^/vid stage:'; }
 cutd() { for s in a b; do rm -rf "$T/c$s"; mkdir -p "$T/c$s"; for f in PRD.md INVENTORY.md; do if [ "$s" = b ] && [ -f "$1/files/$f" ]; then cp "$1/files/$f" "$T/c$s/"; else git show "$2:$f" > "$T/c$s/$f" 2>/dev/null || true; fi; done; done
   git show "$2:STAGES.md" > "$T/ca/STAGES.md" 2>/dev/null || rm -f "$T/ca/STAGES.md"; if [ -f "$1/files/STAGES.md" ]; then cp "$1/files/STAGES.md" "$T/cb/"; elif ! gone "$1" STAGES.md; then cp "$T/ca/STAGES.md" "$T/cb/" 2>/dev/null || true; fi
   for s in a b; do ( cd "$T/c$s" || exit 1; m=1; [ ! -f STAGES.md ] || m=$(sed -n '/^```vid-stages/,/^```$/p' STAGES.md | sed -n 's/^[[:space:]]*STAGE-0*\([0-9][0-9]*\)[[:space:]]*|.*/\1/p' | sort -n | tail -n 1); [ -n "$m" ] || m=1
-      k=0; while [ "$k" -le "$m" ]; do sh "$HERE/stages.sh" scope --upto "$k" --reqs 2>/dev/null | sed "s/\$/ $k/"; k=$((k + 1)); done ) | awk '!s[$1]++' > "$T/m$s" || return 1; done
+      k=0; while [ "$k" -le "$m" ]; do lread "$T/q$s" stages scope --upto "$k" --reqs || exit 1; sed "s/\$/ $k/" "$T/q$s"; k=$((k + 1)); done ) > "$T/m0$s" || return 1   # R6: a read that fails is no empty cut
+    awk '!s[$1]++' "$T/m0$s" > "$T/m$s"; done
   awk 'FILENAME == ARGV[1] { A[$1] = $2; next } { B[$1] = $2 } END { for (i in A) if (!(i in B) || A[i] != B[i]) { print A[i]; if (i in B) print B[i] } for (i in B) if (!(i in A)) print B[i] }' "$T/ma" "$T/mb" | sort -nu; }
 # deployed <N>: any candidate of stage N, not withdrawn, has its D1 passed, or a production line covers stage N; closed <N>: its stage-closed line.
 # The `staged <N>` line is no test: only the run's first passed D1 writes one
@@ -78,7 +79,7 @@ sclosed_() { grep -q "^stage-closed $1 " "$HAND" 2>/dev/null; }
 cutn() { if [ -f "$1" ]; then sed -n '/^```vid-stages/,/^```$/p' "$1" | sed -n 's/^[[:space:]]*STAGE-0*\([0-9][0-9]*\)[[:space:]]*|.*/\1/p' | sort -n; else echo 1; fi; }
 # hollow <stages file>: each stage it names that the landed cut holds and that holds no row by its effective stage, planner.sh rows'
 # (a PLAN.md `moved:` counted), as close.sh's sstages and admission read it; run where the cut has landed (the dry run's copy)
-hollow() { sh "$HERE/planner.sh" rows 2>/dev/null | grep -v '^#' > "$T/hr" || : > "$T/hr"; cutn STAGES.md > "$T/hn"
+hollow() { lread "$T/hr0" planner rows || return 1; grep -v '^#' "$T/hr0" > "$T/hr"; cutn STAGES.md > "$T/hn"
   for k in $(cat "$1"); do grep -qx "$k" "$T/hn" || continue; awk -F'\t' -v k="$k" '$5 ~ /^[0-9]+$/ && $5 + 0 == k + 0 { f = 1 } END { exit !f }' "$T/hr" || echo "$k"; done; }
 # curst: the new cut's current stage, as close.sh's stage close moves RUN-STATE's stage: on — its lowest stage with no stage-closed
 # line, the final one when each is closed
@@ -181,7 +182,11 @@ records() { ( cd "$1" || exit 1; L=$2; X=$3; W=$(now); mkdir -p "$D" .vid/tw; to
   # 0.26.10.29.2 (R2): a re-cut withdraws every candidate of each stage it changes (dryrun refused a closed or deployed one), the newest
   # and any older one, with the asks made at it still out: its C3, its S1, its D1 okay; close.sh then names a new candidate once one is
   # due. The asks, in $T/ws (`<N> <c> <c3|s1|d1> <issue>`), have their issues closed last
-  : > "$T/ws"; if recut "$X"; then cutd "$X" "$(cat "$X/base")" > "$T/cut" || exit 1; for N in $(cat "$T/cut"); do for c in $(ls "$SD/$N" 2>/dev/null | grep -E '^[0-9]+$' | sort -n); do F=$SD/$N/$c; [ -f "$F/ask" ] && [ -f "$F/named" ] && [ ! -f "$F/withdrawn" ] || continue
+  # 0.26.11.1.2 (R10): and the candidates of a stage the re-cut makes final, neither closed nor deployed, so its next asks the end grade
+  : > "$T/ws"; if recut "$X"; then cutd "$X" "$(cat "$X/base")" > "$T/cut" || exit 1
+    fa=$(cutn "$T/ca/STAGES.md" | tail -n 1); fb=$(cutn "$T/cb/STAGES.md" | tail -n 1); cp "$T/cut" "$T/wcut" || exit 1   # $T/cut stays the cut's own, which hollow reads
+    [ "$fa" = "$fb" ] || sclosed_ "$fb" || deployed "$fb" || { echo "$fb" >> "$T/wcut"; sort -nu "$T/wcut" -o "$T/wcut"; }
+    for N in $(cat "$T/wcut"); do for c in $(ls "$SD/$N" 2>/dev/null | grep -E '^[0-9]+$' | sort -n); do F=$SD/$N/$c; [ -f "$F/ask" ] && [ -f "$F/named" ] && [ ! -f "$F/withdrawn" ] || continue
       printf '%s %s\n' "$L" "$W" > "$F/withdrawn"; ev "stage-candidate-withdrawn stage=$N candidate=$c by=$L"; echo "withdrawn stage-$N $c"
       [ -f "$F/passed" ] || [ -f "$F/done" ] || printf '%s %s c3 %s\n' "$N" "$c" "$(sed -n 's/^issue	//p' "$F/ask" | head -n 1)" >> "$T/ws"
       if [ -f "$F/s1ask" ] && [ ! -f "$F/s1done" ] && [ ! -f "$F/s1withdrawn" ]; then : > "$F/s1withdrawn"; printf '%s %s s1 %s\n' "$N" "$c" "$(sed -n 's/^issue	//p' "$F/s1ask" | head -n 1)" >> "$T/ws"; fi
@@ -235,7 +240,7 @@ dryrun() { X=$1; B=$2; WORDS=$3
   ( cd "$SC" && sed "s/ $(printf %.12s "$B") / $(printf %.12s "$LD") /" "$D/landed" > "$T/ld" && put "$D/landed" < "$T/ld" && plan_change "$XA" "$LD" ) || ref "the dry run's plan change was refused: $(grep -m 1 'refused' "$T/pc" || tail -n 1 "$T/pc"); nothing landed"
   # 0.26.10.29.2 (R2): a stage the re-cut changes and leaves with no row, by each row's effective stage, would never get a candidate,
   # and the stages after it would wait for good; a stage it never touched is not its concern
-  if recut "$X"; then e=$( cd "$SC" && hollow "$T/cut" | head -n 1 ); [ -z "$e" ] || ref "the re-cut leaves stage $e with no row (each row by its stage, a PLAN.md moved: line counted): a stage holds at least one row, or the cut drops it; nothing landed"; fi
+  if recut "$X"; then ( cd "$SC" && hollow "$T/cut" ) > "$T/hol" || ref "the re-cut's rows could not be read: nothing landed"; e=$(head -n 1 "$T/hol"); [ -z "$e" ] || ref "the re-cut leaves stage $e with no row (each row by its stage, a PLAN.md moved: line counted): a stage holds at least one row, or the cut drops it; nothing landed"; fi
   ( cd "$SC" && sh "$HERE/planner.sh" check ) > "$T/pk" 2>&1 || ref "the dry run's planner.sh check flags the plan: $(head -n 1 "$T/pk"); nothing landed"
   HD=$(for f in $HASHF; do { [ -f "$X/files/$f" ] || gone "$X" "$f"; } && printf '%s,' "$f"; done)   # 0.26.10.29.2 (R2): a deleted file is held too
   ( cd "$SC" && sh "$HERE/planner.sh" reratify --words "$WORDS" --base "$B" --to "$LD" --held "${HD%,}" ) > "$T/rr" 2>&1 || ref "the dry run's reratify refuses: $(sed -n 's/^ViD planner: reratify refused — //p' "$T/rr" | head -n 1); nothing landed"

@@ -1,5 +1,5 @@
 # {{PROJECT_NAME}} — PRD
-grammar: 0.9.8.1
+grammar: 0.26.11.1.2
 
 > **Precedence rule:** the base of this file (everything above `## Appends`)
 > is immutable after final ratification. All change is appended under
@@ -171,7 +171,11 @@ FEAT-01 | G1 | {{FEATURE_THE_OWNER_WOULD_NAME}}
      carry a tier. There is no priority column: release membership is
      `phase:` (below), never a ranking.
      fail-if: mandatory on every demand item, forbidden on every frame
-     item. The failing case named — never "works as expected".
+     item. The failing case named — never "works as expected". Under
+     `grammar: 0.26.11.1.2` it is written in numbered parts, one failure a
+     part, still one field: `fail-if: (1) <what a wrong product does>; (2)
+     <another>`; the court refuses a fail-if that does not open `(1) `,
+     numbers that skip and an empty part.
      serves: mandatory on demand items — what the item is FOR.
      feature: mandatory on every demand item and invariant — exactly one
      FEAT-NN from the features block, never a list; a frame item may
@@ -226,7 +230,8 @@ FEAT-01 | G1 | {{FEATURE_THE_OWNER_WOULD_NAME}}
      AMENDED row under the append law.
      arms: on every AMENDED row whose predecessor carries a fail-if —
      one entry per arm of the row it supersedes (an arm is one fail-if
-     clause split at top-level " or " / ", or " / "; or "), by ordinal,
+     clause split at top-level " or " / ", or " / "; or "; under
+     `grammar: 0.26.11.1.2`, one numbered part), by ordinal,
      from retained · strengthened · moved <id> · withdrawn <A-NNN>. The
      court joins a move against the target's revision before the move
      and a withdrawal against an effective answer settling the item;
@@ -247,7 +252,7 @@ FEAT-01 | G1 | {{FEATURE_THE_OWNER_WOULD_NAME}}
      blanket "all recommended" included, closes nothing. -->
 
 ```vid-prd
-REQ-001 | {{TYPE}} | {{TIER}} | {{STATEMENT}} | fail-if: {{FAILING_CASE}} | serves: {{PURPOSE}} | authority: authoritative | source: seed | covers: DIM-{{ID}} | phase: pilot | feature: FEAT-01 | plain: {{THE_RULE_IN_ONE_PLAIN_SENTENCE}}
+REQ-001 | {{TYPE}} | {{TIER}} | {{STATEMENT}} | fail-if: (1) {{FAILING_CASE}} | serves: {{PURPOSE}} | authority: authoritative | source: seed | covers: DIM-{{ID}} | phase: pilot | feature: FEAT-01 | plain: {{THE_RULE_IN_ONE_PLAIN_SENTENCE}}
 ```
 
 ## Answer ledger

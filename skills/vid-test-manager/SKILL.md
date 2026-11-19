@@ -87,7 +87,7 @@ test-author return and at each slice close), the run manager spawns
 list for that ticket. A builder, fixer or test-author that sees an
 `analyst due` line leaves it: it can't start an agent, and the run
 manager gets the line at the hand-back. The analyst's brief says
-`role: test-analyst` and carries no test request (`sh checks/brief.sh`).
+`role: test-analyst` and carries no test request (`sh checks/brief.sh`). Run every helper in the foreground (`run_in_background: false` on the Agent call), wait for its result, and never end a turn, nor schedule a wake-up, while one, or a command you started in the background, is running.
 Keep building; it holds no test slot. When it returns, record `sh checks/event.sh 'analyst-done
 request=<ticket> reason=<reason> outcome=<setup|hang|limit|none>
 [rows=<the ROW-ids of its limit lines>] [cases=<the case ids of its limit
@@ -142,7 +142,7 @@ only when its two runs overlapped (v0.9.7.0.11). Spawn it
 again when `docker-compose.test.yml` changes, after a run killed for
 memory (`incident … memory`), or when the machine changed. When its
 return carries a `testenv short:` line, ask the owner the one question
-the pass file words — it gates nothing; keep building.
+the pass file words — it gates nothing; keep building. Run every helper in the foreground (`run_in_background: false` on the Agent call), wait for its result, and never end a turn, nor schedule a wake-up, while one, or a command you started in the background, is running.
 
 **Broken tests, sorted (v0.9.6 3.11; v0.9.6.1 3.6).** Never run the
 whole ledger early to find them — it runs rows of steps not yet built,

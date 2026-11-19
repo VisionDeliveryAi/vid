@@ -6,13 +6,14 @@
 # checks/evidence.sh a stub that fails, leaving a mark, if run. A is admitted; B is refused (by=rule-B) while A is not
 # closed and its row is accepted or failing, and admitted after `closed A`. Again with A's row failing, then held:
 # B is admitted once A's rows are held, though A is not closed. C, a stage-2 step, is refused in stage 1 (by=stage).
-# evidence.sh is never called. Env: CHECKS.
+# evidence.sh is never called. 0.26.11.1.2 (R6): planner.sh and lib.sh beside plan.sh, as in a project, since the admission now refuses a
+# plan whose rows cannot be read. Env: CHECKS.
 set -eu
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 . "$CHECKS/selftest/fixtures/stages.sh"
 fail() { echo "admission-tickets: $*" >&2; cat "$T/out" >&2 2>/dev/null; exit 1; }
 toy() { rm -rf "$1"; mkdir -p "$1/checks" "$1/.vid"; cd "$1"; git init -q
-  cp "$CHECKS/plan.sh" "$CHECKS/stages.sh" "$CHECKS/prd.sh" checks/
+  cp "$CHECKS/plan.sh" "$CHECKS/planner.sh" "$CHECKS/lib.sh" "$CHECKS/stages.sh" "$CHECKS/prd.sh" checks/
   printf '#!/bin/sh\n# Purpose: a stub that must never run\n: > "%s/evidence-called"\nexit 1\n' "$T" > checks/evidence.sh
   st_files; printf '.vid/\n' > .gitignore; g add -A && g commit -qm root
   printf 'run: active\nsession: S1\nmode: tickets\nplan: required\nstage: 1\n\n## The plan\n\n```vid-plan\nstep A | name: sign in | modules: app/login | builds-on: - | rows: ROW-001\nstep B | name: notes | modules: app/notes | builds-on: A | rows: ROW-002\nstep C | name: sharing | modules: app/share | builds-on: A | rows: ROW-004\nshared: -\n```\n' > .vid/RUN-STATE.md

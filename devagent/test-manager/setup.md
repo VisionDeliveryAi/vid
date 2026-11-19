@@ -52,8 +52,8 @@ never only because the cases grew (v0.26.10.28.2, R5).
    - **Record it** (v0.26.10.24.7 R8): the head's `measured: <cases> <peak MiB> <UTC>`, for the measured selection, and any `environments:` this pass proved. run.sh's memory admission
      reads its peak; a head report with more cases than it calls for no new measure (v0.26.10.28.2, R5).
    - Steps 1, 2, 4 and 5 come before the tests are written; this step amends the record.
-4. **Ask once** whoever runs the dev side for what looking could not settle, and record the answer. Short of memory for
-   a second environment, tell them, as a question that gates nothing, and go on with one.
+4. **Put what looking could not settle in the return,** one line each with the default you go on with (no other place to ask).
+   Short of memory for a second environment, say so there, as a question that gates nothing, and go on with one.
 5. **Record it,** in the work folder, never in ViD's folder or the product code (below).
 6. **Journey and process rows** run with the product's own declared processes up, not inline, so `start:` brings those
    processes up with the product, and the record says how.
@@ -118,8 +118,8 @@ kept: <command>                            (R5) the rehearsal's check that perma
 
 Below that head, in plain words: what was found and the choice, with why; how the environment starts and stops; how the
 tests reach the product and read each fake; which fixtures must not change; how the product's processes start; the
-measure, pick and prove figures, or the reason for one environment; the answers to step 4.
+measure, pick and prove figures, or the reason for one environment; the questions of step 4, each with its default.
 
 ## Return
 
-The record's path and at most 10 lines: the choice, the engines, the environments, and anything left to ask.
+The record's path and at most 10 lines: the choice, the engines, the environments, and anything left to ask, a line each with its default.

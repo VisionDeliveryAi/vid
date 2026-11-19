@@ -182,6 +182,10 @@ materialised_rows() { # ROW rows citing a test: `id<TAB>path<TAB>derived-from`
 case "$(printf '%s\n' "$IBLOCK" | grep -v '^[[:space:]]*$' | head -n 1 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')" in 'grammar: 0.9.3') IG93=yes ;; *) IG93=no ;; esac
 TMP93=''
 tmp93() { [ -n "$TMP93" ] || { TMP93=$(mktemp -d); trap 'rm -rf "$TMP93"' EXIT; }; }
+# scope93 <verb> <file> <args…> (0.26.11.1.2, R6): sh checks/stages.sh scope <args…> into <file>; a failed read is never an empty
+# scope: `metrics <verb>: refused — the stage scope cannot be read (checks/stages.sh scope <args…>): <its first error line>`, exit 1
+scope93() { _sv=$1; _so=$2; shift 2; sh checks/stages.sh scope "$@" > "$_so" 2> "$_so.err" && return 0
+  _sa=$(printf ' %s' "$@"); echo "metrics $_sv: refused — the stage scope cannot be read (checks/stages.sh scope$_sa): $(head -n 1 "$_so.err")" >&2; exit 1; }   # IFS may be a newline here
 ddeclared() { # the harness contract declares a deployed selector
   [ -f docker-compose.test.yml ] || return 1
   awk '/^x-vid-harness:/{inx=1; next} inx && /^[^ #]/{inx=0} inx && $1=="deployed-selector:" { v=$0; sub(/^[^:]*:[ \t]*/,"",v); sub(/[ \t]*#.*$/,"",v); if (v!="") f=1 } END { exit f?0:1 }' docker-compose.test.yml
@@ -709,19 +713,25 @@ if [ "${1:-}" = stage-close ]; then
   # v0.26.10.8 (R9): the final stage is the highest number; it closes like the others and sets no next stage
   NST=$(sed -n '/^```vid-stages$/,/^```$/p' STAGES.md 2>/dev/null | sed -n 's/^[[:space:]]*STAGE-\([0-9][0-9]*\)[[:space:]]*|.*/\1/p' | sort -n | tail -n 1)
   FIN=no; [ "$SCN" -ge "${NST:-0}" ] && FIN=yes
+  # 0.26.11.1.2 (R6): the report's reads, before the tag and the event, so a refusal leaves nothing written; none below stage 0
+  NX=$((SCN + 1)); scope93 stage-close "$TMP93/scope2" --upto "$NX" --reqs
+  if [ "$SCN" -lt 1 ]; then : > "$TMP93/scope0"; else scope93 stage-close "$TMP93/scope0" --upto "$((SCN - 1))" --reqs; fi
+  if [ "$FIN" = yes ]; then : > "$TMP93/scopeL"; else scope93 stage-close "$TMP93/scopeL" --upto "$NST"; fi   # R11: every stage's rows, for passing ahead
   if git rev-parse -q --verify "refs/tags/vid/stage-$SCN" >/dev/null 2>&1; then echo "metrics stage-close: not recorded — the tag vid/stage-$SCN already exists; a closed stage's tag never moves (corrections ship with the next stage's close)"; exit 0; fi
   HS=$(git rev-parse --short=12 HEAD); SB=$(git rev-parse -q --verify HEAD:STAGES.md 2>/dev/null || echo none); NOW=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
   git tag -a "vid/stage-$SCN" -m "ViD stage $SCN closed: rows=$NR debt=$ND receipt=${RECEIPT##*/}" HEAD || { echo "metrics stage-close: not recorded — the tag vid/stage-$SCN could not be made"; exit 0; }
   mkdir -p .vid; printf 'stage-closed n=%s sha=%s ready rows=%s debt=%s stages-blob=%s at=%s\n' "$SCN" "$HS" "$NR" "$ND" "$SB" "$NOW" >> "$EV"
-  # the stage report: counts, read from the same scope as the close
-  NX=$((SCN + 1))
-  sh checks/stages.sh scope --upto "$NX" --reqs > "$TMP93/scope2" 2>/dev/null || : > "$TMP93/scope2"
-  sh checks/stages.sh scope --upto "$((SCN - 1))" --reqs > "$TMP93/scope0" 2>/dev/null || : > "$TMP93/scope0"
+  # the stage report: counts, read from the same scope as the close (its reads made above, before the tag and the event)
   cnt() { awk -v p="$2" -v of="$1" 'BEGIN { while ((getline l < of) > 0) O[l] = 1 } !($0 in O) && $0 ~ "^" p "-" { n++ } END { print n + 0 }' "$3"; }   # <older scope> <prefix> <newer scope>
   # the full run's cases of stages 1 to N: each case naming a scoped obligation (later stages' cases are not read)
   RC=$( [ -n "$RECEIPT" ] && awk -v of="$TMP93/obl" 'BEGIN { while ((getline l < of) > 0) { S[++k] = l; a = l; gsub(/-/, "_", a); A[k] = a } }
     { for (i = 1; i <= k; i++) if (index($2, S[i]) || index($2, A[i])) { n++; c[$3]++; break } }
     END { printf "cases=%d passed=%d failed=%d error=%d skipped=%d", n, c["passed"], c["failed"], c["error"], c["skipped"] }' "$TMP93/rc" )
+  # 0.26.11.1.2 (R11): the rows of later stages whose every case passed in the same receipt, as the close's own row reader judged them
+  # (rows93's table, the cited file and the row's id or its REQ, as row_cases maps them): a ROW of the stages after N whose cases are green,
+  # its bucket kept, unverdicted or breached (every other bucket is red, owed or deploy-owed): one reader, not two
+  PA=$(awk -F'\t' -v of="$TMP93/obl" -v lf="$TMP93/scopeL" 'BEGIN { while ((getline l < of) > 0) O[l] = 1; while ((getline l < lf) > 0) if (l ~ /^ROW-/ && !(l in O)) L[l] = 1 }
+    ($1 in L) && $2 ~ /^(kept|unverdicted|breached)$/ { print $1 }' "$TMP93/table" | sort | paste -sd ' ' - )
   PREV=$(awk '$1 == "stage-closed" { l = NR } END { print l + 0 }' "$EV")
   PF=$(awk -v p="$PREV" 'NR < p && $1 == "stage-closed" { s = NR } $1 == "pull-forward" { L[NR] = $0 } END { for (i = s + 1; i < p; i++) if (i in L) { x = L[i]; sub(/ at=[^ ]*$/, "", x); sub(/^pull-forward /, "", x); print x } }' "$EV")
   NQ=$(awk 'function kv(k,  i) { for (i = 2; i <= NF; i++) if (index($i, k "=") == 1) return substr($i, length(k) + 2); return "" } $1 == "question" { q = kv("n"); if (kv("state") == "asked") O[q] = 1; else if (kv("state") == "answered") delete O[q] } END { for (q in O) n++; print n + 0 }' "$EV")
@@ -732,6 +742,7 @@ if [ "${1:-}" = stage-close ]; then
     printf -- '- deploy debt: %s\n' "$ND"; sed 's/^/  - /' "$TMP93/debt"
     printf -- '- pull-forwards: %s\n' "$(printf '%s\n' "$PF" | grep -c . || true)"; printf '%s\n' "$PF" | grep -v '^$' | sed 's/^/  - /'
     printf -- '- open questions: %s\n' "$NQ"
+    if [ -n "$PA" ]; then printf -- '- passing ahead: %s rows of later stages (%s)\n' "$(echo $PA | wc -w | tr -d ' ')" "$(echo $PA | sed 's/ /, /g')"; else printf -- '- passing ahead: 0 rows of later stages\n'; fi
     if [ "$FIN" = yes ]; then printf -- '- next: none — stage %s is the final stage; completion follows\n' "$SCN"
     else printf -- '- next: stage %s, %s — %s requirements, %s rows\n' "$NX" "${NXN:-?}" "$(cnt "$TMP93/scope" REQ "$TMP93/scope2")" "$(cnt "$TMP93/scope" ROW "$TMP93/scope2")"; fi
   } >> .vid/SLICE-REPORTS.md
@@ -1091,7 +1102,7 @@ case "${1:-}" in receipt|row-state|closure|completion|fix-population|change-set|
       AHEAD=0; [ -n "$BASE93" ] && AHEAD=$(git rev-list --count "$BASE93..$DC" 2>/dev/null || echo 0)
       UPTO=$(cstage93)
       # the deploy debt of the scope: `owed <row> gate <n>`, a checklist (never required here)
-      sh checks/stages.sh scope --upto "$UPTO" > "$TMP93/dscope" 2>/dev/null || : > "$TMP93/dscope"
+      scope93 deploy-check "$TMP93/dscope" --upto "$UPTO"   # 0.26.11.1.2 (R6): never an empty scope
       printf '%s\n' "$IBLOCK" > "$TMP93/inv.d"; invrows93 "$TMP93/inv.d" "$TMP93/ir.d"
       NROWS=0; TESTS=scoped; RCPTN=-; REGR=0
       if [ -s "$TMP93/du" ] || [ "$DK" = tag ]; then :   # refused, or a tag: ready from its record (R2)

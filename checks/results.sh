@@ -396,6 +396,7 @@ duties() { G cat-file -e "$R:$1/duties.txt" 2>/dev/null || { echo none; return 0
     END { for (i = 1; i <= n; i++) print "duty\t" d[i] "\t" ((d[i] in S) ? S[d[i]] : "missing") "\t" T[d[i]] }'; }
 # d1x <id> <the okay's ask> (0.26.11.1.1, R1, R3, R4, R6): a passed D1's further lines, or `refused TAB <why>`: staging.txt's `seed:`
 # as the okay's (`seed` in its ask, synthetic when none), one `seam:` line for each row of the okay's `rows`, `stays: up` carried;
+# 0.26.11.1.2 (R9): the first `mail: <address> — <how to read it>` and `clock: <address> — <how to move it>` carried, one with no ` — ` refused;
 # duties.txt, every staging duty answered, none `not done` but one the owner ruled a known limit (.vid/decide/duties-known)
 d1x() { sk=$(sed -n "s/^seed$TAB//p" "$2" | head -n 1); rw=$(sed -n "s/^rows$TAB//p" "$2" | head -n 1)
   { G show "$R:$1/staging.txt" | tr -d '\r' | sed 's/^/S	/'; duties "$1" "$DUT1" | sed 's/^/D	/'; } | awk -F'\t' -v seed="${sk:-synthetic}" -v rows="$rw" -v L="$DUT1" -v KF=.vid/decide/duties-known -v DA=' — ' '
@@ -403,6 +404,9 @@ d1x() { sk=$(sed -n "s/^seed$TAB//p" "$2" | head -n 1); rw=$(sed -n "s/^rows$TAB
     function why(s) { if (bad == "") bad = s }
     $1 == "S" { x = substr($0, 3); if (x ~ /^seed:/) { v = x; sub(/^seed: */, "", v); sub(/[ \t]+$/, "", v); if (sd == "") sd = v }
         else if (x ~ /^stays: *up[ \t]*$/) st = 1
+        else if (x ~ /^(mail|clock):/) { k = x; sub(/:.*/, "", k); v = x; sub(/^[a-z]+: */, "", v); q = index(v, DA)
+          if (!q || q == 1 || substr(v, q + length(DA)) ~ /^[ \t]*$/) why("a " k ": line is not <address> — <how to " (k == "mail" ? "read" : "move") " it>: " x)
+          else if (!(k in MC)) { MC[k] = 1; MA[k] = substr(v, 1, q - 1); MH[k] = substr(v, q + length(DA)) } }
         else if (x ~ /^seam: /) { v = x; sub(/^seam: */, "", v); r = v; sub(/ .*/, "", r); t = substr(v, length(r) + 2)
           if (t ~ /^real[ \t]*$/) { SM[r] = "real"; SW[r] = "" } else if (index(t, "stand-in" DA) == 1 && t !~ ("^stand-in" DA "[ \t]*$")) { SM[r] = "stand-in"; SW[r] = substr(t, length("stand-in" DA) + 1) }
           else why("a seam: line is not <row> real, nor <row> stand-in — <why>: " x) } next }
@@ -413,7 +417,7 @@ d1x() { sk=$(sed -n "s/^seed$TAB//p" "$2" | head -n 1); rw=$(sed -n "s/^rows$TAB
       if (nod) why("a passed deploy has no duties.txt")
       for (i = 1; i <= n; i++) { k = d[i]; if (DS[k] == "missing") why("duties.txt has no line for the duty " k); else if (DS[k] == "not done" && !(k in K)) why("the duty " k " is not done: " DW[k]) }
       if (bad != "") { print "refused\t" bad; exit }
-      print "seed\t" sd; if (st) print "stays\tup"; for (r in SM) print "seam\t" r "\t" SM[r] "\t" SW[r]; for (i = 1; i <= n; i++) print "duty\t" d[i] "\t" DS[d[i]] "\t" DW[d[i]] }'; }
+      print "seed\t" sd; if (st) print "stays\tup"; if ("mail" in MC) print "mail\t" MA["mail"] "\t" MH["mail"]; if ("clock" in MC) print "clock\t" MA["clock"] "\t" MH["clock"]; for (r in SM) print "seam\t" r "\t" SM[r] "\t" SW[r]; for (i = 1; i <= n; i++) print "duty\t" d[i] "\t" DS[d[i]] "\t" DW[d[i]] }'; }
 # 0.26.10.29.5 (DP-1 R2): every deploy report, D1, RH and D2, whatever its outcome, states its decisions: `decision: <what> | why: <why>`
 # lines, or the one line `decisions: none`; with neither it is refused, as a rehearsal with no drops: line is, and so never read for them
 # deploy2 <rh|d2> <id> <k>: the rehearsal's or production deploy's report, its form alone

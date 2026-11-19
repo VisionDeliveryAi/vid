@@ -120,7 +120,7 @@ load() {
     block vid-stages STAGES.md | sed 's/^[[:space:]]*//' | sed -n 's/^STAGE-\([0-9][0-9]*\)[[:space:]]*|[[:space:]]*\([^|]*[^|[:space:]]\)[[:space:]]*|.*/\1	\2/p' | sort -n > "$T/stages"
   else printf '1\tthe product\n' > "$T/stages"; fi
   : > "$T/stageof"
-  while IFS='	' read -r k _; do sh "$HERE/stages.sh" scope --upto "$k" --reqs 2>/dev/null | sed "s/\$/ $k/" >> "$T/stageof" || true; done < "$T/stages"
+  while IFS='	' read -r k _; do mustread "$T/sq" stages scope --upto "$k" --reqs; sed "s/\$/ $k/" "$T/sq" >> "$T/stageof"; done < "$T/stages"   # R6: never an empty stage
   awk -F'[[:space:]]*[|][[:space:]]*' -v SO="$T/stageof" 'BEGIN { while ((getline l < SO) > 0) { split(l, a, " "); if (!(a[1] in st)) st[a[1]] = a[2] } }
     $1 ~ /^(REQ|INV)-[0-9]+$/ { ph = "pilot"
     for (i = 4; i <= NF; i++) if ($i ~ /^phase: /) { ph = $i; sub(/^phase: /, "", ph) }

@@ -59,6 +59,7 @@ A header line `- earlier work: ticket #<m>[, pull request #<p>]` names an earlie
 - **Each row there once,** or the agent goes back once, a fresh one on the same clone.
 - **What a builder leaves** goes by its kind: a missing test to the test author, a set-up error to the test manager's setup, a capped run to the analyst.
 - **`analyst due`** in a hand-back or a result: SKILL.md's analyst section. Its return goes by that section's list, and is a line in the record.
+- **A setup's open questions,** the lines its return leaves to ask: each by the Questions table's row for a question left for whoever runs the dev side.
 - **`difference:` lines** go in the dev setup record as `stand-in:` lines, before the next run.
 - **`requests-<ticket>.txt`,** which the test author's hand-back names, under *test manager*, *builder* and *questions*: each goes by the table below.
 
@@ -233,8 +234,9 @@ record. Where production ran on throughout (a failed backup or checkout, or the 
 | A product question with a default a test can take; a number the spec lacks | A `Question:` comment, with no label. The test's value stays a test value | Nothing |
 | A proposed production interface a row waits on; a product question with no default; "needs the owner: …" | A `Question:` comment, then the *blocked* label, before the pass goes on: `gh issue edit <n> -R <repo> --add-label <prefix>blocked` | The ticket |
 | Of doubtful kind | As the row above | The ticket |
+| A question left for whoever runs the dev side: a setup pass's return, an analyst's limit, the test manager's open point | A `Question:` comment on the ticket naming the step; the *blocked* label only when the work cannot go on without the answer, else no label and the default the work goes on with | The ticket, when blocked; else nothing |
 
-A question is a comment on the ticket, its pull request or the close run it concerns, whose first line begins `Question:` and names the rows or step; then the role that asked (TA, BU, FX), the agent
+A question is a comment on the ticket, its pull request or the close run it concerns, whose first line begins `Question:` and names the rows or step; then the role that asked (TA, BU, FX, TM, AN), the agent
 quoted, and the default the work goes on with, if it has one. The blocked label only when the work cannot go on without the answer. **An answer** comes as a comment begun `RM:` that quotes the question's first line. Quote it to the role that asked, in a new
 job note, word for word. An answer that changes a test is a test author's correction; an answer that changes rows is an amended ticket. A door nobody has authorised never reaches a builder.
 
@@ -245,7 +247,9 @@ report uses none. Note in the ticket's record which you used.
 
 **`signin:` and `differs:` lines,** which `deploy.sh` reads from the dev setup record, as you keep `stand-in:` lines: a `signin: <role> /<path>` line for each role the product
 lets a test sign in as on staging, with no password, and a `differs: <what> — <on staging> — <on production>` line for each way the local staging differs from production
-beyond the `stand-in:` lines. An optional `seed: <command>` loads the synthetic seed after `start:`.
+beyond the `stand-in:` lines. An optional `seed: <command>` loads the synthetic seed after `start:`. Two more, optional, for a product that sends mail or
+acts on time (0.26.11.1.2, R9): `mail: <address> — <how to read it>` and `clock: <address> — <how to move it>`, in your words; `deploy.sh` puts the first of
+each in `staging.txt`, an address starting `/` on the staging's, and ViD gives them to its walker.
 
 **DevAgent's production lines** (v0.26.10.27.1 R8), commands as `start:` and `stop:` are, which `deploy.sh` runs and which decide everything about data: `backup:` writes
 a dump of the store at `DATA_DIR` to `DUMP`; `restore:` loads `DUMP` into the store at `DATA_DIR`; `migrate:`, optional, migrates the store at `DATA_DIR`; `production-seed:`

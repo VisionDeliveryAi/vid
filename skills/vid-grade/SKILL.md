@@ -52,7 +52,7 @@ Run the grading engine per `GRADING.md` in this skill's directory
 - Graders are fresh-context subagents (Agent tool, subagent type `vid:grader`) that
   receive NO context from this session — only the repo path and the brief:
   adversarial stance, falsifiable criteria, institutional distrust, the six
-  probes, verify-before-report.
+  probes, verify-before-report. Run every helper in the foreground (`run_in_background: false` on the Agent call), wait for its result, and never end a turn, nor schedule a wake-up, while one, or a command you started in the background, is running.
 - **Phase and executor** (v0.9.1 3.6, the rules live in GRADING.md): every
   live `pilot` REQ is collected and every `later` REQ listed as deferred;
   each brief states each item's phase and each row's executor; a
@@ -185,6 +185,7 @@ grade's fix rounds stabilise the subsystem; also standalone later.
   state-machine transition tables, additional executable checks, gates
   where warranted — each with provenance and a census command. A return
   that reads like a grade report is re-briefed, not accepted.
+  Run every helper in the foreground (`run_in_background: false` on the Agent call), wait for its result, and never end a turn, nor schedule a wake-up, while one, or a command you started in the background, is running.
 - **Doctrine:** selection may be implementation-informed; assertions stay
   behavior-keyed. The grader uses the real construction to decide WHERE
   to aim; what it writes asserts observable behavior at public

@@ -266,7 +266,7 @@
 #   /vid plan's session (stage plan) and develop never run it.
 # 0.26.10.29.2 (R9) — closed at its current rows: rule B (tickets) and breadth first's graded gate read a step built on as
 #   closed only with its `closed` line and every row it holds in the plan now in a settled handed state (accepted,
-#   accepted-by-ruling, owed, paid, held, known-limit, retired); rule B's other alternative (every row owed, paid, held
+#   accepted-by-ruling, owed, paid, held, known-limit); rule B's other alternative (every row owed, paid, held
 #   or a known limit) is as it was.
 #   canon              stdin's plan block in the admission's canonical form (runs of space one space, each step's rows a
 #                      sorted set): planner.sh's ratified compares the block to the newest recorded plan through it.
@@ -580,9 +580,9 @@ tickets_mode() { [ "$(sed -n 's/^mode:[[:space:]]*//p' "$H/.vid/RUN-STATE.md" 2>
 # hand <kind>: the handed lines of that kind, less the kind and the stand-in label; trs: $TMPD/rs, `<row><TAB><state>`
 hand() { [ -f "$H/.vid/tw/handed" ] && sed -n "s/^$1[[:space:]][[:space:]]*//p" "$H/.vid/tw/handed" | sed 's/[[:space:]]*|[[:space:]]*stand-in.*$//'; }
 trs() { tmpd; { hand row || true; } | awk '{ S[$1] = $2 } END { for (r in S) print r "\t" S[r] }' > "$TMPD/rs"; }
-TOK='function ok(x) { return x ~ /^(accepted|accepted-by-ruling|owed|paid|held|known-limit|retired)$/ }'
+TOK='function ok(x) { return x ~ /^(accepted|accepted-by-ruling|owed|paid|held|known-limit)$/ }'
 # 0.26.10.29.2 (R9): tclosed <step> (after trs): closed at its current rows — its `closed` line, and every row it holds in this
-# plan in a settled handed state (accepted, accepted by ruling, owed, paid, held, known limit, retired), so rows it gained after
+# plan in a settled handed state (accepted, accepted by ruling, owed, paid, held, known limit), so rows it gained after
 # its close, rows a landing reset and rows a later C3 marked failing all hold it open; TUN, the rows that are not settled,
 # set only when it has its closed line
 tclosed() { TUN=''; { hand closed || true; } | grep -qx "$1" || return 1
@@ -595,7 +595,7 @@ trules() {
   for _b in $(awk -F'\t' -v s="$_s" '$1 == "step" && $2 == s { print $5 }' "$TMPD/parsed" | tr ' ' '\n' | grep -v '^-$' | grep -v '^$'); do
     tclosed "$_b" && continue
     if [ -n "$TUN" ]; then GAP="$GAP
-    $_s builds on $_b, which is closed, but its rows $TUN are not accepted, ruled, owed, paid, held, known limits or retired (gained or reset since its close, or failing)"; continue; fi
+    $_s builds on $_b, which is closed, but its rows $TUN are not accepted, ruled, owed, paid, held or known limits (gained or reset since its close, or failing)"; continue; fi
     _o=$(awk -F'\t' -v b="$_b" 'FILENAME == ARGV[1] { S[$1] = $2; next } $1 == "row" && $3 == b && S[$2] !~ /^(owed|paid|held|known-limit)$/ { printf "%s%s", (n++ ? " " : ""), $2 }' "$TMPD/rs" "$TMPD/parsed")
     [ -z "$_o" ] || GAP="$GAP
     $_s builds on $_b, which is not closed, and its rows $_o are not owed, held or known limits"
@@ -697,7 +697,10 @@ admit_step() {
     _ha=$(sed -n 's/^held-after:[[:space:]]*//p' "$H/.vid/RUN-STATE.md" 2>/dev/null | head -n 1)
     [ -z "$_ha" ] || [ "$_cur" -le "$_ha" ] || _cur=$_ha   # the close moved stage: on, the hold keeps N+1 out
     if tickets_mode; then { hand candidate || true; } | grep -qx "$_cur" && [ "$_ha" != "$_cur" ] && { { hand staged || true; } | grep -q . || { hand setup-hold || true; } | grep -qx off; } && _cur=$((_cur + 1)); _pl=$(cd "$(dirname "$0")" && pwd)/planner.sh
-      ( cd "$H" && sh checks/stages.sh scope --upto "$_cur" ) > "$TMPD/st0" 2>/dev/null; ( cd "$H" && sh "$_pl" rows ) > "$TMPD/plr" 2>/dev/null || : > "$TMPD/plr"; [ "$_cur" -lt 1 ] || tinvids | grep '^SEAM-' >> "$TMPD/st0"
+      # 0.26.11.1.2 (R6): either read failing refuses, as the scope's read above does; never an empty list
+      ( cd "$H" && sh checks/stages.sh scope --upto "$_cur" ) > "$TMPD/st0" 2> "$TMPD/st0.err" || { echo "ViD plan: refused — the stage scope cannot be read (checks/stages.sh scope --upto $_cur): $(head -n 1 "$TMPD/st0.err")" >&2; refused_ev stage "$_s"; return 1; }
+      ( cd "$H" && sh "$_pl" rows ) > "$TMPD/plr" 2> "$TMPD/plr.err" || { echo "ViD plan: refused — the plan's rows cannot be read (checks/planner.sh rows): $(head -n 1 "$TMPD/plr.err")" >&2; refused_ev stage "$_s"; return 1; }
+      [ "$_cur" -lt 1 ] || tinvids | grep '^SEAM-' >> "$TMPD/st0"
       awk -F'\t' -v c="$_cur" 'FILENAME == ARGV[1] { if ($1 !~ /^#/ && ($5 ~ /^[0-9]+$/ || $5 == "later")) P[$1] = ($5 != "later" && $5 + 0 <= c); next } !($1 in P) || P[$1] { print } END { for (r in P) if (P[r]) print r }' "$TMPD/plr" "$TMPD/st0" > "$TMPD/stscope"
       started; ! grep -qx "$_s" "$TMPD/started" || cut -f2 "$TMPD/parsed" >> "$TMPD/stscope"; fi
     _lo=1; sed -n '/^```vid-stages$/,/^```$/p' "$H/STAGES.md" | grep -qE '^[[:space:]]*STAGE-0+[[:space:]]*\|' && _lo=0   # v0.26.10.8 (R2)

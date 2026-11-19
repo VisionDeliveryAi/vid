@@ -24,7 +24,7 @@ written with `sh checks/brief.sh write --role grader`, and vid-fix's
 re-grade, in GRADING.md's format. **What the brief withholds** is
 GRADING.md's shared rule ("What every brief withholds",
 `${CLAUDE_PLUGIN_ROOT}/skills/vid-grade/GRADING.md`); this skill cites it
-and does not restate it.
+and does not restate it. Run every helper in the foreground (`run_in_background: false` on the Agent call), wait for its result, and never end a turn, nor schedule a wake-up, while one, or a command you started in the background, is running.
 
 ## The return
 
