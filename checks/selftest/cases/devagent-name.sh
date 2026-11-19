@@ -29,7 +29,7 @@ if [ -f "$R/checks/selftest/cases/devagent-deploy-dm.sh" ] && [ -f "$R/checks/se
   [ "$(grep -cE "^checks/selftest/cases/devagent-(deploy-dm|prod-dm|stage-dm)\.sh:[0-9]+:.*rev-parse (00109a8|aa6e610):$O/agents/" "$T/hits")" = 6 ] || { cp "$T/hits" "$T/out"; fail 'the six pin lines are not there'; }; fi
 # the frozen two, by blob id
 [ "$(sed -f "$CHECKS/selftest/fixtures/grader-dp1-r3.sed" "$R/devagent/agents/grader.md" | git hash-object --stdin)" = 01f37dead8eded63140b5fe2ac9e765991b2e9e7 ] || fail "grader.md is not 00109a8's, but for DP-1 R3's two sentences"
-[ "$(cd "$R" && git hash-object devagent/agents/second-reviewer.md)" = d31079e4f468d8a2a9afac2858c47201acf6ca27 ] || fail "second-reviewer.md is not aa6e610's"
+[ "$(sed -f "$CHECKS/selftest/fixtures/sr-high1-r3.sed" "$R/devagent/agents/second-reviewer.md" | git hash-object --stdin)" = d31079e4f468d8a2a9afac2858c47201acf6ca27 ] || fail "second-reviewer.md is not aa6e610's, but for 0.26.11.1.3 R3's prove it real"
 # shipped
 S=$R/checks/selftest/shipped; ! grep -q "^$O-" "$S" || fail "shipped lists a case of the old name"
 for c in "$R"/checks/selftest/cases/devagent-*.sh; do grep -qxF "$(basename "$c")" "$S" || fail "shipped does not list $(basename "$c")"; done

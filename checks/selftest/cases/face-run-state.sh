@@ -5,12 +5,13 @@
 # and at StopFailure (10 s, beside stop-failure.sh), and the plugin's one module hands the end of a turn to
 # hooks/face/recorder.ts; unless a
 # prompt writes running, keeping the last step, and leaves the standing as it was; a step sets the last step, keeps
-# a running state's start, turns a stopped (or missing) file to running begun now, and recomputes the standing; Stop
+# a running state's start, turns a stopped (or missing) file to running begun now, and leaves the standing as it was
+# (0.26.11.1.3, R1: the recompute is the turn's end's alone); Stop
 # writes stopped begun now, keeping the last step, and recomputes the standing; StopFailure writes stopped; unless a
 # session id that is not a plain id writes nothing; unless where no standing is written nothing is; and unless each
 # run of the standing removes .standing.* files older than a minute and run.* files older than seven days, and
-# keeps younger ones; and unless a helper's events (an agent_id in the input) never write the session's file (its
-# step still recomputes the standing). Gated on the plugin's hooks/.
+# keeps younger ones; and unless a helper's events (an agent_id in the input) never write the session's file, nor
+# recompute the standing (0.26.11.1.3, R1). Gated on the plugin's hooks/.
 # Env: CHECKS.
 set -eu
 H=$CHECKS/../hooks
@@ -46,11 +47,11 @@ f S1 2 | grep -Eq "$utc" || fail "a prompt's start is not a UTC time: '$(run S1)
 [ "$(f S1 3)" = - ] || fail "a first prompt names a last step: '$(run S1)'"
 cmp -s S .vid/face/standing.json || fail 'a prompt recomputed the standing'
 b1=$(f S1 2); sleep 1
-# a step: the last step now, the start kept, the standing recomputed
+# a step: the last step now, the start kept, the standing left as it was (0.26.11.1.3, R1)
 hook PostToolUse S1
 [ "$(f S1 1) $(f S1 2)" = "running $b1" ] || fail "a step while running wrote '$(run S1)', not running since $b1"
 f S1 3 | grep -Eq "$utc" || fail "a step left no last step: '$(run S1)'"
-grep -q '"stops"' .vid/face/standing.json || fail 'a step did not recompute the standing'
+cmp -s S .vid/face/standing.json || fail 'a step recomputed the standing (0.26.11.1.3, R1: only Stop does)'
 l1=$(f S1 3); sleep 1
 # Stop: stopped, begun now, the last step kept, the standing recomputed
 printf '{"stale":1}\n' > .vid/face/standing.json
@@ -76,7 +77,7 @@ cp .vid/face/run.S1 R1; hookA StopFailure S1; cmp -s R1 .vid/face/run.S1 || fail
 sleep 1; hookA PostToolUse S1; cmp -s R1 .vid/face/run.S1 || fail "a helper's step while running changed the session's file: '$(run S1)'"
 hook Stop S1; cp .vid/face/run.S1 R2; sleep 1
 hookA PostToolUse S1; cmp -s R2 .vid/face/run.S1 || fail "a helper's step after Stop changed the session's file: '$(run S1)'"
-printf '{"stale":1}\n' > .vid/face/standing.json; hookA PostToolUse S1; grep -q '"stops"' .vid/face/standing.json || fail "a helper's step did not recompute the standing"
+printf '{"stale":1}\n' > .vid/face/standing.json; hookA PostToolUse S1; cmp -s S .vid/face/standing.json || fail "a helper's step recomputed the standing (0.26.11.1.3, R1)"
 hookA PostToolUse S9; [ ! -e .vid/face/run.S9 ] || fail "a helper's step wrote a file for a session with none: '$(run S9)'"
 hook UserPromptSubmit S1
 # a step with no file for the session: running
@@ -86,11 +87,11 @@ printf '{"tool_name":"Bash","session_id":"S3"}' | CLAUDE_PLUGIN_ROOT="$CHECKS/..
 [ "$(f S3 1)" = running ] || fail 'an input with no event name was not taken as a step'
 # a session id that is not a plain id names no file
 hook PostToolUse '../x'; [ ! -e .vid/x ] && [ -z "$(ls .vid/face | grep -v '^run\.S[123]$' | grep '^run\.' || true)" ] || fail "an odd session id wrote a file: $(ls -a .vid/face)"
-# the clean-up: old leftovers go, young ones stay
+# the clean-up, at the standing's recompute (Stop): old leftovers go, young ones stay
 : > .vid/face/.standing.111; touch -t 202001010000 .vid/face/.standing.111
 : > .vid/face/.standing.222
 : > .vid/face/run.OLD; touch -t 202001010000 .vid/face/run.OLD
-hook PostToolUse S1
+hook Stop S1
 [ ! -e .vid/face/.standing.111 ] || fail 'a .standing file older than a minute survived'
 [ -e .vid/face/.standing.222 ] || fail 'a young .standing file was removed'
 [ ! -e .vid/face/run.OLD ] || fail 'a run file older than seven days survived'

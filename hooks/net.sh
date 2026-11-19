@@ -12,7 +12,7 @@
 # agent's first call records its brief (vid_brief_record, below), whatever its role.
 IN=$(cat 2>/dev/null) || exit 0
 case "$IN" in *'"agent_id"'*) ;; *) exit 0 ;; esac
-HD=$(dirname "$0"); [ -f "$HD/home.sh" ] && [ -f "$HD/agent.sh" ] || exit 0
+case $0 in */*) HD=${0%/*} ;; *) HD=. ;; esac; [ -f "$HD/home.sh" ] && [ -f "$HD/agent.sh" ] || exit 0
 . "$HD/home.sh"; . "$HD/agent.sh"
 # v0.9.8.1 (R14): vid_brief_record <home> <agent id> — on the agent's first tool call, for every role, once (the
 # marker <home>/.vid/agents/<id>.brief, made exclusively): `agent-brief agent=<id> brief=<path relative to the home>`,
@@ -25,10 +25,10 @@ vid_brief_record() {
   printf 'agent-brief agent=%s brief=%s at=%s\n' "$2" "${_b:-unavailable}" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >> "$1/.vid/metrics-events"
 }
 main() {
-  KV=$(keys hook_event_name session_id cwd agent_id) || return 0
-  [ "$(kv hook_event_name)" = PostToolUse ] || return 0
-  AID=$(kv agent_id); case "$AID" in ''|*[!A-Za-z0-9._-]*) return 0 ;; esac
-  CWD=$(kv cwd); vid_near "$CWD" || return 0
+  kread hook_event_name session_id cwd agent_id || return 0   # 0.26.11.1.3 (R1): one reader pass, no process a field
+  [ "${J_hook_event_name:-}" = PostToolUse ] || return 0
+  AID=${J_agent_id:-}; case "$AID" in ''|*[!A-Za-z0-9._-]*) return 0 ;; esac
+  CWD=${J_cwd:-}; vid_near "$CWD" || return 0
   H=$(vid_home "$CWD"); [ -n "$H" ] || return 0
   vid_brief_record "$H" "$AID"   # before the net's own early exits
   [ -e "$H/.vid/net.$AID" ] && return 0

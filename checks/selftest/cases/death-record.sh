@@ -4,7 +4,8 @@
 # project (init copies checks/ alone) it proves nothing and passes; in the
 # plugin repository it runs in a directory whose name has a space.
 # Convicts unless: a StopFailure input for the run's session appends one
-# `died` line with `reason=`, `session=`, `details=` and `at=`; with
+# `died` line with `reason=`, `session=`, `details=` and `at=`, an
+# `authentication_failed` stop among them (0.26.11.1.3, R1); with
 # `agent_id`, or another session, it appends nothing; a
 # `quota_auto_resume_stale` Notification appends `usage-limit-waiting`;
 # compact and pretty-printed input both parse, and an `error_details` text
@@ -27,6 +28,11 @@ ATRE='at=[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z'
 hook "{\"session_id\":\"S1\",\"cwd\":\"$R\",\"hook_event_name\":\"StopFailure\",\"error\":\"rate_limit\",\"error_details\":\"429 the weekly limit\"}" || fail 'the hook exited non-zero'
 [ "$(n)" -eq 1 ] || fail 'no died line'
 grep -qxE "died reason=rate_limit session=S1 details=\"429 the weekly limit\" $ATRE" .vid/metrics-events || fail 'the died line is not in its form'
+# 0.26.11.1.3 (R1): a stop on an expired sign-in records its death too
+hook "{\"session_id\":\"S1\",\"transcript_path\":\"/t/S1.jsonl\",\"cwd\":\"$R\",\"hook_event_name\":\"StopFailure\",\"error\":\"authentication_failed\",\"error_details\":\"OAuth token has expired\"}" || fail 'the hook exited non-zero on authentication_failed'
+[ "$(n)" -eq 2 ] || fail 'an authentication_failed stop recorded no died line'
+tail -n 1 .vid/metrics-events | grep -qxE "died reason=authentication_failed session=S1 details=\"OAuth token has expired\" $ATRE" || fail 'the authentication_failed died line is not in its form'
+sed -i.bak '$d' .vid/metrics-events && rm -f .vid/metrics-events.bak
 hook "{\"session_id\":\"S1\",\"agent_id\":\"a-7\",\"cwd\":\"$R\",\"hook_event_name\":\"StopFailure\",\"error\":\"server_error\"}"
 hook "{\"session_id\":\"S2\",\"cwd\":\"$R\",\"hook_event_name\":\"StopFailure\",\"error\":\"server_error\"}"
 [ "$(n)" -eq 1 ] || fail 'a subagent or another session recorded a death'

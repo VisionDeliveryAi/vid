@@ -19,7 +19,10 @@ spec). `sh checks/planner.sh` judges it all (its header names each subcommand).
    anything reads `checks/`. It prints `refresh: current`, or copies the plugin's `checks/` and commits it alone. A
    project with no `checks/` at all is refreshed the same way. On exit 3 it has listed local edits it would
    overwrite: show the owner that list in plain words and ask once; on a yes run it again with `--yes`, on a no
-   refuse in one line, "checks/ needs the refresh", and plan nothing.
+   refuse in one line, "checks/ needs the refresh", and plan nothing. Then the WSL notice (0.26.11.1.3, R2): `sh
+   "${CLAUDE_PLUGIN_ROOT}/checks/lib/wsl.sh" notice`. It prints nothing except once on a native Windows shell with no
+   answer recorded for this PC: there it checks that WSL starts, records the answer and prints one line. Show the
+   owner that line as written, and go on; it asks nothing.
 1. **The stage event.** `sh checks/event.sh "stage name=plan state=start
    session=$CLAUDE_CODE_SESSION_ID records=29"`.
 2. **One planner per project.** Refuse in one line while a develop run has

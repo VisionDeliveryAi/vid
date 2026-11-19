@@ -20,7 +20,9 @@
 #   staging.txt  a passed one's: staging: http://127.0.0.1:<port>; a signin: <role> <address> line for each of the record's signin: <role> /<path> lines;
 #                the record's differs: <what> — <on staging> — <on production> lines, or differs: none; 0.26.11.1.1 (R4, R6): the record's seam: <row> real
 #                and seam: <row> stand-in — <why> lines, and seed: synthetic|production; 0.26.11.1.2 (R9), after the signin: lines, the record's first
-#                mail: <address> — <how to read it> and clock: <address> — <how to move it>, an address starting / put on the staging's, as signin:'s are
+#                mail: <address> — <how to read it> and clock: <address> — <how to move it>, an address starting / put on the staging's, as signin:'s are;
+#                0.26.11.1.3 (R3), after the seam: lines, each of the record's real: #<this okay's issue>-<n> lines, the answers to the okay's real checks,
+#                a later line of a key in place of an earlier one; a line for another okay is not copied
 #   duties.txt   0.26.11.1.1 (R3), a passed D1's or D2's: one <duty>: done|not needed|not done — <words> line a duty of its target, from the record's
 #                duty: <duty> — <answer> — <words> lines; a hosted deploy is refused while a duty of its target has none, a plant needing none. With no host:,
 #                each is <duty>: not needed — a local copy, for a test. Staging's: log-in environments outside-services sending-domain deploy-notes captures;
@@ -60,7 +62,7 @@
 #   deploy.sh rollback|restore [--setup <record>] --ask deploy-<issue> [--lose-writes]   prints recovered <the commit production runs now, or none> — <what it did>
 #   deploy.sh live [--setup <record>]         live <id> <address>, or live none; and rehearsal <id> <address> while one is up
 #   deploy.sh production [--setup <record>]   production <commit> <address>, production down — …, production stopped — …, or production none
-# The record defaults to $DM_WORK/dev-setup.txt, or the current folder's. Optional keys: seed:, signin:, mail:, clock:, differs:, seam:, duty:, migrate:, sealed-start:, decision:,
+# The record defaults to $DM_WORK/dev-setup.txt, or the current folder's. Optional keys: seed:, signin:, mail:, clock:, differs:, seam:, real:, duty:, migrate:, sealed-start:, decision:,
 # change-migrates:, change-drops:, change-rewrites:, change-services:, ready-seconds: (120), startup-seconds: (3600), and the hosted ones: host:, staging-address:,
 # production-address:, host-login:, deploy:, production-logs:. A production or a rehearsal needs backup: and restore:, a rehearsal kept:; a local first
 # production deploy production-seed:, a hosted one production-logs:. The first staging port tried is DP_PORT (47100). Exit: 0 pushed, stopped, recovered or
@@ -350,7 +352,9 @@ else
 fi
 { echo "staging: $BASE_URL"; printf '%s\n' "$SI" | awk -v b="$BASE_URL" 'NF { print "signin: " $1 " " b $2 }'
   for k in mail clock; do sed -n "s/^$k: *//p" "$SETUP" | head -n 1 | awk -v b="$BASE_URL" -v k="$k" 'NF { if ($0 ~ /^\//) $0 = b $0; print k ": " $0 }'; done; if [ -n "$DF" ]; then printf '%s\n' "$DF" | sed 's/^/differs: /'; else echo 'differs: none'; fi
-  printf '%s\n' "$SM" | sed -n 's/^./seam: &/p'; echo "seed: $SEED"; [ -z "$HO" ] || echo 'stays: up'; } > "$D/report/$ID/staging.txt"
+  printf '%s\n' "$SM" | sed -n 's/^./seam: &/p'
+  sed -n "/^real: *#${ASK#deploy-}-[0-9][0-9]* /p" "$SETUP" | awk '{ k = $2; if (!(k in L)) o[++n] = k; L[k] = $0 } END { for (i = 1; i <= n; i++) print L[o[i]] }'   # 0.26.11.1.3 (R3): this okay's alone, of a key the newest
+  echo "seed: $SEED"; [ -z "$HO" ] || echo 'stays: up'; } > "$D/report/$ID/staging.txt"
 report; duties
 if [ -n "$HO" ]; then push || die "not pushed: vid-results/$ID; the host's staging runs it"; else push || { down "$D"; die "not pushed: vid-results/$ID; the staging taken down"; }; fi
 echo "$ID" > "$SF/live"; echo "pushed vid-results/$ID"; exit 0

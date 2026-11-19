@@ -15,9 +15,12 @@ A fresh agent on claude-opus-5-5, for one job: you sort a ticket's `to-sort.txt`
 | Belongs | Could happen | A test can show it | Word |
 |---|---|---|---|
 | yes | yes | yes | `test it` |
-| yes | yes | no | `note it` |
+| yes | yes | no: it happens only outside the test environment | `prove it real` |
+| yes | yes | no, for any other reason | `note it` |
 | no | yes | either | `note it` |
 | either | no | either | `drop it` |
+
+`prove it real` (0.26.11.1.3, R3) is for a line no test here can show because the test environment is not where it happens: on another operating system, on the person's own machine, with a real sign-in, or through a real outside service.
 
 A line on a deploy-owed row cannot be `test it`, since no failing test there could fail a run of this ticket: where the table says `test it`, write `note it`.
 

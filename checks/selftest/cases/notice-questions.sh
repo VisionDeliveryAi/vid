@@ -6,7 +6,7 @@
 # next tick sends nothing, a question re-asked under a reused number (a new
 # `asked` time) is notified on its own, a `questions:` count that
 # disagrees with the lines gives one "can't be read" notice, and so does a
-# line written `Q3:`. Env: CHECKS.
+# line written `Q3:`, once: a new question asked beside it raises no second (0.26.11.1.3, R4). Env: CHECKS.
 set -eu
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 cd "$T"; CASE=notice-questions
@@ -39,5 +39,12 @@ rs active "$Q1B
 $Q2
 Q3: is the export weekly?" '3 open · next Q9'
 tick; [ "$(nnote "can't be read")" -eq 2 ] || fail 'a line written Q3: gave no notice'
+# 0.26.11.1.3 (R4): the notice is keyed on the text it cannot read, so a new question asked beside the same line raises it no more
+Q4="- Q4 · asked $(ago 1) · gates ROW-009 · May the export be a file?"
+rs active "$Q1B
+$Q2
+$Q4
+Q3: is the export weekly?" '4 open · next Q9'
+tick; [ "$(nnote "can't be read")" -eq 2 ] || fail 'one unreadable line raised the notice again after a new question'
 [ ! -f .vid/NUDGE ] || fail 'a question was nudged'
 exit 0

@@ -33,16 +33,20 @@
 # owner only (v0.26.10.10, R4): the owner may delete
 # <home>/.vid/reread-owed.<session> from another terminal to lift the block;
 # no agent-facing text and no skill file says so. It always
-# exits 0. The input is read by hooks/json.sh.
+# exits 0. From 0.26.11.1.3 (R1) the input is read in one pass of hooks/agent.sh's
+# reader (kread), and hooks/home.sh's vid_reach (no process) is tested before
+# vid_home's git.
 IN=$(cat 2>/dev/null) || exit 0
-HD=$(dirname "$0"); [ -f "$HD/json.sh" ] && [ -f "$HD/home.sh" ] || exit 0
-. "$HD/json.sh"; . "$HD/home.sh"
+case $0 in */*) HD=${0%/*} ;; *) HD=. ;; esac
+[ -f "$HD/agent.sh" ] && [ -f "$HD/home.sh" ] || exit 0
+. "$HD/agent.sh"; . "$HD/home.sh"
 main() {
-  F=$(printf '%s' "$IN" | json_fields) || return 0
-  [ "$(jget hook_event_name)" = SessionStart ] || return 0
-  case "$(jget source)" in compact|resume) ;; *) return 0 ;; esac
-  SID=$(jget session_id); case "$SID" in ''|*[!A-Za-z0-9._-]*) return 0 ;; esac
-  H=$(vid_home "$(jget cwd)"); [ -n "$H" ] && [ -f "$H/.vid/RUN-STATE.md" ] || return 0
+  kread hook_event_name source session_id cwd || return 0
+  [ "${J_hook_event_name:-}" = SessionStart ] || return 0
+  case "${J_source:-}" in compact|resume) ;; *) return 0 ;; esac
+  SID=${J_session_id:-}; case "$SID" in ''|*[!A-Za-z0-9._-]*) return 0 ;; esac
+  vid_reach "${J_cwd:-}" || return 0
+  H=$(vid_home "${J_cwd:-}"); [ -n "$H" ] && [ -f "$H/.vid/RUN-STATE.md" ] || return 0
   RUN=$(sed -n 's/^run:[[:space:]]*//p' "$H/.vid/RUN-STATE.md" | head -n 1 | awk '{ print $1 }')
   case "$RUN" in active|waiting) ;; *) return 0 ;; esac
   # the open verb and its skills
@@ -56,7 +60,7 @@ main() {
   # v0.9.8.1 (R31, F-20): the debt is armed only for `compact`. A `resume` — in the desktop app every turn a
   # background hand-back, a task notification or another session's message starts, with nothing cut — writes no debt
   # and prints the page at most once per 30 minutes per session (<home>/.vid/reentry-shown.<session>, its UTC time)
-  SRC=$(jget source)
+  SRC=$J_source
   if [ "$SRC" = resume ]; then
     SHOWN="$H/.vid/reentry-shown.$SID"
     [ -n "$(find "$SHOWN" -mmin -30 2>/dev/null)" ] && return 0

@@ -20,6 +20,8 @@
 #                   seam rows CS would ask), the hosting and the staging duties; the production okay the hosting and the production
 #                   duties; the rehearsal okay asks the kept: lines; a seam row is paid only when the passed D1 marks it real, else a
 #                   stand-in item, whose again asks D1 and CS afresh at the candidate; the owner's yes names the records kept
+#   (0.26.11.1.3, R3)    the staging okay lists the stage's open real checks (stage 0's skeleton line always, and each `finding: real` line
+#                   of its tickets), recorded `real <n> <line>` in its ask; a D1 refused twice for one is the owner's `notreal` item
 # Settings: close-chunk-minutes: (20), close-wait-minutes: (180). Records: .vid/decide/close/<step>/<k>/ (ask, again, items, read, chunks, failed,
 # acted, lined, fixes, result, numbers, done), k the ask's number, the newest read.
 # serves: tickets (0.26.10.28.4, M9)
@@ -434,20 +436,28 @@ dutyq() { printf 'Duties:\n'; if [ "$1" = staging ]; then
     printf -- '- point-in-time-recovery: point-in-time recovery on for production'"'"'s data\n- storage-versioning: versioning on for the files production stores\n- dns: the product'"'"'s domain points at production\n'
     printf -- '- https: production answers over https with a valid certificate\n- monitoring: production watched, and someone told when it stops answering\n'; fi; }
 seedw() { w=$(awk -F'\t' '$2 == "control:seed" { v = $3 } END { print v }' "$D/queue/answers" 2>/dev/null); echo "${w:-synthetic}"; }
+# 0.26.11.1.3 (R3): reals, stage N's open real checks at the candidate X, one a line, into $SX/real: stage 0's skeleton line always, then each
+# `finding: real` line of the stage's tickets merged at or before X (each one's newest evidence), less each one an earlier okay of the
+# stage listed whose D1 passed (a D1 passes only with each listed line done, or ruled by the owner)
+SKL="skeleton: the skeleton's journey, end to end, where the product's people run it (their kind of machine, or the hosted site), on the real outside services and a real sign-in"
+reals() { for O in $(ls -d "$SD/$N"/*/d1* 2>/dev/null); do [ -f "$O/passed" ] && sed -n "s/^real$TAB[0-9]*$TAB//p" "$O/ask" 2>/dev/null; done > "$SX/rk"
+  { [ "$N" != 0 ] || echo "$SKL"; stix "$N" "$X" | while read -r t; do p=$(mrg "$t" | cut -d' ' -f1); [ -n "$p" ] && ls -t .vid/results/pr-"$p"-*.txt 2>/dev/null | head -n 1; done | while read -r f; do sed -n 's/^finding: real — //p' "$f"; done | awk -v K="$SX/rk" 'BEGIN { while ((getline l < K) > 0) k[l] = 1 } !($0 in k)'; } | awk '!s[$0]++' > "$SX/real"; }
 cmd_okay() { N=$1; okdue "$N" || die "no okay is due for stage $N"; X=$(cat "$F/commit"); DK=$F/d1; mkdir -p "$DK"
   # 0.26.11.1.1 (R4, R6): the seam rows CS would ask now, and the owner's newest seed word
   E=$(sed -n 's/^engines \(.*\) | stand-in.*/\1/p' "$HAND" | tail -n 1); set -- $E; P1=${1:-}; KN=cs; DW='owed-staging|seam'; mkdir -p "$SX/ok"; cssel "$SX/ok"
-  RW=$(paste -sd ' ' "$SX/ok/seam"); SW=$(seedw)
+  RW=$(paste -sd ' ' "$SX/ok/seam"); SW=$(seedw); reals
   { printf 'okay: staging\ncommit: %s\nseed: %s\noutside-service rows: %s\n\n' "$X" "$SW" "${RW:-none}"
     printf 'Deploy this commit to staging, within the downtime tolerance the skeleton ticket'"'"'s hosting states. Report it as vid-results/deploy-<this issue>-<k>, by: DP, its commit the one above: report.txt with `outcome: passed` or `outcome: failed <step>`, and for a failed step `product change: yes` or `product change: no`; deploy.xml, one case per deploy step; and for a passed deploy staging.txt, with `staging: <address>`, one `signin: <role> <address>` line for each role you can sign in as, and one `differs: <what> — <on staging> — <on production>` line for each way staging differs from production beyond the head reports'"'"' stand-in: lines, or `differs: none`. Then comment `vid: reported d1-<k>` here; `vid: started` when you start. An owner-only step is your question here, labelled blocked.\n'
     # 0.26.11.1.1 (R1, R3, R4, R6): the further lines of a passed deploy, the seed's sentence, the hosting and the duties
     printf '\nIn staging.txt also: `seed: synthetic` or `seed: production`, as the seed above; for each outside-service row above, `seam: <row> real` when its outside service is the real one on this staging, or `seam: <row> stand-in — <why>`; and `stays: up` when staging stays up between deploys. When the product sends mail, also `mail: <address> — <how to read it>`, and when it acts on time, `clock: <address> — <how to move it>`: where the walker reads the mail and moves the clock on this staging, in your words. For a passed deploy also duties.txt: for each duty below, one line `<duty>: done — <what and where>`, `<duty>: not needed — <why>` or `<duty>: not done — <why>`.\n'
     [ "$SW" != production ] || printf '\nLoad a copy of production'"'"'s newest backup into staging in place of the made-up data, before the migration. It holds real customers'"'"' data: keep every outside service on staging limited, so nothing reaches a real person.\n'
     printf '\n'; hostq; printf '\n'; dutyq staging
+    # 0.26.11.1.3 (R3): the real checks, each answered in staging.txt by a real: line keyed by this okay's issue
+    [ ! -s "$SX/real" ] || { printf '\nProve it real: each check below shows only where the product'"'"'s people run it, so no test here can show it. Run each there, on their kind of machine or the hosted site, with the real outside services and a real sign-in, and answer it in staging.txt, one line each: `real: #<this issue>-<n> done — <what was run, where>`, or `real: #<this issue>-<n> not done — <why>`. On a hosted staging, deploy first, run the checks on it, then report again as this okay'"'"'s next attempt.\n'; awk '{ printf "- %d. %s\n", NR, $0 }' "$SX/real"; }
     grep -q '^staged ' "$HAND" 2>/dev/null || grep -q '^setup-hold off ' "$HAND" 2>/dev/null || if [ "$((N + 1))" -le "$(finals)" ]; then printf '\nUntil this deploy passes, or the owner says continue, no ticket of stage %s is published.\n' "$((N + 1))"
       else printf '\nStage %s is the last stage: no later stage waits on this deploy.\n' "$N"; fi; } > "$DK/body"   # v0.26.10.26.7 (R2); v0.26.10.28.8 (R9): no stage named that does not exist
   n=$(gh_ deploy-ask --stage "$N" --commit "$X" --title "Deploy to staging: stage $N, candidate $c" --body-file "$DK/body") || die 'the okay could not be posted'
-  printf 'issue\t%s\ncommit\t%s\nasked\t%s\nseed\t%s\nrows\t%s\n' "$n" "$X" "$(stamp)" "$SW" "$RW" > "$DK/ask"; ev "stage-okay stage=$N candidate=$c issue=$n commit=$X"; echo "asked $n okay stage-$N"
+  { printf 'issue\t%s\ncommit\t%s\nasked\t%s\nseed\t%s\nrows\t%s\n' "$n" "$X" "$(stamp)" "$SW" "$RW"; awk '{ printf "real\t%d\t%s\n", NR, $0 }' "$SX/real"; } > "$DK/ask"; ev "stage-okay stage=$N candidate=$c issue=$n commit=$X"; echo "asked $n okay stage-$N"
   # an earlier okay still out with no D1 passed is withdrawn (V2 §5.7)
   for O in $(ls -d "$SD"/*/*/d1 2>/dev/null); do [ "$O" != "$DK" ] && [ -f "$O/ask" ] && [ ! -f "$O/passed" ] && [ ! -f "$O/closed" ] || continue; i=$(sed -n "s/^issue$TAB//p" "$O/ask")
     printf 'vid: withdrawn. A newer okay, #%s, takes staging; a later report for this one is not read.\n' "$n" > .vid/round/wc; gh_ comment "$i" --body-file .vid/round/wc > /dev/null 2>&1 || true; gh_ close "$i" > /dev/null 2>&1 || true
@@ -483,7 +493,9 @@ kdecide() { KN=$1; shift; N=$1; F=$SD/$1/$2; DK=$F/$KN; [ -f "$DK/ask" ] && [ ! 
       else dcom "vid: failed at $st: deploy again and report as attempt $((k + 1))" "Failed at $st, which you say needs no product change."; echo "failed $k $st" >> "$DK/again"; ev "stage-$KN stage=$N issue=$i result=failed step=$(printf %s "$st" | tr ' ' '-') change=no"; echo "$KN-failed $N $st"; fi ;;   # fields: stage-d1 stage-rh
     refused) k=$3; if ! grep -qx "refused $k" "$DK/again"; then
       if grep -q '^refused ' "$DK/again" && ! allow refused; then wr=$(cut -f4- "$DK/read" | head -n 1)
-        case $KN:$wr in d1:'the duty '*' is not done: '*) du=${wr#the duty }; du=${du%% *}; ditem "notdone $du $wr" "$k" ;; *) ditem "refused $KN twice: $wr" "$k" ;; esac; return 0; fi   # 0.26.11.1.1 (R3): a duty not done, keyed by its duty
+        case $KN:$wr in d1:'the duty '*' is not done: '*) du=${wr#the duty }; du=${du%% *}; ditem "notdone $du $wr" "$k" ;;
+          d1:'the real check #'*' is not done: '*|d1:'staging.txt has no real: line for #'*) rn=${wr#*#}; rn=${rn#*-}; rn=${rn%%[!0-9]*}; ditem "notreal $rn $wr" "$k" ;;   # 0.26.11.1.3 (R3): a real check, keyed by its number
+          *) ditem "refused $KN twice: $wr" "$k" ;; esac; return 0; fi   # 0.26.11.1.1 (R3): a duty not done, keyed by its duty
       dcom "vid: refused $KN-$k" "$(cut -f4- "$DK/read" | head -n 1)"; echo "refused $k" >> "$DK/again"; echo "$KN-refused $N $k"; return 0; fi; LATE=1 ;;
     absent) LATE=1 ;;
   esac

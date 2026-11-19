@@ -27,6 +27,7 @@
 # (a candidate's D1 passed, or a production line covering it) or leaves a stage with no row; its landing withdraws every candidate
 # of each stage it changes (.vid/decide/stage/<N>/<c>/withdrawn, with its C3, S1 and D1 okay still out), its plan change is a
 # scope-change, RUN-STATE's stage: moves to the new cut's current stage, and it records the stage-cut event.
+# In GitHub manual (GM-1 S1) draft and the landing refuse, exit 1, naming the hand path; count still reads a draft.
 # Usage: sh checks/land.sh draft --review <file> [--why "<…>"] [--plan <file>] [--for <keys>] [--replaces <n>] | count <n> | <n> --words "<the owner's yes>"
 # serves: tickets (0.26.10.28.4, M9)
 set -u
@@ -292,6 +293,9 @@ cmd_land() { n=${1:-}; shift; WORDS=''; [ "${1:-}" = --words ] && WORDS=${2:-}; 
   cat "$T/rec" "$T/stm" 2>/dev/null; echo "landed $n at $L: $(sed -n 1p "$X/count")"; }
 
 CMD=${1:-}; [ $# -eq 0 ] || shift
+# GM-1 S1: in GitHub manual the door neither drafts nor lands: a landing re-ratifies on its own, which the applied version
+# refuses while anything is pending. The owner changes the spec by hand, as today, and the change shows as pending
+case $CMD in draft|[0-9]*) if manual; then ref 'In GitHub manual the door does not change the spec: change it by hand, as today, and the change shows as pending at /vid next.'; fi ;; esac
 case $CMD in
   draft) cmd_draft "$@" ;;
   count) X=$DR/${1:-}; [ -f "$X/base" ] || die "no draft ${1:-}"; count "$X"; cat "$X/count" ;;

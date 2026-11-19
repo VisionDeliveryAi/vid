@@ -18,7 +18,8 @@
 # Each tick writes one `observe:` line per observation to the heartbeat:
 #   1. session activity age (the newest heartbeat line NOT written by the
 #      observer) and git recency — the observer's own lines never refresh
-#      the session's clock;
+#      the session's clock; 0.26.11.1.3 (R4): with `run: active`, no step for twice the interval and nothing
+#      holding, also `no step for <h> h <m> m, though the run reads active: its session may have stopped`;
 #   2. every declared operation: inside its envelope → nothing; overdue →
 #      `VID_OBSERVER=1 sh checks/watchdog.sh check <op>` (bounded; exit 2 the
 #      system answered, exit 3 the system is the finding);
@@ -37,7 +38,7 @@
 #   - a new question (a `Q<n>` line in RUN-STATE's "Open product questions",
 #     keyed on its number and its `asked` time; one notice for a tick's new
 #     questions); the question list unreadable (the `questions:` count and
-#     the lines disagree, or a line does not parse);
+#     the lines disagree, or a line does not parse; 0.26.11.1.3 (R4): keyed on the text of the lines it cannot read);
 #   - the run waiting on an answer (`run: waiting` with a `Q<n>` line), once
 #     per episode and once a day while it lasts; stopped for a reason (not
 #     for `owner asked to pause`); its record contradicted by a newer commit
@@ -53,7 +54,8 @@
 #     commit, a timed line in the events or .vid/hook-times — never a
 #     `brief-check` line, which the observer's own tick writes), and no
 #     death standing with nothing after it. One quiet notice stands at a
-#     time; newer activity, or the run leaving that state, clears it.
+#     time; newer activity, or the run leaving that state, clears it. 0.26.11.1.3 (R4): it names each open question with its
+#     gates, from its Q line, and says the build isn't waiting on you only when none is open.
 #   An episode is the `at=` of the newest `run state` event (the session
 #   writes one at every write of `run:`), or the `run:` line without one.
 #   A notice is recorded once, as an `observe: notice — <text>` heartbeat
@@ -615,8 +617,10 @@ $k"; NEWQ="$NEWQ${NEWQ:+; }$qn: $(cap "$qt") — it holds up $qg"
     if notify "qbatch.$NOW" "$T1"; then for k in $NEWK; do [ -n "$k" ] && sset "notified.$k" "$NOW"; done; fi
   fi
   # the question list unreadable (only where RUN-STATE carries the 0.9.5 `questions:` key)
+  # 0.26.11.1.3 (R4): keyed on the text of the lines it cannot read, so the same line is told once, whatever questions come beside it
   if [ -n "$QKEY" ] && { [ "${QK:-x}" != "$NQ" ] || [ "$NQRAW" != "$NQ" ]; }; then
-    notify "qlist.${QK:-x}.$NQRAW" "ViD: the build's list of questions to you can't be read, so a question may be missing from these notices. Open its session and ask what it is waiting on."
+    _uq=$(printf '%s\n' "$QSEC" | { if [ -n "$QLINES" ]; then grep -vxF -e "$QLINES" || true; else cat; fi; } | cksum | cut -d' ' -f1)
+    notify "qlist.$_uq" "ViD: the build's list of questions to you can't be read, so a question may be missing from these notices. Open its session and ask what it is waiting on."
   fi
   # waiting on the owner: when the episode begins, then once a day while it lasts
   if [ "$RUN" = waiting ] && [ "$NQ" -gt 0 ]; then
@@ -698,7 +702,11 @@ $k"; NEWQ="$NEWQ${NEWQ:+; }$qn: $(cap "$qt") — it holds up $qg"
   # no run-quiet notice while any agent's current episode is working
   if [ -z "$QS" ] && [ "$REASONLESS" = yes ] && [ "$HELD" = no ] && [ "$DSTAND" -eq 0 ] && [ "$AWORK" = no ] && [ $((NOW - ACT)) -gt "$INT" ]; then
     if [ "$ACT" -gt 0 ]; then QTXT="ViD: the build has gone quiet for $(( (NOW - ACT) / 60 )) min without saying why"; else QTXT='ViD: the build has gone quiet without saying why'; fi
-    QTXT="$QTXT, and it isn't waiting on an answer from you. It may have stopped by itself, it may be waiting on a permission prompt, or a network drop, sleep or a closed app stopped it. Open its session: answer any prompt, or say 'continue' — or in a terminal in $PWD: \`claude --resume ${SESSION:-<session>}\`."
+    # 0.26.11.1.3 (R4): the open questions, each with its gates from its Q line; with none, as before, it isn't waiting on you
+    if [ "$NQ" -gt 0 ]; then _ql=''; for q in $QLINES; do _ql="$_ql${_ql:+, }$(printf '%s\n' "$q" | sed 's/^- \(Q[0-9]*\) · asked [^ ]* · gates \([^·]*\) · .*/\1 (gates \2/;s/[[:space:]]*$//'))"; done
+      QTXT="$QTXT. $NQ question$([ "$NQ" -eq 1 ] && echo ' to you is' || echo 's to you are') open: $_ql. It may have stopped by itself,"
+    else QTXT="$QTXT, and it isn't waiting on an answer from you. It may have stopped by itself,"; fi
+    QTXT="$QTXT it may be waiting on a permission prompt, or a network drop, sleep or a closed app stopped it. Open its session: answer any prompt, or say 'continue' — or in a terminal in $PWD: \`claude --resume ${SESSION:-<session>}\`."
     if notify "quiet.$ACT" "$QTXT" resume; then QS="quiet.$ACT $NOW"; sset quiet.standing "$QS"; fi
   fi
   [ -n "$QS" ] && LIVE="$LIVE ${QS%% *} "
@@ -818,6 +826,9 @@ for f in $FLAGS; do obs "$f"; done
 progress_tick
 drop_tick
 conditions
+# 0.26.11.1.3 (R4): what the age means — no step for twice the interval, nothing holding, while the run reads active
+if [ "$RUN" = active ] && [ "$ACT" -gt 0 ] && [ $((NOW - ACT)) -gt $((2 * INT)) ] && [ "$HELD" = no ] && [ "$AWORK" = no ]; then
+  _na=$((NOW - ACT)); obs "no step for $((_na / 3600)) h $(( (_na % 3600) / 60 )) m, though the run reads active: its session may have stopped"; fi
 QSTAND=$(sget quiet.standing)
 
 # declared operations govern

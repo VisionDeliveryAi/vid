@@ -21,5 +21,5 @@ for r in grader stage-grader builder; do c=c1; [ "$r" = stage-grader ] && c=c2; 
   [ -f "$(sed -n 's/^.*GRADING.md: //p' "$N")/skills/vid-grade/GRADING.md" ] || fail "the folder the $r's note names does not hold GRADING.md"
   ! grep -qF "$L" "$T/fc" || { cp "$T/fc" "$T/out"; fail "the plugin folder line reached the $r's prompt"; }
   sh "$DM" wait "$A" > /dev/null 2>&1 || true; sh "$DM" take "$A" > /dev/null 2>&1 || true; done
-[ "$(sed -f "$CHECKS/selftest/fixtures/grader-dp1-r3.sed" "$RT/devagent/agents/grader.md" | git hash-object --stdin)" = 01f37dead8eded63140b5fe2ac9e765991b2e9e7 ] && [ "$(git -C "$RT" hash-object devagent/agents/second-reviewer.md)" = d31079e4f468d8a2a9afac2858c47201acf6ca27 ] || fail 'a frozen file changed'
+[ "$(sed -f "$CHECKS/selftest/fixtures/grader-dp1-r3.sed" "$RT/devagent/agents/grader.md" | git hash-object --stdin)" = 01f37dead8eded63140b5fe2ac9e765991b2e9e7 ] && [ "$(sed -f "$CHECKS/selftest/fixtures/sr-high1-r3.sed" "$RT/devagent/agents/second-reviewer.md" | git hash-object --stdin)" = d31079e4f468d8a2a9afac2858c47201acf6ca27 ] || fail 'a frozen file changed'
 echo 'devagent-grader-folder: ok'

@@ -14,6 +14,8 @@ fail() { echo "github-allow-list: $*" >&2; cat "$T/out" >&2 2>/dev/null; exit 1;
 GS=$CHECKS/github.sh
 OK='auth status|repo view|repo create|label create|issue create|issue edit|issue view|issue list|issue comment|issue close|pr view|pr list|pr comment|api -X|api "repos/\$REPO/milestones"'
 # 0.26.10.28.7 (R6): the share's own forms, exactly these (share-allow proves each is tied to its one target)
+# GM-1 S6: next-read's one new call, a GET of an issue's sub-issues (next-read checks it is refused with any method but GET or a field)
+OK="$OK"'|api "repos/\$REPO/issues/\$p/sub_issues"'
 OK="$OK"'|api user|api "users/\$WHO"|api "orgs/\$SOWN/memberships/\$LOGIN"|api "repos/\$SREPO/collaborators/\$WHO"|api "repos/\$SREPO/invitations"'
 grep -v '^[[:space:]]*#' "$GS" | grep -oE 'ghc [a-z"-][^ ]* [^ ]*' | sed 's/^ghc //' | awk '{ print $1 " " $2 }' | sort -u > "$T/calls"
 [ -s "$T/calls" ] || fail 'no ghc call found — the case reads nothing'

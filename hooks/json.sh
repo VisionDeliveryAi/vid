@@ -1,5 +1,7 @@
 # Purpose: ViD's JSON reader for the plugin's hooks (v0.9.6.2 spec 3.2) —
-# sourced by hooks/stop-failure.sh and hooks/record.sh, never run alone. A
+# sourced by hooks/record.sh, for the plugin's own plugin.json, never run alone
+# (0.26.11.1.3, R1: a hook's input is read by hooks/agent.sh's kread, since this
+# reader's time grows faster than its input's size: 3.7 s on a 200 KB Write). A
 # hook's input is JSON on stdin, read with POSIX tools only: a scanner walks
 # it character by character, strings and escapes included, and takes a key
 # only at the top level of the object, so compact and pretty-printed input

@@ -307,9 +307,10 @@ commit: <the head read>
 ROW-13 test it — <one-line reason> — <the grade line, word for word>
 ROW-14 note it — <one-line reason> — <the grade line, word for word>
 ROW-15 drop it — <one-line reason> — <the grade line, word for word>
+ROW-16 prove it real — <one-line reason> — <the grade line, word for word>
 ```
 
-The sort leaves out known-limit rows, and a `breached test` line on a row that is not deploy-owed, which skips it: TM plants a break aimed at what the line says, at that head, before the ask, and it reads as any fault. An inconclusive one stands apart, and replaces no fault folder. With no fault folder for that row, at the grade's own head, the line goes to the sort; at any later head it is closed. A joined line's break is aimed at its first reason. `test it` goes to TA, for a tests-only commit on the head that adds a case under the row's id, and then the head report alone, or with a decision's failing rows beside it, in the one pass of all that head's test lines: a failing test makes its row failing, a product failure, and a passing test closes it. A change to an existing case makes that row `retested:` in the next head report, and it takes its break. `note it` reaches the queue as a `finding: note` line. `drop it` stays on the report. A line on a deploy-owed row is never `test it`.
+The sort leaves out known-limit rows, and a `breached test` line on a row that is not deploy-owed, which skips it: TM plants a break aimed at what the line says, at that head, before the ask, and it reads as any fault. An inconclusive one stands apart, and replaces no fault folder. With no fault folder for that row, at the grade's own head, the line goes to the sort; at any later head it is closed. A joined line's break is aimed at its first reason. `test it` goes to TA, for a tests-only commit on the head that adds a case under the row's id, and then the head report alone, or with a decision's failing rows beside it, in the one pass of all that head's test lines: a failing test makes its row failing, a product failure, and a passing test closes it. A change to an existing case makes that row `retested:` in the next head report, and it takes its break. `note it` reaches the queue as a `finding: note` line. `prove it real` is for a line that belongs and could happen in normal use but that no test here can show, because the test environment is not where it happens (another operating system, the person's own machine, a real sign-in, a real outside service): it reads as a `finding: real` line, decides nothing of the ticket, and goes to the stage's staging okay, settled by its `real:` answer there, never by a finding's ruling. `drop it` stays on the report. A line on a deploy-owed row is never `test it`.
 
 ## The decision
 
@@ -341,7 +342,10 @@ that could not run in one engine, `analyst due — <engine>, <n> cases could not
   <the report's id>`, `scope: project`, `origin: dev-side`, once: a line whose words it holds already is not recorded again;
 - for a passed D1, also `staging.txt`: a `staging: <address>` line, and one `signin: <role> <address>` line for each
   role the sign-in rows name; its `seed:` line, a `seam:` line for each outside-service row its okay names, and `stays: up`
-  when staging stays up. Each sign-in is test-only: it signs in as that role on staging, with no password, and
+  when staging stays up; and for each real check its okay lists (stage 0's okay always lists the skeleton's journey, run end
+  to end where the product's people run it), `real: #<the okay's issue>-<n> done — <what was run, where>` or
+  `real: #<the okay's issue>-<n> not done — <why>`, the key never another okay's. A check with no line, or not done, sends the
+  report back; sent back twice, it waits on ViD's ruling: fixed, a row or a known limit. Each sign-in is test-only: it signs in as that role on staging, with no password, and
   never works on production.
 
 **Test differences.** Each `stand-in:` line names a setting that differs between the team's tests and production. ViD
@@ -373,11 +377,11 @@ ViD reads the form only:
 - the branch holds only its folder;
 - the commit is the one asked for (for T2, the one TM names), and the code repository holds it;
 - `results.txt`, `sorted.txt`, `grade.txt` and `report.txt` each name the role this document gives them;
-- each line of `sorted.txt` holds one of the three words;
+- each line of `sorted.txt` holds one of the four words;
 - an S1 report's `commit:` is the candidate's, and it grades every asked requirement once, with one of the four words, and no other;
 - a test report has a cases file for every asked engine (T2 and faults need only the primary; a close chunk's report, every engine of its chunk);
 - a `retested:` line holds row ids alone;
-- a passed D1 report has its `staging.txt`, with staging's address.
+- a passed D1 report has its `staging.txt`, with staging's address, and a `real:` line for each real check its okay lists.
 
 A report that lacks one of these is not read: ViD says why on the issue or pull request it answers, and the role that
 made it sends a new attempt. Nothing about a single row stops a report being read: a missing case makes its row fail, a

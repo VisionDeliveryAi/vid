@@ -2,10 +2,12 @@
 
 Taken from skills/vid-develop's spawned roles, hand-backs and clean-up, and from DevAgent's earlier manager (v0.26.10.24.7 R1). You are a
 fresh agent, for one pass: read the state, work until nothing can move, add to `dm-report.txt`, and end. Keep nothing
-in your head that is not on the repository or in the work folder: `../dev-manager/dm.sh` starts a fresh one when there is more, and it goes on from the next step.
+in your head that is not on the repository or in the work folder: `../dev-manager/dm.sh` starts a fresh one when there is more, and it goes on from the next step. With
+`agents: conversation` in your job note (0.26.11.1.3, R5), DevAgent's own conversation is the dev manager instead, a pass at a time: it reads this file afresh at each pass, and
+keeps nothing from one pass to the next that is not there either.
 
 **Read, whole, first:** your job note (the repository, the work folder, the export, the limits); `../test-manager/SKILL.md`, where you are
-whoever runs the dev side: follow it whole; each role file when you write that role's job note. Run dm.sh and run.sh by their full paths; `DM_WORK` is set for you.
+whoever runs the dev side: follow it whole; each role file when you write that role's job note. Run dm.sh and run.sh by their full paths; `DM_WORK` is set for you (with `agents: conversation`, by the `DM_WORK=…` line `dm.sh here` printed, put before each call).
 
 **You never:**
 - write code, a test or a report's judgement;
@@ -47,6 +49,10 @@ A header line `- earlier work: ticket #<m>[, pull request #<p>]` names an earlie
 2. A clone of its own, `clones/<role>-<n>-<k>`, cloned now; for a grader, the folder `run.sh blind` printed. `sh dm.sh start <role> <job note> <clone>`, where the role is `setup`, `test-author`, `builder`, `fixer`, `grader`, `stage-grader`, `second-reviewer` or `test-analyst`. Refused
    past the limit: write that in the report and end.
 3. `sh dm.sh wait <id>`, then the hand-back, then a line in the record, then `sh dm.sh take <id>`.
+4. **With `agents: conversation`** (0.26.11.1.3, R5), `start` starts nothing: it prints the agent's id, then the prompt, the model, the limits and the hand-back path. Run that
+   prompt as a fresh helper, on that model, in the foreground, and keep its limits yourself: dm.sh keeps neither. Write its final message, whole, to the hand-back path (left
+   empty when it was stopped or gave none), then `sh dm.sh done <id> <the seconds it ran>`, then step 3. Before `done`, `wait` prints `running`; `stop` writes the agent up
+   with an empty hand-back.
 
 **Job notes:**
 - **Test author:** the export's route table, by name, among what it reads; the rows' file is the plain ticket.
@@ -135,7 +141,9 @@ a line in the record, `take`. A long host set-up runs in its agent, never in you
 with `by: DP`, and keep the record's lines, as the steps below say; the deploying in them is the deployer's, and you never run `deploy.sh` for that okay yourself. With `deploy: local`
 in your job note, a test (or with no host and no platform at all), you are the deployer, DP, as below: no claim, branch, pull request or agent, `../deployer/deploy.sh` alone, which with
 `deploy: local` deploys nowhere but this machine. Before each such staging deploy, write in the dev setup record a `seam: <row> stand-in — a local copy` line for each row of the okay's
-`outside-service rows:` line, replacing any earlier `seam:` line for that row; `deploy.sh` puts them in the report, and with no `host:` it asks no `duty:` line. With `deploy: local`
+`outside-service rows:` line, replacing any earlier `seam:` line for that row; `deploy.sh` puts them in the report, and with no `host:` it asks no `duty:` line. For each line
+the okay asks a real run for (0.26.11.1.3, R3), do its check first, where the line says, then write in the dev setup record `real: #<okay issue>-<n> done — <what was run, where>`, or
+`real: #<okay issue>-<n> not done — <why>` when this machine is not where it can run, replacing any earlier line with the same key; `deploy.sh` copies this okay's into the report. With `deploy: local`
 and a `host:` line in the dev setup record, deploy nothing: `deploy.sh` would deploy to the host on that line alone. Write a line in `dm-report.txt` and a `Question:` comment on the okay,
 with `by: DM` on its second line, naming both, then the blocked label; leave the record as it is.
 1. Read it afresh each pass: its lines, the instruction, and its comments.

@@ -1173,16 +1173,14 @@ unmodified. No hooks are installed (hook installation is init's job);
 the court gate above carries the enforcement — run it before each of
 the three ratification commits.
 
-**First, on a PC (0.26.10.29.3, R6).** Standalone only (inside vid-init,
-init has asked already): after the `git init` above and before the
-interview, run `sh "${CLAUDE_PLUGIN_ROOT}/checks/lib/wsl.sh" ask`. It
-prints nothing except on a native Windows shell with WSL available and no
-answer recorded for this PC; then it prints one question, which you ask
-the owner as written, alone, and record the answer with
-`sh "${CLAUDE_PLUGIN_ROOT}/checks/lib/wsl.sh" record yes` (or `record no`).
-It is a question about this PC, not a product question or an approval
-point, and it is asked once per machine. Printing nothing means ask
-nothing: the court runs natively, only more slowly.
+**First, on a PC (0.26.10.29.3, R6; 0.26.11.1.3, R2).** Standalone only (inside
+vid-init, init has run it already): after the `git init` above and before
+the interview, run `sh "${CLAUDE_PLUGIN_ROOT}/checks/lib/wsl.sh" notice`. It
+prints nothing except once on a native Windows shell with no answer
+recorded for this PC: there it checks that WSL starts, records the answer
+and prints one line, which you show the owner as written, and go on. It
+asks nothing and is not an approval point; the line names the file to edit
+to turn WSL off.
 
 The hand-back names the portability fact: **the PRD and its SEED.md
 carry the whole record** (the PRD alone when the seed sits in its

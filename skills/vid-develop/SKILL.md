@@ -58,6 +58,11 @@ with `VID_ROLE=fix`, its subject `Refresh checks/ to VID <version>` (the
 next refresh's list counts from it). Record
 the stop as `run: stopped checks/ needs the refresh` (the four legal
 stops, below).
+**The WSL notice (0.26.11.1.3, R2).** Then, before any court runs, `sh
+"${CLAUDE_PLUGIN_ROOT}/checks/lib/wsl.sh" notice`. It prints nothing except
+once on a native Windows shell with no answer recorded for this PC: there
+it checks that WSL starts, records the answer and prints one line. Show the
+owner that line as written, and go on; it asks nothing.
 **The code skeleton's floor (v0.26.10.9 R5): the version and provenance
 first, then the reader.** With `checks/records-version` below 29, `sh
 checks/plan.sh skeleton` doesn't exist there and is never called: a project

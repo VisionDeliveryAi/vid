@@ -5,20 +5,26 @@
 #     whole by rename, so any face can tell whether the session runs: a prompt writes running (the last step kept);
 #     a step sets the last step, and turns a stopped or missing file to running begun now; Stop and StopFailure
 #     write stopped (the last step kept); a helper's events (an agent_id) never write it;
-#   - after a step and at Stop it recomputes the standing with checks/face.sh, so the map follows stops 6 to 9 (the
-#     technical hints, the design, the test list, the releases), which no sitting writes.
+#   - at Stop, the end of a turn, it recomputes the standing with checks/face.sh, so the map follows stops 6 to 9 (the
+#     technical hints, the design, the test list, the releases), which no sitting writes. From 0.26.11.1.3 (R1) a step,
+#     a helper's included, no longer recomputes it: the step only writes the run file.
+# Its three fields (the event, the session, the helper) are taken in one pass of hooks/agent.sh's reader, whose time
+# grows in step with the input (a Write's whole text is in it); key order does not matter to it.
 # An input with no event name is a step (as before). Elsewhere it does nothing. It only rewrites those
 # work-in-progress files; it fails open and always exits 0.
 IN=$(cat 2>/dev/null || true)
 TOP=$(git rev-parse --show-toplevel 2>/dev/null || pwd -P)
 [ -f "$TOP/.vid/face/standing.json" ] || exit 0
-R=${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd -P)}
+case $0 in */*) HD=${0%/*} ;; *) HD=. ;; esac
+R=${CLAUDE_PLUGIN_ROOT:-$(cd "$HD/.." && pwd -P)}
 ev=''; sid=''; agent=''
-if [ -f "$R/hooks/json.sh" ]; then
-  . "$R/hooks/json.sh"
-  F=$(printf '%s' "$IN" | json_fields 2>/dev/null) || F=''
-  ev=$(jget hook_event_name); sid=$(jget session_id); agent=$(jget agent_id)
+if [ -f "$R/hooks/agent.sh" ]; then
+  . "$R/hooks/agent.sh"
+  kread hook_event_name session_id agent_id 2>/dev/null && { ev=${J_hook_event_name:-}; sid=${J_session_id:-}; agent=${J_agent_id:-}; }
 fi
+# a helper (an agent_id in the input) never writes the session's file: a write of its own could land after the
+# session's Stop and undo it. Nor (0.26.11.1.3, R1) does its step recompute the standing; the session's Stop does.
+[ -n "$agent" ] && exit 0
 case $sid in *[!A-Za-z0-9_-]*) sid='' ;; esac
 RUN=$TOP/.vid/face/run.$sid
 now=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
@@ -26,19 +32,10 @@ state=''; since=''; last=''
 [ -n "$sid" ] && [ -f "$RUN" ] && read -r state since last < "$RUN" 2>/dev/null
 put() { [ -n "$sid" ] || return 0; printf '%s %s %s\n' "$1" "$2" "${3:--}" > "$RUN.$$" 2>/dev/null && mv -f "$RUN.$$" "$RUN" 2>/dev/null; return 0; }
 standing() { (cd "$TOP" && sh "$R/checks/face.sh" standing > /dev/null 2>&1) || true; }
-# a helper (an agent_id in the input) never writes the session's file: a write of its own could land after the
-# session's Stop and undo it. Its step still recomputes the standing; the wait's last step does not move for it.
-if [ -n "$agent" ]; then
-  case $ev in
-    StopFailure) ;;
-    *) standing ;;
-  esac
-  exit 0
-fi
 case $ev in
   UserPromptSubmit) put running "$now" "$last" ;;
   Stop) put stopped "$now" "$last"; standing ;;
   StopFailure) put stopped "$now" "$last" ;;
-  *) [ "$state" = running ] || since=$now; put running "$since" "$now"; standing ;;
+  *) [ "$state" = running ] || since=$now; put running "$since" "$now" ;;
 esac
 exit 0

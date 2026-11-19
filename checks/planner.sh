@@ -39,6 +39,15 @@
 #             items, stage, class, marks, promise, fail-if, class text, carried (`name: value` joined by ` · `), golden
 #             (the set's path, or -); --short cuts each promise to 80 characters. PLAN.md may be absent
 #   rows --added   the inventory's `origin: plan` lines, as written (the review's input)
+#   rows --newest [--short]   (GM-1 S3) the rows table of the working tree's spec, in every mode
+# GitHub manual (GM-1 S3, S4; lib.sh's manual): every subcommand but setup and rows --newest reads PRD.md, INVENTORY.md,
+#             STAGES.md, GRADING-CHECKLIST.md and ARCHITECTURE.md at .vid/tw/applied's commit and PLAN.md at HEAD, and refuses
+#             when that names no commit (reratify refuses outright: the door lands nothing); P1's check of INVENTORY.md against
+#             HEAD does not apply. A row in no step is flagged `place <row> — in no step`, a planned row in a step of another
+#             stage `place <row> — in step <s> of stage <k>; its own stage is <j>` (a step's own stage: the stage most of its
+#             planned rows are in, the earliest on a tie), in place of the class and step flags; a row .vid/tw/to-place lists
+#             (`<row> <no-step|other-stage> <at> <the owner's words>`, tab-separated) in that place is no flag, and the page lists
+#             it as to place. P4: stage 0 may hold several steps, one the skeleton, building on nothing and in stage 0
 #   review --in <file>   records a review pass's output (`finding <row id> | <why>` lines, or `none`) in
 #             .vid/plan/review — `review <r> hash=<h> findings=<k> at=<t>`, then `finding <n> review=<r> hash=<h> |
 #             <row id> | <why>` each; an empty output, a line out of form or one naming no row ViD added refuses it
@@ -68,20 +77,24 @@
 #   hash      the spec files' hash: PRD.md, INVENTORY.md, STAGES.md, GRADING-CHECKLIST.md, ARCHITECTURE.md, PLAN.md
 #   setup <key> <answer> --words "<the owner's words>"   (v0.26.10.26.7, R11) one setup answer: layout, team (one line each),
 #             split, repo, spec-repo ("not yet" writes no key) or github-mode (v0.26.10.28.8, R3: auto, ViD's own DevAgent works
-#             the tickets, or team, an outside team's); written to .vid/tw/settings, and `setup-answered key=` in
+#             the tickets, or team, an outside team's; GM-1 S1: manual, the owner's team by hand, which, like a change away from
+#             manual, only /vid mode's own call sets, VID_CALLER=mode), state-repo (GM-1 S1: owner/name, ViD's own private
+#             repository, never repo: or spec-repo:) or slack-channels (names, comma-separated, or none); written to .vid/tw/settings, and `setup-answered key=` in
 #             .vid/plan/setup, the planner's own record (it writes no event) — until
 #             the first ratify, check flags `setup <key>` for each of layout, team, split, repo, spec-repo (none with
-#             layout: one) and github-mode that no such event covers
+#             layout: one) and github-mode that no such event covers; in GitHub manual (GM-1 S1) state-repo too, and github-mode
+#             not under /vid mode's own mark
 #   prereq    (v0.26.10.12.3.2, R10) what the skeleton ticket quotes, no PLAN.md needed: one line per gap, exit 0; the page's notes repeat each
 #   prd-form  (0.26.10.28.1, stage 9 R6, CK-R-006) refuses a PRD.md in the legacy block form (no ```vid-prd block) in one line,
 #             exit 1, naming /vid create-prd's import door; silent, exit 0, on an enriched PRD or none
-# Usage: sh checks/planner.sh check | prereq | prd-form | rows [--short|--added] | review --in <file> | page | counts |
+# Usage: sh checks/planner.sh check | prereq | prd-form | rows [--short|--added|--newest] | review --in <file> | page | counts |
 #        answer <n> keep --words "<…>" | ratify --words "<…>" | reratify … | ratified | hash
 # serves: tickets (0.26.10.28.4, M9)
 set -eu
 HERE=$(cd "$(dirname "$0")" && pwd)
 . "$HERE/lib.sh"   # 0.26.10.28.4 (9.3 R3): the shared helpers, lib.sh beside this file
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
+MAN=''; ORIG=''   # GM-1 S3: set in GitHub manual, read at the applied commit; ORIG the project's top once snap moved in
 die() { echo "ViD planner: $*" >&2; exit 2; }
 hash() { for f in PRD.md INVENTORY.md STAGES.md GRADING-CHECKLIST.md ARCHITECTURE.md PLAN.md; do printf '== %s\n' "$f"; if [ -f "$f" ]; then cat "$f"; fi; done | git hash-object --stdin | cut -c1-12; }
 RV=.vid/plan/review
@@ -228,12 +241,14 @@ inventory() {
 # tab-separated, the rows expanded), $T/shared (the shared: line)
 model() {
   load "${1:-}"; inventory
-  awk -v FL="$T/flags" -v RW="$T/rows" -v SP="$T/steps" -v SH="$T/shared" -v CEIL="$(ceil)" -v TM="$T/teams" -v LN="$T/lanes" -v NO="$T/notes" '
+  awk -v MAN="$MAN" -v FL="$T/flags" -v RW="$T/rows" -v SP="$T/steps" -v SH="$T/shared" -v CEIL="$(ceil)" -v TM="$T/teams" -v LN="$T/lanes" -v NO="$T/notes" '
     function trim(s) { gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
     function on(l, x,   n, a, i) { n = split(l, a, /[ ,]+/); for (i = 1; i <= n; i++) if (a[i] == x) return 1; return 0 }
     # rch <s> <t>: step s reaches step t through a chain of builds-on: links (R5, R10)
     function rch(s, t,   n, a, i, v) { if ((s, t) in RC) return RC[s, t]; n = split(sb[s], a, /[ ,]+/); v = 0
       for (i = 1; i <= n && !v; i++) if (a[i] == t || ((a[i] in sidx) && sidx[a[i]] < sidx[s] && rch(a[i], t))) v = 1; return RC[s, t] = v }
+    # before <k> <b> (GM-1 S3): stage k comes before stage b, a numbered stage before any other
+    function before(k, b) { if (k ~ /^[0-9]+$/ && b ~ /^[0-9]+$/) return k + 0 < b + 0; if (k ~ /^[0-9]+$/) return 1; if (b ~ /^[0-9]+$/) return 0; return k < b }
     function same(p, q,   n, a, i) { n = split(p, a, /[ ,]+/); for (i = 1; i <= n; i++) if (a[i] != "" && !on(q, a[i])) return 0
       n = split(q, a, /[ ,]+/); for (i = 1; i <= n; i++) if (a[i] != "" && !on(p, a[i])) return 0; return 1 }
     # R1, R2: the setup, its team: lines and their lanes
@@ -337,7 +352,8 @@ model() {
           if (cls[r] == "limit") flag("class", r, "a known limit, in step " s)
           if (cls[r] == "record") flag("class", r, "a record, in step " s)
           if (cls[r] == "later") flag("class", r, "a later-phase row, in step " s) } }
-      for (i = 1; i <= nr; i++) { id = order[i]; if (rkind[id] == "row" && cls[id] ~ /^(planned|moved|owed)$/ && !(id in instep)) flag("class", id, "in no step, and no known limit, later-phase row or record") }
+      # GM-1 S3 (§5): in GitHub manual a row in no step is a row to place, a flag the switch may accept
+      for (i = 1; i <= nr; i++) { id = order[i]; if (rkind[id] == "row" && cls[id] ~ /^(planned|moved|owed)$/ && !(id in instep)) { if (MAN) flag("place", id, "in no step"); else flag("class", id, "in no step, and no known limit, later-phase row or record") } }
       for (it in kind) if (kind[it] == "data_entity" && phase[it] != "later") keeps = keeps (keeps == "" ? "" : ", ") it
       for (i = 1; i <= nr; i++) { id = order[i]; if (rkind[id] == "row" && M[id, "owed-rehearsal"] && cls[id] != "later") reh = 1 }
       split("rehearsal sign-in fields work", sk, " ")
@@ -371,13 +387,24 @@ model() {
         for (j = 1; j <= n; j++) { r = a[j]; if (r == "-") continue
           if (!(r in rkind)) { flag("step", s, r " is no planned row"); continue }
           if (rkind[r] == "tr") { flag("step", s, r " is no planned row: a transition; its journey stands for it"); continue }
-          c++; last = r; has[r] = 1; if (r ~ /^(HOS|RULE|DIF|SEAM)-/) gd[s]++; if (sst[s] == "?") sst[s] = rstage[r]; if (index(" " got " ", " " rstage[r] " ") == 0) got = got (got == "" ? "" : " and ") rstage[r] }
-        cnt[s] = c; if (got ~ / and /) flag("step", s, "its rows are in stages " got); if (!c && srows[s] != "") flag("step", s, "holds no row")
-        if (c > CEIL + 0) flag("size", s, c " rows, over the ceiling of " CEIL "; split it"); if (!ssk[s] && sst[s] == "0") flag("skeleton", s, "is in stage 0; stage 0 holds the skeleton alone")
+          c++; last = r; has[r] = 1; if (r ~ /^(HOS|RULE|DIF|SEAM)-/) gd[s]++; if (sst[s] == "?") sst[s] = rstage[r]; if (index(" " got " ", " " rstage[r] " ") == 0) got = got (got == "" ? "" : " and ") rstage[r]
+          if (MAN && cls[r] ~ /^(planned|moved|owed)$/) { if (!((s, rstage[r]) in pc)) pst[s] = pst[s] " " rstage[r]; pc[s, rstage[r]]++ } }
+        # GM-1 S3 (§5): in GitHub manual the own stage of a step is the stage most of its planned rows are in, the earliest on a tie; each
+        # planned row of another stage is a row to place, `place <row> — in step <s> of stage <k>; its own stage is <j>`, in place of
+        # the step-level "its rows are in stages" flag
+        if (MAN && pst[s] != "") { m = split(pst[s], qa, " "); bst = ""
+          for (j = 1; j <= m; j++) { k = qa[j]; if (bst == "" || pc[s, k] > pc[s, bst] || (pc[s, k] == pc[s, bst] && before(k, bst))) bst = k }
+          sst[s] = bst; for (j = 1; j <= n; j++) { r = a[j]; if ((r in rkind) && rkind[r] == "row" && cls[r] ~ /^(planned|moved|owed)$/ && rstage[r] != bst && !(r in placed)) { placed[r] = 1; flag("place", r, "in step " s " of stage " bst "; its own stage is " rstage[r]) } } }
+        cnt[s] = c; if (!MAN && got ~ / and /) flag("step", s, "its rows are in stages " got); if (!c && srows[s] != "") flag("step", s, "holds no row")
+        # GM-1 S4: in GitHub manual stage 0 may hold several steps, the skeleton one of them
+        if (c > CEIL + 0) flag("size", s, c " rows, over the ceiling of " CEIL "; split it"); if (!MAN && !ssk[s] && sst[s] == "0") flag("skeleton", s, "is in stage 0; stage 0 holds the skeleton alone")
         if (s == skel) { if (sb[s] != "") flag("skeleton", s, "builds on " sb[s] "; the skeleton builds on nothing")
-          z = 0; for (r in s0) { z++; if (!(r in has)) flag("skeleton", s, "lacks " r ", a row of stage 0") }
+          z = 0; if (MAN) for (r in s0) z++
+          # GM-1 S4: in GitHub manual, with a stage 0, the skeleton is one of its steps; each stage-0 row is in one of them, or a row to place
+          if (MAN && z) { if (sst[s] != "0") flag("skeleton", s, "is in stage " sst[s] "; with a stage 0 the skeleton is one of stage 0" "\047" "s steps") }
+          else { z = 0; for (r in s0) { z++; if (!(r in has)) flag("skeleton", s, "lacks " r ", a row of stage 0") }
           if (z) { for (r in has) if (!(r in s0)) flag("skeleton", s, "holds " r ", which is no row of stage 0") }
-          else { if (c != 1) flag("skeleton", s, "holds " c " rows; with no stage 0 the skeleton holds one, the golden path"); if (c == 1 && rstage[last] != "1") flag("skeleton", s, "its row " last " is in stage " rstage[last] ", not stage 1") }
+          else { if (c != 1) flag("skeleton", s, "holds " c " rows; with no stage 0 the skeleton holds one, the golden path"); if (c == 1 && rstage[last] != "1") flag("skeleton", s, "its row " last " is in stage " rstage[last] ", not stage 1") } }
           for (r in has) if (rowed[r] != "") flag("skeleton", s, "its row " r " is deploy-owed or a seam") } }
       for (i = 1; i <= ns; i++) { s = sorder[i]; n = split(sb[s], a, /[ ,]+/); for (j = 1; j <= n; j++) { b = a[j]; if (b == "") continue
           if (!(b in sidx)) flag("step", s, "builds on " b ", which is no step")
@@ -424,9 +451,11 @@ model() {
   touch "$T/flags" "$T/rows" "$T/steps" "$T/shared" "$T/teams" "$T/lanes" "$T/notes"
   cat "$T/iflags" "$T/flags" > "$T/fl0"
   if [ -f PLAN.md ] && grep -q '^```vid-steps' PLAN.md; then echo "form PLAN.md — a vid-steps block; the steps are RUN-STATE's plan block, in develop's form" >> "$T/fl0"; fi
-  awk -F'\t' '$12 != "-" { print $1 "\t" $12 }' "$T/rows" | while IFS='	' read -r id g; do [ -f "$g" ] || echo "golden $id — its golden set is not in ViD's repository"; done >> "$T/fl0"
+  # in GitHub manual a golden set is read at the applied commit, as the rows that cite it are
+  awk -F'\t' '$12 != "-" { print $1 "\t" $12 }' "$T/rows" | while IFS='	' read -r id g; do if [ -n "${ORIG:-}" ]; then [ "$(git -C "$ORIG" cat-file -t "$(applied):./$g" 2>/dev/null)" = blob ]; else [ -f "$g" ]; fi || echo "golden $id — its golden set is not in ViD's repository"; done >> "$T/fl0"
   # P1: inside a repository, INVENTORY.md changes since HEAD only in its origin: plan rows
-  if git rev-parse --is-inside-work-tree > /dev/null 2>&1; then
+  # GM-1 S3: in GitHub manual the inventory read is the applied commit's, a commit by definition: P1 does not apply
+  if [ -z "$MAN" ] && git rev-parse --is-inside-work-tree > /dev/null 2>&1; then
     if git show HEAD:./INVENTORY.md > "$T/ih" 2>/dev/null; then
       grep -vE '[|][[:space:]]*origin: plan( |$)' "$T/ih" > "$T/ia" || true; grep -vE '[|][[:space:]]*origin: plan( |$)' INVENTORY.md > "$T/ib" || true
       L=$(diff "$T/ia" "$T/ib" | sed -n 's/^[<>] //p' | head -n 1 | cut -c1-60)
@@ -435,10 +464,20 @@ model() {
   fi
   # v0.26.10.26.7 (R11, W-13): before the first ratify, each setup key no setup-answered line covers (a written default is no
   # answer); a plan ratified before this release, with no such lines in .vid/plan/setup, is never flagged for them
-  if [ ! -s .vid/plan/ratified ]; then LY=$(skey layout)
-    for k in layout team split repo spec-repo github-mode; do [ "$k:$LY" != spec-repo:one ] || continue; grep -q "^setup-answered key=$k " .vid/plan/setup 2>/dev/null && continue
+  # GM-1 S1: in GitHub manual state-repo too; under /vid mode's mark github-mode is not asked, as the switch records it last
+  if [ ! -s .vid/plan/ratified ]; then LY=$(skey layout); KS='layout team split repo spec-repo github-mode'
+    if manual; then KS='layout team split repo spec-repo state-repo'; [ "${VID_CALLER:-}" = mode ] || KS="$KS github-mode"; fi
+    for k in $KS; do [ "$k:$LY" != spec-repo:one ] || continue; grep -q "^setup-answered key=$k " .vid/plan/setup 2>/dev/null && continue
       echo "setup $k — no answer of the owner's is recorded: ask it, then sh checks/planner.sh setup $k <the answer> --words \"<their words>\"" >> "$T/fl0"; done; fi
   mv "$T/fl0" "$T/flags"
+  # GM-1 S3 (§5): in GitHub manual a row .vid/tw/to-place lists in the place its flag names (no-step, other-stage) is no flag: it
+  # goes to $T/toplace, `<row>\t<no-step|other-stage>\t<where>\t<the owner's words>`, for the page
+  : > "$T/toplace"
+  if [ -n "$MAN" ] && [ -s .vid/tw/to-place ]; then
+    awk -v TP="$T/toplace" 'FNR == NR { if (NF < 2) next; w = $0; if (index(w, "\t")) sub(/^[^\t]*\t[^\t]*\t[^\t]*\t?/, "", w); else sub(/^[^ ]+ +[^ ]+ +[^ ]+ */, "", w); K[$1, $2] = 1; W[$1, $2] = w; next }
+      $1 == "place" { p = ($0 ~ / — in no step$/) ? "no-step" : "other-stage"; if (($2, p) in K) { x = $0; sub(/^place [^ ]+ — /, "", x); print $2 "\t" p "\t" x "\t" W[$2, p] > TP; next } }
+      { print }' .vid/tw/to-place "$T/flags" > "$T/fl1"; mv "$T/fl1" "$T/flags"
+  fi
 }
 # reviewed <hash>: prints yes when a review has that hash, else no; $T/open holds every finding of every review with
 # that hash that has no answer, `<n> | <row id> | <why>` each (a later review never closes an earlier finding)
@@ -482,9 +521,10 @@ table() {
       for (i = 1; i <= n; i++) { x = w[i]; if (!((x, 1) in R)) continue; row(x, ""); m = split(kids[x], t, " "); for (j = 1; j <= m; j++) row(t[j], x) } }' "$T/rows"
 }
 goldens() {
-  awk -F'\t' "$GN"' $12 != "-" && $12 != "" { g = $12; if (!(g in C)) { O[++n] = g; D[gn(g)]++ } C[g] = C[g] (C[g] == "" ? "" : ", ") $1 }
+  GP=''; if [ -n "${ORIG:-}" ]; then GP=$T/gold/; awk -F'\t' '$12 != "-" && $12 != "" { print $12 }' "$T/rows" | sort -u | while IFS= read -r g; do mkdir -p "$GP$(dirname "$g")"; git -C "$ORIG" show "$(applied):./$g" > "$GP$g" 2>/dev/null || rm -f "$GP$g"; done; fi
+  awk -F'\t' -v GP="$GP" "$GN"' $12 != "-" && $12 != "" { g = $12; if (!(g in C)) { O[++n] = g; D[gn(g)]++ } C[g] = C[g] (C[g] == "" ? "" : ", ") $1 }
     END { if (!n) { print ""; print "None." } for (i = 1; i <= n; i++) { g = O[i]; f = g; sub(/\/?[^\/]*$/, "", f); print ""; print "### " gn(g) (D[gn(g)] > 1 ? " (" f ")" : ""); print ""; print "Cited by " C[g] "."; print ""; print "```"
-        r = (getline l < g); if (r < 0) print "(not in ViD'"'"'s repository: flagged)"; while (r > 0) { print l; r = (getline l < g) } close(g); print "```" } }' "$T/rows"
+        r = (getline l < (GP g)); if (r < 0) print "(not in ViD'"'"'s repository: flagged)"; while (r > 0) { print l; r = (getline l < (GP g)) } close(GP g); print "```" } }' "$T/rows"
 }
 # planpage: the page's plan section (R7)
 planpage() {
@@ -519,8 +559,9 @@ setuppage() { L=$(sk layout); R=$(sk repo); S=$(sk spec-repo); X=$(sk split); A=
   printf '\n## The setup\n\nAsked once, at the start of /vid plan, and kept in .vid/tw/settings. %s\n\n' "$W"
   if [ "$L" = one ]; then printf -- '- **Where the code lives and the specs go:** one repository, ViD'"'"'s specs under docs/specs. Publishing waits for a later\n  build, which exports into docs/specs: the settings name no spec-repo:, so the ticket writer'"'"'s gate stays shut.\n- **The code repository:** %s\n' "${R:-not set yet}"
   else printf -- '- **Where the code lives and the specs go:** separate repositories, the code and ViD'"'"'s private spec repository%s.\n- **The code repository:** %s\n- **The spec repository:** %s\n' "$([ -n "$L" ] || echo ' (the default)')" "${R:-not set yet}" "${S:-not set yet}"; fi
-  case $(sk github-mode) in auto) G='ViD'"'"'s own DevAgent, which you start (github-mode: auto)' ;; team) G='an outside team (github-mode: team)' ;; *) G='not asked yet' ;; esac   # v0.26.10.28.8 (R3)
+  case $(sk github-mode) in auto) G='ViD'"'"'s own DevAgent, which you start (github-mode: auto)' ;; team) G='an outside team (github-mode: team)' ;; manual) G='a team of people, by hand, through /vid next (github-mode: manual)' ;; *) G='not asked yet' ;; esac   # v0.26.10.28.8 (R3); GM-1 S1
   printf -- '- **Who works the tickets:** %s\n' "$G"
+  if manual || [ -n "$(sk state-repo)" ]; then printf -- '- **ViD'"'"'s own state repository:** %s\n- **Slack channels read:** %s\n' "$(sk state-repo | grep . || echo 'not set yet')" "$(sk slack-channels | grep . || echo 'not set yet')"; fi   # GM-1 S1 (§5)
   printf -- '- **The step size:** %s\n- **The open-ticket limit:** %s\n- **Access:** %s\n\n| Team | Area | Strict or core | People | Lanes |\n|---|---|---|---|---|\n' "$X" "${O:-not set}" "${A:-not checked yet}"
   awk -F'\t' 'FNR == NR { L[$2] = L[$2] (L[$2] == "" ? "" : ", ") $1; next } { printf "| %s | %s | %s | %s | %s |\n", $1, $2, $3, $4, L[$1] }' "$T/lanes" "$T/teams"
   grep -q '^team:' "$T/set" || printf '\nNo team is recorded: the default, one team of one person, its lane devagent.\n'; }
@@ -536,18 +577,45 @@ stagepage() {
   L=$(awk -F'\t' -v k="$1" '$2 != "tr" && $5 == k && $6 == "limit" { printf "%s ", $1 }' "$T/rows")
   if [ -n "$L" ]; then printf '\n### Known limits, in no step\n'; table "$L"; fi
   L=$(awk -F'\t' -v k="$1" -v PL="$T/placed" 'BEGIN { while ((getline l < PL) > 0) p[l] = 1 } $2 == "row" && $5 == k && $6 ~ /^(planned|moved|owed)$/ && !($1 in p) { printf "%s ", $1 }' "$T/rows")
+  # GM-1 S3: in GitHub manual a row in no step the owner accepted as to place is shown as such, not as flagged
+  TP=''; [ ! -s "$T/toplace" ] || TP=$(for r in $L; do awk -F'\t' -v r="$r" '$1 == r && $2 == "no-step" { printf "%s ", r }' "$T/toplace"; done)
+  if [ -n "$TP" ]; then L=$(for r in $L; do case " $TP " in (*" $r "*) ;; (*) printf '%s ' "$r" ;; esac; done); printf '\n### Rows to place, in no step\n'; table "$TP"; fi
   if [ -n "$L" ]; then printf '\n### Rows in no step (flagged)\n'; table "$L"; fi
   : > "$T/placed"
 }
 
+# snap (GM-1 S3): GitHub manual's reading. A read-only folder in $T, entered: PRD.md, INVENTORY.md, STAGES.md, GRADING-CHECKLIST.md
+# and ARCHITECTURE.md as the applied commit (.vid/tw/applied) holds them, PLAN.md as HEAD does (a file a commit lacks, absent),
+# and every other entry of the repository's top, .vid/ among them, linked as it stands, so the records the planner writes land
+# in the project and the golden sets, BASELINE.md and the scripts it calls read as before; no .git, and git looks no higher,
+# so stages.sh reads these files from disk. Refused when .vid/tw/applied names no commit
+snap() { C=$(applied); if [ -z "$C" ] || ! git cat-file -e "$C^{commit}" 2>/dev/null; then
+    echo "ViD planner: refused — GitHub manual: .vid/tw/applied names no commit of this repository${C:+ ($C)}; /vid mode manual records the applied version the tickets were written from" >&2; exit 2; fi
+  S=$(cd "$T" && pwd -P)/snap; mkdir "$S"
+  for e in * .[!.]* ..?*; do [ -e "$e" ] || [ -L "$e" ] || continue
+    case $e in .git|PRD.md|INVENTORY.md|STAGES.md|GRADING-CHECKLIST.md|ARCHITECTURE.md|PLAN.md) continue ;; esac; ln -s "$PWD/$e" "$S/$e"; done
+  # a system whose ln -s copies (Git Bash without winsymlinks) would leave the planner's records in the copy
+  [ ! -d .vid ] || [ -L "$S/.vid" ] || { echo "ViD planner: refused — GitHub manual: this system copied .vid/ where it was to link it, so the planner's records would be lost (on Git Bash: MSYS=winsymlinks:nativestrict)" >&2; exit 2; }
+  for f in PRD.md INVENTORY.md STAGES.md GRADING-CHECKLIST.md ARCHITECTURE.md; do git show "$C:./$f" > "$S/$f" 2>/dev/null || rm -f "$S/$f"; done
+  git show "HEAD:./PLAN.md" > "$S/PLAN.md" 2>/dev/null || rm -f "$S/PLAN.md"
+  unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE; GIT_CEILING_DIRECTORIES=$(dirname "$S"); export GIT_CEILING_DIRECTORIES; ORIG=$PWD; cd "$S"; }
+# ab <file>: a file argument as the caller meant it, from the repository's top once snap has moved in
+ab() { case $1 in /*) printf '%s\n' "$1" ;; *) printf '%s\n' "${ORIG:-$PWD}/$1" ;; esac; }
+
 CMD=${1:-check}; [ $# -gt 0 ] && shift
+# GM-1 S3 (§5): `rows --newest` reads the working tree in every mode; in GitHub manual every other subcommand but setup reads
+# the spec at the applied commit (snap), and reratify, the door's landing, is refused there
+NEWEST=''; if [ "$CMD" = rows ] && [ "${1:-}" = --newest ]; then NEWEST=1; shift; fi
+if [ "$CMD" != setup ] && [ -z "$NEWEST" ] && manual; then
+  [ "$CMD" != reratify ] || { echo "ViD planner: refused — reratify: in GitHub manual the door lands no change, so nothing is re-ratified by a landing" >&2; exit 1; }
+  MAN=1; snap; fi
 case "$CMD" in
   check)   # 0.26.10.29.2 (R1): --block <file> reads that plan block in place of RUN-STATE's, --ceiling <n> sets rule A's ceiling (empty: as read)
-    while [ $# -ge 2 ]; do case $1 in --block) BLK=$2; [ -f "$BLK" ] || die "--block $BLK: no such file" ;; --ceiling) CEILOV=$2; case $CEILOV in *[!0-9]*) die "--ceiling $CEILOV is no number" ;; esac ;; *) die "check: unknown $1" ;; esac; shift 2; done
+    while [ $# -ge 2 ]; do case $1 in --block) BLK=$(ab "$2"); [ -f "$BLK" ] || die "--block $BLK: no such file" ;; --ceiling) CEILOV=$2; case $CEILOV in *[!0-9]*) die "--ceiling $CEILOV is no number" ;; esac ;; *) die "check: unknown $1" ;; esac; shift 2; done
     [ $# -eq 0 ] || die "check: unknown $1"
     model
     if [ -s "$T/flags" ]; then cat "$T/flags"; exit 1; fi
-    echo "planner: clean — $(awk -F'\t' '$2 != "tr"' "$T/rows" | grep -c . || true) rows, $(grep -c . "$T/steps" || true) steps" ;;
+    echo "planner: clean — $(awk -F'\t' '$2 != "tr"' "$T/rows" | grep -c . || true) rows, $(grep -c . "$T/steps" || true) steps$([ ! -s "$T/toplace" ] || echo "; $(grep -c . "$T/toplace") to place")" ;;
   rows)
     if [ "${1:-}" = --added ]; then [ -f INVENTORY.md ] || die 'no INVENTORY.md here'; block vid-inventory INVENTORY.md | grep -E '[|][[:space:]]*origin: plan( |$)' || true; exit 0; fi
     model rows; printf '# id\tkind\tparent\titems\tstage\tclass\tmarks\tpromise\tfail-if\tclass text\tcarried\tgolden\n'
@@ -566,8 +634,11 @@ case "$CMD" in
       if [ "$RVD" = no ]; then echo '- no review of this plan'; fi; } > "$T/fl"
     ids() { awk -F'\t' "$1"' { printf "%s ", $1 }' "$T/rows"; }
     {
-      printf '# %s — the plan\n\nThe plan for the owner to ratify. Its hash: `%s`.\n\n## Flags\n\n' "$NAME" "$H"
+      printf '# %s — the plan\n\nThe plan for the owner to ratify. Its hash: `%s`.%s\n\n## Flags\n\n' "$NAME" "$H" "$([ -z "$MAN" ] || printf ' GitHub manual: the spec as the applied commit `%.12s` holds it, PLAN.md as HEAD does.' "$(applied)")"
       if [ -s "$T/fl" ]; then cat "$T/fl"; else echo '- none'; fi
+      if [ -n "$MAN" ]; then   # GM-1 S3: the rows the owner accepted as to place, no flag
+        printf '\n## The rows to place\n\nRows the owner accepted as to place (.vid/tw/to-place): each is shown here, and is no flag.\n\n'
+        if [ -s "$T/toplace" ]; then awk -F'\t' '{ printf "- %s, %s: to place, in the owner'"'"'s words: %s\n", $1, $3, $4 }' "$T/toplace"; else echo '- none'; fi; fi
       printf '\n## Notes\n\nComputed beside the flags; a note never refuses the check or the ratification. For each, the plan is changed or\nthe prose says why it stands.\n\n'
       if [ -s "$T/notes" ]; then sed 's/^/- /' "$T/notes"; else echo '- none'; fi; setuppage
       planpage
@@ -599,7 +670,7 @@ case "$CMD" in
     } > "$T/pg" || exit 1; put "$P" < "$T/pg" || exit 1
     sh "$HERE/page.sh" "$P" && printf 'paged spec=%s plan=%s at=%s\n' "$H" "$(phash)" "$(now)" >> .vid/plan/paged ;;
   review)
-    [ "${1:-}" = --in ] && [ -f "${2:-}" ] || die 'usage — sh checks/planner.sh review --in <file>'
+    [ "${1:-}" = --in ] && [ -n "${2:-}" ] && RIN=$(ab "$2") && [ -f "$RIN" ] || die 'usage — sh checks/planner.sh review --in <file>'
     model; H=$(hash); awk -F'\t' '$11 ~ /(^| · )origin: plan( |$)/ { print $1 }' "$T/rows" > "$T/ids"
     awk -v IDS="$T/ids" 'BEGIN { while ((getline l < IDS) > 0) ok[l] = 1 }
       { l = $0; gsub(/^[ \t]+|[ \t]+$/, "", l) }
@@ -610,7 +681,7 @@ case "$CMD" in
         else if (why == "") { print "ViD planner: line " NR ": a finding with no why" > "/dev/stderr"; bad = 1 }
         else print id "\t" why; said = 1; next }
       { print "ViD planner: line " NR " is neither `finding <row id> | <why>` nor none" > "/dev/stderr"; bad = 1 }
-      END { if (!said) { print "ViD planner: the output is empty; a pass that finds nothing says none" > "/dev/stderr"; bad = 1 } exit bad }' "$2" > "$T/found" || die 'review refused — the output is out of form (above); nothing recorded'
+      END { if (!said) { print "ViD planner: the output is empty; a pass that finds nothing says none" > "/dev/stderr"; bad = 1 } exit bad }' "$RIN" > "$T/found" || die 'review refused — the output is out of form (above); nothing recorded'
     mkdir -p .vid/plan; touch "$RV"
     r=$(( $(grep -c '^review ' "$RV" || true) + 1 )); n=$(grep -c '^finding ' "$RV" || true); k=$(grep -c . "$T/found" || true)
     printf 'review %s hash=%s findings=%s at=%s\n' "$r" "$H" "$k" "$(now)" >> "$RV"
@@ -632,9 +703,21 @@ case "$CMD" in
     echo "planner: ratified, hash $H, in the owner's words" ;;
   setup)   # v0.26.10.26.7 (R11, W-13): one setup answer, as the owner gave it: its key in .vid/tw/settings and setup-answered
     K=${1:-}; V=${2:-}; [ $# -ge 2 ] && shift 2; OW=''; [ "${1:-}" = --words ] && OW=${2:-}
-    [ -n "$K" ] && [ -n "$V" ] && [ -n "$OW" ] || die 'usage — sh checks/planner.sh setup <layout|team|split|repo|spec-repo|github-mode> <the answer, or "not yet" for a repository> --words "<the owner'"'"'s words>"'
-    case $K in layout|team|split|repo|spec-repo|github-mode) ;; *) die "setup $K: no setup question has that key" ;; esac
-    case "$K:$V" in layout:separate|layout:one|split:journey|split:fine|team:*|repo:*|spec-repo:*|github-mode:auto|github-mode:team) ;; *) die "setup $K: $V is no answer to it" ;; esac
+    [ -n "$K" ] && [ -n "$V" ] && [ -n "$OW" ] || die 'usage — sh checks/planner.sh setup <layout|team|split|repo|spec-repo|state-repo|slack-channels|github-mode> <the answer, or "not yet" for a repository> --words "<the owner'"'"'s words>"'
+    case $K in layout|team|split|repo|spec-repo|state-repo|slack-channels|github-mode) ;; *) die "setup $K: no setup question has that key" ;; esac
+    case "$K:$V" in layout:separate|layout:one|split:journey|split:fine|team:*|repo:*|spec-repo:*|github-mode:auto|github-mode:team|github-mode:manual|state-repo:*|slack-channels:*) ;; *) die "setup $K: $V is no answer to it" ;; esac
+    # GM-1 S1: GitHub manual is entered and left only by /vid mode, which marks its own calls (VID_CALLER=mode)
+    if [ "$K" = github-mode ] && [ "${VID_CALLER:-}" != mode ] && { [ "$V" = manual ] || [ "$(ghmode)" = manual ]; }; then
+      echo "ViD planner: refused — github-mode $V: GitHub manual is entered and left only through /vid mode, which takes stock first" >&2; exit 1; fi
+    # GM-1 S1 (§5): state-repo, ViD's own private repository for the lock and the saved records, owner/name, never the code
+    # repository or the spec repository; slack-channels, the channel names comma-separated, or none
+    case "$K:$V" in
+      state-repo:*) printf %s "$V" | grep -Eq '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$' || die "setup state-repo: $V is not owner/name"
+        lo() { printf %s "$1" | tr 'A-Z' 'a-z'; }   # GitHub's names ignore case
+        for k in repo spec-repo; do [ "$(lo "$(skey "$k")")" != "$(lo "$V")" ] || die "setup state-repo: $V is the $k:; ViD's own state repository is neither the code repository nor the spec repository"; done ;;
+      repo:*|spec-repo:*) [ "$V" = 'not yet' ] || [ "$(skey state-repo | tr 'A-Z' 'a-z')" != "$(printf %s "$V" | tr 'A-Z' 'a-z')" ] || die "setup $K: $V is the state-repo:, ViD's own state repository" ;;
+      slack-channels:*) [ "$V" = none ] || printf %s "$V" | grep -Eq '^#?[A-Za-z0-9][A-Za-z0-9._-]*(,#?[A-Za-z0-9][A-Za-z0-9._-]*)*$' || die "setup slack-channels: $V is not channel names, comma-separated, or none" ;;
+    esac
     mkdir -p .vid/tw; touch .vid/tw/settings
     grep -q '^labels-prefix:' .vid/tw/settings || echo 'labels-prefix:' >> .vid/tw/settings   # no question asks it; the writer needs the line (the walk)
     case "$K:$V" in

@@ -37,6 +37,8 @@ tick
 [ "$(nnote)" -eq 1 ] && [ "$(nnote "$Q")" -eq 1 ] || fail 'not one quiet notice at the first quiet tick'
 [ ! -f .vid/NUDGE ] || fail 'the quiet run was nudged first'
 grep -q 'observe.sh resume' "$T/notify.log" && grep -q 'claude --resume S1' "$T/notify.log" || fail 'the quiet text lacks the resume steps'
+grep -q "isn't waiting on an answer from you" "$T/notify.log" || fail "with no question open, the quiet text does not say it isn't waiting on you"   # 0.26.11.1.3 (R4)
+! grep -q 'questions to you are open' "$T/notify.log" || fail 'with no question open, the quiet text names open questions'
 tick; [ "$(nnote)" -eq 1 ] || fail 'the quiet notice repeated'
 # B. newer activity clears it; a new quiet stretch sends a second
 sleep 1; hb "$(ago 0)" 'working again'

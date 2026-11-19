@@ -14,7 +14,8 @@ out() { grep -n -e 'github\.sh' -e 'ticket\.sh' -e '\.vid/code' "$1" || true; gr
 [ -z "$(out "$CHECKS/planner.sh")" ] || fail 'planner.sh names a GitHub call, a code read or a test path'
 wr() { grep -nE 'event\.sh|>>[[:space:]]*"?[^ ]*metrics-events' "$1"; }
 wr "$CHECKS/planner.sh" && fail 'planner.sh writes an event'
-[ "$(grep -o '\.vid/tw/[a-z]*' "$CHECKS/planner.sh" | sort -u)" = .vid/tw/settings ] || fail 'planner.sh reads more of .vid/tw/ than its settings'
+# 0.26.11.1.3 (GM-1 S3, S4): beside its settings, the applied version (.vid/tw/applied) and the rows to place (.vid/tw/to-place), GitHub manual's
+[ "$(grep -o '\.vid/tw/[a-z-]*' "$CHECKS/planner.sh" | sort -u | tr '\n' ' ')" = '.vid/tw/applied .vid/tw/settings .vid/tw/to-place ' ] || fail 'planner.sh reads more of .vid/tw/ than its settings, the applied version and the rows to place'
 { cat "$CHECKS/planner.sh"; echo 'printf x >> .vid/metrics-events'; } > "$T/p.sh"; wr "$T/p.sh" > /dev/null || fail 'a planted write into metrics-events is not convicted'
 SK="$CHECKS/../skills/vid-plan"
 [ -d "$SK" ] || { echo 'needs skills/vid-plan/'; exit 77; }

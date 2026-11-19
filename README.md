@@ -74,15 +74,17 @@ project, check that your install works, as below.
   `gh auth setup-git`, or SSH).
 - Docker Desktop, installed and running — ViD's test harness is
   Docker-only; a project's ledger cannot run without it.
-- For GitHub auto: the `claude` command, signed in, since DevAgent's agents run on it; and, for a product
-  with screens in either GitHub mode, a browser already on the machine ViD runs on, for ViD's walk through
+- For GitHub auto: DevAgent's agents run in its own Claude Code conversation (`agents: conversation` in
+  its job note), which must stay open, or through the `claude` command, signed in (`agents: command`), which
+  runs on its own; and, for a product with screens in either GitHub mode, a browser already on the machine ViD runs on, for ViD's walk through
   the screens (a container image that holds one, or an installed browser). ViD never installs one.
 - **On a PC:** native Windows (Git Bash) works, but ViD's checks are
-  slower there, since starting a process is slow on Windows. With WSL
-  installed, ViD asks you once, at `/vid:vid-init`, whether it may run its
-  checks there; the answer is kept for that PC in `.vid/windows`, and you
-  change it by editing that file. Without WSL, or without your yes, ViD
-  carries on natively.
+  slower there, since starting a process is slow on Windows. ViD checks
+  once that WSL runs on that PC, keeps the answer in `.vid/windows`, and
+  says so once. When WSL runs, ViD runs its checks there, which is much
+  faster; to stop it, change `wsl: yes` to `wsl: no` in that file. When WSL
+  does not start, ViD runs its checks natively; once WSL works, delete
+  `.vid/windows` and ViD checks again.
 
 ### Install
 
@@ -93,7 +95,7 @@ The three commands in the Install section above.
 An install is checked the way ViD checks anything: the judges prove they
 convict, and one real init completes. Three steps, in order:
 
-1. **Version.** Type `/vid:vid-help`. It shows the installed version, which must be **0.26.11.1.2**.
+1. **Version.** Type `/vid:vid-help`. It shows the installed version, which must be **0.26.11.1.3**.
 2. **Court self-test.** Ask Claude: *"Run ViD's court self-test suite —
    `checks/selftest/run.sh` under the installed plugin root — and report
    the verdict line."* Expected: every case that ran convicts, `selftest:
@@ -265,8 +267,9 @@ plugin is `vid`, and each verb is one of its skills.
   numbered question.
 - **vid-devagent** (`/vid:vid-devagent <job note>`): GitHub auto's dev side, started in a Claude
   Code conversation of its own, opened in DevAgent's work folder. It starts DevAgent and shows each
-  piece of its work as it ends, and its stop as soon as it comes; closing the conversation leaves
-  DevAgent running.
+  piece of its work as it ends, and its stop as soon as it comes. With `agents: command`, closing the
+  conversation leaves DevAgent running; with `agents: conversation`, closing it stops DevAgent until
+  the conversation is opened again.
 - **vid-help** (`/vid:vid-help`): the installed version, read live from the plugin, and the
   verb list.
 

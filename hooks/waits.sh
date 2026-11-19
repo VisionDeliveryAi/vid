@@ -14,18 +14,22 @@
 # `eval`, and a here-document fed to one of those shells. `while` or `until` counts only as a command's first
 # word: at the start, or after ; && || | & ! a newline ( { $( a backtick, do, then, elif or else. The sleep and
 # the probe checks read the same stripped text.
-# Fast exits first; malformed input, or any error, allows the call. It always exits 0.
+# Fast exits first, the last of them (0.26.11.1.3, R1) a cwd outside any ViD project; malformed input, or any error,
+# allows the call. It always exits 0.
 IN=$(cat 2>/dev/null) || exit 0
 case "$IN" in *'"vid:builder"'*|*'"vid:fixer"'*) ;; *) exit 0 ;; esac
-HD=$(dirname "$0"); [ -f "$HD/agent.sh" ] || exit 0
-. "$HD/agent.sh"
+case $0 in */*) HD=${0%/*} ;; *) HD=. ;; esac; [ -f "$HD/agent.sh" ] && [ -f "$HD/home.sh" ] || exit 0
+. "$HD/agent.sh"; . "$HD/home.sh"
 main() {
-  KV=$(keys hook_event_name tool_name agent_type run_in_background command) || return 0
-  [ "$(kv hook_event_name)" = PreToolUse ] && [ "$(kv tool_name)" = Bash ] || return 0
-  case "$(kv agent_type)" in vid:builder|vid:fixer) ;; *) return 0 ;; esac
-  [ "$(kv run_in_background)" = true ] && return 0
-  [ -n "$(kv command)" ] || return 0
-  # the command with its newlines (kv reads them as spaces), then its shell syntax alone: S
+  kread hook_event_name tool_name agent_type run_in_background command cwd || return 0   # 0.26.11.1.3 (R1): one reader pass
+  [ "${J_hook_event_name:-}" = PreToolUse ] && [ "${J_tool_name:-}" = Bash ] || return 0
+  case "${J_agent_type:-}" in vid:builder|vid:fixer) ;; *) return 0 ;; esac
+  [ "${J_run_in_background:-}" = true ] && return 0
+  # 0.26.11.1.3 (R1): a call whose cwd has no .vid/ up to the root, and none at $CLAUDE_PROJECT_DIR, is no ViD
+  # run's: allowed before the command is read (hooks/home.sh's vid_near, no process). An input with no cwd: as before.
+  [ -z "${J_cwd:-}" ] || vid_near "$J_cwd" || return 0
+  [ -n "${J_command:-}" ] || return 0
+  # the command with its newlines (keys reads them as spaces), then its shell syntax alone: S
   C=$(printf '%s' "$IN" | awk 'BEGIN { RS = "\001" } { if (!match($0, /[{,][ \t\r\n]*"command"[ \t\r\n]*:[ \t\r\n]*"/)) exit
       r = substr($0, RSTART + RLENGTH); v = ""; j = 1
       while (1) { ch = substr(r, j, 1); if (ch == "" || ch == "\"") break

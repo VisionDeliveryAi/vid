@@ -24,7 +24,10 @@
 # Fast exits, in order, before any resolver work: an `agent_id` in the input
 # (an agent's call) is allowed at once; no .vid/ walking up from `cwd` and
 # none at $CLAUDE_PROJECT_DIR is not a ViD project, allowed; otherwise the
-# home is found as the page finds it (hooks/home.sh). It fails open:
+# home is found as the page finds it (hooks/home.sh) — from 0.26.11.1.3 (R1), when
+# the home is plain (vid_plain), by the shell's built-ins alone, with no git
+# and no nested plan.sh, and the full resolver only otherwise. The input's
+# fields are taken in one reader pass (kread). It fails open:
 # malformed input, an unreadable debt file or any error allows the call, and
 # so does a timeout. It always exits 0.
 # The input is read with a key-anchored scanner, not hooks/json.sh: a tool's
@@ -33,7 +36,7 @@
 # text inside a JSON string can never show unescaped; the first such
 # occurrence wins (hooks/agent.sh's `keys`, moved there in v0.9.7.0.7).
 IN=$(cat 2>/dev/null) || exit 0
-HD=$(dirname "$0"); [ -f "$HD/home.sh" ] && [ -f "$HD/agent.sh" ] || exit 0
+case $0 in */*) HD=${0%/*} ;; *) HD=. ;; esac; [ -f "$HD/home.sh" ] && [ -f "$HD/agent.sh" ] || exit 0
 . "$HD/home.sh"; . "$HD/agent.sh"
 real() { _rd=$(cd "$(dirname "$1")" 2>/dev/null && pwd -P) && printf '%s/%s\n' "$_rd" "${1##*/}" || printf '%s\n' "$1"; }
 # unpaid <debt file> [say]: the listed paths not yet covered 1…total by its cover lines. With `say` (v0.26.10.10,
@@ -55,23 +58,24 @@ unpaid() {
         print p " lines " r " of " tot[p] } }' "$1"
 }
 main() {
-  KV=$(keys hook_event_name session_id cwd agent_id tool_name filePath startLine numLines totalLines truncatedByTokenCap) || return 0
-  [ -n "$(kv agent_id)" ] && return 0                       # 1. an agent's call
-  EVN=$(kv hook_event_name); case "$EVN" in PreToolUse|PostToolUse) ;; *) return 0 ;; esac
-  CWD=$(kv cwd); vid_near "$CWD" || return 0                 # 2. not a ViD project
-  SID=$(kv session_id); case "$SID" in ''|*[!A-Za-z0-9._-]*) return 0 ;; esac
-  H=$(vid_home "$CWD"); [ -n "$H" ] || return 0              # 3. the resolver
+  kread hook_event_name session_id cwd agent_id tool_name filePath startLine numLines totalLines truncatedByTokenCap || return 0
+  [ -n "${J_agent_id:-}" ] && return 0                      # 1. an agent's call
+  EVN=${J_hook_event_name:-}; case "$EVN" in PreToolUse|PostToolUse) ;; *) return 0 ;; esac
+  CWD=${J_cwd:-}; vid_near "$CWD" || return 0               # 2. not a ViD project
+  SID=${J_session_id:-}; case "$SID" in ''|*[!A-Za-z0-9._-]*) return 0 ;; esac
+  if vid_plain; then H=$VID_H; else H=$(vid_home "$CWD"); fi   # 3. a plain home (0.26.11.1.3, R1), else the resolver
+  [ -n "$H" ] || return 0
   OWED="$H/.vid/reread-owed.$SID"
   [ -f "$OWED" ] || return 0
   [ -r "$OWED" ] || return 0
-  TOOL=$(kv tool_name)
+  TOOL=${J_tool_name:-}
   if [ "$EVN" = PostToolUse ]; then
     [ "$TOOL" = Read ] || return 0
-    FP=$(kv filePath); SL=$(kv startLine); NL=$(kv numLines); TL=$(kv totalLines)
+    FP=${J_filePath:-}; SL=${J_startLine:-}; NL=${J_numLines:-}; TL=${J_totalLines:-}
     case "$SL$NL$TL" in ''|*[!0-9]*) return 0 ;; esac
     [ -n "$FP" ] && [ "$NL" -gt 0 ] || return 0
     # v0.26.10.10 (R1, F-71): a truncated read pays what it returned but its last line, which may be partial
-    LL=$((SL + NL - 1)); [ "$(kv truncatedByTokenCap)" = true ] && LL=$((LL - 1))
+    LL=$((SL + NL - 1)); [ "${J_truncatedByTokenCap:-}" = true ] && LL=$((LL - 1))
     [ "$LL" -ge "$SL" ] || return 0
     RF=$(real "$FP")
     for p in $(sed -n 's/^file //p' "$OWED"); do

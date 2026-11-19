@@ -17,6 +17,7 @@
 #          the closes' owed asks; the sync; each line `writer.sh due` owes, in order;
 #          then each step in plan order `plan.sh start` passes, up to the open-ticket limit. A save follows each post. `published <n>`; a refusal is
 #          a line once, tried again only after the plan or the handed record changed.
+# In GitHub manual (GM-1 S1) every subcommand refuses at the start, in one line naming /vid next, exit 2, and writes nothing.
 # An error names its step and exits 1; a lost lock prints `lock-lost` and exits 3; an open ticket the log does not hold prints `stop stray …` and exits 4, in step and in next, and nothing more is written.
 # `stand-in: on` in .vid/tw/settings, off by default and never written by ViD: a held row with only its evidence missing is accepted, a held weak
 # test ruled a known limit, each --by stand-in, a line in .vid/tw/stood-in-answers.txt. A held product failure waits, switch or no switch.
@@ -27,6 +28,8 @@ LC_ALL=C; export LC_ALL
 HERE=$(cd "$(dirname "$0")" && pwd)
 . "$HERE/lib.sh"   # 0.26.10.28.4 (9.3 R3): the shared helpers, lib.sh beside this file
 [ -f .vid/RUN-STATE.md ] && [ -f .vid/tw/settings ] || { echo "ViD round: run it at the top of ViD's repository, in ticket mode" >&2; exit 2; }
+# GM-1 S1: /vid run's loop does not drive a project in GitHub manual; the backstop of the run skill's own refusal, before anything is written
+if manual; then echo "ViD round: refused — this project is in GitHub manual: /vid run does not drive it; call /vid next" >&2; exit 2; fi
 D=.vid/decide; L=.vid/round; LOG=.vid/tw/log; HAND=.vid/tw/handed; mkdir -p "$D" "$L"; touch "$D/merged-prs" "$D/refused" "$D/flags" "$D/accepted-log" "$D/rulings"
 TAB=$(printf '\t'); DID=''
 gh_() { VID_CALLER=round sh "$HERE/github.sh" "$@"; }; dec() { sh "$HERE/decide.sh" "$@"; }; wr() { sh "$HERE/writer.sh" "$@"; }   # 0.26.10.29.2 (R12): the round marks its own calls

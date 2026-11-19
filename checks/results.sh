@@ -6,7 +6,7 @@
 #   check <id> --ticket <n> [--commit <asked>]   the form of one report: `ok <id>`; or `refused <why>`, exit 1
 #   read --ticket <n> --pr <p> --head <commit>   writes .vid/results/pr-<p>-<head12>.txt and prints it, exit 0 however broken a
 #       report is. Report lines, then one tab-separated line per row or transition: row, kind, red, t3, fault, reason; then
-#       the grades' findings, an `open grade line:` for each row whose newest grade line is breached or unclear, a `finding: note` line for each note it of the sort, a fault folder for no row, and the head report's engines, environments and
+#       the grades' findings, an `open grade line:` for each row whose newest grade line is breached or unclear, a `finding: note` line for each note it of the sort, a `finding: real` line for each prove it real (0.26.11.1.3, R3), a fault folder for no row, and the head report's engines, environments and
 #       retested. Every head report of the pull request also feeds .vid/results/stand-in.txt: <head12> TAB <the line>, each once
 #   page <evidence>                              a page of that file: <evidence less .txt>.html, by page.sh
 #   declare --pr <p> --head <commit>             that head report's engines and environments, into .vid/tw/handed and .vid/budget
@@ -22,6 +22,8 @@
 #                                                not done (but a known one), a seam: line for a row of the okay's, or the okay's seed:; its
 #                                                read gains seed, stays, seam and duty lines; a passed RH refused without a kept: line or the
 #                                                kept step, its kept lines read; a passed D2's duty lines read, never refused for them
+#                                                0.26.11.1.3 (R3): a passed D1 refused without a real: line for each real check its okay
+#                                                lists, or with one not done the owner has not ruled; its read gains the real lines
 #   grade --ask <n> (v0.26.10.27.2)             an owner's grade ask's newest report, grade-<issue>-<k>, its commit the ask's own, into
 #                                                .vid/decide/grade/<n>/read; a `vs` ask's second word checked
 # v0.26.10.25.3 R11–R13: a head report's every cases file is read; once .vid/tw/handed has an engine-split line every declared engine is asked;
@@ -106,7 +108,7 @@ form() { R=refs/heads/vid-results/$1; WHY=''
   case $1 in red-*) ;; req-*|grade-[0-9]*|deploy-[0-9]*) [ -n "$2" ] && [ "$c" = "$2" ] || { WHY="the commit $c is not the one asked for, ${2:-none}"; return 1; } ;; *) h=${1%-*}; h=${h##*-}
     if [ -n "$2" ]; then [ "$c" = "$2" ] || { WHY="the commit $c is not the one asked for, $2"; return 1; }
     else case $c in "$h"*) ;; *) WHY="the commit $c is not this report's head, $h"; return 1 ;; esac; fi ;; esac
-  case $1 in sort-pr-*) x=$(G show "$R:$1/$FN" | awk 'NR > 2 && !/^[^ ]+ (test it|note it|drop it) — / { print; exit }'); [ -z "$x" ] || { WHY="a line of sorted.txt holds none of the three words: $x"; return 1; } ;; esac
+  case $1 in sort-pr-*) x=$(G show "$R:$1/$FN" | awk 'NR > 2 && !/^[^ ]+ (test it|note it|drop it|prove it real) — / { print; exit }'); [ -z "$x" ] || { WHY="a line of sorted.txt holds none of the four words: $x"; return 1; } ;; esac   # 0.26.11.1.3 (R3): prove it real
   case $1 in pr-*) x=$(G show "$R:$1/$FN" | sed -n 's/^retested: *//p' | tr ' ' '\n' | grep -v '^$' | grep -Ev '^[A-Z]+-[0-9][A-Za-z0-9-]*$' | head -n 1 || true); [ -z "$x" ] || { WHY="a retested: line holds more than row ids: $x"; return 1; } ;; esac   # read carries it, for the decider
   case $1 in req-*) for e in $CE; do iswhole "$R:$1/cases-$e.xml" || { WHY="no whole cases file for $e"; return 1; }; done; return 0 ;; esac   # a close chunk's report: every engine of its chunk
   [ "$FN" = results.txt ] && [ -n "$KIND" ] || return 0
@@ -217,7 +219,8 @@ cmd_read() { N=''; P=''; HD=''; while [ $# -ge 2 ]; do case $1 in --ticket) N=$2
   i=$(G for-each-ref --sort=committerdate --format='%(refname:lstrip=3)' "refs/heads/vid-results/sort-pr-$P-*" 2>/dev/null | tail -n 1)
   if [ -z "$i" ]; then [ "$KIND" = reached ] || printf 'line\treport sort none\n' >> "$T/in"
   elif ! form "$i" ''; then printf 'line\treport sort %s refused %s\n' "$i" "$WHY" >> "$T/in"
-  else printf 'line\treport sort %s read\n' "$i" >> "$T/in"; G show "refs/heads/vid-results/$i:$i/sorted.txt" | awk 'NR > 2 && $2 == "note" && $3 == "it" { print "gx\tfinding: note — " substr($0, length($1) + 14) }' >> "$T/in"; fi
+  else printf 'line\treport sort %s read\n' "$i" >> "$T/in"; G show "refs/heads/vid-results/$i:$i/sorted.txt" | awk 'NR > 2 && $2 == "note" && $3 == "it" { print "gx\tfinding: note — " substr($0, length($1) + 14) }
+    NR > 2 && $2 == "prove" && $3 == "it" && $4 == "real" { print "gx\tfinding: real — " substr($0, length($1) + 20) }' >> "$T/in"; fi   # 0.26.11.1.3 (R3): a real check, for the staging okay
   # R4: a landed id's evidence starts at its landing: from a ticket published before it, none of its lines is read
   stale "$N" > "$T/stale"; if [ -s "$T/stale" ]; then for f in in.rows in; do awk -F'\t' -v S="$T/stale" 'BEGIN { while ((getline l < S) > 0) X[l] = 1 }
       ($1 == "row" || $1 == "flt") && (($2 in X) || ($6 in X)) { next } ($1 ~ /^(ret|fd|fi|f)$/) && ($2 in X) { next } $1 == "tr" && ($3 in X) { next } { print }' "$T/$f" > "$T/$f.s" && mv "$T/$f.s" "$T/$f"; done; fi
@@ -397,16 +400,23 @@ duties() { G cat-file -e "$R:$1/duties.txt" 2>/dev/null || { echo none; return 0
 # d1x <id> <the okay's ask> (0.26.11.1.1, R1, R3, R4, R6): a passed D1's further lines, or `refused TAB <why>`: staging.txt's `seed:`
 # as the okay's (`seed` in its ask, synthetic when none), one `seam:` line for each row of the okay's `rows`, `stays: up` carried;
 # 0.26.11.1.2 (R9): the first `mail: <address> — <how to read it>` and `clock: <address> — <how to move it>` carried, one with no ` — ` refused;
-# duties.txt, every staging duty answered, none `not done` but one the owner ruled a known limit (.vid/decide/duties-known)
-d1x() { sk=$(sed -n "s/^seed$TAB//p" "$2" | head -n 1); rw=$(sed -n "s/^rows$TAB//p" "$2" | head -n 1)
-  { G show "$R:$1/staging.txt" | tr -d '\r' | sed 's/^/S	/'; duties "$1" "$DUT1" | sed 's/^/D	/'; } | awk -F'\t' -v seed="${sk:-synthetic}" -v rows="$rw" -v L="$DUT1" -v KF=.vid/decide/duties-known -v DA=' — ' '
-    BEGIN { while ((getline l < KF) > 0) { split(l, y, "\t"); K[y[1]] = 1 } n = split(L, d, " "); m = split(rows, rw, " ") }
+# duties.txt, every staging duty answered, none `not done` but one the owner ruled a known limit (.vid/decide/duties-known);
+# 0.26.11.1.3 (R3): for each real check the okay lists (`real <n> <line>` in its ask), a `real: #<the okay's issue>-<n> done — <what was run,
+# where>` or `… not done — <why>` line, none missing or `not done` but one the owner ruled (.vid/decide/real-known), each read as `real <n>
+# <done|not done|missing> <words>`; a line keyed to another okay is not read, and of one key the newest line stands
+d1x() { sk=$(sed -n "s/^seed$TAB//p" "$2" | head -n 1); rw=$(sed -n "s/^rows$TAB//p" "$2" | head -n 1); ri=$(sed -n "s/^issue$TAB//p" "$2" | head -n 1)
+  { G show "$R:$1/staging.txt" | tr -d '\r' | sed 's/^/S	/'; duties "$1" "$DUT1" | sed 's/^/D	/'; } | awk -F'\t' -v seed="${sk:-synthetic}" -v rows="$rw" -v L="$DUT1" -v KF=.vid/decide/duties-known -v DA=' — ' -v RA="$2" -v RI="$ri" -v RK=.vid/decide/real-known '
+    BEGIN { while ((getline l < KF) > 0) { split(l, y, "\t"); K[y[1]] = 1 } n = split(L, d, " "); m = split(rows, rw, " ")
+      while ((getline l < RA) > 0) if (l ~ /^real\t[0-9]+\t/) { split(l, y, "\t"); RN[++nr] = y[2]; RY[y[2]] = substr(l, length(y[1] y[2]) + 3) } while ((getline l < RK) > 0) { split(l, y, "\t"); RD[y[1]] = 1 } }
     function why(s) { if (bad == "") bad = s }
     $1 == "S" { x = substr($0, 3); if (x ~ /^seed:/) { v = x; sub(/^seed: */, "", v); sub(/[ \t]+$/, "", v); if (sd == "") sd = v }
         else if (x ~ /^stays: *up[ \t]*$/) st = 1
         else if (x ~ /^(mail|clock):/) { k = x; sub(/:.*/, "", k); v = x; sub(/^[a-z]+: */, "", v); q = index(v, DA)
           if (!q || q == 1 || substr(v, q + length(DA)) ~ /^[ \t]*$/) why("a " k ": line is not <address> — <how to " (k == "mail" ? "read" : "move") " it>: " x)
           else if (!(k in MC)) { MC[k] = 1; MA[k] = substr(v, 1, q - 1); MH[k] = substr(v, q + length(DA)) } }
+        else if (x ~ /^real:/ && match(x, "^real: *#" RI "-[0-9]+ ")) { v = substr(x, RLENGTH + 1); k = substr(x, 1, RLENGTH - 1); sub(/^real: *#[0-9]+-/, "", k); q = index(v, DA)
+          s0 = q ? substr(v, 1, q - 1) : ""; w = q ? substr(v, q + length(DA)) : ""
+          if ((s0 != "done" && s0 != "not done") || w ~ /^[ \t]*$/) why("a real: line is not real: #<issue>-<n> done — <what was run, where>, nor not done — <why>: " x); else { RX[k] = s0; RW[k] = w } }
         else if (x ~ /^seam: /) { v = x; sub(/^seam: */, "", v); r = v; sub(/ .*/, "", r); t = substr(v, length(r) + 2)
           if (t ~ /^real[ \t]*$/) { SM[r] = "real"; SW[r] = "" } else if (index(t, "stand-in" DA) == 1 && t !~ ("^stand-in" DA "[ \t]*$")) { SM[r] = "stand-in"; SW[r] = substr(t, length("stand-in" DA) + 1) }
           else why("a seam: line is not <row> real, nor <row> stand-in — <why>: " x) } next }
@@ -416,8 +426,9 @@ d1x() { sk=$(sed -n "s/^seed$TAB//p" "$2" | head -n 1); rw=$(sed -n "s/^rows$TAB
       for (i = 1; i <= m; i++) if (!(rw[i] in SM)) why("staging.txt has no seam: line for the outside-service row " rw[i])
       if (nod) why("a passed deploy has no duties.txt")
       for (i = 1; i <= n; i++) { k = d[i]; if (DS[k] == "missing") why("duties.txt has no line for the duty " k); else if (DS[k] == "not done" && !(k in K)) why("the duty " k " is not done: " DW[k]) }
+      for (i = 1; i <= nr; i++) { k = RN[i]; if (!(k in RX)) RX[k] = "missing"; if ((RI "-" k) in RD) continue; if (RX[k] == "missing") why("staging.txt has no real: line for #" RI "-" k ": " RY[k]); else if (RX[k] == "not done") why("the real check #" RI "-" k " is not done: " RW[k]) }
       if (bad != "") { print "refused\t" bad; exit }
-      print "seed\t" sd; if (st) print "stays\tup"; if ("mail" in MC) print "mail\t" MA["mail"] "\t" MH["mail"]; if ("clock" in MC) print "clock\t" MA["clock"] "\t" MH["clock"]; for (r in SM) print "seam\t" r "\t" SM[r] "\t" SW[r]; for (i = 1; i <= n; i++) print "duty\t" d[i] "\t" DS[d[i]] "\t" DW[d[i]] }'; }
+      print "seed\t" sd; if (st) print "stays\tup"; if ("mail" in MC) print "mail\t" MA["mail"] "\t" MH["mail"]; if ("clock" in MC) print "clock\t" MA["clock"] "\t" MH["clock"]; for (r in SM) print "seam\t" r "\t" SM[r] "\t" SW[r]; for (i = 1; i <= n; i++) print "duty\t" d[i] "\t" DS[d[i]] "\t" DW[d[i]]; for (i = 1; i <= nr; i++) print "real\t" RN[i] "\t" RX[RN[i]] "\t" RW[RN[i]] }'; }
 # 0.26.10.29.5 (DP-1 R2): every deploy report, D1, RH and D2, whatever its outcome, states its decisions: `decision: <what> | why: <why>`
 # lines, or the one line `decisions: none`; with neither it is refused, as a rehearsal with no drops: line is, and so never read for them
 # deploy2 <rh|d2> <id> <k>: the rehearsal's or production deploy's report, its form alone

@@ -357,7 +357,12 @@ canon() { awk '{ gsub(/[ \t]+/, " "); sub(/^ /, ""); sub(/ $/, "") }
 events() { [ -f "$H/.vid/metrics-events" ] || return 0; awk -v t="$1" "$AWKAT"' $1 == t { a = lastat(); if (a == "") a = "0000"; printf "%s\t%09d\t%s\n", a, NR, $0 }' "$H/.vid/metrics-events" | sort -t "$(printf '\t')" -k1,1 -k2,2n | cut -f3-; }
 evkv() { printf '%s\n' "$1" | awk "$AWKAT"' { print kv("'"$2"'") }'; }
 # tinvids (v0.26.10.12.2.2, R1): ticket mode's inventory ids — every id of every ```vid-inventory line
-tinvids() { [ -f "$H/INVENTORY.md" ] && awk '/^```vid-inventory/ { b = 1; next } /^```/ { b = 0 } b' "$H/INVENTORY.md" | awk -F'|' '{ k = $1; gsub(/^[ \t]+|[ \t]+$/, "", k)
+# GM-1 S3: in GitHub manual (the newest github-mode answer manual, or a call /vid mode marks, VID_CALLER=mode) the inventory is the
+# applied commit's (.vid/tw/applied), as planner.sh reads it, so a plan of the version the team has is not refused for a row retired since
+tinv() { _ta=$(sed -n '1s/[[:space:]]*$//p' "$H/.vid/tw/applied" 2>/dev/null)
+  if [ -n "$_ta" ] && { [ "${VID_CALLER:-}" = mode ] || [ "$(sed -n 's/^setup-answered key=github-mode value="\([a-z]*\)".*/\1/p' "$H/.vid/plan/setup" 2>/dev/null | tail -n 1)" = manual ]; }; then
+    git -C "$H" show "$_ta:./INVENTORY.md" 2>/dev/null; else [ -f "$H/INVENTORY.md" ] && cat "$H/INVENTORY.md"; fi; }
+tinvids() { tinv | awk '/^```vid-inventory/ { b = 1; next } /^```/ { b = 0 } b' | awk -F'|' '{ k = $1; gsub(/^[ \t]+|[ \t]+$/, "", k)
     if (k ~ /^(rule|difference|exception|suppression|hostility|seam)$/) { k = $2; gsub(/^[ \t]+|[ \t]+$/, "", k) } if (k ~ /^[A-Z]+-[0-9]+$/) print k }'; }
 invids() { if tickets_mode; then tinvids; return; fi; [ -f "$H/INVENTORY.md" ] && sed -n '/^```vid-inventory/,/^```$/p' "$H/INVENTORY.md" | sed '1d;$d' | awk -F'|' '$1 ~ /^[[:space:]]*ROW-/ { id = $1; gsub(/^[ \t]+|[ \t]+$/, "", id); print id }'; }
 # parse_block <block file> <inventory ids file or ''>: normalised lines, or ERR lines (exit 1)

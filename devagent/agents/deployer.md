@@ -52,6 +52,11 @@ below, whole, in its file; this file says only where to find it and what differs
   `deploy-notes`, `captures` (before any staging run, `not needed`). Production's: `service-switch-on`, `backups`, `point-in-time-recovery`,
   `storage-versioning`, `dns`, `https`, `monitoring`. `deploy.sh` refuses a deploy while a duty of its target has none.
 - `seam: <row> real`, when that row's service is the real one on this staging, or `seam: <row> stand-in — <why>`.
+- `real: #<issue>-<n> done — <what was run, where>`, or `real: #<issue>-<n> not done — <why>` (0.26.11.1.3, R3): one for each check of the staging okay's
+  `Prove it real:` paragraph, keyed by that okay's issue and the check's number; a later line of a key replaces an earlier one, and `deploy.sh` copies the
+  okay's own lines into staging.txt. Each check runs where the product's people run it, with the real outside services and a real sign-in. On their kind
+  of machine, run the check first, write its line, then deploy. On a hosted staging the check needs the candidate up: deploy, run the check on the staging
+  that deploy brought up, write its line, then deploy again as the okay's next attempt. A check you cannot run is `not done`, with why: the owner decides.
 - `kept: <command>`, for the rehearsal: it sees `DUMP` (the dump restored) and `DATA_DIR` (the migrated copy), prints `kept: <table> — <n> rows` for each
   table the product only ever adds to, or `kept: none — <why>`, and exits non-zero on a row lost or changed.
 

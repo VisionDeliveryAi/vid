@@ -4,7 +4,7 @@
 # each print nothing; the owner's GitHub auto answer, given through planner.sh setup, prints the job note with the toy's repo: and
 # labels-prefix:, a work: outside the toy and outside ViD's records, the three limits (agent-time-limit: at least 7200, with the line on an
 # agent stopped twice), model: as dm.sh's MODEL0; in order (R12) the work folder's mkdir, the note, /vid:vid-devagent '<note>' in a new conversation in the work folder, then the background up line, the plugin's real folder single-quoted;
-# and check, list, used and down the same way. Saved as printed where it says, with the folder step run, dm.sh check reads `ready` on
+# and check, list, used and down the same way; agents: left to /vid:vid-devagent's question, and the closing sentence for each way (0.26.11.1.3, R5). Saved as printed where it says, with the folder step run, dm.sh check reads `ready` on
 # fakes (where the dev side is beside checks/; checks/ alone runs on a stub dm.sh holding MODEL0 and skips that part). Nothing outside
 # .vid/ changes and no folder is made. check flags github-mode before the first ratify, not after. vid-run's read-access line is
 # conditioned on GitHub team, its start paragraph names the call. Env: CHECKS.
@@ -51,6 +51,10 @@ ln() { grep -nxF -- "$1" "$T/print" | head -n 1 | cut -d: -f1; }
 a=$(ln "$L"); b=$(grep -n '^2\. Save this job note' "$T/print" | cut -d: -f1); c=$(ln "/vid:vid-devagent '$NT'"); d=$(ln "sh $Q up '$NT'")
 [ -n "$a" ] && [ -n "$b" ] && [ -n "$c" ] && [ -n "$d" ] && [ "$a" -lt "$b" ] && [ "$b" -lt "$c" ] && [ "$c" -lt "$d" ] || fail "not folder, note, /vid:vid-devagent, then the background line: $a $b $c $d"
 grep -q "open a new Claude Code conversation in the work folder" "$T/print" || fail 'the conversation is not said to open in the work folder'
+# 0.26.11.1.3 (R5): the note leaves agents: to the conversation's one question; what closing the conversation does is said for each way
+grep -q '^- agents: is left out: /vid:vid-devagent asks once' "$T/print" || fail 'no line on the agents: question'
+grep -qF 'With agents: command, closing that conversation ends only the view: DevAgent runs on.' "$T/print" && grep -qF 'With agents: conversation, that conversation is DevAgent: closing it stops DevAgent until the conversation is opened again' "$T/print" || fail 'the closing sentence does not name each way'
+grep -qF 'Or, with agents: command, for a run with no conversation to watch it' "$T/print" || fail 'the background line is not said to be for agents: command'
 grep -qxF -- "- What it needs, starting nothing: sh $Q check '$NT'" "$T/print" || fail 'no check line'
 grep -qxF -- "- What is alive, in its work folder: cd '$WK' && sh $Q list" "$T/print" || fail 'no list line'
 grep -qxF -- "- The time and turns used so far: cd '$WK' && sh $Q used" "$T/print" || fail 'no used line'

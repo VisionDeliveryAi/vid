@@ -9,6 +9,13 @@ put() { _p=$(dirname "$1")/.put.$$.$(basename "$1"); cat > "$_p" && mv -f "$_p" 
 # skey <key>: .vid/tw/settings' value of `<key>:`, its trailing space trimmed; twkey, the same
 skey() { sed -n "s/^$1:[[:space:]]*//p" .vid/tw/settings 2>/dev/null | head -n 1 | sed 's/[[:space:]]*$//'; }
 twkey() { skey "$1"; }
+# ghmode (GitHub manual, GM-1 S1): the GitHub mode, the owner's newest `setup-answered key=github-mode` line of .vid/plan/setup:
+# auto, team or manual; none with no answer (a `github-mode:` line written by hand is no answer). manual: in GitHub manual, or in
+# a call /vid mode marks as its own (VID_CALLER=mode), which reads under manual's rules before the mode is recorded. applied: the
+# applied version's commit, .vid/tw/applied, or nothing
+ghmode() { _gm=$(sed -n 's/^setup-answered key=github-mode value="\([a-z]*\)".*/\1/p' .vid/plan/setup 2>/dev/null | tail -n 1); case $_gm in auto|team|manual) echo "$_gm" ;; *) echo none ;; esac; }
+manual() { [ "${VID_CALLER:-}" = mode ] || [ "$(ghmode)" = manual ]; }
+applied() { sed -n '1s/[[:space:]]*$//p' .vid/tw/applied 2>/dev/null; }
 # plan_block [<RUN-STATE>]: the vid-plan block's lines under "## The plan", strict fence, trailing space trimmed: plan.sh's `block`, whose hash is the plan's
 plan_block() { [ -f "${1:-.vid/RUN-STATE.md}" ] || return 0; awk '/^## The plan/ { s = 1; next } s && /^## / { exit } s && /^```vid-plan[ \t]*$/ { b = 1; next } b && /^```[ \t]*$/ { exit } b { print }' "${1:-.vid/RUN-STATE.md}" | sed 's/[[:space:]]*$//'; }
 # rkey: the round's refusal key: the plan block, the handed record and the newest tw-sync's main (0.26.10.28.2, R4), so a refusal is tried again once one

@@ -5,6 +5,8 @@
 #   sync                 the open-questions section and its `questions:` key, from the records; prints `question <n> <k>` for a
 #                        dev-side question with no answer and no line, `finding <ticket> <severity> <words>` once each, `unreleased <row>`;
 #                        v0.26.10.26.3 (R3): `regression <step>/<ask> <n>` once for each close whose numbers give regressions introduced above 0
+#                        0.26.11.1.3 (R4): the section is the queue's alone: its own Q lines and the session's planning Q lines are kept,
+#                        a <!-- … --> comment too, and any other line is dropped, each named on standard error
 #   recommend Q<n> <letter> "<why>"            the session's own recommendation for a held row
 #   ask <n>:<k>                                a dev-side question only the owner can answer becomes a `Q<n>` line; v0.26.10.26.7 (R8): and
 #                                              one `RM: this question waits on the lead (Q<n>)…` comment on <n>, the question's text never quoted
@@ -19,7 +21,10 @@
 # 0.26.11.1.1: a D1 refused twice for a duty not done is also answered known "<words>" (the owner's: .vid/decide/duties-known); a
 #   passed D2's duty missing or not done is `pduty:<issue>:<duty>`, the owner's known; a seam row not marked real at staging is
 #   `stand-in`, the owner's limit "<words>" (paid against it) or again (D1 and CS afresh); a staging that stays up is up in addresses
-#   status                                     where things stand, one fixed block; v0.26.10.26.3 (R1): then the stage, now, left, tests,
+# 0.26.11.1.3 (R3): a D1 refused twice for a real check is `notreal`, answered again, or, the owner's alone, known or row "<words>"
+#   (.vid/decide/real-known); a `finding: real` line is no finding item and no stage-close blocker: its real: answer settles it
+#   status                                     (GM-1 S1) opens with the mode's line, `mode: develop`, `mode: GitHub auto`, `… team` or
+#                                              `… manual`; then where things stand, one fixed block; v0.26.10.26.3 (R1): then the stage, now, left, tests,
 #                                              the test state, debt, landings, cost, hardening and estimate lines, from the records alone;
 #                                              0.26.10.29.5 (DP-1 R4): its delegated answers are every answer not given by the owner
 #                                              (lib.sh notowner), then `merged with no decisions stated: #<p>, …` and
@@ -57,8 +62,9 @@ held_items() { awk -F'\t' '$1 == "open" { print $2 "\t" $3 "\t" substr($4, 1, 12
         r = ("held:" $1 in R) ? R["held:" $1] : a ? "a — its tests pass and its evidence alone is missing" : weak ? "c — the corrected test still misses its break" : "b — 1 more round"
         print "held:" $1 "\t#" t "\theld " $1 " · #" t " · " w " · how far? " (a ? "(a) accept by ruling " : "") "(b) N more rounds (c) a known limit (d) amend · recommended: " r }' "$f"; done; }
 q_items() { awk -F'\t' -v A="$Q/answers" 'BEGIN { while ((getline l < A) > 0) { split(l, x, "\t"); D[x[2]] = 1 } } $4 == "asked" && !("question:" $1 in D) { print "question:" $1 "\t#" substr($1, 1, index($1, ":") - 1) "\t" $3 }' "$Q/questions"; }
-# a ticket's findings: its newest evidence file's `finding:` lines; a line for the ticket, and one for each high one
-fnd() { ls -t .vid/results/pr-"$1"-*.txt 2>/dev/null | head -n 1 | xargs -I{} sed -n 's/^finding: //p' {} 2>/dev/null; }
+# a ticket's findings: its newest evidence file's `finding:` lines; a line for the ticket, and one for each high one. 0.26.11.1.3 (R3): a
+# `finding: real` line is none of them: its staging okay's `real:` answer settles it, never the owner's finding ruling
+fnd() { ls -t .vid/results/pr-"$1"-*.txt 2>/dev/null | head -n 1 | xargs -I{} sed -n '/^finding: real — /d; s/^finding: //p' {} 2>/dev/null; }
 f_items() { awk -F'\t' '($1 == "open" || $1 == "merged") && $3 != "-" { print $2 "\t" $3 }' "$RD" 2>/dev/null >> "$Q/prs"; sort -u "$Q/prs" > "$Q/prs.t" || exit 1; put "$Q/prs" < "$Q/prs.t" || exit 1; while IFS=$TAB read -r p t; do fnd "$p" > "$Q/f.$p"; [ -s "$Q/f.$p" ] || continue
     awk -v t="$t" -v A="$Q/answers" 'BEGIN { while ((getline l < A) > 0) { split(l, x, "\t"); if (x[2] ~ "^finding:" t ":") D[x[2]] = 1 } }
       { k = "finding:" t ":" NR; if (k in D) next; s = ($2 ~ /^(high|medium|low)$/) ? $2 : "low"; c[s]++; o++; if (s == "high") print k "\tnothing\tfinding of #" t ", high · " $0 " · rule it: fix, a row, known, or no · .vid/decide/queue.html" }
@@ -78,6 +84,7 @@ c_items() { { for s in $(ls "$D/close" 2>/dev/null); do k=$(nk "$s"); [ -n "$k" 
       else if ($1 == "shrink") { sub(/ · before: /, " · red at the close before it: ", w); print k "\tstep " s "\tthe close of " s " did not shrink after its fix: red now: " w (NB == "" ? "" : " · " NB) " · answer again for a fix ticket, or limit to rule the rows red now known limits" }   # 0.26.10.29.2 (R7)
       else if (sk ~ /\/w1$/) { sub(/^twice: /, "", w); sub(/^— /, "", w); print k "\t" s "\tthe walk W1 of " s ": " ($1 == "refused" ? "its return refused twice: " : "not done — ") w " · answer again: the walker starts again, at the same staged commit" ($1 != "refused" && w ~ /^browser: none( |$)/ ? "; or, yours alone, close without the walk: the stage closes with the walk a known limit" : "") }   # 0.26.10.28.6 (R1 (b))
       else if (sk ~ /\/d2$/) print k "\t" s "\tthe production deploy of " s ": " w " · answer again"
+      else if ($1 == "notreal") print k "\t" s "\tthe staging deploy D1 of " s ": " w " · answer again once it is fixed, for DevAgent to report again; or, yours alone, known \"<words>\" for a known limit of this project, or row \"<words>\" for a new row"   # 0.26.11.1.3 (R3)
       else if ($1 == "notdone") print k "\t" s "\tthe staging deploy D1 of " s ": its report refused twice: " w " · answer again; or, yours alone, known \"<words>\": the duty a known limit of this project"   # 0.26.11.1.1 (R3)
       else if ($1 == "stand-in") { n0 = s; sub(/^stage-/, "", n0); print k "\t" s "\tstand-in " n0 " " $2 " — " w " · yours alone: answer limit \"<words>\" to pay it against the stand-in, a known limit, or again once the real service is on, to deploy and run staging afresh at this candidate" }   # 0.26.11.1.1 (R4)
       else if ($2 == "d1" || $2 == "rh") print k "\t" s "\tthe " ($2 == "rh" ? "rehearsal RH" : "staging deploy D1") " of " s ": " ($1 == "lost" ? "lost twice" : $1 == "refused" ? "its report refused twice: " substr(w, 8) : $1 == "failed" ? "failed twice at " substr(w, 4) ", which DevAgent says needs no product change" : "failed at " substr(w, 4) ", needing a product change, and its row was declined") " · answer again" (($1 == "declined") ? " to okay the same commit again" : "")
@@ -143,12 +150,15 @@ nextq() { n=$(sed -n 's/^questions:.*next Q\([0-9][0-9]*\).*/\1/p' "$RS" | head 
 cmd_sync() { items > "$Q/it0" || exit 1; put "$Q/items" < "$Q/it0" || exit 1; : > "$Q/lines"
   while IFS=$TAB read -r k g w; do n=$(num "$k"); if [ -z "$n" ]; then n=Q$(nextq); printf '%s\t%s\t%s\n' "$k" "$n" "$(stamp)" >> "$Q/ids"; ev "queue-asked $n what=${k%%:*}"; fi
     a=$(awk -F'\t' -v k="$k" '$1 == k { print $3; exit }' "$Q/ids"); printf -- '- %s · asked %s · gates %s · %s\n' "$n" "$a" "$g" "$w" >> "$Q/lines"; done < "$Q/items"
-  # the section: our lines, and the session's own planning questions as they were
+  # the section: our lines, and the session's own planning questions as they were; 0.26.11.1.3 (R4): it is the queue's alone, so any
+  # other line in it (but a <!-- … --> comment) is dropped, each named on standard error
   qsec() { cat > "$Q/rs0" || return 1; awk -F'\t' '{ print $2 }' "$Q/ids" > "$Q/ours"; k=$(( $(grep -c . "$Q/lines") + $(awk -v O="$Q/ours" 'BEGIN { while ((getline l < O) > 0) o[l] = 1 } /^## Open product questions/ { on = 1; next } on && /^## / { exit } on && /^- Q[0-9]+ / && !($2 in o) { n++ } END { print n + 0 }' "$Q/rs0") )); nq=$(nextq)
   awk -v L="$Q/lines" -v O="$Q/ours" -v K="questions: $k open · next Q$nq" 'BEGIN { while ((getline l < O) > 0) ours[l] = 1 }
     /^questions:/ { print K; kd = 1; next }
     /^## Open product questions/ { print; print ""; while ((getline l < L) > 0) print l; on = 1; next } on && /^## / { on = 0 }
-    on && /^- Q[0-9]+ / { q = $2; if (q in ours) next } on && !NF { next } { print } END { if (!kd) {} }' "$Q/rs0" > "$Q/rs" || return 1
+    on && (c || /<!--/) { c = !index($0, "-->"); print; next }
+    on && /^- Q[0-9]+ / { q = $2; if (q in ours) next; print; next } on && !NF { next }
+    on { print "ViD queue: dropped from the question section, not a question line: " $0 > "/dev/stderr"; next } { print }' "$Q/rs0" > "$Q/rs" || return 1
   grep -q '^questions:' "$Q/rs" || sed "1a\\
 questions: $k open · next Q$nq" "$Q/rs" > "$Q/rs2" && mv "$Q/rs2" "$Q/rs" 2>/dev/null; grep -q '^## Open product questions' "$Q/rs" || { printf '\n## Open product questions\n\n' >> "$Q/rs"; cat "$Q/lines" >> "$Q/rs"; } || return 1; cat "$Q/rs"; }
   rs_edit qsec || exit 1   # 0.26.10.28.4 (9.3 R2): through the run record's one writer
@@ -244,6 +254,13 @@ cmd_answer() { [ $# -ge 2 ] || die 'usage — answer <Q<n>|<n>:<k>> [--by RM|del
           { grep -v "^row $r " "$HAND" || true; printf 'row %s paid | stand-in: CS #%s against a stand-in, a known limit: %s (the owner)\n' "$r" "$n0" "$(printf '%s' "$*" | tr '\n|' '  ')"; } > "$Q/h" || exit 1; put "$HAND" < "$Q/h" || exit 1; x0=${s#stage-}; ev "stage-paid stage=${x0%%/*} row=$r issue=$n0 by=limit" ;;
         again) echo "$r" >> "$CF/stand-in-again" ;; *) die 'a stand-in row: limit "<words>" or again' ;; esac
       grep -v "^stand-in $r " "$CF/items" > "$Q/ci" || true; put "$CF/items" < "$Q/ci" || exit 1; rec "$k" "$v" "$*" "$BY" ruled ;;
+    close:*/d1:notreal:*) v=${1:-}; [ $# -gt 0 ] && shift; CF=$(cdir "$(printf %s "$k" | cut -d: -f2)"); rn=$(printf %s "$k" | cut -d: -f4); ri=$(sed -n "s/^issue$TAB//p" "$CF/ask" | head -n 1)   # 0.26.11.1.3 (R3)
+      case $v in again) echo 'allow refused' >> "$CF/again" ;;
+        known|row) [ "$BY" = owner ] || die "a real check's $v is the owner's alone, never $BY's"; [ -n "$*" ] || die "$v \"<words>\""
+          printf '%s\t%s\t%s\t%s\t%s\n' "$ri-$rn" "$(printf '%s' "$*" | tr '\t\n' '  ')" "$BY" "$(stamp)" "$v" >> "$D/real-known"
+          [ "$v" != row ] || { echo "$k" >> "$Q/doors"; echo "door: /vid fix — a new row for the real check #$ri-$rn (the owner: $*) · draft it with --for $k"; } ;;
+        *) die 'a real check not done: again, known "<words>" or row "<words>"' ;; esac
+      grep -v "^notreal $rn " "$CF/items" > "$Q/ci" || true; put "$CF/items" < "$Q/ci" || exit 1; rec "$k" "$v" "$*" "$BY" ruled ;;
     close:*/d1:notdone:*) v=${1:-}; du=$(printf %s "$k" | cut -d: -f4); [ "$v" = known ] || { [ "$v" = again ] || die 'a duty not done: again, or known "<words>"'; echo 'allow refused' >> "$(cdir "$(printf %s "$k" | cut -d: -f2)")/again"; }   # 0.26.11.1.1 (R3)
       CF=$(cdir "$(printf %s "$k" | cut -d: -f2)"); if [ "$v" = known ]; then [ "$BY" = owner ] || die "a duty's known is the owner's alone, never $BY's"; shift; [ -n "$*" ] || die 'known "<words>"'
         printf '%s\t%s\t%s\t%s\n' "$du" "$(printf '%s' "$*" | tr '\t\n' '  ')" "$BY" "$(stamp)" >> "$D/duties-known"; ev "duty-known duty=$du by=$BY"; else shift; fi
@@ -392,8 +409,11 @@ st_lines() { rjoin; tix; P0=$(plan_block "$RS"); BF=$(sed -n 's/^strategy:[[:spa
 orn() { if [ -n "$1" ]; then printf '%s' "$1"; else printf '%s' "${2:-none}"; fi; }
 # qfin: the final stage, STAGES.md's highest (stage 1 with none), as close.sh's finals reads it
 qfin() { [ -f STAGES.md ] || { echo 1; return; }; sed -n '/^```vid-stages/,/^```$/p' STAGES.md | awk -F'|' '{ k = $1; gsub(/[ \t]/, "", k); if (k ~ /^STAGE-/) { sub(/^STAGE-0*/, "", k); if (k == "") k = 0; m = k } } END { print m + 0 }'; }
+# mline (GM-1 S1): the status's first line, the project's mode: develop, or GitHub auto, team or manual (lib.sh ghmode)
+mline() { if [ "$(sed -n 's/^mode:[[:space:]]*//p' .vid/RUN-STATE.md | head -n 1 | sed 's/[[:space:]]*$//')" != tickets ]; then echo 'mode: develop'; return 0; fi
+  case $(ghmode) in auto) echo 'mode: GitHub auto' ;; team) echo 'mode: GitHub team' ;; manual) echo 'mode: GitHub manual' ;; *) echo 'mode: GitHub, who works the tickets not recorded' ;; esac; }
 cmd_status() { E=$(sed -n 's/^run-start //p' .vid/decide/queue/started 2>/dev/null); [ -n "$E" ] || { E=$(date +%s); echo "run-start $E" > "$Q/started"; }
-  L=$(cat "$Q/updated" 2>/dev/null || echo 0); echo '== where things stand'
+  L=$(cat "$Q/updated" 2>/dev/null || echo 0); mline; echo '== where things stand'
   echo "tickets: open $(awk -F'\t' -v T=",${PX}ticket," '$1 == "issue" && index("," $3 ",", T)' "$RD" 2>/dev/null | grep -c .) · merged $(cat "$D/merged-prs" 2>/dev/null | grep -c . || true) · items for the owner $(cat "$Q/items" 2>/dev/null | grep -c . || true) · steps waiting $(orn "$(c=$(rkey); awk -v c="$c" '$1 == "start" && $NF == c { print $2 }' "$D/refused" 2>/dev/null | sort -u | paste -sd ' ' -)")"
   echo "rows: $(orn "$(awk -F'\t' '{ c[$2]++ } END { for (s in c) printf "%s%s %d", (n++ ? " · " : ""), s, c[s] }' "$D/state" 2>/dev/null)")"
   echo "steps closed: $(orn "$(sed -n 's/^closed \([^ ]*\) .*/\1/p' "$HAND" 2>/dev/null | paste -sd ' ' -)") · closes out: $(orn "$(sh "$HERE/close.sh" out 2>/dev/null | cut -d' ' -f2 | paste -sd ' ' -)")"

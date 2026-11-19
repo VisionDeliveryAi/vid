@@ -2,18 +2,18 @@
 # Purpose: selftest case — the hooks' shared JSON reader (v0.9.6.2 spec 3.2;
 # §6 case 8). Needs the plugin's hooks/ beside checks/, so in a project
 # (init copies checks/ alone) it proves nothing and passes. Convicts unless
-# hooks/json.sh exists and hooks/stop-failure.sh sources it (the scanner is
-# no longer its own); json_fields gives every top-level key of compact and
+# hooks/json.sh exists and hooks/record.sh sources it (for the plugin's own
+# plugin.json; 0.26.11.1.3, R1: a hook's input is read by hooks/agent.sh's kread),
+# and hooks/stop-failure.sh carries no scanner of its own; json_fields gives every top-level key of compact and
 # pretty-printed input, never a key nested in an object or written inside a
 # string value, with escapes read; jget and jhas answer from its output; and
-# input whose brackets do not balance exits non-zero. The death record's
-# own cases (death-record.sh) run unchanged on the shared reader. Env: CHECKS.
+# input whose brackets do not balance exits non-zero. Env: CHECKS.
 set -eu
 HD="$CHECKS/../hooks"
 [ -f "$HD/stop-failure.sh" ] || { echo 'needs hooks/stop-failure.sh'; exit 77; }
 fail() { echo "json-reader: $*" >&2; exit 1; }
 [ -f "$HD/json.sh" ] || fail 'no hooks/json.sh'
-grep -q 'json\.sh' "$HD/stop-failure.sh" || fail 'stop-failure.sh does not source the shared reader'
+grep -q 'json\.sh' "$HD/record.sh" || fail 'record.sh does not source the shared reader'
 grep -q 'RS = "\\001"' "$HD/stop-failure.sh" && fail 'stop-failure.sh still carries its own scanner'
 . "$HD/json.sh"
 F=$(printf '%s' '{"session_id":"S1","nested":{"agent_id":"inner"},"note":"say \"agent_id\": \"x\"\nok","n":3,"agent_type":"Explore"}' | json_fields) || fail 'compact input did not parse'

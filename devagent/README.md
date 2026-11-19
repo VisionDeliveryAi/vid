@@ -3,17 +3,23 @@
 **What it is.** DevAgent's side of ticket mode, shipped with ViD: ViD's own dev side, for a project with no outside dev team. It works the tickets ViD publishes on a code repository: its agents write the tests and the code, run them, report the results on `vid-results/*` branches, and merge a pull request once ViD's decision says `ticket: accepted`. ViD and this side meet only on the repository, in the forms of `docs/RESULTS-FORMAT.md`.
 
 - `dev-manager/dm.sh`: the loop, and the one script a person runs.
-- `agents/`: the roles it starts, each a fresh `claude -p`.
+- `agents/`: the roles it starts, each a fresh agent: a `claude -p` of its own, or a helper of DevAgent's conversation (below).
 - `test-manager/`: how the tests are set up and run, in Docker.
 - `deployer/deploy.sh`: the deploys ViD's okays ask for.
 
+**Two ways its agents run,** by the job note's `agents:` line:
+- **`agents: command`:** each agent is a `claude -p` of its own, started by DevAgent's loop, which runs on its own, apart from any conversation. It needs the `claude` command signed in.
+- **`agents: conversation`:** DevAgent's own Claude Code conversation is its dev manager, one pass at a time, and runs each agent as a fresh helper. It needs no sign-in of the `claude` command, but the conversation must stay open: closing it stops DevAgent until it is opened again. There is no loop: `up` refuses.
+
+With no `agents:` line, `/vid:vid-devagent` asks once, recommending the conversation when `claude` is not signed in, and writes the answer in the note; `dm.sh` alone reads such a note as `agents: command`.
+
 **What it needs.**
-- `claude` on the PATH, signed in. Every agent runs on the job note's `model:`, or on the default `dev-manager/dm.sh` names when it has none.
+- With `agents: command`, `claude` on the PATH, signed in. Every agent runs on the job note's `model:`, or on the default `dev-manager/dm.sh` names when it has none.
 - `gh`, signed in with write access to the code repository.
 - Docker, running.
 - git.
 - A ViD project in ticket mode whose run is going: `/vid:vid-run` publishes the tickets and decides on what this side returns.
-- A work folder outside that project, holding a job note. The note's head is `key: value` lines: `repo:` (owner/name), `labels-prefix:`, `work:` (the work folder), `time-limit:` (the loop's seconds), `agent-time-limit:` (one agent's seconds), `agent-turn-limit:` (one agent's turns) and, if another model is wanted, `model:`. The head of `dev-manager/dm.sh` describes each.
+- A work folder outside that project, holding a job note. The note's head is `key: value` lines: `repo:` (owner/name), `labels-prefix:`, `work:` (the work folder), `time-limit:` (the loop's seconds), `agent-time-limit:` (one agent's seconds), `agent-turn-limit:` (one agent's turns), `agents:` (`conversation` or `command`) and, if another model is wanted, `model:`. The head of `dev-manager/dm.sh` describes each.
 
 **Where its deploys end.** DevAgent deploys staging and production to the project's chosen host, the one its hosting names: its deployer (`devagent/agents/deployer.md`) sets the host up through the host's own command-line tool, which you log in yourself, and `deployer/deploy.sh` deploys there. The rehearsal is a sealed copy on this machine. Local copies of staging and production, with `deploy: local` in the job note, are for a test alone. A hosted deploy also needs `curl`.
 
@@ -23,15 +29,20 @@
 plugin's real folder. Make the work folder, and save the note where it says. Then start DevAgent in one of two ways.
 
 **In a conversation of its own, the first way.** Open a new Claude Code conversation in the work folder and type
-`/vid:vid-devagent <job note>`. It checks what DevAgent needs, starts it, and shows each pass as it ends: which ticket, what the
-dev manager did, and the report it pushed. A stop shows as soon as the loop writes it. Say "stop" there to stop DevAgent.
-- Closing the conversation, or quitting Claude Code, ends only the view: DevAgent runs on, as after `up` from a terminal.
-- Typing `/vid:vid-devagent` again in the work folder follows the running loop, or starts one if none runs, picking up where it stopped.
+`/vid:vid-devagent <job note>`. It asks the `agents:` way when the note has none, checks what DevAgent needs, and starts it. Say "stop" there to stop DevAgent.
+- With `agents: command`, it starts the loop and shows each pass as it ends: which ticket, what the dev manager did, and the report it
+  pushed. A stop shows as soon as the loop writes it. Closing the conversation, or quitting Claude Code, ends only the view: DevAgent runs on,
+  as after `up` from a terminal. Typing `/vid:vid-devagent` again in the work folder follows the running loop, or starts one if none runs,
+  picking up where it stopped.
+- With `agents: conversation`, the conversation runs `dm.sh check` and `dm.sh here` once, then works each pass itself, reading
+  `devagent/agents/dev-manager.md` afresh each time; each agent is a helper it runs in the foreground, whose final message it writes as the hand-back
+  before `dm.sh done`. Closing the conversation stops DevAgent until the conversation is opened again; `/vid:vid-devagent` again in the work
+  folder picks up where it stopped.
 - A word you type while the conversation waits is read when its wait ends, within 9 minutes. Esc ends only the wait, never DevAgent.
 - A permission prompt for the wait pauses only the view.
 - The conversation's own turns run on your session's model; they only follow. DevAgent's agents run on the note's `model:`.
 
-**In the background, for a run with no conversation to watch it.** From any terminal:
+**In the background, for a run with no conversation to watch it,** with `agents: command`. From any terminal:
 
 ```
 sh <plugin>/devagent/dev-manager/dm.sh check <job note>

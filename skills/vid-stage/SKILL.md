@@ -20,6 +20,13 @@ name=stage state=start session=$CLAUDE_CODE_SESSION_ID records=28"` when
 this skill starts and `sh checks/event.sh "stage name=stage state=end
 session=$CLAUDE_CODE_SESSION_ID"` when it hands back.
 
+**GitHub manual (GM-1 S1).** When
+`sh "${CLAUDE_PLUGIN_ROOT}/checks/devagent-start.sh" mode` prints `manual`,
+a re-cut goes through no door: say in one line, "In GitHub manual the door
+does not change the spec: change it by hand, as today, and the change
+shows as pending at /vid next.", and draft, record and commit nothing;
+`checks/land.sh` refuses too.
+
 **Ticket mode (0.26.10.29.2, R2).** While `.vid/RUN-STATE.md` says `mode:
 tickets`, a re-cut is a draft through the door, as /vid add's ticket-mode
 branch drafts (the vid-add skill): it records no stage event, so the run's
@@ -262,7 +269,11 @@ commit but the one creating `STAGES.md`.
   owner's own hands, from the `vid-hosting` block init recorded
   (`owner-only:`): the log-in, and the accounts only the owner can create
   (counted, by name); what proves it done: its rows pass and are graded,
-  then staging runs it; the effort, S/M/L, labelled an estimate. It has
+  then staging runs it, and its journey runs once for real where your
+  users run it (their kind of machine, or the hosted site), on the real
+  outside services and a real sign-in, before stage 0 can close; when the
+  dev side cannot make that run, it says why and you choose: fix it, a
+  row, or a known limit; the effort, S/M/L, labelled an estimate. It has
   no outcome, audience, "what to watch once live" or requirements: it
   holds none.
 - **With stage 0,** stage 1's card names no walking skeleton; stage 0 is

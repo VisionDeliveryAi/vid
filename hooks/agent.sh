@@ -1,11 +1,15 @@
 # Purpose: ViD's shared readers for the plugin's agent-aware hooks (v0.9.7.0.7 spec 3.6, 3.7) —
-# sourced by hooks/reread.sh and hooks/net.sh, never run alone; `keys`, `kv` and
+# sourced by hooks/reread.sh, hooks/net.sh, hooks/waits.sh and (0.26.11.1.3, R1) hooks/face-standing.sh,
+# hooks/stop-failure.sh, hooks/record.sh and hooks/reentry.sh, never run alone; `keys`, `kv` and
 # `jesc` moved here from reread.sh (v0.9.7.0.6 3.8) unchanged.
 #   keys <k>…      one `<key>\t<value>` line for each key's first occurrence in $IN, the hook's
 #                  input: a key is taken only where it follows `{` or `,` (text inside a JSON
 #                  string never shows one unescaped); a string is unescaped. Exits 1 on input
 #                  whose brackets outside strings do not balance.
 #   kv <key>       a value from $KV (keys' output).
+#   kread <k>…     (0.26.11.1.3, R1) keys' one pass, then each key's value in J_<key>, by the shell's built-ins alone (no
+#                  process, no subshell): a key keys did not print is left unset, so ${J_<key>+x} tells a key given
+#                  empty from one not given. Exits 1 as keys does.
 #   jesc <text>    the text as a JSON string's inside.
 #   vid_agent_transcript <home> <agent id> [<fallback>]   the agent's own transcript: from the
 #                  home's latest `agent-start agent=<id> … transcript=<parent>` (hooks/record.sh),
@@ -35,6 +39,17 @@ keys() {
         print K[i] "\t" v } }'
 }
 kv() { printf '%s\n' "$KV" | awk -F'\t' -v k="$1" '$1 == k { sub(/^[^\t]*\t/, ""); print; exit }'; }
+kread() {
+  KV=$(keys "$@") || return 1
+  for _kk in "$@"; do unset "J_$_kk"; done
+  while IFS='	' read -r _kk _kv; do
+    case $_kk in ''|*[!A-Za-z0-9_]*) continue ;; esac
+    eval "J_$_kk=\$_kv"
+  done <<KEOF
+$KV
+KEOF
+  return 0
+}
 jesc() { printf '%s' "$1" | awk 'BEGIN { RS = "\001" } { gsub(/\\/, "\\\\"); gsub(/"/, "\\\""); gsub(/\n/, " "); printf "%s", $0 }'; }
 vid_agent_transcript() {
   _ap=''; [ -f "$1/.vid/metrics-events" ] && _ap=$(awk -v a="agent=$2" '$1 == "agent-start" { hit = 0; for (i = 2; i <= NF; i++) if ($i == a) hit = 1; if (!hit) next

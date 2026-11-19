@@ -53,5 +53,5 @@ for l in '## A staging okay, D1' '`<prefix>deploy`' 'okay: staging' 'seed: synth
 for l in 'sh dm.sh start deployer' '`host:`' '`> platform:`' '`deploy: local`' '`seam: <row> stand-in — a local copy`' '`seed: production`'; do
   grep -qF -- "$l" "$RT/devagent/agents/dev-manager.md" || fail "the dev manager's file lacks: $l"; done
 ! git -C "$RT" cat-file -e 00109a8 2> /dev/null || [ "$(git -C "$RT" rev-parse 00109a8:standin/agents/grader.md 2>/dev/null)" = "$(sed -f "$CHECKS/selftest/fixtures/grader-dp1-r3.sed" "$RT/devagent/agents/grader.md" | git hash-object --stdin)" ] || fail "the row grader's file changed since 00109a8, beyond DP-1 R3's two sentences"
-! git -C "$RT" cat-file -e aa6e610 2> /dev/null || [ "$(git -C "$RT" rev-parse aa6e610:standin/agents/second-reviewer.md 2>/dev/null)" = "$(git -C "$RT" hash-object devagent/agents/second-reviewer.md)" ] || fail "the second reviewer's file changed since aa6e610"
+! git -C "$RT" cat-file -e aa6e610 2> /dev/null || [ "$(git -C "$RT" rev-parse aa6e610:standin/agents/second-reviewer.md 2>/dev/null)" = "$(sed -f "$CHECKS/selftest/fixtures/sr-high1-r3.sed" "$RT/devagent/agents/second-reviewer.md" | git hash-object --stdin)" ] || fail "the second reviewer's file changed since aa6e610"
 exit 0

@@ -1,10 +1,11 @@
 #!/bin/sh
 # Purpose: selftest case — ViD's face R5 after the PRD (0.26.10.29): the standing follows stops 6 to 9,
-# which no sitting writes. The plugin's hook hooks/face-standing.sh, after a tool call, recomputes the standing where
-# .vid/face/standing.json is there, and does nothing elsewhere. Convicts unless hooks.json runs it after Bash, Write
-# and Edit; unless, after pause 3 ended, BASELINE.md and ARCHITECTURE.md written and the hook run, the standing says
-# stop 7; unless at the end of a turn (Stop, usability P4) it recomputes the standing too, design/ then giving stop 8;
-# and unless in a folder with no standing it writes nothing and exits 0. Gated on the plugin's hooks/.
+# which no sitting writes. The plugin's hook hooks/face-standing.sh recomputes the standing where
+# .vid/face/standing.json is there, at the end of a turn (Stop; from 0.26.11.1.3, R1, no longer after each step), and does
+# nothing elsewhere. Convicts unless hooks.json runs it after Bash, Write and Edit; unless, after pause 3 ended,
+# BASELINE.md and ARCHITECTURE.md written, a step leaves the standing at stop 6 and a Stop then moves it to stop 7;
+# unless design/ and a second Stop give stop 8; and unless in a folder with no standing it writes nothing and exits 0.
+# Gated on the plugin's hooks/.
 # Env: CHECKS.
 set -eu
 H=$CHECKS/../hooks
@@ -24,7 +25,9 @@ fc_run end pause-3
 [ "$(fc_stand "d['current']")" = 6 ] || fail "after pause 3 the standing is not stop 6: $(fc_stand "d['current']")"
 : > BASELINE.md; : > ARCHITECTURE.md
 printf '{"tool_name":"Write"}' | CLAUDE_PLUGIN_ROOT="$CHECKS/.." sh "$H/face-standing.sh" || fail 'the hook failed'
-[ "$(fc_stand "d['current']")" = 7 ] || fail "the hook did not move the standing to stop 7: $(fc_stand "d['current']")"
+[ "$(fc_stand "d['current']")" = 6 ] || fail "a step recomputed the standing (0.26.11.1.3, R1: only Stop does): $(fc_stand "d['current']")"
+printf '{"hook_event_name":"Stop","session_id":"s1"}' | CLAUDE_PLUGIN_ROOT="$CHECKS/.." sh "$H/face-standing.sh" || fail 'the hook failed at Stop'
+[ "$(fc_stand "d['current']")" = 7 ] || fail "the hook at Stop did not move the standing to stop 7: $(fc_stand "d['current']")"
 mkdir design
 printf '{"hook_event_name":"Stop","session_id":"s1"}' | CLAUDE_PLUGIN_ROOT="$CHECKS/.." sh "$H/face-standing.sh" || fail 'the hook failed at Stop'
 [ "$(fc_stand "d['current']")" = 8 ] || fail "the hook at Stop did not move the standing to stop 8: $(fc_stand "d['current']")"

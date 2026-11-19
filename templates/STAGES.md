@@ -58,7 +58,7 @@ STAGE-2 | {{STAGE_NAME}} | features: {{FEAT_IDS}}
 - **The thin journey:** {{ONE_THIN_JOURNEY_THROUGH_THE_MAIN_MODULES_AND_THE_DATABASE}}
 - **Rows proving it:** {{N}} rows
 - **Setting staging up still needs from you:** {{THE_LOG_IN_AND_THE_ACCOUNTS_ONLY_THE_OWNER_CAN_CREATE_BY_NAME_COUNTED}}
-- **What proves it done:** its rows pass and are graded, then staging runs it
+- **What proves it done:** its rows pass and are graded, then staging runs it, and its journey runs once for real where your users run it (their kind of machine, or the hosted site), on the real outside services and a real sign-in, before stage 0 can close; when the dev side cannot make that run, it says why and you choose: fix it, a row, or a known limit
 - **Effort (an estimate):** {{S_M_OR_L}}
 
 ## Stage 1 — {{STAGE_NAME}}

@@ -17,34 +17,32 @@
 #        died reason=<error> session=<session_id> [details="<error_details, 200 characters at most>"] at=<UTC>
 #      or, for the Notification, `died reason=usage-limit-waiting …` with the
 #      notification type as its details.
-# The input is read by hooks/json.sh, the plugin's shared JSON reader (v0.9.6.2
-# spec 3.2: moved there unchanged from this script).
+# From 0.26.11.1.3 (R1) the input's fields are taken in one pass of hooks/agent.sh's
+# reader (kread), whose time grows in step with the input, and no git runs
+# before hooks/home.sh's vid_near has found a .vid/ (the walk-up to the root, or
+# $CLAUDE_PROJECT_DIR): a death is recorded well inside the hook's 10 s.
 IN=$(cat 2>/dev/null) || exit 0
-J="$(dirname "$0")/json.sh"; [ -f "$J" ] || exit 0
-. "$J"
+case $0 in */*) HD=${0%/*} ;; *) HD=. ;; esac
+[ -f "$HD/agent.sh" ] && [ -f "$HD/home.sh" ] || exit 0
+. "$HD/agent.sh"; . "$HD/home.sh"
 main() {
-  F=$(printf '%s' "$IN" | json_fields) || return 0
-  get() { jget "$1"; }
-  has() { jhas "$1"; }
-  SID=$(get session_id); [ -n "$SID" ] || return 0
-  EVN=$(get hook_event_name)
+  kread session_id hook_event_name notification_type error error_details cwd agent_id || return 0
+  SID=${J_session_id:-}; [ -n "$SID" ] || return 0
+  EVN=${J_hook_event_name:-}
   if [ "$EVN" = Notification ]; then
-    NT=$(get notification_type)
+    NT=${J_notification_type:-}
     case "$NT" in quota_auto_resume_stale|quota_auto_resume_disabled) ;; *) return 0 ;; esac
-    REASON=usage-limit-waiting; DET=$NT
-  else
-    REASON=$(get error | tr -c 'A-Za-z0-9_.-' '_' | sed 's/_*$//'); [ -n "$REASON" ] || REASON=unknown
-    DET=$(get error_details)
   fi
   # 1. the run
-  CWD=$(get cwd); RUN=''
-  if [ -n "$CWD" ] && [ -d "$CWD" ]; then
-    TOP=$(git -C "$CWD" rev-parse --show-toplevel 2>/dev/null || true)
-    d=$(cd "$CWD" && pwd -P); [ -n "$TOP" ] && TOP=$(cd "$TOP" && pwd -P)
+  CWD=${J_cwd:-}; RUN=''
+  vid_near "$CWD" || return 0
+  if [ -n "$VID_CW" ]; then
+    TOP=$(git -C "$VID_CW" rev-parse --show-toplevel 2>/dev/null || true)
+    d=$VID_CW; [ -n "$TOP" ] && TOP=$(cd "$TOP" && pwd -P)
     while [ -n "$d" ]; do
       if [ -f "$d/.vid/RUN-STATE.md" ]; then RUN=$d; break; fi
       { [ -z "$TOP" ] || [ "$d" = "$TOP" ] || [ "$d" = / ]; } && break
-      d=$(dirname "$d")
+      d=${d%/*}; [ -n "$d" ] || d=/
     done
   fi
   if [ -z "$RUN" ] && [ -n "${CLAUDE_PROJECT_DIR:-}" ] && [ -f "$CLAUDE_PROJECT_DIR/.vid/RUN-STATE.md" ]; then RUN=$CLAUDE_PROJECT_DIR; fi
@@ -55,8 +53,14 @@ main() {
   RS=$(sed -n 's/^session:[[:space:]]*//p' "$RUN/.vid/RUN-STATE.md" | head -n 1 | sed 's/[[:space:]]*$//')
   [ -n "$RS" ] && [ "$RS" = "$SID" ] || return 0
   # 4. never a subagent
-  has agent_id && return 0
+  [ -n "${J_agent_id+x}" ] && return 0
   # 5. the record
+  if [ "$EVN" = Notification ]; then
+    REASON=usage-limit-waiting; DET=$NT
+  else
+    REASON=$(printf '%s' "${J_error:-}" | tr -c 'A-Za-z0-9_.-' '_' | sed 's/_*$//'); [ -n "$REASON" ] || REASON=unknown
+    DET=${J_error_details:-}
+  fi
   EV="$RUN/.vid/metrics-events"
   DQ=''
   if [ -n "$DET" ]; then DQ=$(printf '%s' "$DET" | tr '"' "'" | awk '{ s = $0; if (length(s) > 200) s = substr(s, 1, 200); printf "%s", s }'); DQ=" details=\"$DQ\""; fi

@@ -1,19 +1,22 @@
 #!/bin/sh
-# Purpose: ViD on native Windows — the WSL question and the route (0.26.10.29.3, R6). ViD runs on a native Windows
-# shell (Git Bash, MSYS, Cygwin: `uname -s` starting MINGW, MSYS or CYGWIN), only more slowly, since starting a
-# process is slow there. When WSL is available (`wsl.exe` on the PATH runs `sh -c true`), ViD asks the owner once
-# whether its checks may run there, and records the answer per machine in .vid/windows (`wsl: yes` or `wsl: no`,
+# Purpose: ViD on native Windows — the WSL notice and the route (0.26.10.29.3, R6; 0.26.11.1.3, R2). ViD runs on a native
+# Windows shell (Git Bash, MSYS, Cygwin: `uname -s` starting MINGW, MSYS or CYGWIN), only more slowly, since starting a
+# process is slow there. The route is on unless the owner turns it off: once per machine ViD checks that WSL starts
+# (`wsl.exe` on the PATH runs `sh -c true`) and records the answer in .vid/windows (`wsl: yes` or `wsl: no`,
 # untracked) at the main checkout, the parent of `git rev-parse --git-common-dir` (outside a repository, this
-# directory), so builder worktrees, agents and a second session follow the same answer. The owner changes it by
-# editing that file; ViD never asks again while it exists.
-# Three uses:
-#   sh checks/lib/wsl.sh ask            prints the one question when this is native Windows, WSL is available and
-#                                       no answer is recorded; otherwise prints nothing. Exit 0.
-#   sh checks/lib/wsl.sh record yes|no  writes the answer and says where. Exit 2 on another word.
+# directory), so builder worktrees, agents and a second session follow the same answer. Nothing is asked: the owner
+# changes the answer by editing that file, and ViD never checks again while it exists.
+# Two uses:
+#   sh checks/lib/wsl.sh notice         on a native Windows shell with no answer recorded: probes WSL once, records
+#                                       `wsl: yes`, or `wsl: no` with a `# WSL did not start <UTC>` line, and prints
+#                                       one line saying so and how to change it. Prints nothing anywhere else, and on
+#                                       every later call. Exit 0; 1 when the answer cannot be written.
+#                                       (0.26.11.1.3, R2: it replaces the question, `ask` and `record`, which are cut.)
 #   sourced at the top of a court       (the courts the agents and skills run directly: prd, inventory,
 #                                       design-join, imports, seams, stages) re-runs that court under WSL when the
-#                                       answer is `wsl: yes`: `wsl.exe -e sh <court> <args>`, an argument naming
-#                                       an existing file or folder translated by `wslpath -a` inside WSL. Standard input,
+#                                       answer is `wsl: yes` (with no file yet, natively): `wsl.exe -e sh <court>
+#                                       <args>`, an argument naming an existing file or folder translated by
+#                                       `wslpath -a` inside WSL. Standard input,
 #                                       output and the exit code pass through; nothing is added to standard output.
 #                                       It does nothing under a git hook (GIT_INDEX_FILE or GIT_DIR set: the hook's
 #                                       git setting cannot be carried across), inside WSL, on macOS and on Linux.
@@ -32,7 +35,6 @@
 # A court sources it with one line, `_vidwsl=${0%/*}/lib/wsl.sh; [ ! -f "$_vidwsl" ] || . "$_vidwsl"`, so a court
 # copied without lib/ (a case's scratch copy) runs natively as before.
 # serves: both (0.26.10.29.3, R6)
-VID_WSL_Q="ViD's checks run much faster through WSL on this PC. May ViD run them there?"
 VID_CODEX_Q='A second model, Codex, is installed on this machine. May ViD use it as a second reviewer beside its own?'
 vid_wsl_native_windows() { case $(uname -s 2>/dev/null) in MINGW*|MSYS*|CYGWIN*) return 0 ;; esac; return 1; }
 # Git for Windows and MSYS2 rewrite arguments that look like POSIX paths on their way to a Windows program; off for wsl.exe.
@@ -93,15 +95,18 @@ vid_wsl_route() { # the court's arguments
 case ${0##*/} in
   wsl.sh)
     case ${1:-} in
-      ask)
+      notice)
         vid_wsl_native_windows || exit 0
-        [ -z "$(vid_wsl_answer "$(vid_wsl_file)")" ] || exit 0
-        vid_wsl_available || exit 0
-        printf '%s\n' "$VID_WSL_Q"; exit 0 ;;
-      record)
-        case ${2:-} in yes|no) ;; *) echo "ViD wsl: record takes yes or no, got '${2:-}'." >&2; exit 2 ;; esac
-        _vw_f=$(vid_wsl_file); mkdir -p "${_vw_f%/*}" && printf 'wsl: %s\n' "$2" > "$_vw_f" || exit 1
-        echo "ViD wsl: wsl: $2 recorded in $_vw_f (this PC only; edit the file to change it)."; exit 0 ;;
+        _vw_f=$(vid_wsl_file); [ -z "$(vid_wsl_answer "$_vw_f")" ] || exit 0
+        mkdir -p "${_vw_f%/*}" || exit 1
+        if vid_wsl_available; then
+          printf 'wsl: yes\n' > "$_vw_f" || exit 1
+          printf 'ViD runs its checks through WSL on this PC, which is much faster. To stop it, change `wsl: yes` to `wsl: no` in `%s`.\n' "$_vw_f"
+        else
+          printf 'wsl: no\n# WSL did not start %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$_vw_f" || exit 1
+          printf 'WSL did not start on this PC, so ViD runs its checks natively, more slowly. Once WSL works, delete `%s` and ViD will check again.\n' "$_vw_f"
+        fi
+        exit 0 ;;
       reviewers) # 0.26.10.29.3 (phase 2 R5): the Codex answer, kept and read as the WSL answer is, in .vid/reviewers
         _vw_f=$(vid_wsl_file); _vw_f=${_vw_f%/windows}/reviewers
         _vw_c=no; command -v codex > /dev/null 2>&1 && _vw_c=yes
@@ -113,7 +118,7 @@ case ${0##*/} in
           '') [ "$_vw_c" = yes ] || { echo no; exit 0; }; vid_wsl_answer "$_vw_f" codex; exit 0 ;;
         esac
         echo 'ViD reviewers: usage — sh checks/lib/wsl.sh reviewers [ask | record yes|no]' >&2; exit 2 ;;
-      *) echo 'ViD wsl: usage — sh checks/lib/wsl.sh ask | record yes|no | reviewers [ask | record yes|no]' >&2; exit 2 ;;
+      *) echo 'ViD wsl: usage — sh checks/lib/wsl.sh notice | reviewers [ask | record yes|no]' >&2; exit 2 ;;
     esac ;;
   *) vid_wsl_route "$@" ;;
 esac

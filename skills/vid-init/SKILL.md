@@ -70,16 +70,14 @@ already committed here) the spec commit, step 7. Every helper file ViD
 writes for itself on the way — a script, a scratch copy, a draft a court
 reads — is written as UTF-8 with Unix (LF) line endings, whatever the
 machine's default (0.26.10.29.3, R9).
-Then the WSL question (0.26.10.29.3, R6): run
-`sh "${CLAUDE_PLUGIN_ROOT}/checks/lib/wsl.sh" ask` — the plugin's copy too.
-It prints nothing except on a native Windows shell with WSL available and
-no answer recorded for this PC; then it prints one question, which you
-ask the owner as written, alone, in a message of its own, and record the
-answer with `sh "${CLAUDE_PLUGIN_ROOT}/checks/lib/wsl.sh" record yes` (or
-`record no`). Printing nothing means ask nothing and carry on: ViD runs
-natively on Windows, only more slowly. The answer is per machine and
-untracked (`.vid/windows`); it is never asked again, and the courts follow
-it by themselves, so nothing else in this skill changes.
+Then the WSL notice (0.26.10.29.3, R6; 0.26.11.1.3, R2): run
+`sh "${CLAUDE_PLUGIN_ROOT}/checks/lib/wsl.sh" notice` — the plugin's copy too.
+It prints nothing except once on a native Windows shell with no answer
+recorded for this PC: there it checks that WSL starts, records the answer
+(`.vid/windows`, per machine and untracked) and prints one line, which you
+show the owner as written, and go on. It asks nothing, and the owner needs
+to do nothing: the line names the file to edit to turn WSL off. The courts
+follow the answer by themselves, so nothing else in this skill changes.
 
 **Init makes the spec only (v0.26.10.9 R1, VS-3).** What init still does:
 steps 1 to 4, with the inventory at call point 1 only; from step 6 only the

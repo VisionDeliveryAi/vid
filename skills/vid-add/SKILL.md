@@ -10,6 +10,13 @@ with a ```vid-placement block) — otherwise point the owner at /vid init.
 
 **The start (v0.26.10.24 R1).** Outside ticket mode, read `checks/records-version` first: absent or below 32, tell the owner the project's checks/ needs the refresh and stop before any work; the refresh is vid-develop's ("Version skew"), run before the add is asked again. **Stage events (v0.9.5 3.11, R11; v0.26.10.11 R6; RECORDS.md).** Outside ticket mode, in the project, record `sh checks/event.sh "stage name=add state=start session=$CLAUDE_CODE_SESSION_ID records=30 base=$(git rev-parse --short=12 HEAD)"` when this verb starts — `base=` is HEAD before the add's first commit, which develop's completion grade reads; outside ticket mode, whenever a session takes the add over, record it again with its first `base=` — and `sh checks/event.sh "stage name=add state=end session=$CLAUDE_CODE_SESSION_ID"` when it hands back or hands over (§3); develop writes its own. Every event this skill names is written the same way, `sh checks/event.sh '<event>'`, which appends it to `.vid/metrics-events` with its time.
 
+**GitHub manual (GM-1 S1).** When
+`sh "${CLAUDE_PLUGIN_ROOT}/checks/devagent-start.sh" mode` prints `manual`,
+the door is shut: say in one line, "In GitHub manual the door does not
+change the spec: change it by hand, as today, and the change shows as
+pending at /vid next.", and draft, record and commit nothing;
+`checks/land.sh` refuses too.
+
 **Ticket mode (v0.26.10.25.5, R1).** While `.vid/RUN-STATE.md` says `mode:
 tickets`, the add is a draft, as `/vid fix`'s ticket-mode branch drafts
 (the vid-fix skill): it records no stage event, so the run's stage stays

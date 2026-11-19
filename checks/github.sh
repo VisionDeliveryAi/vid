@@ -63,6 +63,10 @@
 #   tw-handovers (R3) the handovers of what writer.sh due owes, logged before any ticket is written (the round and tw-hand call it);
 #   tw-hand …    (R12) the ticket writer called by hand: the lock, the saved records, the post and the save, in the run's order.
 #                tw-post, tw-close and tw-tell, outside the round (VID_CALLER=round), refuse while .vid/state-at is not the saved head.
+# GitHub manual (GM-1, phase 1): state-setup, ViD's own private state repository (state-repo:) made or checked, gh repo create allowed
+# for it alone; in GitHub manual (lib.sh manual) the lock, state-save and state-restore use state-repo: alone, never the spec repository,
+# and the saved records hold .vid/next/ too. ticket-writing <n> <file> and next-read read only; next-read's one new call, a GET of
+# repos/<repo>/issues/<n>/sub_issues, is on the allow-list with no method but GET and no field.
 # The planner's setup (v0.26.10.12.3.1 R3), read only — gh auth status and gh repo view alone:
 #   access       one line each: `access gh — signed in` (or not, then it stops); for repo: and, with layout: separate
 #                (the default), spec-repo: of .vid/tw/settings — not set yet, reached (its permission, private or
@@ -75,6 +79,7 @@
 # Usage, one line a group (the usage message says the same):
 #   sh checks/github.sh access
 #   sh checks/github.sh spec-setup [--make-only] | spec-export
+#   sh checks/github.sh state-setup | ticket-writing <n> <file> | next-read
 #   sh checks/github.sh tw-sync | tw-post [--amend <n>] <ticket> | tw-outside <n> | tw-close <n> | tw-tell <n> | tw-handovers | tw-hand write <writer.sh write's arguments>|close <n>|tell <n>
 #   sh checks/github.sh decide-blocked <issue> <pr> | decide-post <pr> <file> | pr-body <pr> | results-fetch | round-read
 #   sh checks/github.sh deploy-ask|grade-ask --stage <N> --commit <c> --title <t> --body-file <f> | run-ask --step <s> --commit <c> --title <t> --body-file <f>
@@ -94,9 +99,9 @@ gref() { echo "ViD github: refused — $*" >&2; exit 1; }
 putd() { _q=$(dirname "$1")/.put.$$.$(basename "$1"); _o=$(dirname "$1")/.old.$$.$(basename "$1"); rm -rf "$_q" && cp -R "$2" "$_q" || { rm -rf "$_q"; return 1; }
   if [ -e "$1" ]; then mv "$1" "$_o" || { rm -rf "$_q"; return 1; }; fi; mv "$_q" "$1" || { [ ! -e "$_o" ] || mv "$_o" "$1"; rm -rf "$_q"; return 1; }; rm -rf "$_o"; }
 # a state-restore stopped between its two renames left .vid/.old.<pid>.<name> and no live folder: it is renamed back first
-for _o in .vid/.old.*.decide .vid/.old.*.tw .vid/.old.*.plans .vid/.old.*.plan .vid/.old.*.results; do [ -d "$_o" ] && [ ! -e ".vid/${_o##*.}" ] || continue; mv "$_o" ".vid/${_o##*.}"; done
+for _o in .vid/.old.*.decide .vid/.old.*.tw .vid/.old.*.plans .vid/.old.*.plan .vid/.old.*.next .vid/.old.*.results; do [ -d "$_o" ] && [ ! -e ".vid/${_o##*.}" ] || continue; mv "$_o" ".vid/${_o##*.}"; done
 W=$(mktemp -d); trap 'rm -rf "$W"' EXIT
-REPO=''; SHARE=''; SCREATE=''   # 0.26.10.28.7: the share's allow-list switches never come from the environment
+REPO=''; SHARE=''; SCREATE=''; STATESETUP=''; SPECSETUP=''   # 0.26.10.28.7: the share's allow-list switches never come from the environment
 # one read a tick (R3): the same three reads as DevAgent's dm.sh next, its own copy
 RPQ='.[] | [.number, .headRefName, .isDraft, .headRefOid, ([.labels[].name] | join(",")), (.body | split("\n") | .[0]), ([.comments[].body | split("\n") | .[0]] | join("\u0001")), (([.comments[] | select(.body | startswith("vid: decision "))] | last | .body) // ""), .updatedAt] | @tsv'
 RMQ='.[] | [.number, .headRefOid, (.mergeCommit.oid // "-"), (.body | split("\n") | .[0]), ([.comments[].body | split("\n") | .[0]] | join("\u0001"))] | @tsv'
@@ -107,8 +112,9 @@ ghc() {
     'auth status'|'repo view'|'label create'|'issue create'|'issue edit'|'issue view'|'issue list'|'issue comment'|'issue close'|'pr view'|'pr list'|'pr comment') ;;
     'repo create')   # v0.26.10.12.3 (R2, main's 7147906): the spec repository alone, private, and only in spec-setup; 0.26.10.28.7 (R6): or the share repository alone, private, in share-create
       if [ "${SHARE:-}" = yes ]; then [ "${SCREATE:-}" = yes ] && [ -n "${SREPO:-}" ] && [ "${3:-}" = "$SREPO" ] && [ "${4:-}" = --private ] && [ $# -eq 4 ] || gref "gh repo create is allowed for the share repository alone, --private, in share-create"
+      elif [ "${STATESETUP:-}" = yes ]; then [ -n "${STATE:-}" ] && [ "${3:-}" = "$STATE" ] && [ "${4:-}" = --private ] && [ $# -eq 4 ] || gref "gh repo create is allowed for state-repo: alone, --private, in state-setup"   # GM-1 S2
       else [ "${SPECSETUP:-}" = yes ] && [ -n "${SPEC:-}" ] && [ "${3:-}" = "$SPEC" ] && [ "${4:-}" = --private ] && [ $# -eq 4 ] || gref "gh repo create is allowed for TW's spec-repo: alone, --private, in spec-setup"; fi ;;
-    api\ *) _p=''; _s=''; _m=''; for _a in "$@"; do if [ -n "$_s" ]; then [ "$_s" = X ] && _m=$_a; _s=''; continue; fi; case "$_a" in -X) _s=X ;; -f|-F|--jq) _s=1 ;; api) ;; *) _p=$_a ;; esac; done
+    api\ *) _p=''; _s=''; _m=''; _fl=''; for _a in "$@"; do if [ -n "$_s" ]; then [ "$_s" = X ] && _m=$_a; _s=''; continue; fi; case "$_a" in -X) _s=X ;; -f|-F) _s=1; _fl=1 ;; --jq) _s=1 ;; --paginate) ;; api) ;; *) _p=$_a ;; esac; done
       # 0.26.10.28.7 (R6): the share's reads and its one write, each tied to SREPO, LOGIN or WHO, and only inside a share subcommand
       if [ "${SHARE:-}" = yes ]; then
         # each argument one of the share's exact forms: --jq <q>, --paginate, -X PUT, -f permission=pull, and one path; anything else
@@ -126,8 +132,10 @@ ghc() {
         repos/*/invitations) [ -n "${SREPO:-}" ] && [ "$_p" = "repos/$SREPO/invitations" ] && [ -z "$_m" ] || gref "gh api on invitations is allowed only as a read of the share repository's" ;;
         *) gref "gh api in a share subcommand is allowed for the share's own calls only, not '$_p'" ;; esac
       else
-      case "$_p" in "repos/$REPO/milestones"|"repos/$REPO/milestones/"[0-9]*) ;; "repos/$REPO/issues/comments/"[0-9]*) case "${_p##*/}" in *[!0-9]*) gref "not an issue comment: '$_p'" ;; esac
-        [ "$_m" = PATCH ] || gref "gh api on an issue comment is allowed for its edit alone (-X PATCH)" ;; *) gref "gh api is allowed for the milestone, sub-issue and issue comment edit endpoints only, not '$_p'" ;; esac; fi ;;
+      case "$_p" in "repos/$REPO/milestones"|"repos/$REPO/milestones/"[0-9]*) ;;
+        "repos/$REPO/issues/"[0-9]*/sub_issues) _q=${_p#repos/$REPO/issues/}; case "${_q%/sub_issues}" in *[!0-9]*) gref "not an issue's sub-issues: '$_p'" ;; esac   # GM-1 S6: a GET alone
+          [ -z "$_fl" ] && { [ -z "$_m" ] || [ "$_m" = GET ]; } || gref "gh api on an issue's sub-issues is allowed as a read alone (a GET, no field)" ;; "repos/$REPO/issues/comments/"[0-9]*) case "${_p##*/}" in *[!0-9]*) gref "not an issue comment: '$_p'" ;; esac
+        [ "$_m" = PATCH ] || gref "gh api on an issue comment is allowed for its edit alone (-X PATCH)" ;; *) gref "gh api is allowed for the milestone, sub-issue and issue comment edit endpoints and the sub-issues read only, not '$_p'" ;; esac; fi ;;
     *) gref "gh $1 ${2:-} is not on the allow-list" ;;
   esac
   for _a in "$@"; do case "$_a" in token|--with-*) gref 'a token is never asked for, printed, passed or stored' ;; esac; done
@@ -201,7 +209,9 @@ exptree() {
   TR=$(git write-tree) || gref 'the export tree could not be written'; unset GIT_INDEX_FILE; }
 # stpriv <repo>: ST and SU, its URL, or a refusal unless it is private (R6). sturl: the same for state-repo:, or the spec repository
 stpriv() { ST=$1; [ "$(ghc repo view "$ST" --json isPrivate --jq .isPrivate 2>/dev/null)" = true ] || gref "$ST is not a private repository: ViD's records never go there"; SU=$(ghc repo view "$ST" --json url --jq .url) && [ -n "$SU" ] || gref "no access to $ST"; }
-sturl() { _s=$(twkey state-repo); stpriv "${_s:-$SPEC}"; }
+sturl() { _s=$(twkey state-repo); stsole "$_s"; stpriv "${_s:-$SPEC}"; }
+# stsole <state-repo:> (GM-1 S2, M15): in GitHub manual the lock and the records use state-repo: alone, never the spec repository
+stsole() { ! manual || [ -n "$1" ] || gref "in GitHub manual the lock and the records go to state-repo: alone, and .vid/tw/settings names none: /vid mode manual asks it"; }
 # 0.26.10.29.2 (R3, R11): oprs <n>, the open pull requests naming ticket n (the body's first line `ticket: #<n>`), one a line, from the
 # list of open pull requests, as the round's read takes it (no search, which GitHub indexes late), read whole: a list as long as
 # the limit (VID_OPRS_LIMIT, 1000) is a refusal, never a short list
@@ -359,7 +369,7 @@ case "$CMD" in
     # 0.26.10.29.2 (R12): a borrowed lock needs the folder at the saved head; a take that found this session's own lock keeps it;
     # the round's read is taken afresh; the records are saved only when the act wrote to the log, and only at the saved head
     tw; K=${1:-}; case "$K" in write) [ $# -ge 2 ] || usage ;; close|tell) case "${2:-}" in ''|*[!0-9]*) usage ;; esac ;; *) usage ;; esac
-    ST=$(twkey state-repo); [ -n "$ST" ] || ST=$SPEC; SU=$(ghc repo view "$ST" --json url --jq .url) || gref "no access to $ST"
+    ST=$(twkey state-repo); stsole "$ST"; [ -n "$ST" ] || ST=$SPEC; SU=$(ghc repo view "$ST" --json url --jq .url) || gref "no access to $ST"
     LL=$(git ls-remote "$SU" refs/heads/vid-state/lock 2>/dev/null) || gref 'the lock could not be read'; LO=$(printf '%s' "$LL" | cut -f1); LS=''
     if [ -n "$LO" ]; then git init -q "$W/hl"; git -C "$W/hl" fetch -q "$SU" refs/heads/vid-state/lock && LS=$(git -C "$W/hl" show FETCH_HEAD:lock | sed -n 's/^session: //p') || gref 'the lock could not be read'; fi
     HM=${CLAUDE_CODE_SESSION_ID:-$(cat .vid/lock-session 2>/dev/null)}; FR=''; HS=''
@@ -377,7 +387,7 @@ case "$CMD" in
         git init -q "$W/hr" && git -C "$W/hr" fetch -q "$SU" refs/heads/vid-state/records || hfail 'the saved records could not be read — nothing written'
         B0=$T0; [ -z "$SA" ] || ! git -C "$W/hr" cat-file -e "$SA^{commit}" 2>/dev/null || B0=$SA; mkdir -p "$W/hb" "$W/hc/results"
         git -C "$W/hr" archive "$B0" | tar -x -C "$W/hb" || hfail 'the saved records could not be read — nothing written'; rm -f "$W/hb/home.head" "$W/hb/home.bundle"
-        for f in RUN-STATE.md budget metrics-events decide tw plans plan VID-FINDINGS.md; do [ ! -e ".vid/$f" ] || cp -R ".vid/$f" "$W/hc/$f"; done; rm -rf "$W/hc"/decide/tmp.*; cp .vid/results/*.txt "$W/hc/results/" 2>/dev/null || true
+        for f in RUN-STATE.md budget metrics-events decide tw plans plan next VID-FINDINGS.md; do [ ! -e ".vid/$f" ] || cp -R ".vid/$f" "$W/hc/$f"; done; rm -rf "$W/hc"/decide/tmp.*; cp .vid/results/*.txt "$W/hc/results/" 2>/dev/null || true
         [ ! -f "$W/hc/metrics-events" ] || { awk -v s="lock-taken session=$HS " 'index($0, s) == 1 { k = NR } { a[NR] = $0 } END { for (i = 1; i <= NR; i++) if (i != k) print a[i] }' "$W/hc/metrics-events" > "$W/hm" && cat "$W/hm" > "$W/hc/metrics-events"; }
         find "$W/hb" "$W/hc" -mindepth 1 -depth -type d -empty -exec rmdir {} \; 2>/dev/null || true   # git keeps no empty folder
         diff -rq "$W/hb" "$W/hc" 2>/dev/null | awk -v B="$W/hb" -v C="$W/hc" '{ if ($1 == "Files") p = $2; else { p = substr($0, 9); i = index(p, ": "); p = substr(p, 1, i - 1) "/" substr(p, i + 2) }
@@ -406,6 +416,67 @@ case "$CMD" in
     [ "$rc" = 0 ] || { sed 's/^/    /' "$W/ho" >&2; hfail 'the act failed part way (the lines above say where); what it recorded is saved'; }; cat "$W/ho"
     if [ -n "$FR" ]; then sh "$0" lock-free > /dev/null 2>&1 || gref 'posted and saved, but the lock this call took could not be freed'; echo 'ViD github: the records saved; the lock freed'
     else echo "ViD github: the records saved; the run's lock kept"; fi; exit 0 ;;
+
+  state-setup)   # GM-1 S2 (M15): ViD's own private state repository, state-repo:, made private when missing, or checked private; never repo: or spec-repo:
+    tw; STATE=$(twkey state-repo); [ -n "$STATE" ] || gref ".vid/tw/settings names no state-repo: <owner>/<name>"
+    case "$STATE" in */*/*|/*|*/|*[!A-Za-z0-9._/-]*) gref "state-repo: '$STATE' is not <owner>/<name>" ;; */*) ;; *) gref "state-repo: '$STATE' is not <owner>/<name>" ;; esac
+    _lc() { printf %s "$1" | tr 'A-Z' 'a-z'; }   # GitHub's names ignore case
+    [ "$(_lc "$STATE")" != "$(_lc "$REPO")" ] && [ "$(_lc "$STATE")" != "$(_lc "$SPEC")" ] || gref "state-repo: names the code or the spec repository ($STATE): ViD's records go to a repository of their own"
+    if ghc repo view "$STATE" --json name --jq .name > /dev/null 2>&1; then
+      [ "$(ghc repo view "$STATE" --json isPrivate --jq .isPrivate 2>/dev/null)" = true ] || gref "$STATE exists and is not private: ViD's records go only to a private repository; make it private, or name another"
+      twlog "state-repo $STATE exists at=$(now)"; echo "ViD github: the state repository $STATE exists (private)"
+    else STATESETUP=yes ghc repo create "$STATE" --private > /dev/null || gref "the state repository $STATE could not be made"
+      twlog "state-repo $STATE created at=$(now)"; echo "ViD github: the state repository $STATE made, private"; fi; exit 0 ;;
+
+  ticket-writing)   # GM-1 S2: ticket-writing <n> <file>, read only: issue n's newest writing, the parts of its newest `writing <hash>` not
+    # marked replaced, in their order (part 1 in the body when the body opens with its line, else in a comment), joined into <file>
+    # without their two header lines and their trailing blank lines; a section line (`## `) a part opens is given the one blank line
+    # before it that a part's end loses.
+    # Prints `writing <n> <hash> <body|comments> <parts>`, or `incomplete <n> <why>` and writes nothing
+    tw; N=${1:-}; O=${2:-}; case "$N" in ''|*[!0-9]*) usage ;; esac; [ -n "$O" ] || usage
+    ghc issue view "$N" -R "$REPO" --json body --jq .body > "$W/b0" || gref "#$N could not be read"; tr -d '\r' < "$W/b0" > "$W/b"
+    ghc issue view "$N" -R "$REPO" --json comments --jq '.comments[] | .url + "\t" + (.body | split("\n") | .[0])' > "$W/c0" || gref "the comments of #$N could not be read"; tr -d '\r' < "$W/c0" > "$W/ch"
+    PH='function ph(t, n,   x, k, m, h) { if (t !~ ("^Ticket #" n ", part [0-9]+ of [0-9]+, writing [0-9a-f]+[.]$")) return ""; x = t; sub(/^Ticket #[0-9]+, part /, "", x); k = x; sub(/ .*/, "", k)
+      sub(/^[0-9]+ of /, "", x); m = x; sub(/,.*/, "", m); h = x; sub(/.*writing /, "", h); sub(/[.]$/, "", h); return k " " m " " h }'
+    { head -n 1 "$W/b" | awk -v n="$N" "$PH"' { p = ph($0, n); if (p != "") print "b " p }'; awk -F'\t' -v n="$N" "$PH"' { p = ph($2, n); if (p != "") print NR - 1 " " p }' "$W/ch"; } > "$W/pl"
+    HW=$(awk '$1 != "b" { h = $4 } END { print h }' "$W/pl"); [ -n "$HW" ] || HW=$(awk '$1 == "b" { print $4 }' "$W/pl")
+    [ -n "$HW" ] || { echo "incomplete $N no part of a writing in its body or comments"; exit 0; }
+    M=$(awk -v h="$HW" '$4 == h { m = $3 } END { print m }' "$W/pl"); SRC=comments; : > "$W/j"; : > "$W/jr"; : > "$W/jo"; k=1
+    while [ "$k" -le "$M" ]; do
+      w=$(awk -v h="$HW" -v k="$k" '$4 == h && $2 == k { w = $1 } END { print w }' "$W/pl"); [ -n "$w" ] || { echo "incomplete $N part $k of $M of writing $HW is missing"; exit 0; }
+      if [ "$w" = b ]; then cp "$W/b" "$W/pt"; SRC=body; else ghc issue view "$N" -R "$REPO" --json comments --jq ".comments[$w].body" > "$W/p0" || gref "a comment of #$N could not be read"; tr -d '\r' < "$W/p0" > "$W/pt"; fi
+      awk 'NR > 2 { L[++n] = $0 } END { while (n > 0 && L[n] == "") n--; for (i = 1; i <= n; i++) print L[i] }' "$W/pt" > "$W/pb"   # its trailing blank lines dropped, as GitHub may trim them
+      { [ "$k" = 1 ] || ! head -n 1 "$W/pb" | grep -q '^## ' || [ -z "$(tail -n 1 "$W/j")" ] || echo; cat "$W/pb"; } >> "$W/j"
+      awk 'NR > 2' "$W/pt" >> "$W/jr"; awk 'NR > 2 { L[++n] = $0 } END { if (n > 0 && L[n] == "") n--; for (i = 1; i <= n; i++) print L[i] }' "$W/pt" >> "$W/jo"; k=$((k + 1)); done
+    # three joins, each a way GitHub may give a part back (trimmed, kept whole, or kept with --jq's newline); the one that
+    # hashes to the writing's own hash is its text; with none (a body the team edited), the trimmed join, as it stands
+    for v in j jr jo; do [ "$(git hash-object "$W/$v" | cut -c1-12)" != "$HW" ] || { cp "$W/$v" "$W/j"; break; }; done
+    put "$O" < "$W/j" || exit 1; echo "writing $N $HW $SRC $M"; exit 0 ;;
+
+  next-read)   # GM-1 S6: /vid next's read, read only, tab-separated: the round read (round-read's lines); `ticket <n> <state> <assignees> <created
+    # at>` and `body <n> <line>` for each ticket the log publishes and does not withdraw; `sub <ticket> <parent> <child> <state> <assignees>
+    # <title>` for each sub-issue under one, at every depth, breadth first; `assigned <n> <labels> <comment first lines, \001 between>
+    # <title>` and `abody <n> <line>` for each open issue assigned to the owner (gh's @me). An empty list is `-`. A read that fails is
+    # `unread <part> <n or -> <gh's words>`, and the rest is read: it never stops the call
+    tw; TQ='[.state, ([.assignees[].login] | join(",")), .createdAt] | @tsv'; SQ='.[] | [.number, .state, .title, ([.assignees[].login] | join(","))] | @tsv'
+    AQ='.[] | [.number, ([.labels[].name] | join(",")), ([.comments[].body | split("\n") | .[0]] | join("\u0001")), .title] | @tsv'
+    un() { printf 'unread\t%s\t%s\t%s\n' "$1" "$2" "$(tr '\n\t' '  ' < "$W/e" | cut -c1-200)"; }
+    sh "$0" round-read 2> "$W/e" || un round -
+    awk '$1 == "published" { p[$2] = 1 } $1 == "withdrawn" { delete p[$2] } END { for (n in p) print n }' .vid/tw/log 2>/dev/null | sort -n > "$W/pn"
+    for n in $(cat "$W/pn"); do
+      if ghc issue view "$n" -R "$REPO" --json state,assignees,createdAt --jq "$TQ" > "$W/t" 2> "$W/e"; then tr -d '\r' < "$W/t" | awk -F'\t' -v OFS='\t' -v n="$n" 'NR == 1 { print "ticket", n, $1, ($2 == "" ? "-" : $2), $3 }'; else un ticket "$n"; continue; fi
+      if ghc issue view "$n" -R "$REPO" --json body --jq .body > "$W/t" 2> "$W/e"; then tr -d '\r' < "$W/t" | awk -v n="$n" '{ L[NR] = $0 } END { while (NR > 0 && L[NR] == "") NR--; for (i = 1; i <= NR; i++) print "body\t" n "\t" L[i] }'; else un body "$n"; fi; done
+    for n in $(cat "$W/pn"); do printf '%s %s\n' "$n" "$n"; done > "$W/q"; : > "$W/seen"
+    while [ -s "$W/q" ]; do IFS=' ' read -r r p < "$W/q"; sed 1d "$W/q" > "$W/q2"; mv "$W/q2" "$W/q"; grep -qx "$p" "$W/seen" && continue; echo "$p" >> "$W/seen"
+      if ghc api "repos/$REPO/issues/$p/sub_issues" --paginate --jq "$SQ" > "$W/s" 2> "$W/e"; then
+        tr -d '\r' < "$W/s" | awk -F'\t' -v OFS='\t' -v r="$r" -v p="$p" 'NF { print "sub", r, p, $1, toupper($2), ($4 == "" ? "-" : $4), $3 }'
+        tr -d '\r' < "$W/s" | awk -F'\t' -v r="$r" 'NF { print r " " $1 }' >> "$W/q"; else un sub "$p"; fi; done
+    AL=${VID_ASSIGNED_LIMIT:-1000}   # a list as long as the limit may be cut, and says so, as oprs does
+    if ghc issue list -R "$REPO" --assignee @me --state open --limit "$AL" --json number,labels,comments,title --jq "$AQ" > "$W/a" 2> "$W/e"; then
+      [ "$(grep -c . "$W/a")" -lt "$AL" ] || printf 'unread\tassigned\t-\t%s or more open issues are assigned to the owner: the list may be cut\n' "$AL"
+      tr -d '\r' < "$W/a" > "$W/a1"; for n in $(cut -f1 "$W/a1"); do awk -F'\t' -v OFS='\t' -v n="$n" '$1 == n { print "assigned", n, ($2 == "" ? "-" : $2), ($3 == "" ? "-" : $3), $4; exit }' "$W/a1"
+        if ghc issue view "$n" -R "$REPO" --json body --jq .body > "$W/ab" 2> "$W/e"; then tr -d '\r' < "$W/ab" | awk -v n="$n" '{ L[NR] = $0 } END { while (NR > 0 && L[NR] == "") NR--; for (i = 1; i <= NR; i++) print "abody\t" n "\t" L[i] }'; else un abody "$n"; fi; done
+    else un assigned -; fi; exit 0 ;;
 
   spec-setup)   # v0.26.10.12.3 (R2, main 436–448): the private spec repository, made once, then an export
     tw
@@ -515,7 +586,7 @@ case "$CMD" in
     # 0.26.10.29.2 (R12): a hand-call's save names the head it checked (VID_SAVE_AT, `none` for no records yet); when the head read
     # here, the parent of this save, is another, another folder saved meanwhile and nothing is saved over it. The run's own save names none
     [ -z "${VID_SAVE_AT:-}" ] || [ "${T0:-none}" = "$VID_SAVE_AT" ] || gref "the saved records' head (${T0:-none}) is not the one this call checked ($VID_SAVE_AT): nothing saved over them"
-    for f in RUN-STATE.md budget metrics-events decide tw plans plan VID-FINDINGS.md; do [ ! -e ".vid/$f" ] || cp -R ".vid/$f" "$RP/$f"; done; rm -rf "$RP"/decide/tmp.*; mkdir "$RP/results"; cp .vid/results/*.txt "$RP/results/" 2>/dev/null
+    for f in RUN-STATE.md budget metrics-events decide tw plans plan next VID-FINDINGS.md; do [ ! -e ".vid/$f" ] || cp -R ".vid/$f" "$RP/$f"; done; rm -rf "$RP"/decide/tmp.*; mkdir "$RP/results"; cp .vid/results/*.txt "$RP/results/" 2>/dev/null
     if [ -n "$T0" ]; then git -C "$RP" fetch -q "$SU" refs/heads/vid-state/records || gref "$ST could not be fetched"; fi; printf '%s\n' "$HD" > "$RP/home.head"
     if [ -n "$T0" ] && [ "$(git -C "$RP" show FETCH_HEAD:home.head 2>/dev/null)" = "$HD" ]; then git -C "$RP" show FETCH_HEAD:home.bundle > "$RP/home.bundle"; else git bundle create -q "$RP/home.bundle" --all 2>/dev/null || gref 'the project could not be bundled'; fi
     git -C "$RP" -c core.excludesFile=/dev/null add -A -f . ; TR=$(git -C "$RP" write-tree); if [ -n "$T0" ] && [ "$(git -C "$RP" rev-parse FETCH_HEAD^{tree})" = "$TR" ]; then echo "$T0" > "$W/sa" || exit 1; put .vid/state-at < "$W/sa" || exit 1; echo 'ViD github: the records are as saved'; exit 0; fi
@@ -526,11 +597,11 @@ case "$CMD" in
     if [ -n "${1:-}" ]; then auth; stpriv "$1"; else tw; sturl; fi; T0=$(git ls-remote "$SU" refs/heads/vid-state/records 2>/dev/null | cut -f1); [ -n "$T0" ] || { [ -z "${1:-}" ] || gref "$ST holds no records"; echo 'ViD github: no records saved yet'; exit 0; }
     [ "$T0" != "$(cat .vid/state-at 2>/dev/null)" ] || { echo 'ViD github: the records are current'; exit 0; }; RP=$W/sr; mkdir "$W/rt"; git init -q "$RP"; git -C "$RP" fetch -q "$SU" refs/heads/vid-state/records && git -C "$RP" archive FETCH_HEAD | tar -x -C "$W/rt" || gref "$ST could not be read"
     if [ -e .git ]; then git fetch -q "$W/rt/home.bundle" HEAD && git merge -q --ff-only FETCH_HEAD || gref 'the project is not behind the saved one'; else [ -z "$(ls -A)" ] || gref 'state-restore <repo> takes an empty folder'; git clone -q "$W/rt/home.bundle" . && git remote remove origin || gref 'the project could not be cloned from its bundle'; fi
-    git config core.hooksPath checks/hooks; mkdir -p .vid; for f in RUN-STATE.md budget metrics-events decide tw plans plan results VID-FINDINGS.md; do if [ ! -e "$W/rt/$f" ]; then rm -rf ".vid/$f"; elif [ -d "$W/rt/$f" ]; then putd ".vid/$f" "$W/rt/$f" || exit 1; else put ".vid/$f" < "$W/rt/$f" || exit 1; fi; done
+    git config core.hooksPath checks/hooks; mkdir -p .vid; for f in RUN-STATE.md budget metrics-events decide tw plans plan next results VID-FINDINGS.md; do if [ ! -e "$W/rt/$f" ]; then rm -rf ".vid/$f"; elif [ -d "$W/rt/$f" ]; then putd ".vid/$f" "$W/rt/$f" || exit 1; else put ".vid/$f" < "$W/rt/$f" || exit 1; fi; done
     tw; specgit; sh "$HERE/github.sh" results-fetch > /dev/null || gref 'the code repository could not be fetched'; echo "$T0" > "$W/sa" || exit 1; put .vid/state-at < "$W/sa" || exit 1; echo "ViD github: the records restored from $ST"; exit 0 ;;
 
   lock-take|lock-renew|lock-free)   # v0.26.10.25.1 (R7): vid-state/lock, one parentless commit: session, machine, time. Pushed with a lease on what was read, so of two takers one wins. VID_LOCK_COLD (900 seconds)
-    tw; ST=$(twkey state-repo); [ -n "$ST" ] || ST=$SPEC; SU=$(ghc repo view "$ST" --json url --jq .url) || gref "no access to $ST"; LR=refs/heads/vid-state/lock; LL=$(git ls-remote "$SU" "$LR" 2>/dev/null) || gref 'the lock could not be read'; LO=$(printf '%s' "$LL" | cut -f1); ME=${CLAUDE_CODE_SESSION_ID:-$(cat .vid/lock-session 2>/dev/null)}; LS=''; LA=0; RP=$W/l; git init -q "$RP"
+    tw; ST=$(twkey state-repo); stsole "$ST"; [ -n "$ST" ] || ST=$SPEC; SU=$(ghc repo view "$ST" --json url --jq .url) || gref "no access to $ST"; LR=refs/heads/vid-state/lock; LL=$(git ls-remote "$SU" "$LR" 2>/dev/null) || gref 'the lock could not be read'; LO=$(printf '%s' "$LL" | cut -f1); ME=${CLAUDE_CODE_SESSION_ID:-$(cat .vid/lock-session 2>/dev/null)}; LS=''; LA=0; RP=$W/l; git init -q "$RP"
     if [ -n "$LO" ]; then git -C "$RP" fetch -q "$SU" "$LR" || gref 'the lock could not be read'; LB=$(git -C "$RP" show FETCH_HEAD:lock); LS=$(printf '%s\n' "$LB" | sed -n 's/^session: //p'); LA=$(printf '%s\n' "$LB" | sed -n 's/^at: //p'); fi
     lpush() { printf 'session: %s\nmachine: %s\nat: %s\n' "$1" "$(hostname)" "$(date +%s)" > "$RP/lock"; git -C "$RP" add lock; C=$(GIT_AUTHOR_NAME=ViD GIT_AUTHOR_EMAIL=vid@export.invalid GIT_COMMITTER_NAME=ViD GIT_COMMITTER_EMAIL=vid@export.invalid git -C "$RP" commit-tree "$(git -C "$RP" write-tree)" -m 'ViD lock'); git -C "$RP" push -q "--force-with-lease=$LR:$LO" "$SU" "$C:$LR" 2>/dev/null; }
     case $CMD in

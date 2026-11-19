@@ -11,6 +11,8 @@ One long session runs the tickets to the end. It writes no code, reads none (see
 
 ## Before any work
 
+**GitHub manual, before anything** (GM-1 S1). When `sh "${CLAUDE_PLUGIN_ROOT}/checks/devagent-start.sh" mode` prints `manual` (in an empty folder, after the restore below), refuse in one line, "this project is in GitHub manual: call /vid next", and record nothing: take no lock and run nothing else. `checks/round.sh` refuses too, as a backstop.
+
 **The spec repository, first** (v0.26.10.26.7, R12). When `.vid/tw/settings` names a `spec-repo:`, run `sh "${CLAUDE_PLUGIN_ROOT}/checks/github.sh" spec-setup --make-only` before the restore and the lock below, which both need it: it makes the spec repository, private, or checks that the one named is private (run it each time: it does nothing more to one that exists), and exports nothing (the first export is `round.sh next`'s, under the lock). Then, unless `sh "${CLAUDE_PLUGIN_ROOT}/checks/devagent-start.sh" mode` prints `auto` (GitHub auto, v0.26.10.28.8 R10: ViD's own DevAgent works on the owner's same `gh` sign-in, and needs no read access given), tell the owner, in one line, to give DevAgent read access to it and to the code repository.
 
 **Ticket mode only.** With an empty folder and a state repository named, first `sh "${CLAUDE_PLUGIN_ROOT}/checks/github.sh" state-restore <state repo>`. It refuses a repository that is not private. Otherwise read `.vid/RUN-STATE.md`: unless it says `mode: tickets`, refuse in one line, "this project is not in ticket mode", and record nothing. A project the old ticket mode planned (0.26.10.28.1, stage 9 R4) — `mode: tickets`, a `.vid/tickets/` folder and no `.vid/tw/settings` — is refused in one line, "This project was planned by the old ticket mode; re-plan it with /vid plan.", and nothing is recorded. Then `sh "${CLAUDE_PLUGIN_ROOT}/checks/github.sh" state-restore`, which brings a folder behind the records up to date and does nothing to one that is current.
@@ -25,6 +27,8 @@ One long session runs the tickets to the end. It writes no code, reads none (see
 
 **The refresh** (v0.26.10.26.7, R1), at the start of each `/vid run`: `sh "${CLAUDE_PLUGIN_ROOT}/checks/refresh.sh"`. It prints `refresh: current`, or copies the plugin's `checks/` over `./checks/` and commits it alone (`VID_ROLE=fix`, `Refresh checks/ to VID <version>`). On exit 3 it has listed the local edits a copy overwrites: show the owner that list and ask once; on a yes run it again with `--yes`; on a no, record `run: stopped checks/ needs the refresh`.
 
+**The WSL notice** (0.26.11.1.3, R2), right after the refresh: `sh "${CLAUDE_PLUGIN_ROOT}/checks/lib/wsl.sh" notice`. It prints nothing except once on a native Windows shell with no answer recorded for this PC: there it checks that WSL starts, records the answer and prints one line. Show the owner that line as written, and go on; it asks nothing.
+
 **The watcher.** `sh checks/observe.sh start`, then `sh checks/observe.sh alive`, which exits 0 only when the watcher ticked here within the last 30 minutes. On exit 1, tell the owner what it printed and stop: `run: stopped the watcher is not running`. Its notices are `observe: notice —` lines in the run's heartbeat.
 
 **Your context, the host.** Run `sh checks/brief.sh context` and say its line. The compaction question is a `Q<n>` line (v0.26.10.26.7, R13): unless `.claude/settings.json` sets `autoCompactWindow`, or a `context-window` event records the owner's answer, `queue.sh sync` makes it one and prints `context-window Q<m>` once. Ask it then, in plain words, as that line; the owner's answer is `sh checks/queue.sh answer Q<m> yes|no "<their words>"`, which writes the setting on a yes and the event either way. Never ask it outside the line. Run `sh checks/brief.sh plugins` and give the owner its lines when it names any plugin. It never stops the run.
@@ -35,7 +39,7 @@ One long session runs the tickets to the end. It writes no code, reads none (see
 
 ## The loop
 
-Once at each session's start: `sh checks/round.sh step`, then, unless it printed `stop`, `sh checks/round.sh next`. Then, again and again:
+Run `round.sh wait` and `round.sh step` yourself, in the foreground, in this turn; never from a script of your own, nor in the background. Once at each session's start: `sh checks/round.sh step`, then, unless it printed `stop`, `sh checks/round.sh next`. Then, again and again:
 
 1. `sh checks/round.sh wait`, in the foreground, with the Bash tool's timeout at 600000. It blocks with no model, for at most 9 minutes, and prints `new` or `timeout`. A wait never ends your turn: on `timeout`, go to 2.
 2. `sh checks/round.sh step`. Read its lines, and act on them:

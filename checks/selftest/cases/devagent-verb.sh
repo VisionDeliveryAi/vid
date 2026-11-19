@@ -1,7 +1,9 @@
 #!/bin/sh
 # Purpose: selftest case — the dev side in a conversation of its own (0.26.10.28.8, R12), devagent/dev-manager/dm.sh on the fake
 # gh and a fake claude, on short times, and skills/vid-devagent/SKILL.md's text. The skill runs only dm.sh's subcommands (check, up, follow,
-# list, down), starts the loop through up, and follows a loop already running; dm.sh starts a dev manager in one place, cmd_loop. With a loop
+# list, down; 0.26.11.1.3 R5: here, next, start, done, take for agents: conversation), and, in its agents: command part alone, starts the loop
+# through up and follows a loop already running; its agents: conversation part reads the dev manager file at each pass and runs no loop; it
+# asks the mode only when the note has none, and says what closing the conversation does in each way; dm.sh starts a dev manager in one place, cmd_loop. With a loop
 # started by up, `follow` with no mark prints the mark and returns; `follow <mark>` returns within a tick of a pass ending, naming its ticket,
 # the hand-back's first three lines (not its fourth) and the report branch it pushed; with nothing new it returns at its bound, under 10
 # minutes by default; a signal to it leaves the loop alive; a planted stop file shows at once with its words; with the loop gone it says so;
@@ -18,9 +20,20 @@ fail() { echo "devagent-verb: $*" >&2; cat "$T/out" >&2 2>/dev/null; tail -n 3 "
 # the skill's text
 [ -f "$S" ] || fail 'no skills/vid-devagent/SKILL.md: no verb starts the dev side in a conversation'
 x=$(grep -oE '[A-Za-z0-9_.-]+\.sh' "$S" | sort -u | grep -vx 'dm.sh' || true); [ -z "$x" ] || fail "the skill names a script but dm.sh: $x"
-x=$(grep -oE 'dm\.sh"? [a-z]+' "$S" | awk '{ print $2 }' | sort -u | grep -vxE 'check|up|follow|list|down' || true); [ -z "$x" ] || fail "the skill runs a subcommand of dm.sh it may not: $x"
-grep -q 'dm\.sh"* up ' "$S" && grep -q 'dm\.sh"* follow' "$S" || fail 'the skill does not start the loop through up and follow it'
-grep -q 'loop: alive' "$S" || fail 'the skill does not follow a loop already running'
+# 0.26.11.1.3 (R5): conversation mode's own commands too (here, next, start, done, take); the loop's start and follow in the agents: command part alone
+x=$(grep -oE 'dm\.sh"? [a-z]+' "$S" | awk '{ print $2 }' | sort -u | grep -vxE 'check|up|follow|list|down|here|next|start|done|take' || true); [ -z "$x" ] || fail "the skill runs a subcommand of dm.sh it may not: $x"
+CM=$(awk '/^## With `agents: command`/ { f = 1; next } /^## With `agents: conversation`/ { f = 0 } f' "$S"); CV=$(awk '/^## With `agents: conversation`/ { f = 1; next } /^## / { f = 0 } f' "$S")
+[ -n "$CM" ] && [ -n "$CV" ] || fail 'the skill has no part for agents: command and one for agents: conversation'
+printf '%s\n' "$CM" | grep -q 'dm\.sh"* up ' && printf '%s\n' "$CM" | grep -q 'dm\.sh"* follow' || fail 'the skill does not start the loop through up and follow it, with agents: command'
+printf '%s\n' "$CM" | grep -q 'loop: alive' || fail 'the skill does not follow a loop already running, with agents: command'
+! printf '%s\n' "$CV" | grep -qE 'dm\.sh"? (up|follow)' || fail 'the skill starts or follows a loop with agents: conversation'
+for c in here next start done take; do printf '%s\n' "$CV" | grep -qE "dm\\.sh\"? $c" || fail "the skill's agents: conversation part does not run dm.sh $c"; done
+printf '%s\n' "$CV" | grep -q 'devagent/agents/dev-manager\.md' && printf '%s\n' "$CV" | grep -q 'in the foreground' || fail 'with agents: conversation the skill does not read the dev manager file at each pass, or run its helpers in the foreground'
+# the one question: asked when the note has no agents: line, never when it has one; the recommendation by claude's sign-in
+Q=$(grep -n '\*\*The mode\.\*\*' "$S" | head -n 1 | cut -d: -f1); [ -n "$Q" ] || fail 'the skill has no step for the mode'
+q=$(sed -n "${Q}p" "$S"); for w in 'has `agents: conversation` or `agents: command`: ask nothing' 'has neither' 'ask once' '`claude auth status`' 'recommend `conversation`'; do printf '%s\n' "$q" | grep -qF "$w" || fail "the mode step does not say: $w"; done
+# what closing the conversation does, said for each way
+grep -qF 'With `agents: command`, closing this conversation' "$S" && grep -qF 'With `agents: conversation`, this conversation is DevAgent: closing it stops DevAgent until the conversation is opened again' "$S" || fail 'the skill does not say what closing the conversation does in each way'
 [ "$(grep -c 'cmd_start dev-manager' "$DM")" = 1 ] && sed -n '/^cmd_loop() {/,/^# check/p' "$DM" | grep -q 'cmd_start dev-manager' || fail 'dm.sh starts a dev manager outside cmd_loop'
 # the default bound: under the 10 minutes a conversation's call may take
 b=$(sed -n 's/.*DM_FOLLOW:-\([0-9][0-9]*\).*/\1/p' "$DM" | head -n 1); [ -n "$b" ] && [ "$b" -lt 600 ] || fail "follow's default bound is not under 600 s: ${b:-none}"
