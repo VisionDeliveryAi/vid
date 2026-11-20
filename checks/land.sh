@@ -9,12 +9,17 @@
 #       v0.26.10.26.7 (R4): the landing's dry run first; refused, no draft is made and the tree stays. --replaces <n> marks
 #       draft n replaced (`replaced <n>`), and its Q line closes. --review <file> (R5) is required: the fresh-agent review's
 #       output, `none` or `finding <row id> | <why>` lines naming the draft's rows, kept as <n>/review
-#   count <n>                     the draft's count, and the Q line's words
+#       IR I5: --map <file>, an incorporation's map, kept beside the review as <n>/map: required when the why begins
+#       `/vid incorporate:` (as /vid add's begins `/vid add:`), refused on any other draft. Its entries, one a line (a blank line
+#       or one beginning # skipped): a change `<file> | <where> | today: … | change: … | record: …`, `left: …` or `open: …`
+#   count <n>                     the draft's count, and the Q line's words; a draft with a map adds `map: <c> changes, <l> left,
+#       <o> open` before its words line, and the words name the same counts
 #   <n> --words "<the owner's yes>"   lands draft n. Refused, nothing landed: exit 3 while plan.sh's gate is off, a pause or
 #       any stop (it waits for continue); exit 4 when HEAD is not the draft's base (stale: SP redrafts); exit 1 when the dry
 #       run on a scratch copy refuses (a court, plan.sh change, rule A or B, planner.sh check). Then: the records (R4, R5),
-#       the commits as develop makes them (the PRD with GRADING-CHECKLIST.md and DECISIONS.md; one law commit of
-#       INVENTORY.md, STAGES.md and ARCHITECTURE.md; PLAN.md alone; each with `Decisions: admits <the draft's why> (<its count
+#       the commits as develop makes them (IR I5: ARCHITECTURE.md and BASELINE.md first, so a decision labelled with a module the
+#       draft adds finds it in the staged module table; then the PRD with GRADING-CHECKLIST.md and DECISIONS.md; one law commit of
+#       INVENTORY.md and STAGES.md; PLAN.md alone; a group the draft holds no file of makes no commit; each with `Decisions: admits <the draft's why> (<its count
 #       line>) — the owner's yes`, 0.26.10.29.5, DP-1 R7), the plan change, planner.sh reratify in the owner's
 #       words, and last each withdrawn ask's issue closed on GitHub
 # Records: .vid/decide/landed (`<id> <the landing, 12> <time>`, each reset or added line, a journey's transitions with it);
@@ -28,7 +33,7 @@
 # of each stage it changes (.vid/decide/stage/<N>/<c>/withdrawn, with its C3, S1 and D1 okay still out), its plan change is a
 # scope-change, RUN-STATE's stage: moves to the new cut's current stage, and it records the stage-cut event.
 # In GitHub manual (GM-1 S1) draft and the landing refuse, exit 1, naming the hand path; count still reads a draft.
-# Usage: sh checks/land.sh draft --review <file> [--why "<…>"] [--plan <file>] [--for <keys>] [--replaces <n>] | count <n> | <n> --words "<the owner's yes>"
+# Usage: sh checks/land.sh draft --review <file> [--why "<…>"] [--plan <file>] [--for <keys>] [--replaces <n>] [--map <file>] | count <n> | <n> --words "<the owner's yes>"
 # serves: tickets (0.26.10.28.4, M9)
 set -u
 LC_ALL=C; export LC_ALL
@@ -38,13 +43,13 @@ D=.vid/decide; DR=$D/drafts; HAND=.vid/tw/handed; LOG=.vid/tw/log
 die() { echo "ViD land: $*" >&2; exit 2; }
 ref() { echo "ViD land: refused — $1" >&2; exit "${2:-1}"; }
 # putd <folder> <copy>: a folder replaced in four steps — the copy beside it as .put.$$.<name>, the live one aside as .old.$$.<name>,
-# the copy in, the old one removed; a step that fails stops it with the live folder whole (v0.26.10.28.1, R6)
+# the copy in, the old one removed; a step that fails stops it with the live folder whole (v0.26.10.28.1, R6); each rename through mvr (0.26.11.1.4, R6)
 putd() { _q=$(dirname "$1")/.put.$$.$(basename "$1"); _o=$(dirname "$1")/.old.$$.$(basename "$1"); rm -rf "$_q" && cp -R "$2" "$_q" || { rm -rf "$_q"; return 1; }
-  if [ -e "$1" ]; then mv "$1" "$_o" || { rm -rf "$_q"; return 1; }; fi; mv "$_q" "$1" || { [ ! -e "$_o" ] || mv "$_o" "$1"; rm -rf "$_q"; return 1; }; rm -rf "$_o" || true; }   # the copy is in: an old folder left behind is no failed restore
+  if [ -e "$1" ]; then mvr "$1" "$_o" || { rm -rf "$_q"; return 1; }; fi; mvr "$_q" "$1" || { [ ! -e "$_o" ] || mvr "$_o" "$1"; rm -rf "$_q"; return 1; }; rm -rf "$_o" || true; }   # the copy is in: an old folder left behind is no failed restore
 # a roll-back stopped between its two renames left .vid/.old.<pid>.<name> and no live folder: it is renamed back first
-for _o in .vid/.old.*.decide .vid/.old.*.plans .vid/.old.*.plan; do [ -d "$_o" ] && [ ! -e ".vid/${_o##*.}" ] || continue; mv "$_o" ".vid/${_o##*.}"; done
+for _o in .vid/.old.*.decide .vid/.old.*.plans .vid/.old.*.plan; do [ -d "$_o" ] && [ ! -e ".vid/${_o##*.}" ] || continue; mvr "$_o" ".vid/${_o##*.}"; done
 [ -f .vid/RUN-STATE.md ] && [ -f INVENTORY.md ] || die "run it at the top of ViD's repository"
-SPEC='PRD.md GRADING-CHECKLIST.md DECISIONS.md INVENTORY.md STAGES.md ARCHITECTURE.md PLAN.md'
+SPEC='PRD.md GRADING-CHECKLIST.md DECISIONS.md INVENTORY.md STAGES.md ARCHITECTURE.md PLAN.md BASELINE.md'   # IR I5: BASELINE.md carried too
 HASHF='PRD.md INVENTORY.md STAGES.md GRADING-CHECKLIST.md ARCHITECTURE.md PLAN.md'
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 # pblock <file>: the vid-plan block's body
@@ -94,15 +99,18 @@ stmove() { k=$(curst); grep -q '^stage:' .vid/RUN-STATE.md || return 0; ! grep -
 # v0.26.10.26.7 (R4, W-5): the landing's dry run runs at draft time, the re-ratifying in its check-only form (placeholder words, in
 # the scratch copy alone); a refused draft is not made, its refusal names the check, and the tree is kept for SP to correct.
 # --replaces <n>: once the new draft is made, draft n is marked replaced (<n>/replaced, the new number), its Q line closed
-cmd_draft() { WHY=''; PL=''; FOR=''; RPL=''; RV=''; while [ $# -ge 2 ]; do case $1 in --why) WHY=$2 ;; --plan) PL=$2 ;; --for) FOR=$2 ;; --replaces) RPL=$2 ;; --review) RV=$2 ;; *) die "unknown $1" ;; esac; shift 2; done
+cmd_draft() { WHY=''; PL=''; FOR=''; RPL=''; RV=''; MP=''; while [ $# -ge 2 ]; do case $1 in --why) WHY=$2 ;; --plan) PL=$2 ;; --for) FOR=$2 ;; --replaces) RPL=$2 ;; --review) RV=$2 ;; --map) MP=$2 ;; *) die "unknown $1" ;; esac; shift 2; done
   [ -z "$PL" ] || [ -f "$PL" ] || die "no plan block file at $PL"
+  # IR I5: an incorporation's draft carries its map; no other draft does
+  case $WHY in '/vid incorporate:'*) [ -n "$MP" ] || ref 'no --map: an incorporation drafts with its map, every place the record changes and every place left'; [ -s "$MP" ] || ref "--map $MP: no map there" ;;
+    *) [ -z "$MP" ] || ref '--map is an incorporation'"'"'s, whose why begins /vid incorporate:' ;; esac
   [ -n "$RV" ] || ref 'no --review: a fresh agent reviews the change over the rows it touches first, and its output (finding <row id> | <why> lines, or none) is the draft'"'"'s record'
   [ -s "$RV" ] || ref "--review $RV: no review output there"
   if [ -n "$RPL" ]; then O=$DR/$RPL; [ -f "$O/base" ] || die "--replaces $RPL: no draft $RPL"; for z in landed declined replaced; do [ ! -f "$O/$z" ] || ref "--replaces $RPL: draft $RPL is $z already"; done; fi
   CH=''; for f in $SPEC; do [ -z "$(git status --porcelain -- "$f" 2>/dev/null)" ] || CH="$CH $f"; done
   [ -n "$CH" ] || ref 'no spec file differs from HEAD: draft the change in the working tree first'
   mkdir -p "$DR"; n=$(( $(ls "$DR" 2>/dev/null | grep -E '^[0-9]+$' | sort -n | tail -n 1 | grep . || echo 0) + 1 )); X=$DR/$n; mkdir -p "$X/files"
-  git rev-parse HEAD > "$X/base"; printf '%s\n' "${WHY:-a change to the spec}" > "$X/why"; [ -z "$FOR" ] || printf '%s\n' "$FOR" | tr ',' '\n' | grep . > "$X/for"; [ -z "$PL" ] || pblock "$PL" > "$X/plan" 2>/dev/null; [ -z "$PL" ] || [ -s "$X/plan" ] || cp "$PL" "$X/plan"
+  git rev-parse HEAD > "$X/base"; printf '%s\n' "${WHY:-a change to the spec}" > "$X/why"; [ -z "$MP" ] || cp "$MP" "$X/map"; [ -z "$FOR" ] || printf '%s\n' "$FOR" | tr ',' '\n' | grep . > "$X/for"; [ -z "$PL" ] || pblock "$PL" > "$X/plan" 2>/dev/null; [ -z "$PL" ] || [ -s "$X/plan" ] || cp "$PL" "$X/plan"
   # 0.26.10.29.2 (R2): a spec file the tree deletes (STAGES.md, a re-cut back to one stage) is carried as a line of <n>/deleted
   for f in $CH; do if [ -f "$f" ]; then cp "$f" "$X/files/$f"; else echo "$f" >> "$X/deleted"; fi; done
   ( count "$X" ) || { rm -rf "$X"; exit 1; }
@@ -124,7 +132,9 @@ count() { X=$1; P=PRD.md; I=INVENTORY.md; [ ! -f "$X/files/PRD.md" ] || P=$X/fil
   awk -F'\t' '$1 == "added" && $3 != "transition" { print $2 }' "$X/sets" > "$T/ad"; dblock "$X" > "$T/blk"; stepsof "$T/ad" "$T/blk" > "$T/sq" || exit 1; put "$X/steps" < "$T/sq" || exit 1
   r=$(awk -F'\t' '$1 == "reset" && $3 != "transition"' "$X/sets" | grep -c . || true); a=$(grep -c . "$T/ad" || true); m=$(awk -F'\t' '$1 == "reached"' "$X/sets" | grep -c . || true)
   st=$(cut -d' ' -f2 "$X/steps" | sort -u | paste -sd ',' - | sed 's/,/, /g'); ms=$(awk -F'\t' '$1 == "reached" { print $2 }' "$X/sets" | paste -sd ',' - | sed 's/,/, /g')
-  printf 'This changes %s, adds %s%s, and reaches %s more%s. Land it?\n' "$r row$([ "$r" = 1 ] || echo s)" "$a" "${st:+ in $st}" "$m" "${ms:+: $ms}" > "$T/wo" || exit 1; put "$X/words" < "$T/wo" || exit 1; echo "words $(cat "$X/words")" >> "$X/count"; }
+  # IR I5: a draft's map, its counts (form 2): changes, left: lines and open: lines, a blank line or a # line skipped
+  mc=''; if [ -f "$X/map" ]; then mc=$(awk '/^[ \t]*(#|$)/ { next } /^left:/ { l++; next } /^open:/ { o++; next } { c++ } END { printf "map: %d changes, %d left, %d open", c, l, o }' "$X/map"); echo "$mc" >> "$X/count"; fi
+  printf 'This changes %s, adds %s%s, and reaches %s more%s%s. Land it?\n' "$r row$([ "$r" = 1 ] || echo s)" "$a" "${st:+ in $st}" "$m" "${ms:+: $ms}" "${mc:+; $mc}" > "$T/wo" || exit 1; put "$X/words" < "$T/wo" || exit 1; echo "words $(cat "$X/words")" >> "$X/count"; }
 
 # fkey <line>: a fix line's key, the cksum of its text less its stand-in label (writer.sh, close.sh: v0.26.10.25.4 R2)
 fkey() { printf '%s' "$1" | sed 's/[[:space:]]*[|][[:space:]]*stand-in.*$//' | tr -d '\n' | cksum | cut -d' ' -f1; }
@@ -204,7 +214,8 @@ commits() { X=$1; why=$(cat "$X/why"); n=$(basename "$X")
   # 0.26.10.29.5 (DP-1 R7): the Decisions: line states what the landing admits, the draft's why on one line and its count's first line,
   # passed to printf as arguments, never as its format, so a per cent sign, a quote or a backslash in the why is written as it stands
   DW=$(printf '%s' "$why" | tr '\r\n' '  '); CL=$(sed -n 1p "$X/count" 2>/dev/null); [ -n "$CL" ] || CL='no count'
-  for g in 'PRD.md GRADING-CHECKLIST.md DECISIONS.md|the PRD' 'INVENTORY.md STAGES.md ARCHITECTURE.md|the law' 'PLAN.md|the plan file'; do fs=''
+  # IR I5: the architecture first (a law commit of its own when it changes ARCHITECTURE.md's or BASELINE.md's law regions, both law files)
+  for g in 'ARCHITECTURE.md BASELINE.md|the architecture' 'PRD.md GRADING-CHECKLIST.md DECISIONS.md|the PRD' 'INVENTORY.md STAGES.md|the law' 'PLAN.md|the plan file'; do fs=''
     for f in ${g%%|*}; do if gone "$X" "$f"; then git rm -q -- "$f" || return 1; fs="$fs $f"; continue; fi   # 0.26.10.29.2 (R2): a deletion the draft carries
       [ -f "$X/files/$f" ] || continue; put "$f" < "$X/files/$f" || return 1; git add -- "$f" || return 1; fs="$fs $f"; done; [ -n "$fs" ] || continue
     printf 'Land draft %s, %s: %s\n\nThe owner'"'"'s yes, during the run: "%s"%s\n\nDecisions: admits %s (%s) — the owner'"'"'s yes\nOwner: "%s"\n' "$n" "${g#*|}" "$why" "$WORDS" "${AN:+
@@ -229,8 +240,12 @@ dryrun() { X=$1; B=$2; WORDS=$3
   # the dry run: a scratch copy, the records and commits made there with the hooks on, the plan change, planner.sh check
   SC=$T/sc; git clone -q --no-hardlinks . "$SC" 2> "$T/ge" || ref "no scratch copy: $(tail -n 1 "$T/ge")"
   BR=$(git symbolic-ref -q --short HEAD || true); if [ -n "$BR" ]; then git -C "$SC" checkout -q -B "$BR" "$B"; else git -C "$SC" checkout -q --detach "$B"; fi
-  for k in core.hooksPath user.name user.email; do v=$(git config --get "$k" || true); [ -z "$v" ] || git -C "$SC" config "$k" "$v"; done
+  for k in core.hooksPath core.filemode user.name user.email; do v=$(git config --get "$k" || true); [ -z "$v" ] || git -C "$SC" config "$k" "$v"; done   # core.filemode: 0.26.11.1.4 (R5), below
   [ ! -d checks ] || cp -R checks "$SC/"   # the hooks and courts as the working tree holds them, committed or not
+  # 0.26.11.1.4 (R5): each of the copy's hooks executable as the live tree's is, since cp keeps a file's mode where it exists: on a synced
+  # folder the live tree runs them whatever their recorded mode, and a hook checked out 100644 would be skipped in the dry run alone. With
+  # the live core.filemode copied above, the copy reads that mode as no change, as the live tree does
+  for h in checks/hooks/*; do [ -f "$h" ] && [ -f "$SC/$h" ] || continue; if [ -x "$h" ]; then chmod +x "$SC/$h"; else chmod -x "$SC/$h"; fi; done
   mkdir -p "$SC/.vid"; for e in .vid/* .vid/.[!.]*; do [ -e "$e" ] || continue; case ${e#.vid/} in code|spec.git|results|*.lock|*.lock.steal) continue ;; esac; cp -R "$e" "$SC/.vid/"; done   # no live lock into the dry run
   XA=$(cd "$X" && pwd)
   records "$SC" "$(printf %.12s "$B")" "$XA" > /dev/null || ref "the dry run's records failed: nothing landed"
@@ -300,5 +315,5 @@ case $CMD in
   draft) cmd_draft "$@" ;;
   count) X=$DR/${1:-}; [ -f "$X/base" ] || die "no draft ${1:-}"; count "$X"; cat "$X/count" ;;
   [0-9]*) cmd_land "$CMD" "$@" ;;
-  *) echo 'usage: sh checks/land.sh draft --review <file> [--why "<…>"] [--plan <file>] [--for <keys>] [--replaces <n>] | count <n> | <n> --words "<the owner'"'"'s yes>"' >&2; exit 2 ;;
+  *) echo 'usage: sh checks/land.sh draft --review <file> [--why "<…>"] [--plan <file>] [--for <keys>] [--replaces <n>] [--map <file>] | count <n> | <n> --words "<the owner'"'"'s yes>"' >&2; exit 2 ;;
 esac

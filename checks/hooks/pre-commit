@@ -259,7 +259,9 @@ DLINES=$(git diff --cached -U0 -- DECISIONS.md 2>/dev/null | grep '^+- \*\*D-' |
 # label field (applies-to: or scope:, stripped by name wherever it sits,
 # since origin: and model: may follow it) is a relabel: checks 4 and 4b
 # judged it when it was written, so only 4c judges it now.
-unlabel() { awk -F'|' 'BEGIN { OFS = "|" } { o = ""; n = 0; for (i = 1; i <= NF; i++) { f = $i; sub(/^[ \t]+/, "", f); if (f ~ /^(applies-to|scope):/) continue; o = (n++ ? o "|" : "") $i } sub(/[ \t]+$/, "", o); print o }'; }
+# IR I2: the replaced-by: mark is stripped with the label, so a mark-only change is judged by 4c and the mark's own
+# refusals beside it (below), never by 4 and 4b.
+unlabel() { awk -F'|' 'BEGIN { OFS = "|" } { o = ""; n = 0; for (i = 1; i <= NF; i++) { f = $i; sub(/^[ \t]+/, "", f); if (f ~ /^(applies-to|scope|replaced-by):/) continue; o = (n++ ? o "|" : "") $i } sub(/[ \t]+$/, "", o); print o }'; }
 DHEAD=$(git show HEAD:DECISIONS.md 2>/dev/null | grep -E '^- \*\*D-[0-9]+\*\*' || true)
 DJUDGE=''
 for dl in $DLINES; do
@@ -337,6 +339,37 @@ if [ -n "$DLINES" ]; then
     echo 'ViD pre-commit: rejected — DECISIONS.md lines without a label a brief can join on (v0.9.7.3 R1):' >&2
     printf '%s\n' "$LBAD" >&2
     echo 'Label a decision when you write it: | applies-to: <ROW, RULE or REQ ids, screen codes, DIF ids, module ids> — or | scope: project, only when it bears on many areas.' >&2
+    BY=decisions-label; exit 1
+  fi
+fi
+# IR I2: a replaced line is marked, and only marked: `| replaced-by: D-NNN[, D-MMM]` in its rule part, right before
+# ' | why:'. Refused, beside 4c, whenever DECISIONS.md is staged: any staged line whose mark names nothing, or a D-id the
+# staged DECISIONS.md does not hold (so deleting or renumbering a line a mark names is refused too); and, of the added or
+# changed lines, one whose mark lacks an id HEAD's mark held (a mark keeps its ids and only adds), or one with a mark
+# after ' | why:', which no grader would read (a grader is given each line up to ' | why:').
+if ! git diff --cached --quiet -- DECISIONS.md 2>/dev/null; then
+  DMF=$(mktemp); git show :DECISIONS.md 2>/dev/null | grep -E '^- \*\*D-[0-9]+\*\*' > "$DMF.l" || : > "$DMF.l"
+  sed -n 's/^- \*\*\(D-[0-9][0-9]*\)\*\*.*/\1/p' "$DMF.l" > "$DMF"; printf '%s\n' "$DHEAD" > "$DMF.h"; printf '%s\n' "$DLINES" | sed 's/^+//' > "$DMF.c"
+  MBAD=$(awk -v sf="$DMF" -v hf="$DMF.h" -v cf="$DMF.c" '
+    function tr(s) { gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
+    function did(l) { return match(l, /^- \*\*D-[0-9]+\*\*/) ? substr(l, 5, RLENGTH - 6) : "" }
+    # mk(l): the mark of the rule part into M (nm ids); has: a mark is there; late: one sits after " | why:"
+    function mk(l,   p, r, n, t, k, f, m, a, q) { split("", M); nm = 0; has = 0; late = 0; p = index(l, " | why:"); r = p ? substr(l, 1, p - 1) : l
+      n = split(r, t, "|"); for (k = 2; k <= n; k++) { f = tr(t[k]); if (f ~ /^replaced-by:/) { has = 1; m = split(tr(substr(f, 13)), a, /[ ,]+/); for (q = 1; q <= m; q++) if (a[q] != "") M[++nm] = a[q] } }
+      if (p) { n = split(substr(l, p + 3), t, "|"); for (k = 1; k <= n; k++) if (tr(t[k]) ~ /^replaced-by:/) late = 1 } }
+    BEGIN { while ((getline l < sf) > 0) S[l] = 1; while ((getline l < cf) > 0) if (l != "") CH[l] = 1
+      while ((getline l < hf) > 0) { i = did(l); if (i == "" || (i in H)) continue; mk(l); H[i] = ""; for (k = 1; k <= nm; k++) H[i] = H[i] " " M[k] } }
+    { out = ""; i = did($0); mk($0); split("", C); ch = ($0 in CH)
+      if (ch && late) out = out "\n      replaced-by: sits in the rule part, right before \" | why:\", where every role reads it"
+      if (has && !nm) out = out "\n      replaced-by: names nothing"
+      for (k = 1; k <= nm; k++) { C[M[k]] = 1; if (!(M[k] in S)) out = out "\n      " M[k] ": no line of the staged DECISIONS.md has this id" }
+      if (ch && (i in H)) { n = split(H[i], a, " "); for (k = 1; k <= n; k++) if (!(a[k] in C)) out = out "\n      " a[k] ": named by the mark at HEAD; a mark keeps the ids it has and only adds" }
+      if (out != "") print "    " $0 out }' "$DMF.l")
+  rm -f "$DMF" "$DMF.h" "$DMF.l" "$DMF.c"
+  if [ -n "$MBAD" ]; then
+    echo 'ViD pre-commit: rejected — DECISIONS.md replaced-by: marks out of form (IR I2):' >&2
+    printf '%s\n' "$MBAD" >&2
+    echo 'Mark a replaced line, and only mark it: | replaced-by: D-NNN[, D-MMM] right before | why:, naming lines DECISIONS.md holds; a later mark keeps the ids there and adds one.' >&2
     BY=decisions-label; exit 1
   fi
 fi

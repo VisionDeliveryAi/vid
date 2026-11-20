@@ -7,7 +7,8 @@
 # the applied commit, so neither inventory holds it, and naming ROW-014, removed the same way, only in its regression rows,
 # and quoting REQ-012 under its requirements; its body part 1 less the lines of ROW-019, ROW-014 and REQ-012.
 # `next.sh changes` prints exactly `added 2 ROW-012 S02`, `dropped 2 ROW-005 S02`, `dropped 5 ROW-014
-# S03` and `dropped 5 ROW-019 S03`, nothing about REQ-012, and nothing for #3 or #4. Env: CHECKS.
+# S03` and `dropped 5 ROW-019 S03`, nothing about REQ-012, and nothing for #3 or #4; GM-2 §5: each line's fifth field its
+# evidence hash. Env: CHECKS.
 set -eu
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 . "$CHECKS/selftest/fixtures/planner-toy.sh"
@@ -36,5 +37,6 @@ grep -q '^Ticket #3, part 1 of 1, writing ' "$T/p3/part-1.md" || fail "#3's part
   printf 'ticket\t5\tOPEN\t-\t2026-11-10T09:00:00Z\n'; grep -v -e 'ROW-019' -e 'ROW-014' -e 'REQ-012' "$T/p5/part-1.md" | while IFS= read -r l; do printf 'body\t5\t%s\n' "$l"; done; } > .vid/next/read
 sh "$CHECKS/next.sh" changes > "$T/out" 2>&1 || fail 'next.sh changes failed'
 printf 'added\t2\tROW-012\tS02\ndropped\t2\tROW-005\tS02\ndropped\t5\tROW-014\tS03\ndropped\t5\tROW-019\tS03\n' > "$T/want"
-sort "$T/out" | cmp -s - "$T/want" || fail "the changes are not exactly ROW-012 added to #2, ROW-005 dropped from it, and ROW-014 and ROW-019 dropped from #5"
+cut -f1-4 "$T/out" | sort | cmp -s - "$T/want" || fail "the changes are not exactly ROW-012 added to #2, ROW-005 dropped from it, and ROW-014 and ROW-019 dropped from #5"
+awk -F'\t' 'NF != 5 || $5 !~ /^[0-9a-f]{40}$/ { f = 1 } END { exit f }' "$T/out" || fail 'a change has no evidence hash as its fifth field'
 exit 0

@@ -15,7 +15,9 @@ out() { grep -n -e 'github\.sh' -e 'ticket\.sh' -e '\.vid/code' "$1" || true; gr
 wr() { grep -nE 'event\.sh|>>[[:space:]]*"?[^ ]*metrics-events' "$1"; }
 wr "$CHECKS/planner.sh" && fail 'planner.sh writes an event'
 # 0.26.11.1.3 (GM-1 S3, S4): beside its settings, the applied version (.vid/tw/applied) and the rows to place (.vid/tw/to-place), GitHub manual's
-[ "$(grep -o '\.vid/tw/[a-z-]*' "$CHECKS/planner.sh" | sort -u | tr '\n' ' ')" = '.vid/tw/applied .vid/tw/settings .vid/tw/to-place ' ] || fail 'planner.sh reads more of .vid/tw/ than its settings, the applied version and the rows to place'
+# GM-3 S2, in GitHub manual alone: the published tickets' log (.vid/tw/log), their recorded writing (.vid/tw/out) and the rows the switch
+# took out of steps not published (.vid/tw/dropped)
+[ "$(grep -o '\.vid/tw/[a-z-]*' "$CHECKS/planner.sh" | sort -u | tr '\n' ' ')" = '.vid/tw/applied .vid/tw/dropped .vid/tw/log .vid/tw/out .vid/tw/settings .vid/tw/to-place ' ] || fail 'planner.sh reads more of .vid/tw/ than its settings, the applied version, the rows to place, the log, the recorded writing and the rows dropped'
 { cat "$CHECKS/planner.sh"; echo 'printf x >> .vid/metrics-events'; } > "$T/p.sh"; wr "$T/p.sh" > /dev/null || fail 'a planted write into metrics-events is not convicted'
 SK="$CHECKS/../skills/vid-plan"
 [ -d "$SK" ] || { echo 'needs skills/vid-plan/'; exit 77; }

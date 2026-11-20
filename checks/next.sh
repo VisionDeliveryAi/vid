@@ -14,7 +14,12 @@
 #                      transitions left out (a transition goes with its row); then retired, an id of the applied commit's
 #                      inventory that the working tree's does not hold, a record (a difference with no paying-step:) left out.
 #                      INVENTORY.md has no other form of retirement: retiring a row is deleting its line, in a commit of its own
-#                      (skills/vid-test-inventory §5); the handed record's `row <id> retired` state is cut (0.26.11.1.2, R5)
+#                      (skills/vid-test-inventory §5); the handed record's `row <id> retired` state is cut (0.26.11.1.2, R5).
+#                      Then (IR I6) one `spec` line for each of ARCHITECTURE.md, DECISIONS.md, BASELINE.md and
+#                      GRADING-CHECKLIST.md, in that order, changed since the applied commit: <n> is the lines added plus
+#                      the lines removed in a line diff of the file at the applied commit (none when it had none) against
+#                      the working tree's (as the rows are read), each line first read with its spaces collapsed and
+#                      trimmed and blank lines left out, so a change of spaces or blank lines alone lists no file
 #   differ <n> [<commit>]   each row ticket n's recorded writing (.vid/tw/out/issue-<n>.md, its ## Rows section's `> ` lines,
 #                      as writer.sh rowsec writes them) quotes whose text differs from that row's inventory line at the commit,
 #                      the working tree by default; a quoted row the inventory there lacks differs too. The inventory line is
@@ -28,29 +33,52 @@
 #                      body opens `Ticket #<n>, part 1 of <m>, writing <h>.` (ViD's own part 1), an id part 1 of the recorded
 #                      writing names that the body no longer does, else (the project's own form) a row of the ticket (the log
 #                      line's rows=) the body no longer names. Part 1 is the recorded writing's own `part 1` stretch when it holds
-#                      the part lines, else writer.sh parts' first part of it
-#   triggers           (GM-1 S8, S4) the call's lines, from the records, .vid/next/read and the pending changes
+#                      the part lines, else writer.sh parts' first part of it. GM-2 T5, T7: dropped is against every id the kept body
+#                      (.vid/tw/body/issue-<n>) ever held, when there is one; a change is not printed when an answer in
+#                      .vid/next/team-answers covers it with the same evidence, or a `moved` line of that ticket names the id; an added
+#                      id found only in the working tree's inventory is `pending-only`
+#   triggers           (GM-1 S8, S4) the call's lines, from the records, .vid/next/read and the pending changes; GM-2 T9: each raised
+#                      trigger shown or counted by .vid/next/shown and .vid/next/declined, which it reads and never writes
+#   shown <file>       (GM-2 T9, T10) from the call's triggers lines in the file: .vid/next/shown, each raised trigger at its last
+#                      showing, and .vid/next/moves, the listing's moves with their hashes, both written whole
+#                      (and drops each decline whose what and subject it no longer raises, when it has a tiers line and
+#                      no unread line but due's)
+#   decline <what> [<subject>] "<words>"   (GM-2 T9) one line in .vid/next/declined for each trigger of that what (and subject)
+#                      raised now, `kind` or `subject` in its fifth field; none raised, or no words, refused (exit 1)
 # Line forms, tab-separated, one record a line (a list comma-separated, `-` when empty):
 #   mode, read, pending, differ and changes:
 #     pending <reset|added|reached|retired> <id>
+#     spec <file> <n> lines               (IR I6) after the pending lines
 #     differ <n> <id>
-#     added <n> <id> <step or ->          dropped <n> <id> <step or ->
+#     added <n> <id> <step, - or pending-only> <evidence>    dropped <n> <id> <step or -> <evidence>   (GM-2 §5) the evidence: for added,
+#                                         the hash of the body lines naming the id; for dropped, the hash of the whole body
 #     unread <part> <n or -> <why>        what could not be read, from next-read or here; nothing is counted from it. The rows
 #                                         table read through lib.sh's mustread: a failed read stops triggers, exit 1, never an empty list
 #   triggers, in this order:
 #     unread <part> <n or -> <why>
 #     count total <n>, then count <kind> <n> for each kind, in order: to-place added retired restated reset unpublished
 #     counted <kind> <id> <evidence>      each test once, under the first kind it matches
-#     trigger <critical|important|minor> <what> <subject> <evidence>, critical first; what is one of
+#     trigger <critical|important|minor> <what> <subject> <evidence>, critical first, each shown at this call (GM-2 T9): a critical one
+#       every call, an important one when .vid/next/shown does not hold it at the same tier and evidence key, a minor one never; a
+#       declined one never. The evidence key: a team change's evidence hash; else the hash of the evidence, every count of days left
+#       out, and for an inventory id its first line in the working tree. What is one of
 #       critical:  reset-taken retired-taken blocked close-twice close-shrink lane-gone
 #       important: to-place-active added-active stage-to-correct reset-not-taken reached-closed team-added team-dropped
 #                  not-taken team-no-lane
 #       minor:     reached-open added-inactive reset-inactive record
-#     question <#n> <the comment's first line>
+#     quiet <tier> <what> <subject> <evidence> <unchanged|declined|minor>   raised, counted, not shown (GM-2 T9)
+#     tiers critical=<n> important=<n> unchanged=<n> minor=<n> declined=<n>   every raised trigger counted once
+#     question <#n:k> <the comment's first line>   (GM-2 T8) k its place among the issue's questions, 1 the first; one answered by a
+#                                         move (.vid/next/questions) or by a comment whose first line is `RM: ` and its line whole is not listed
 #     context sub <#ticket> <#parent> <#child> <state> <assignees> <title>
 #     context assigned <#n> <labels> <title>
-#     move <k> <publish|team-change|analyse|apply|answer> <subject> listed; done from phase <2|3>
-#     warning <k> <step> <limit|stage-ahead|not-taken> <the numbers> <the risk>     after its publish move
+#     move <kind> <subject> <hash> <what it needs or does>   (GM-2 T10) named by kind and subject: publish <step>, amend #<n> and
+#                                         withdraw #<n> (writer.sh due's lines as it gives them), team-change #<n> <id>, analyse -,
+#                                         apply -, answer #<n>:<k>; the hash git hash-object of `<kind> TAB <subject> TAB <what>` then
+#                                         its warning lines; analyse and apply, and a pending-only team change, done from phase 3
+#     warning <kind> <subject> <limit|stage-ahead|not-taken|size|withdraw> <the numbers> <the risk>     after its move; size, one
+#                                         team-added test more than a fifth of the ticket's tests at its last writing (T6); withdraw,
+#                                         a dropped test its step's last (T7)
 # The count's kinds (first match wins; a test already in a published ticket at its current text is not counted): to-place, on
 # .vid/tw/to-place and in no published ticket; added, retired, pending; restated, a row a published ticket quotes whose text
 # there differs from the working tree's (differ); reset, pending, in no published ticket; unpublished, in no published ticket
@@ -62,6 +90,8 @@
 # a step's. Taken: a `vid: claimed` comment on it, an assignee, or any sub-issue. A row's state reads .vid/decide/state then
 # the handed record's `row` lines, the newest counting; for the stage-ahead warning, accepted is accepted, accepted by
 # ruling, owed or paid (held is not). With exactly one setup lane, a step naming no lane is that lane's.
+# GM-3 S2: in GitHub manual a published ticket of kind step or skeleton is of the stage its recorded writing's header names
+# (`- stage: <k>`), and the setup's team names and the plan's lanes are read lower-cased, as the planner reads them there.
 # The owner items close-twice and close-shrink are close.sh's `twice` and `shrink` lines in each step's newest ask
 # (.vid/decide/close/<step>/<k>/items) and each stage's newest candidate (.vid/decide/stage/<N>/<c>/items), unanswered in
 # .vid/decide/queue/answers, as queue.sh's c_items reads them. Every unpublished step of the plan block is publishable: no
@@ -95,7 +125,8 @@ invat() { if [ -n "${1:-}" ]; then git show "$1:INVENTORY.md" 2> /dev/null || re
 # keys <file>: `<id><TAB><first field><TAB><record 1|0>`, each id once, its first line
 keys() { awk "$KEY"' { k = key($0); if (k == "" || (k in s)) next; s[k] = 1; split($0, a, "|"); print k "\t" tr(a[1]) "\t" isrec($0) }' "$1"; }
 needapplied() { A=$(applied); [ -n "$A" ] || ref 'no applied version: .vid/tw/applied names no commit (/vid mode manual records it)'; git rev-parse -q --verify "$A^{commit}" > /dev/null 2>&1 || ref ".vid/tw/applied names $A, no commit of this repository"; }
-# pending_: $T/pend (`pending <kind> <id>`), $T/retk (a retired id and its first field), $T/rec (impact's records)
+# pending_: $T/pend (`pending <kind> <id>`), $T/retk (a retired id and its first field), $T/rec (impact's records),
+# $T/spec (`spec <file> <n> lines`, IR I6)
 pending_() {
   needapplied
   # impact --detail with nothing to print exits 1 with no output (its grep -v under set -e): read as nothing pending
@@ -105,8 +136,15 @@ pending_() {
   awk -F'\t' '$1 == "record" { print $2 }' "$T/imp" | sort -u > "$T/rec"
   invat "$A" > "$T/ia" || ref "INVENTORY.md cannot be read at $A"; invat > "$T/iw"; keys "$T/ia" > "$T/ka"; keys "$T/iw" > "$T/kw"
   awk -F'\t' 'FILENAME == ARGV[1] { W[$1] = 1; next } !($1 in W) && $3 == 0 { print $1 "\t" $2 }' "$T/kw" "$T/ka" > "$T/retk"
-  awk -F'\t' -v OFS='\t' '{ print "pending", "retired", $1 }' "$T/retk" >> "$T/pend"; }
+  awk -F'\t' -v OFS='\t' '{ print "pending", "retired", $1 }' "$T/retk" >> "$T/pend"
+  # IR I6: the law files beyond the rows, each line read with its spaces collapsed and trimmed, blank lines left out
+  : > "$T/spec"; for f in ARCHITECTURE.md DECISIONS.md BASELINE.md GRADING-CHECKLIST.md; do
+    { git show "$A:$f" 2> /dev/null || true; } | awk "$SQ" > "$T/sa"; { cat "$f" 2> /dev/null || true; } | awk "$SQ" > "$T/sw"
+    n=$({ diff "$T/sa" "$T/sw" || true; } | grep -c '^[<>]' || true)
+    [ "$n" -eq 0 ] || printf 'spec\t%s\t%s lines\n' "$f" "$n" >> "$T/spec"; done; }
 
+# SQ: a line with its spaces collapsed and trimmed, a blank line left out (IR I6's spec lines)
+SQ='{ gsub(/[ \t\r]+/, " "); sub(/^ /, ""); sub(/ $/, "") } $0 != ""'
 # section <file> <name>: the lines of a `## <name>` section
 section() { awk -v s="## $2" '$0 == s { on = 1; next } on && /^## / { exit } on' "$1"; }
 # differ_ <n> [<commit>]: `differ <n> <id>` lines on stdout
@@ -147,6 +185,7 @@ pubs_() { { cat "$LOG" 2> /dev/null || true; } | awk 'function kv(k,   i) { for 
 ids_() { invat > "$T/iw"; keys "$T/iw" | cut -f1 > "$T/ids"; A=$(applied); if [ -n "$A" ] && invat "$A" > "$T/ia" 2> /dev/null; then keys "$T/ia" | cut -f1 >> "$T/ids"; fi
   { cut -f3 "$T/pub" | tr ' ' '\n'; for f in .vid/tw/out/issue-*.md; do [ ! -f "$f" ] || cat "$f"; done; } |
     awk '{ m = split($0, w, /[^A-Za-z0-9_-]+/); for (i = 1; i <= m; i++) if (w[i] ~ /^(ROW|RULE|HOS|DIF|SEAM)-[0-9]+$/) print w[i] }' >> "$T/ids"
+  for f in .vid/tw/body/issue-*; do [ ! -f "$f" ] || grep -v '^[[:space:]]*$' "$f" >> "$T/ids" || true; done   # GM-2 T5: every id a kept body holds
   sort -u "$T/ids" -o "$T/ids"; }
 # named <file>: the inventory ids ($T/ids) the text names, each a whole word (no letter, digit, _ or - beside it), one a line
 named() { awk -v IDS="$T/ids" 'BEGIN { while ((getline l < IDS) > 0) I[l] = 1 } { m = split($0, w, /[^A-Za-z0-9_-]+/); for (i = 1; i <= m; i++) if ((w[i] in I) && !(w[i] in s)) { s[w[i]] = 1; print w[i] } }' "$1"; }
@@ -154,24 +193,43 @@ named() { awk -v IDS="$T/ids" 'BEGIN { while ((getline l < IDS) > 0) I[l] = 1 } 
 part1() { if grep -q "^Ticket #$1, part 1 of [0-9]*, writing " "$2"; then
     awk -v n="$1" 'index($0, "Ticket #" n ", part 1 of ") == 1 { on = 1; next } on && index($0, "Ticket #" n ", part ") == 1 { exit } on' "$2" > "$T/p1"
   else rm -rf "$T/parts"; sh "$HERE/writer.sh" parts "$2" "$1" "$T/parts" > /dev/null 2>&1 && [ -f "$T/parts/part-1.md" ] || return 1; cp "$T/parts/part-1.md" "$T/p1"; fi; }
-# changes_: `added|dropped <n> <id> <step or ->` lines and `unread` lines on stdout
+# changes_: `added|dropped <n> <id> <step or -|pending-only> <evidence hash>` lines and `unread` lines on stdout
 changes_() {
   [ -f "$RD" ] || { printf 'unread\tread\t-\tno read kept (.vid/next/read): run next.sh read\n'; return 0; }
   steps_; pubs_; ids_
   awk -F'\t' '{ n = split($3, a, " "); for (i = 1; i <= n; i++) if (!(a[i] in s)) { s[a[i]] = 1; print a[i] "\t" $1 } }' "$T/steps" > "$T/stepof"
   awk -F'\t' '$1 == "unread" && ($2 == "ticket" || $2 == "body") { print $3 }' "$RD" | sort -u > "$T/ubody"
+  # GM-2 T5, T7: the answers and ViD's own moves out of a ticket (.vid/next/team-answers); the ids of the applied commit's inventory and
+  # of the working tree's, for a pending-only id
+  { cat .vid/next/team-answers 2> /dev/null || true; } > "$T/ta"; : > "$T/aids"; AC=$(applied)
+  if [ -n "$AC" ] && invat "$AC" > "$T/cia" 2> /dev/null; then keys "$T/cia" | cut -f1 > "$T/aids"; echo "$AC" > "$T/aok"; else rm -f "$T/aok"; fi
+  invat > "$T/ciw"; keys "$T/ciw" | cut -f1 > "$T/wids"
   for n in $(awk -F'\t' '$1 == "ticket" { print $2 }' "$RD"); do
     grep -qx "$n" "$T/ubody" && continue
     F=.vid/tw/out/issue-$n.md; [ -f "$F" ] || { printf 'unread\twriting\t%s\tno recorded writing (%s)\n' "$n" "$F"; continue; }
     awk -F'\t' -v n="$n" '$1 == "body" && $2 == n { print substr($0, length($1 $2) + 3) }' "$RD" > "$T/b"
     named "$T/b" | sort > "$T/bn"; named "$F" | sort > "$T/wn"
     comm -23 "$T/bn" "$T/wn" | sed 's/^/added	/' > "$T/ch"
-    if head -n 1 "$T/b" | grep -q "^Ticket #$n, part 1 of [0-9][0-9]*, writing [0-9a-f]*\.\$"; then
+    # dropped (GM-2 T5): against every id the kept body ever held, when there is one; else as phase 1 reads it
+    if [ -f ".vid/tw/body/issue-$n" ]; then grep -v '^[[:space:]]*$' ".vid/tw/body/issue-$n" | sort -u > "$T/was"
+    elif head -n 1 "$T/b" | grep -q "^Ticket #$n, part 1 of [0-9][0-9]*, writing [0-9a-f]*\.\$"; then
       part1 "$n" "$F" || { printf 'unread\twriting\t%s\tpart 1 of the recorded writing could not be made\n' "$n"; continue; }
       named "$T/p1" | sort > "$T/was"
     else awk -F'\t' -v n="$n" '$1 == n { m = split($3, a, " "); for (i = 1; i <= m; i++) print a[i] }' "$T/pub" | sort -u > "$T/was"; fi
     comm -23 "$T/was" "$T/bn" | sed 's/^/dropped	/' >> "$T/ch"
-    awk -F'\t' -v n="$n" -v OFS='\t' 'FILENAME == ARGV[1] { S[$1] = $2; next } { print $1, n, $2, (($2 in S) ? S[$2] : "-") }' "$T/stepof" "$T/ch"
+    # the evidence (GM-2 T7, §5): for an added id the hash of the body lines that name it, for a dropped one the hash of the whole body
+    rm -rf "$T/ev"; mkdir -p "$T/ev"
+    awk -F'\t' -v B="$T/b" -v D="$T/ev" 'BEGIN { while ((getline l < B) > 0) L[++nl] = l } { k++; f = sprintf("%s/%06d", D, k); printf "" > f
+        if ($1 == "added") for (i = 1; i <= nl; i++) { m = split(L[i], w, /[^A-Za-z0-9_-]+/); for (j = 1; j <= m; j++) if (w[j] == $2) { print L[i] > f; break } }
+        close(f) }' "$T/ch"
+    HB=$(git hash-object "$T/b"); ls "$T/ev" | sed "s#^#$T/ev/#" | git hash-object --stdin-paths > "$T/evh"
+    # printed unless an answer covers it with the same evidence, or a move of ViD's took the id out of this ticket (a `moved` line);
+    # an added id found only in the working tree's inventory is pending-only
+    awk -F'\t' -v n="$n" -v OFS='\t' -v HB="$HB" -v EH="$T/evh" -v AOK="$([ -f "$T/aok" ] && echo 1)" '
+      FILENAME == ARGV[1] { S[$1] = $2; next } FILENAME == ARGV[2] { if ($1 == n) { if ($2 == "moved") MV[$3] = 1; else AN[$2, $3, $4] = 1 } next }
+      FILENAME == ARGV[3] { AI[$1] = 1; next } FILENAME == ARGV[4] { WI[$1] = 1; next }
+      { getline h < EH; e = ($1 == "added") ? h : HB; if (($1, $2, e) in AN || ($2 in MV)) next
+        st = ($1 == "added" && AOK && ($2 in WI) && !($2 in AI)) ? "pending-only" : (($2 in S) ? S[$2] : "-"); print $1, n, $2, st, e }' "$T/stepof" "$T/ta" "$T/aids" "$T/wids" "$T/ch"
   done; }
 
 # items_: the open owner items of kind close-twice and close-shrink, `<close-twice|close-shrink><TAB><key>` a line
@@ -190,30 +248,45 @@ arows_() { : > "$T/arows"; A=$(applied); [ -n "$A" ] || return 0; AD=$T/ap; rm -
   { grep -v '^setup-answered key=github-mode ' .vid/plan/setup 2> /dev/null || true; } > "$AD/.vid/plan/setup"
   ( cd "$AD" && mustread "$T/arows" planner rows ); }
 # teams_: the setup's teams, `<name><TAB><people><TAB><the line>`; none, devagent of one (planner.sh's reading)
-teams_() { awk -F'|' "$TRIM"' /^team:/ { l = tr(substr($0, 6)); n = split(l, a, "|"); for (i = 1; i <= n; i++) a[i] = tr(a[i]); if (n == 4 && a[1] ~ /^[a-z][a-z0-9]*$/ && a[4] ~ /^[1-9][0-9]*$/ && !(a[1] in s)) { s[a[1]] = 1; print a[1] "\t" a[4] "\t" $0; k++ } }
+# GM-3 S2: in GitHub manual a name is lower-cased, as the planner reads it there
+teams_() { LCN=''; ! manual || LCN=1; awk -F'|' -v LCN="$LCN" "$TRIM"' /^team:/ { l = tr(substr($0, 6)); n = split(l, a, "|"); for (i = 1; i <= n; i++) a[i] = tr(a[i]); if (LCN) a[1] = tolower(a[1]); if (n == 4 && a[1] ~ /^[a-z][a-z0-9]*$/ && a[4] ~ /^[1-9][0-9]*$/ && !(a[1] in s)) { s[a[1]] = 1; print a[1] "\t" a[4] "\t" $0; k++ } }
     END { if (!k) print "devagent\t1\t(no team: line, so devagent of one)" }' .vid/tw/settings 2> /dev/null || printf 'devagent\t1\t(no team: line, so devagent of one)\n'; }
 
 triggers_() {
-  : > "$T/f"; : > "$T/pend"; : > "$T/retk"; : > "$T/rec"
-  if [ -n "$(applied)" ]; then ( pending_ ) > "$T/pe" 2>&1 || { : > "$T/pend"; : > "$T/retk"; : > "$T/rec"; printf 'U\tpending\t-\t%s\n' "$(tail -n 1 "$T/pe" | sed 's/^ViD next: //')" >> "$T/f"; }
+  : > "$T/f"; : > "$T/pend"; : > "$T/retk"; : > "$T/rec"; : > "$T/spec"
+  if [ -n "$(applied)" ]; then ( pending_ ) > "$T/pe" 2>&1 || { : > "$T/pend"; : > "$T/retk"; : > "$T/rec"; : > "$T/spec"; printf 'U\tpending\t-\t%s\n' "$(tail -n 1 "$T/pe" | sed 's/^ViD next: //')" >> "$T/f"; }
   else printf 'U\tpending\t-\tno applied version: .vid/tw/applied names no commit\n' >> "$T/f"; fi
   mustread "$T/rows" planner rows --newest
   awk -F'\t' -v OFS='\t' '!/^#/ { print "R", $1, $2, $5, $6 }' "$T/rows" >> "$T/f"
   if [ -s "$T/retk" ]; then arows_; awk -F'\t' -v OFS='\t' '!/^#/ { print "AR", $1, $2, $6 }' "$T/arows" >> "$T/f"; fi
   { awk -F'\t' '{ print $1 "\t" $2 }' .vid/decide/state 2> /dev/null || true; sed -n 's/^row \([^ ]*\) \([^ |]*\).*/\1	\2/p' "$HAND" 2> /dev/null || true; } | sed 's/^/S	/' >> "$T/f"
-  sed 's/^pending/P/' "$T/pend" >> "$T/f"; sed 's/^/C	/' "$T/rec" >> "$T/f"
+  sed 's/^pending/P/' "$T/pend" >> "$T/f"; sed 's/^/C	/' "$T/rec" >> "$T/f"; sed 's/^spec/SP/' "$T/spec" >> "$T/f"
   { awk 'NF >= 2 { print "TP\t" $1 "\t" $2 }' .vid/tw/to-place 2> /dev/null || true; } >> "$T/f"
   steps_; pubs_; sed 's/^/ST	/' "$T/steps" >> "$T/f"; sed 's/^/PUB	/' "$T/pub" >> "$T/f"
+  # GM-3 S2: in GitHub manual a published ticket of kind step or skeleton is of the stage its recorded writing's header names
+  MN=''; if manual; then MN=1; cut -f1 "$T/pub" | while read -r n; do F=.vid/tw/out/issue-$n.md; [ -f "$F" ] || continue
+    awk -v n="$n" '/^## / { h = ($0 ~ /^## Header[ \t]*$/); next } h && index($0, "- kind: ") == 1 { k = substr($0, 9) } h && index($0, "- stage: ") == 1 { v = substr($0, 10); sub(/,.*/, "", v); gsub(/[ \t]/, "", v) }
+      END { if (k ~ /^(step|skeleton)[ \t]*$/ && v ~ /^[0-9]+$/) print "HS\t" n "\t" v }' "$F"; done >> "$T/f"; fi
   teams_ | sed 's/^/TEAM	/' >> "$T/f"; items_ | sed 's/^/ITEM	/' >> "$T/f"
   printf 'LIM\t%s\nPX\t%s\nNOW\t%s\n' "$(sed -n 's/^open-tickets:[[:space:]]*\([0-9][0-9]*\)[[:space:]]*$/\1/p' .vid/tw/settings 2> /dev/null | head -n 1)" "$(twkey labels-prefix)" "$(date -u +%s)" >> "$T/f"
   if [ -f "$RD" ]; then
     awk -F'\t' -v OFS='\t' '$1 == "unread" { print "U", $2, $3, substr($0, length($1 $2 $3) + 4) } $1 == "issue" { print "ISS", $2, $3, $4 } $1 == "open" { print "OPR", $2, $10 }
       $1 == "sub" || $1 == "assigned" { print }' "$RD" >> "$T/f"
     awk -F'\t' '$1 == "ticket" { print $2 "\t" $3 "\t" $4 "\t" $5 }' "$RD" | while IFS="$TAB" read -r n s a c; do printf 'TK\t%s\t%s\t%s\t%s\t%s\n' "$n" "$s" "$a" "$c" "$(epoch "$c")"; done >> "$T/f"
-    changes_ | awk -F'\t' -v OFS='\t' '$1 == "unread" { print "U", $2, $3, $4; next } { print "CHG", $1, $2, $3, $4 }' >> "$T/f"
+    # GM-2 T8: each issue's comment first lines, in the read's order (open, merged, issue, assigned), for its questions; and the
+    # questions answered by a move (.vid/next/questions)
+    awk -F'\t' -v OFS='\t' '$1 == "open" { print "QH", $2, $10 } $1 == "merged" { print "QH", $2, $6 } $1 == "issue" || $1 == "assigned" { print "QH", $2, $4 }' "$RD" >> "$T/f"
+    { cut -f1 .vid/next/questions 2> /dev/null || true; } | sed 's/^/NQ	/' >> "$T/f"
+    changes_ | awk -F'\t' -v OFS='\t' '$1 == "unread" { print "U", $2, $3, $4; next } { print "CHG", $1, $2, $3, $4, $5 }' >> "$T/f"
     cut -f1 "$T/pub" | while read -r n; do [ -f ".vid/tw/out/issue-$n.md" ] || continue; ( differ_ "$n" ) 2> /dev/null | sed 's/^differ/DIF/' || true; done >> "$T/f"
+    # GM-2 T10: the amendments and withdrawals writer.sh due owes, listed as it gives them; a due that fails is an unread line
+    # writer.sh's load makes .vid/tw/out, the log and the handed record when one is missing, so due runs only when all three are
+    # there: triggers writes nothing
+    if [ -s "$T/pub" ] && { [ ! -d .vid/tw/out ] || [ ! -f "$LOG" ] || [ ! -f "$HAND" ]; }; then printf 'U\tdue\t-\twriter.sh due not run: it would make .vid/tw/out, .vid/tw/log or .vid/tw/handed, so no amendment or withdrawal is listed\n' >> "$T/f"
+    elif [ -s "$T/pub" ]; then if ( sh "$HERE/writer.sh" due ) > "$T/due" 2> "$T/duee"; then awk '$1 == "amend" || $1 == "withdraw" { print "DUE\t" $0 }' "$T/due" >> "$T/f"
+      else printf 'U\tdue\t-\twriter.sh due failed: %s\n' "$(grep -v '^[[:space:]]*$' "$T/duee" | tail -n 1 | tr '\t' ' ')" >> "$T/f"; fi; fi
   else printf 'U\tread\t-\tno read kept (.vid/next/read): run next.sh read\n' >> "$T/f"; fi
-  awk -F'\t' -v OFS='\t' '
+  awk -F'\t' -v OFS='\t' -v WR="$HERE/writer.sh" -v MN="$MN" '
     function num(s) { return s ~ /^[0-9]+$/ }
     function add(a, x) { return a == "" ? x : a "," x }
     # acc: accepted, for the stage-ahead warning: accepted, accepted by ruling, owed or paid (held is not accepted)
@@ -222,6 +295,8 @@ triggers_() {
     function stg(l,   m, A, j, x, N, b) { m = split(l, A, " "); split("", N); b = ""
       for (j = 1; j <= m; j++) { x = A[j]; if (RC[x] ~ /^(planned|moved|owed)$/ && num(RG[x])) N[RG[x]]++ }
       for (x in N) if (b == "" || N[x] > N[b] || (N[x] == N[b] && x + 0 < b + 0)) b = x; return b }
+    # isq: a question, as queue.sh reads one in GitHub manual (GM-2 T8): `Question:` or a role'"'"'s prefix and `question`, never `RM: `
+    function isq(s) { return (s ~ /^Question:/ || s ~ /^[A-Z][A-Z]: [Qq]uestion/) && s !~ /^RM: / }
     function trig(t, w, s, e) { TG[t] = TG[t] "trigger\t" t "\t" w "\t" s "\t" e "\n"; if (t != "minor") CI++ }
     $1 == "U" { print "unread", $2, $3, $4; UN[$2, $3] = 1; UP[$2] = 1; next }
     $1 == "R" { if (!($2 in RK)) RO[++nr] = $2; RK[$2] = $3; RG[$2] = $4; RC[$2] = $5; next }
@@ -229,18 +304,21 @@ triggers_() {
     $1 == "P" { P[$3, $2] = 1; if (!($3 in PI)) NPI++; PI[$3] = 1; if (!($3 in PO)) { PO[$3] = ++np; PL[np] = $3 } next }
     $1 == "AR" { if (!($2 in ARK)) { ARK[$2] = $3; ARC[$2] = $4 } next }
     $1 == "C" { REC[++nc] = $2; next }
+    $1 == "SP" { NSP++; next }
     $1 == "TP" { TP[$2] = $3; if (!($2 in PO)) { PO[$2] = ++np; PL[np] = $2 } next }
-    $1 == "ST" { SO[++ns] = $2; SL[$2] = $3; SR[$2] = $4; m = split($4, a, " "); for (i = 1; i <= m; i++) if (!(a[i] in STEP)) STEP[a[i]] = $2; next }
+    $1 == "HS" { HS[$2] = $3; next }
+    $1 == "ST" { SO[++ns] = $2; SL[$2] = (MN ? tolower($3) : $3); SR[$2] = $4; m = split($4, a, " "); for (i = 1; i <= m; i++) if (!(a[i] in STEP)) STEP[a[i]] = $2; next }
     $1 == "PUB" { TO[++nt] = $2; TS[$2] = $3; TR[$2] = $4; PS[$3] = 1; m = split($4, a, " "); for (i = 1; i <= m; i++) IN[a[i]] = add(IN[a[i]], $2); next }
     $1 == "TEAM" { TM[++nm] = $2; TL[$2] = $4; if ($3 == 1) { LN[$2] = 1; LO1 = $2; nln++ } else for (i = 1; i <= $3; i++) { LN[$2 "-" i] = 1; LO1 = $2 "-" i; nln++ } next }
     $1 == "ITEM" { TG["critical"] = TG["critical"] "trigger\tcritical\t" $2 "\t" $3 "\tthe owner item " $3 " in .vid/decide, unanswered\n"; CI++; next }
     $1 == "LIM" { LIM = $2; next } $1 == "PX" { PX = $2; next } $1 == "NOW" { NOW = $2; next }
-    $1 == "ISS" { IL[$2] = "," $3 ","; IH[$2] = $4; QO[++nq] = $2 SUBSEP $4; next }
-    $1 == "OPR" { QO[++nq] = $2 SUBSEP $3; next }
+    $1 == "ISS" { IL[$2] = "," $3 ","; IH[$2] = $4; next }
+    $1 == "QH" { QH[++nq] = $2 SUBSEP $3; next } $1 == "NQ" { NQ[$2] = 1; next }
     $1 == "sub" { SUBL[++nsub] = $0; HASSUB[$2] = 1; next }
     $1 == "assigned" { ASL[++nas] = $0; next }
     $1 == "TK" { TKS[$2] = $3; TKA[$2] = $4; TKC[$2] = $5; TKE[$2] = $6; if ($3 == "OPEN") OPEN++; next }
-    $1 == "CHG" { CH[++nch] = $2 SUBSEP $3 SUBSEP $4 SUBSEP $5; next }
+    $1 == "CHG" { CH[++nch] = $2 SUBSEP $3 SUBSEP $4 SUBSEP $5 SUBSEP $6; next }
+    $1 == "DUE" { DU[++ndu] = substr($0, 5); next }
     $1 == "DIF" { DIF[$3] = add(DIF[$3], $2); next }
     END {
       # with exactly one lane, a step naming none is that lane'"'"'s, as the planner reads it
@@ -250,7 +328,7 @@ triggers_() {
       # a retired row, when the applied commit'"'"'s rows table gives it kind row and class planned, moved or owed, and it is no known limit
       for (i = 1; i <= np; i++) { r = PL[i]; if (P[r, "retired"] && ARK[r] == "row" && ARC[r] ~ /^(planned|moved|owed)$/ && ST[r] != "known-limit" && !(r in TEST)) { U[++nu] = r; TEST[r] = 1 } }
       # each ticket: its stage, taken, how
-      for (i = 1; i <= nt; i++) { n = TO[i]; TST[n] = stg(TR[n])
+      for (i = 1; i <= nt; i++) { n = TO[i]; TST[n] = ((n in HS) ? HS[n] : stg(TR[n]))   # GM-3 S2: the ticket'"'"'s header, in GitHub manual
         h = ""; if (index("\001" IH[n] "\001", "\001vid: claimed")) h = add(h, "a vid: claimed comment"); if (TKA[n] != "" && TKA[n] != "-") h = add(h, "assignee " TKA[n]); if (n in HASSUB) h = add(h, "a sub-issue")
         TK_[n] = h; if (TKS[n] == "OPEN" && num(TST[n])) ACT[TST[n]] = 1 }
       lo = ""; for (s in ACT) if (lo == "" || s + 0 < lo + 0) lo = s
@@ -282,26 +360,107 @@ triggers_() {
       for (i = 1; i <= nc; i++) trig("minor", "record", REC[i], "a record changed since the applied version")
       for (n in IL) if (index(IL[n], "," PX "blocked,")) trig("critical", "blocked", "#" n, "label " PX "blocked")
       for (i = 1; i <= ns; i++) { s = SO[i]; if (SL[s] != "-" && !(SL[s] in LN)) { g = ""; for (x in LN) g = add(g, x); trig("critical", "lane-gone", s, "lane: " SL[s] "; the setup gives " g) } }
-      for (i = 1; i <= nch; i++) { split(CH[i], CC, SUBSEP); trig("important", "team-" CC[1], "#" CC[2] " " CC[3], (CC[4] == "-" ? "in no step" : "step " CC[4])) }
+      for (i = 1; i <= nch; i++) { split(CH[i], CC, SUBSEP); trig("important", "team-" CC[1], "#" CC[2] " " CC[3], (CC[4] == "-" ? "in no step" : CC[4] == "pending-only" ? "only in the pending spec" : "step " CC[4]) ", evidence " CC[5]) }
       st = ""; for (i = 1; i <= nt; i++) { n = TO[i]; if (TKS[n] != "OPEN" || TK_[n] != "" || TKE[n] + 0 == 0 || (("ticket", n) in UN) || (("sub", n) in UN) || ("round" in UP)) continue
         dd = int((NOW - TKE[n]) / 86400); if (NOW - TKE[n] > 7 * 86400) { trig("important", "not-taken", "#" n, "created " TKC[n] ", " dd " days ago; no vid: claimed comment, assignee or sub-issue"); st = add(st, "#" n); nst++ } }
       for (i = 1; i <= nm; i++) { t = TM[i]; u = 0; for (j = 1; j <= ns; j++) { l = SL[SO[j]]; if (l == t || index(l, t "-") == 1 && substr(l, length(t) + 2) ~ /^[0-9]+$/) u = 1 } if (!u) trig("important", "team-no-lane", t, TL[t]) }
       printf "%s%s%s", TG["critical"], TG["important"], TG["minor"]
-      # the questions
-      for (i = 1; i <= nq; i++) { split(QO[i], q, SUBSEP); m = split(q[2], HH, "\001"); for (j = 1; j <= m; j++) if (HH[j] ~ /^Question:/ && !((q[1], HH[j]) in QS)) { QS[q[1], HH[j]] = 1; QQ[++nqq] = q[1] SUBSEP HH[j]; print "question", "#" q[1], HH[j] } }
+      # the questions (GM-2 T8): each issue read once, its first line in the read; k a question'"'"'s place among its questions; one answered
+      # by a move, or by a comment whose first line is `RM: ` and the question'"'"'s line whole, not listed
+      for (i = 1; i <= nq; i++) { split(QH[i], q, SUBSEP); n = q[1]; if (n in QDN) continue; QDN[n] = 1; m = split(q[2], HH, "\001"); split("", RMS); c = 0
+        for (j = 1; j <= m; j++) if (HH[j] ~ /^RM: /) RMS[HH[j]] = 1
+        for (j = 1; j <= m; j++) if (isq(HH[j])) { c++; w = HH[j]; gsub(/\t/, " ", w); if (((n ":" c) in NQ) || (("RM: " w) in RMS)) continue; print "question", "#" n ":" c, w; QQ[++nqq] = n ":" c SUBSEP w } }
       # the context
       for (i = 1; i <= nsub; i++) { split(SUBL[i], a, "\t"); print "context", "sub", "#" a[2], "#" a[3], "#" a[4], a[5], a[6], a[7] }
       for (i = 1; i <= nas; i++) { split(ASL[i], a, "\t"); print "context", "assigned", "#" a[2], a[3], a[6] }
       # the moves, each publish with its warnings (N13)
-      k = 0; for (i = 1; i <= ns; i++) { s = SO[i]; if (s in PS) continue; print "move", ++k, "publish", s, "listed; done from phase 2"
-        if (LIM != "" && OPEN + 1 > LIM + 0) print "warning", k, s, "limit", (OPEN + 0) " open tickets, " (OPEN + 1) " with this one, over open-tickets: " LIM, "work spread, the plan fixed early"
+      # GM-2 T10: each move named by its kind and its subject, `@` its hash until hashmoves; each warning after its move
+      for (i = 1; i <= nt; i++) STK[TS[TO[i]]] = add(STK[TS[TO[i]]], "#" TO[i])
+      for (i = 1; i <= ns; i++) { s = SO[i]; if (s in PS) continue; r = SR[s]; gsub(/ /, ",", r); print "move", "publish", s, "@", "publishes the ticket of " s ", its tests " (r == "" ? "-" : r) "; needs your words"
+        if (LIM != "" && OPEN + 1 > LIM + 0) print "warning", "publish", s, "limit", (OPEN + 0) " open tickets, " (OPEN + 1) " with this one, over open-tickets: " LIM, "work spread, the plan fixed early"
         g = stg(SR[s])
-        if (lo != "" && g != "" && g + 0 > lo + 0) { c = 0; for (r in TEST) if (RG[r] == lo && !acc(ST[r])) c++; print "warning", k, s, "stage-ahead", "stage " g ", ahead of stage " lo ", the lowest active stage, whose " c " tests are not yet accepted", "half-built work in a release, lost learning" }
-        if (nst) print "warning", k, s, "not-taken", nst " published tickets not taken 7 days after their creation: " st, "a stale ticket" }
-      for (i = 1; i <= nch; i++) { split(CH[i], CC, SUBSEP); print "move", ++k, "team-change", "take in or decline: " CC[1] " " CC[3] " on #" CC[2], "listed; done from phase 2" }
-      if (CI) print "move", ++k, "analyse", "the " CI " critical and important triggers", "listed; done from phase 3"
-      if (NPI) print "move", ++k, "apply", "the pending changes, " NPI " rows", "listed; done from phase 3"
-      for (i = 1; i <= nqq; i++) { split(QQ[i], q, SUBSEP); print "move", ++k, "answer", "#" q[1] ": " q[2], "listed; done from phase 2" } }' "$T/f"; }
+        if (lo != "" && g != "" && g + 0 > lo + 0) { c = 0; for (r in TEST) if (RG[r] == lo && !acc(ST[r])) c++; print "warning", "publish", s, "stage-ahead", "stage " g ", ahead of stage " lo ", the lowest active stage, whose " c " tests are not yet accepted", "half-built work in a release, lost learning" }
+        if (nst) print "warning", "publish", s, "not-taken", nst " published tickets not taken 7 days after their creation: " st, "a stale ticket" }
+      # the amendments and withdrawals writer.sh due owes, as it gives them (GM-2 T5, T6)
+      # an amendment names what it would do, so its hash changes with it: the ticket'"'"'s tests at its last
+      # writing and its step'"'"'s tests in the plan now
+      for (i = 1; i <= ndu; i++) { split(DU[i], a, " "); if (a[1] != "amend") continue; n = a[2]; o = TR[n]; gsub(/ /, ",", o); w = SR[TS[n]]; gsub(/ /, ",", w)
+        print "move", "amend", "#" n, "@", "amends #" n ", its tests " (o == "" ? "-" : o) " at its last writing, step " TS[n] "'"'"'s tests now " (w == "" ? "-" : w) ", as writer.sh due owes it; needs your words" }
+      for (i = 1; i <= ndu; i++) { split(DU[i], a, " "); if (a[1] == "withdraw") print "move", "withdraw", "#" a[2], "@", "withdraws #" a[2] ", as writer.sh due owes it (" DU[i] "); needs your words" }
+      # the team'"'"'s changes (GM-2 T7): a pending-only one is the apply move'"'"'s; a yes to an added test of another step'"'"'s published ticket
+      # takes it out of that ticket; the size flag (T6) when one test is more than a fifth of the ticket'"'"'s tests at its last writing; a
+      # yes to a dropped test that is its step'"'"'s last withdraws the ticket
+      for (i = 1; i <= nch; i++) { split(CH[i], CC, SUBSEP); sj = "#" CC[2] " " CC[3]
+        if (CC[4] == "pending-only") { print "move", "team-change", sj, "@", CC[1] " " CC[3] " on #" CC[2] ", only in the pending spec, evidence " CC[5] ": with the apply move; done from phase 3"; continue }
+        o = (CC[1] == "added" && CC[4] != "-" && CC[4] != TS[CC[2]] && STK[CC[4]] != "") ? ", a yes takes it out of " STK[CC[4]] " (step " CC[4] ")" : ""
+        print "move", "team-change", sj, "@", "takes in or declines: " CC[1] " " CC[3] " on #" CC[2] ", " (CC[4] == "-" ? "in no step" : "step " CC[4]) ", evidence " CC[5] o "; needs yes or no, and your words"
+        tn = split(TR[CC[2]], a, " "); tf = ""; if (CC[1] == "added") { tc = "sh \"" WR "\" topup 1 " tn; tc | getline tf; close(tc) }   # GM-2 T6: the size flag, one rule in writer.sh topup
+        if (tf != "") print "warning", "team-change", sj, "size", "1 test added to the " tn " tests of #" CC[2] " at its last writing, more than a fifth", "a ticket grown past what it was written to build"
+        ws = TS[CC[2]]; if (CC[1] == "dropped" && ws != "-" && split(SR[ws], a, " ") == 1 && a[1] == CC[3]) print "warning", "team-change", sj, "withdraw", CC[3] " is the last test of step " ws ": a yes withdraws #" CC[2] ", its test to the to-place list", "a ticket withdrawn" }
+      if (CI) print "move", "analyse", "-", "@", "the " CI " critical and important triggers; listed; done from phase 3"
+      # IR I6: the apply move whenever rows or spec files are pending, counted apart
+      if (NPI || NSP) print "move", "apply", "-", "@", "the pending changes, " (NPI + 0) " rows, " (NSP + 0) " spec files; listed; done from phase 3"
+      for (i = 1; i <= nqq; i++) { split(QQ[i], q, SUBSEP); print "move", "answer", "#" q[1], "@", "answers " q[2] "; needs your answer, or there, and your words" } }' "$T/f" > "$T/o"
+  tiers_ "$T/o" > "$T/o2"; hashmoves "$T/o2"; }
+# ekeys_ <file>: for each `<what> TAB <subject> TAB <tier> TAB <evidence>` line, the same with its evidence key in place of the evidence
+# (GM-2 T9, §5): a team change's evidence hash exactly (its evidence's `evidence <hash>`); else the hash of the evidence with every
+# count of days left out and, when the subject is an id of the working tree's inventory, a newline and its first line there
+ekeys_() { invat > "$T/ekw"; rm -rf "$T/ek"; mkdir -p "$T/ek"
+  awk -F'\t' -v INV="$T/ekw" -v D="$T/ek" "$KEY"' BEGIN { while ((getline l < INV) > 0) { k = key(l); if (k != "" && !(k in L)) L[k] = l } }
+    { n++; f = sprintf("%s/%06d", D, n); e = $4; if ($1 ~ /^team-/) { sub(/.*evidence /, "", e); print "=" e > f } else { gsub(/[0-9]+ days?( ago)?/, "", e); print e > f; if ($2 in L) print L[$2] > f } close(f) }' "$1"
+  ls "$T/ek" | sed "s#^#$T/ek/#" > "$T/ekl"; git hash-object --stdin-paths < "$T/ekl" > "$T/ekh"
+  awk -F'\t' -v OFS='\t' -v L="$T/ekl" -v H="$T/ekh" '{ getline f < L; getline h < H; c = ""; getline c < f; close(f); if (c ~ /^=/) h = substr(c, 2); print $1, $2, $3, h }' "$1"; }
+# tiers_ <file>: the call's lines with each raised trigger shown or counted (GM-2 T9, §5): a declined one (a line of .vid/next/declined
+# holds its what, subject, tier and evidence key) counted declined; else a critical one shown; an important one shown unless
+# .vid/next/shown holds it at the same tier and evidence key, then counted unchanged; a minor one counted. Shown as `trigger`, then
+# the counted as `quiet … <unchanged|declined|minor>`, then `tiers`; the analyse move counts the critical and important not declined
+tiers_() { awk -F'\t' -v OFS='\t' '$1 == "trigger" { print $3, $4, $2, $5 }' "$1" > "$T/tl"; ekeys_ "$T/tl" > "$T/tk"
+  awk -F'\t' -v OFS='\t' -v TK="$T/tk" -v SH=.vid/next/shown -v DC=.vid/next/declined '
+    BEGIN { while ((getline l < SH) > 0) { split(l, x, "\t"); S[x[1], x[2]] = x[3] SUBSEP x[4] } while ((getline l < DC) > 0) { split(l, x, "\t"); D[x[1], x[2], x[3], x[4]] = 1 } }
+    $1 == "trigger" { getline k < TK; split(k, K, "\t"); t = $2; w = $3; s = $4; ky = K[4]
+      if ((w, s, t, ky) in D) { Q = Q "quiet\t" t "\t" w "\t" s "\t" $5 "\tdeclined\n"; c["declined"]++ }
+      else if (t == "critical") { SN = SN $0 "\n"; c["critical"]++; ci++ }
+      else if (t == "important" && ((w, s) in S) && S[w, s] == t SUBSEP ky) { Q = Q "quiet\t" t "\t" w "\t" s "\t" $5 "\tunchanged\n"; c["unchanged"]++; ci++ }
+      else if (t == "important") { SN = SN $0 "\n"; c["important"]++; ci++ }
+      else { Q = Q "quiet\t" t "\t" w "\t" s "\t" $5 "\tminor\n"; c["minor"]++ }
+      next }
+    $1 ~ /^(question|context|move|warning)$/ { if (!dn) out(); if ($1 == "move" && $2 == "analyse") { if (ci) print "move", "analyse", "-", "@", "the " ci " critical and important triggers not declined; listed; done from phase 3"; next } print; next }
+    { print }
+    function out() { dn = 1; printf "%s%s", SN, Q; print "tiers", "critical=" c["critical"] + 0 " important=" c["important"] + 0 " unchanged=" c["unchanged"] + 0 " minor=" c["minor"] + 0 " declined=" c["declined"] + 0 }
+    END { if (!dn) out() }' "$1"; }
+# shown_ <triggers file>: .vid/next/shown, `<what> TAB <subject> TAB <tier> TAB <evidence key> TAB <at>`, each raised trigger at its last
+# showing: one shown now at this call, one counted unchanged or declined as it was kept, one counted minor not kept; and .vid/next/moves,
+# `<kind> TAB <subject> TAB <hash>`, the listing's moves; both written whole (GM-2 T9, T10, §5); and .vid/next/declined less each line
+# whose what and subject the call no longer raises, when the call's lines hold no unread line
+shown_() { [ -f "$1" ] || die "no triggers file $1"; mkdir -p .vid/next; NOWT=$(now)
+  awk -F'\t' -v OFS='\t' '$1 == "trigger" { print $3, $4, $2, $5 }' "$1" > "$T/tl"; ekeys_ "$T/tl" > "$T/tk"
+  awk -F'\t' -v OFS='\t' -v TK="$T/tk" -v SH=.vid/next/shown -v NOW="$NOWT" 'BEGIN { while ((getline l < SH) > 0) { split(l, x, "\t"); O[x[1], x[2]] = l } }
+    $1 == "trigger" { getline k < TK; split(k, K, "\t"); print $3, $4, $2, K[4], NOW; next }
+    $1 == "quiet" && $6 != "minor" && (($3, $4) in O) { print O[$3, $4] }' "$1" > "$T/sh"
+  awk -F'\t' -v OFS='\t' '$1 == "move" { print $2, $3, $4 }' "$1" > "$T/mv"
+  # a decline whose what and subject this call no longer raises was handled: dropped, so a later raising is a new trigger, shown
+  # (T9: "until it is handled … or declined"); never on a call whose lines hold an unread line, so a failed read forgets no decline,
+  # and only on lines that hold a tiers line, as triggers leaves them, never on a failed triggers' empty file
+  # an `unread due` line hides no trigger (due feeds only the amend and withdraw moves), so it never stops the drop
+  if [ -f .vid/next/declined ] && grep -q '^tiers	' "$1" && ! awk -F'\t' '$1 == "unread" && $2 != "due" { f = 1 } END { exit !f }' "$1"; then
+    awk -F'\t' 'FILENAME == ARGV[1] { if ($1 == "trigger" || $1 == "quiet") R[$3, $4] = 1; next } (($1, $2) in R)' "$1" .vid/next/declined > "$T/dc"; put .vid/next/declined < "$T/dc"; fi
+  put .vid/next/shown < "$T/sh"; put .vid/next/moves < "$T/mv"; echo "shown $(grep -c . "$T/sh" || true) triggers, $(grep -c . "$T/mv" || true) moves"; }
+# decline_ <what> [<subject>] <words>: one line in .vid/next/declined for each trigger of that what (and subject) raised now,
+# `<what> TAB <subject> TAB <tier> TAB <evidence key> TAB <kind|subject> TAB <at> TAB <words>`; none raised, or no words, refused
+decline_() { W=$1; if [ $# -ge 3 ]; then SB=$2; BYW=subject; WD=$3; else SB=''; BYW=kind; WD=$2; fi
+  WD=$(printf '%s' "$WD" | tr '\t\n"' "  '"); [ -n "$(printf '%s' "$WD" | tr -d ' ')" ] || ref "a decline needs the owner's words"
+  triggers_ > "$T/cur"; awk -F'\t' -v OFS='\t' -v w="$W" -v s="$SB" '($1 == "trigger" && $3 == w && (s == "" || $4 == s)) { print $3, $4, $2, $5 } ($1 == "quiet" && $3 == w && (s == "" || $4 == s)) { print $3, $4, $2, $5 }' "$T/cur" > "$T/dl"
+  [ -s "$T/dl" ] || ref "no $W trigger${SB:+ for $SB} is raised now"; ekeys_ "$T/dl" > "$T/dk"; mkdir -p .vid/next; AT=$(now)
+  awk -F'\t' -v OFS='\t' -v B="$BYW" -v AT="$AT" -v WD="$WD" -v DC=.vid/next/declined 'BEGIN { while ((getline l < DC) > 0) { split(l, x, "\t"); D[x[1], x[2], x[3], x[4]] = 1 } }
+    !(($1, $2, $3, $4) in D) { print $1, $2, $3, $4, B, AT, WD; n++ } END { if (!n) exit 1 }' "$T/dk" >> .vid/next/declined || ref "every $W trigger${SB:+ for $SB} raised now is declined already"
+  echo "declined $(grep -c . "$T/dk") $W trigger(s) by $BYW"; }
+# hashmoves <file>: the call's lines, each move's `@` its hash (GM-2 §5): git hash-object of `<kind> TAB <subject> TAB <what>` and a newline,
+# then its warning lines as printed, each with its newline
+hashmoves() { rm -rf "$T/mh"; mkdir -p "$T/mh"
+  awk -F'\t' -v D="$T/mh" '$1 == "move" && $4 == "@" { n++; f = sprintf("%s/%06d", D, n); printf "%s\t%s\t%s\n", $2, $3, $5 > f; close(f); K[$2 SUBSEP $3] = f; next }
+    $1 == "warning" && (($2 SUBSEP $3) in K) { f = K[$2 SUBSEP $3]; print >> f; close(f) }' "$1"
+  ls "$T/mh" | sed "s#^#$T/mh/#" | git hash-object --stdin-paths > "$T/mhh"
+  awk -F'\t' -v OFS='\t' -v H="$T/mhh" '$1 == "move" && $4 == "@" { getline h < H; $4 = h } { print }' "$1"; }
 
 case "${1:-}" in
   mode) GM=$(ghmode); [ "$GM" != manual ] || { echo 'mode: GitHub manual'; exit 0; }
@@ -313,10 +472,12 @@ case "${1:-}" in
     esac; exit 1 ;;
   read) [ $# -eq 1 ] || die 'usage — sh checks/next.sh read'; mkdir -p .vid/next; RC=0; sh "$HERE/github.sh" next-read > "$T/r" 2> "$T/re" || RC=$?
     [ "$RC" -eq 0 ] || printf 'unread\tround\t-\tnext-read exited %s: %s\n' "$RC" "$(tail -n 1 "$T/re")" >> "$T/r"
-    put "$RD" < "$T/r"; [ "$RC" -eq 0 ] || { sed 's/^/  /' "$T/re" >&2; exit 1; } ;;
-  pending) [ $# -eq 1 ] || die 'usage — sh checks/next.sh pending'; pending_; cat "$T/pend" ;;
+    [ ! -f "$RD" ] || put .vid/next/read.prev < "$RD"; put "$RD" < "$T/r"; [ "$RC" -eq 0 ] || { sed 's/^/  /' "$T/re" >&2; exit 1; } ;;
+  pending) [ $# -eq 1 ] || die 'usage — sh checks/next.sh pending'; pending_; cat "$T/pend" "$T/spec" ;;
   differ) case ${2:-} in ''|*[!0-9]*) die 'usage — sh checks/next.sh differ <n> [<commit>]' ;; esac; [ $# -le 3 ] || die 'usage — sh checks/next.sh differ <n> [<commit>]'; differ_ "$2" "${3:-}" ;;
   changes) [ $# -eq 1 ] || die 'usage — sh checks/next.sh changes'; changes_ ;;
   triggers) [ $# -eq 1 ] || die 'usage — sh checks/next.sh triggers'; triggers_ ;;
-  *) die 'usage — sh checks/next.sh mode | read | pending | differ <n> [<commit>] | changes | triggers' ;;
+  shown) [ $# -eq 2 ] || die 'usage — sh checks/next.sh shown <triggers file>'; shown_ "$2" ;;
+  decline) [ $# -eq 3 ] || [ $# -eq 4 ] || die 'usage — sh checks/next.sh decline <what> [<subject>] "<words>"'; shift; decline_ "$@" ;;
+  *) die 'usage — sh checks/next.sh mode | read | pending | differ <n> [<commit>] | changes | triggers | shown <triggers file> | decline <what> [<subject>] "<words>"' ;;
 esac

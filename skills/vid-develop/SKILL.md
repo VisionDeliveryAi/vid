@@ -1236,6 +1236,10 @@ ended or not), the grade covers, instead of every live `pilot` REQ:
   dependents — vid-fix's per-requirement re-grade scope ("After applying —
   the blast-radius re-grade"), reused as written.
 
+An incorporation is read as an add (IR I5): its `stage name=incorporate`
+events count as `stage name=add` ones, its `base=` with theirs, and the
+requirements its PRD appends add or amend join the scope as an add's do.
+
 `later` items are listed as deferred, as always. The scope is read from
 the records, never from which verb is running, so it holds across a
 hand-back, a hold, a stop, a later "continue" and a resume in another

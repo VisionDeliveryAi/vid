@@ -2,14 +2,15 @@
 # Purpose: ViD's ticket writer, TW (v0.26.10.12.3 R1, R3–R5, R7, R8) — the ratified plan made
 # into tickets of product text, develop's builder brief part by part (§1.1). Run at the top of ViD's repository; it
 # calls no outside service (checks/github.sh posts what it writes). Everything quoted is read at ViD's HEAD, the spec
-# export's commit. Its records: .vid/tw/settings (repo:, spec-repo:, labels-prefix:, open-tickets:), .vid/tw/handed
+# export's commit; GM-2 T1: in GitHub manual, at the applied commit (.vid/tw/applied), as the export reads it. Its records: .vid/tw/settings (repo:, spec-repo:, labels-prefix:, open-tickets:), .vid/tw/handed
 # (what later roles hand in, each line ending `| stand-in: <who>` until their stages: `engines <primary> <other>…`,
 # `engine-split <row>`, `closed <step>`, `row <id> <state> [fault-proven]`, `fix <row> [<row> …] | <reason> | <links>`, `lesson
 # <ids> | <words>`, `reached <row> <REQ|INV id> [<the landing>]`, `candidate <stage>`), .vid/tw/log (github.sh's), .vid/tw/named (name's, 0.26.10.29.5), .vid/tw/out/.
 #   gate      exit 0 only when planner.sh ratified exits 0, the newest publish-approved event's words are the newest
 #             ratification's, the settings name repo:, spec-repo: (another repository), labels-prefix: (empty counts)
 #             and, when set, an open-tickets: of 1 or more, and no exported or quoted file has an uncommitted change;
-#             else one line per thing missing, exit 1
+#             else one line per thing missing, exit 1. GM-2 T1: in GitHub manual no publish-approved event is asked, and
+#             the uncommitted-change check covers PLAN.md and the issue form (issue-form:) alone
 #   write skeleton | step <S> | fix <key|row> | reached | amend <n>   the gate first; then the ticket into
 #             .vid/tw/out/<kind>-<arg>.md, its path printed, and <file>.meta (its log line's fields, then `sent <row>
 #             <hash>` per row) for github.sh tw-post; then the check. A step ticket holds the started step's rows less
@@ -41,11 +42,21 @@
 #             drops the note, writes "(ViD's records)" for a pointer, and rewrites those three forms; other quotes stay.
 #   parts <file> <issue> <dir>   the ticket as one issue's body and comments, each at most 60,000 bytes, its sections
 #             whole where they fit (ticket.sh's packer), each part's first line naming it; their paths printed
+#   GM-2 T5: in GitHub manual `write amend <n> [--cause "<line>"]` names the move's own cause (the team change answered, or the
+#             owner's amendment by default), never one read from the ticket's plan= hash; its `tell` lines name each test added,
+#             restated (its quote changed since it was sent) or taken out (at the owner's word, and where it went). A ticket taken
+#             over with no `sent` line has them rebuilt first: a row whose quote in the recorded writing matches the applied line, cut
+#             as next.sh differ cuts it, reads as sent at the applied line's hash; one that differs, as restated
 #   due       what the round owes, one line each: `withdraw <n> [decision=<D> what=<w>]` (its step left the plan, by
 #             that newest change of its rows), `amend <n>` (rewritten, its rows or quoted text differ), then `new
 #             skeleton|step <S>` (a started step with no ticket, or its rows changed after its tickets closed), `new fix
 #             <key>` for a fix line with a row no known limit, and `new reached` when nothing else is new. A fix line's key
 #             is a hash of its text less its stand-in label, never its place in the record (v0.26.10.25.4 R2)
+#             GM-2 T5, T6: in GitHub manual an amendment is owed only when the plan's rows for the ticket differ from its log
+#             line's rows (a difference in quoted text alone owes none), and a ticket that lost more than half its rows is amended,
+#             never withdrawn for it; a withdrawal stays owed for a ticket whose step left the plan or that would hold no row
+#   topup <added> <tests>   (GM-2 T6) the size flag, the one rule the listing and the amendment read: printed, exit 0, when more
+#             than 5 tests are added, or more than a fifth of the <tests> a ticket held at its last writing; else nothing
 #   fresh <file> [<n>]   exit 1, one line per thing moved since the file was written (github.sh tw-post asks it first):
 #             the plan's recorded hash, the newest export, or its ticket work (new, or the amendment of #n) not owed now
 #   pending   (v0.26.10.26.7, R9) the reached rows of rulings no open ticket holds yet, `<row> <step>` a line (`-` in no step)
@@ -58,7 +69,7 @@
 #             appended to .vid/tw/named, an unknown step or id refused before anything is written; each such ticket's Decisions section
 #             joins them whatever their label and always keeps them, as brief.sh's --decisions ids, a decision about ViD's own settings
 #             apart; the section is in the hash (qhash), so a name for a step with an open ticket makes due owe its amendment
-# Usage: sh checks/writer.sh gate | write skeleton|step <S>|fix <row>|reached|amend <n> | check <file> | parts <f> <n> <dir> | due | pending | fresh <file> [<n>] | where <n> | cause <n> | handovers | name <step> <D-id,…>
+# Usage: sh checks/writer.sh gate | write skeleton|step <S>|fix <row>|reached|amend <n> [--cause "<line>"] | topup <added> <tests> | check <file> | parts <f> <n> <dir> | due | pending | fresh <file> [<n>] | where <n> | cause <n> | handovers | name <step> <D-id,…>
 # serves: tickets (0.26.10.28.4, M9)
 set -eu
 LC_ALL=C; export LC_ALL
@@ -91,14 +102,19 @@ SP=' /^[ \t]*step[ \t]/ { n = split($0, f, "|"); id = tr(f[1]); sub(/^step[ \t]+
       for (j = 1; j <= m; j++) { x = t[j]; if (x == "") continue; r = r " " rng(x) }
       print id "\t" nm "\t" md "\t" (bo == "-" ? "" : bo) "\t" substr(r, 2) "\t" kd }'
 twhas() { grep -q "^$1:" "$SET" 2>/dev/null; }
-specpaths() { printf '%s\n' PRD.md INVENTORY.md STAGES.md GRADING-CHECKLIST.md ARCHITECTURE.md PLAN.md DECISIONS.md BASELINE.md CLAUDE.md design
+# GM-2 T1: in GitHub manual everything quoted is read at the applied commit, so the owner's work in progress on the spec never
+# shuts the gate: its uncommitted-change check covers PLAN.md and the issue form (issue-form:) alone, both read at HEAD
+specpaths() { if manual; then printf '%s\n' PLAN.md; skey issue-form | grep . || true; return 0; fi
+  printf '%s\n' PRD.md INVENTORY.md STAGES.md GRADING-CHECKLIST.md ARCHITECTURE.md PLAN.md DECISIONS.md BASELINE.md CLAUDE.md design
   sed -n 's/.*|[[:space:]]*golden:[[:space:]]*\([^ |]*\).*/\1/p' INVENTORY.md 2>/dev/null | sort -u; }
 gate() {
   : > "$T/why"
   sh "$HERE/planner.sh" ratified > "$T/rat" 2>&1 || echo "the plan is not ratified: $(sed 's/^planner: not ratified — //' "$T/rat" | head -n 1)" >> "$T/why"
   RW=$(tail -n 1 .vid/plan/ratified 2>/dev/null | sed -n 's/^ratified .* words=//p')
   AW=$(grep '^publish-approved ' .vid/metrics-events 2>/dev/null | tail -n 1 | sed -n 's/^publish-approved words="\(.*\)" at=[^ ]*$/\1/p')
-  if [ -z "$AW" ]; then echo 'no publish-approved event: the owner has not given the go' >> "$T/why"
+  # GM-2 T1: in GitHub manual no publish-approved event is asked: each publish carries the owner's own words (T4)
+  if manual; then :
+  elif [ -z "$AW" ]; then echo 'no publish-approved event: the owner has not given the go' >> "$T/why"
   elif [ "$AW" != "$RW" ]; then echo "the newest publish-approved event's words (\"$AW\") are not the newest ratification's (\"$RW\")" >> "$T/why"; fi
   R=$(twkey repo); S=$(twkey spec-repo); L=$(twkey open-tickets)
   [ -n "$R" ] || echo "the settings name no repo: (the code repository; .vid/tw/settings)" >> "$T/why"
@@ -114,15 +130,18 @@ gate() {
 # hash, read from the plan-change event's own hash= field, and its kept file); $T/steps (`id name modules builds rows
 # kind`, tab-separated, ranges expanded); $T/st (the handed records, tab-separated: eng, split, closed, rs <row> <state>
 # <fp|->, fix <key> <rows,…> <why> <links>, lesson <ids> <words>, reached <row> <item> <line>); $T/lg (the log)
+# GM-2 T1: AT, the commit every quote is read at, and AN, its name in a refusal: HEAD, or in GitHub manual the applied commit
+AT=HEAD; AN=HEAD
 load() {
   [ -f PRD.md ] && [ -f INVENTORY.md ] || die "no PRD.md or INVENTORY.md here — run at the top of ViD's repository"
-  git show HEAD:INVENTORY.md > "$T/invf" 2>/dev/null || die 'no INVENTORY.md at HEAD'
+  if manual; then AT=$(applied); AN='the applied commit'; [ -n "$AT" ] && git cat-file -e "$AT^{commit}" 2>/dev/null || die "GitHub manual: .vid/tw/applied names no commit of this repository${AT:+ ($AT)}; /vid mode manual records the applied version the team has"; fi
+  git show "$AT:INVENTORY.md" > "$T/invf" 2>/dev/null || die "no INVENTORY.md at $AN"
   sed -n '/^```vid-inventory/,/^```$/p' "$T/invf" | sed '1d;$d' > "$T/inv"
-  git show HEAD:PRD.md > "$T/prd" 2>/dev/null || die 'no PRD.md at HEAD'
-  sh "$HERE/prd.sh" --effective "$T/prd" > "$T/eff" 2>/dev/null || die 'prd.sh --effective failed on PRD.md at HEAD'
+  git show "$AT:PRD.md" > "$T/prd" 2>/dev/null || die "no PRD.md at $AN"
+  sh "$HERE/prd.sh" --effective "$T/prd" > "$T/eff" 2>/dev/null || die "prd.sh --effective failed on PRD.md at $AN"
   ! grep -q '^### REQ-' "$T/eff" || die 'a legacy PRD (### REQ- blocks): ticket mode reads the enriched form'
-  { git show HEAD:DECISIONS.md 2>/dev/null || true; } | grep -E '^- \*\*D-[0-9]+\*\*' > "$T/dec" || true
-  { git show HEAD:ARCHITECTURE.md 2>/dev/null || true; } > "$T/arch"
+  { git show "$AT:DECISIONS.md" 2>/dev/null || true; } | grep -E '^- \*\*D-[0-9]+\*\*' > "$T/dec" || true
+  { git show "$AT:ARCHITECTURE.md" 2>/dev/null || true; } > "$T/arch"
   sh "$HERE/planner.sh" rows > "$T/rows0" 2>/dev/null || die 'planner.sh rows failed'; grep -v '^#' "$T/rows0" > "$T/rows" || true
   PH=$(grep '^plan-change ' .vid/metrics-events 2>/dev/null | tail -n 1 | sed -n 's/^plan-change what=[^ ]* hash=\([0-9a-f]*\) .*/\1/p'); PF=.vid/plans/$PH.plan
   [ -n "$PH" ] && [ -f "$PF" ] || die 'no recorded plan (sh checks/plan.sh change create …)'
@@ -214,7 +233,7 @@ reqs() {
     { for (k = 2; k <= NF; k++) { x = $k; gsub(/^[ \t]+|[ \t]+$/, "", x); if (x ~ /^modules:/) { n = split(substr(x, 9), a, /[ ,\t]+/); for (i = 1; i <= n; i++) if (a[i] != "") print nm(a[i]) } } }' > "$T/stepmods"
   # 0.26.10.29.5 (DP-1 R5): $T/named, the ids `writer.sh name` named for this ticket's step (.vid/tw/named), joined whatever their label, as brief.sh's --decisions
   awk -v s="$S" '$1 == s { n = split($2, a, ","); for (i = 1; i <= n; i++) if (a[i] != "") print a[i] }' .vid/tw/named > "$T/named" 2>/dev/null || : > "$T/named"
-  # brief.sh 1001–1031, copied: the id join (every field, why: included), a label's items, the safe rule narrowed to the step's screens
+  # brief.sh's section 3 join, copied: the id join (every field, why: included), a label's items, the safe rule narrowed to the step's screens
   awk -v jf="$T/joinids" -v saf="$T/scall" -v sbf="$T/scbrief" -v dbf="$T/difbrief" -v smf="$T/stepmods" -v nmf="$T/named" "$WHOLE"'
     function anyid(s,   o, q, x, y) { q = s; o = 0; while (match(q, /(ROW|REQ|RULE)-[0-9]+/)) { x = (o + RSTART > 1) ? substr(s, o + RSTART - 1, 1) : ""; y = substr(s, o + RSTART + RLENGTH, 1); if (x !~ /[A-Za-z0-9_-]/ && y !~ /[A-Za-z0-9_-]/) return 1; o += RSTART; q = substr(s, o + 1) } return 0 }
     function label(   n, k, f, t, m, a, i2) { split("", AP); nap = 0; n = split($0, t, "|")
@@ -230,13 +249,21 @@ reqs() {
     function own(   n, t, k, f) { n = split($0, t, "|"); for (k = 2; k <= n; k++) { f = t[k]; gsub(/^[ \t]+|[ \t]+$/, "", f); if (f ~ /^about:[ \t]*vid-settings$/) return 1 }
       return (index($0, ".vid/budget") || $0 ~ /(^|[^A-Za-z0-9_-])(stacks|memory-headroom-mb|claims-per-slice|wall-hours-per-slice|court-seconds|builder-context-tokens|chunk-seconds|unverified-rows|env-mb|silence-minutes|startup-minutes|run-limit-minutes|builders-target|builder-tool|codex-model|codex-effort)=/) }
     own() { next }
-    { hit = 0; if (match($0, /\*\*D-[0-9]+\*\*/) && (substr($0, RSTART, RLENGTH) in N)) hit = 1   # a named id always stays, the settings own() apart
+    # IR I3 (brief.sh'"'"'s emit, copied): line i, then each line its rule part'"'"'s `replaced-by:` mark names, whatever their
+    # labels, each line once in the section; a line about ViD'"'"'s own settings is never one of them (own(), above)
+    function emit(i,   p, r, n, t, k, f, m, a, q) { if (i in P) return; P[i] = 1; print L[i]
+      p = index(L[i], " | why:"); r = p ? substr(L[i], 1, p - 1) : L[i]
+      n = split(r, t, "|"); for (k = 2; k <= n; k++) { f = t[k]; gsub(/^[ \t]+|[ \t]+$/, "", f)
+        if (f ~ /^replaced-by:/) { m = split(substr(f, 13), a, /[ ,]+/); for (q = 1; q <= m; q++) if (a[q] in ID) emit(ID[a[q]]) } } }
+    { L[++nl] = $0; if (match($0, /^- \*\*D-[0-9]+\*\*/) && !(substr($0, 5, RLENGTH - 6) in ID)) ID[substr($0, 5, RLENGTH - 6)] = nl
+      hit = 0; if (match($0, /\*\*D-[0-9]+\*\*/) && (substr($0, RSTART, RLENGTH) in N)) hit = 1   # a named id always stays, the settings own() apart
       for (i = 1; !hit && i <= nj; i++) if (has($0, J[i])) hit = 1
       lab = label()
       for (i = 1; !hit && i <= nap; i++) if ((AP[i] in JS) || (AP[i] in SB) || (AP[i] in DB)) hit = 1
       for (i = 1; !hit && i <= nap; i++) if (mnm(AP[i]) in SM) hit = 1
       if (!hit && (lab == "project" || (lab == "" && !anyid($0)))) { named = 0; mine = 0; for (i = 1; i <= ns; i++) if (has($0, SA[i])) { named = 1; if (SA[i] in SB) mine = 1 } hit = (!named || mine) }
-      if (hit) print }' "$T/dec" > "$T/decs"
+      if (hit) H[nl] = 1 }
+    END { for (i = 1; i <= nl; i++) if (i in H) emit(i) }' "$T/dec" > "$T/decs"
 }
 # rowsec: each row's inventory line less the fields a ticket leaves out (a test path, proved-red:, golden:, a one-path census, a
 # seam's evidence paths, module:, match:), quoted, then its marks, a fix's reason. A rule's or hostility row's test or
@@ -272,10 +299,10 @@ lists() {
 q_() { if [ -s "$1" ]; then q "$1"; else echo none; fi; }
 # laws: the sections of CLAUDE.md that bind the product, Import law and Design law, quoted; 0.26.10.28.1 (stage 9 R6, LW-03):
 # the complexity law is this plugin's own law for ViD's checks, never quoted into a ticket
-laws() { git cat-file -e HEAD:CLAUDE.md 2>/dev/null || { echo 'none: the project has no CLAUDE.md'; return 0; }
-  git show HEAD:CLAUDE.md | awk '/^## / { on = ($0 ~ /^## (Import law|Design law)/); sk = 0 } on && /^```vid-placement/ { sk = 1; next } sk && /^```/ { sk = 0; next } on && !sk' > "$T/law"
+laws() { git cat-file -e "$AT:CLAUDE.md" 2>/dev/null || { echo 'none: the project has no CLAUDE.md'; return 0; }
+  git show "$AT:CLAUDE.md" | awk '/^## / { on = ($0 ~ /^## (Import law|Design law)/); sk = 0 } on && /^```vid-placement/ { sk = 1; next } sk && /^```/ { sk = 0; next } on && !sk' > "$T/law"
   if [ -s "$T/law" ]; then q "$T/law"; else echo 'none: no section of CLAUDE.md binds the product'; fi; }
-stack() { printf 'The stack, decided at init:\n\n'; { git show HEAD:BASELINE.md 2>/dev/null || true; } | awk '/^## Stack[ \t]*$/ { on = 1; next } on && /^## / { exit } on' > "$T/sk"; q_ "$T/sk"
+stack() { printf 'The stack, decided at init:\n\n'; { git show "$AT:BASELINE.md" 2>/dev/null || true; } | awk '/^## Stack[ \t]*$/ { on = 1; next } on && /^## / { exit } on' > "$T/sk"; q_ "$T/sk"
   printf '\nThe hosting, decided at init:\n\n'; sed -n '/^```vid-hosting[[:space:]]*$/,/^```[[:space:]]*$/p' "$T/arch" | grep -v '^```' > "$T/ho" || true; q_ "$T/ho"; }
 engines() { set -- $(sv eng); printf '\n## Engines\n\n- primary: %s\n' "$1"; shift
   if grep -q '^split' "$T/st"; then for e; do printf -- '- also: %s\n' "$e"; done; printf '\nEvery engine is asked: a row has failed in one engine and passed in another.\n'
@@ -354,7 +381,7 @@ qhash() { awk '/^## / { s = substr($0, 4); next } s == "Header" && /^- (kind|ste
 ticket() {
   F=$1; PFX=$(twkey labels-prefix); stepsec "$S"; reqs
   SN=$(awk -F'\t' -v s="$S" '$1 == s { print $2 }' "$T/steps"); STG=$(awk -F'\t' -v r="$(head -n 1 "$T/ids")" '$1 == r { print $5; exit }' "$T/rows")
-  STN=$(git show HEAD:STAGES.md 2>/dev/null | sed -n "s/^[[:space:]]*STAGE-0*${STG:-x}[[:space:]]*|[[:space:]]*\([^|]*[^|[:space:]]\)[[:space:]]*|.*/\1/p" | head -n 1)
+  STN=$(git show "$AT:STAGES.md" 2>/dev/null | sed -n "s/^[[:space:]]*STAGE-0*${STG:-x}[[:space:]]*|[[:space:]]*\([^|]*[^|[:space:]]\)[[:space:]]*|.*/\1/p" | head -n 1)
   AO=yes; for r in $(cat "$T/ids"); do owed "$r" || AO=no; done
   : > "$T/reg"; : > "$T/flt"; [ "$K" = skeleton ] || lists
   case $K in skeleton) TT=Skeleton ;; step) TT=Step; [ -z "$FU" ] || TT=Follow-up ;; fix) TT=Fix ;; *) TT=Reached-rows ;; esac
@@ -371,10 +398,10 @@ ticket() {
     if [ "$K" = skeleton ]; then printf '\n## The stack and hosting\n\n'; stack
     else engines; printf '\n## Regression rows\n\n'; if [ -s "$T/reg" ]; then cat "$T/reg"; else echo none; fi; printf '\n## Faulted rows\n\n'; if [ -s "$T/flt" ]; then cat "$T/flt"; else echo none; fi
       printf '\n## Rows a ruling reached\n\n'; reached; fi
-    { git show HEAD:GRADING-CHECKLIST.md 2>/dev/null || true; } > "$T/gc"; printf '\n## Grading checklist and records\n\n'; q_ "$T/gc"
+    { git show "$AT:GRADING-CHECKLIST.md" 2>/dev/null || true; } > "$T/gc"; printf '\n## Grading checklist and records\n\n'; q_ "$T/gc"
     awk -F'\t' '$2 == "record" { print $1 }' "$T/rows" | while IFS= read -r r; do rline "$r"; done > "$T/rec"; printf '\nThe records, deliberately not tested:\n\n'; q_ "$T/rec"
     printf '\n## Golden sets\n\n'; awk -F'\t' -v IDS="$T/ids" 'BEGIN { while ((getline l < IDS) > 0) W[l] = 1 } ($1 in W) && $12 != "-" && $12 != "" { print $1 "\t" $12 }' "$T/rows" > "$T/gs"
-    if [ -s "$T/gs" ]; then while IFS='	' read -r r g; do printf 'The golden set of %s:\n\n' "$r"; git show "HEAD:$g" > "$T/g1" 2>/dev/null || : > "$T/g1"; q_ "$T/g1"; echo; done < "$T/gs"; else echo none; fi
+    if [ -s "$T/gs" ]; then while IFS='	' read -r r g; do printf 'The golden set of %s:\n\n' "$r"; git show "$AT:$g" > "$T/g1" 2>/dev/null || : > "$T/g1"; q_ "$T/g1"; echo; done < "$T/gs"; else echo none; fi
     printf '\n## History\n\n'; hist; [ "$K" = skeleton ] || { printf '\n## Test lessons\n\n'; lessons; }; printf '\n## Known, ruled by the owner\n\n'; known; printf '\n## Further reading\n\n'; reading
     printf '\n## Roles\n\n'; roles; printf '\n## Asks\n\n'; asks
   } > "$T/wf" || exit 1
@@ -553,8 +580,25 @@ amendset() {
   WHY=''; [ -z "$FIXL" ] || WHY=$(awk -F'\t' -v k="$FIXL" '$1 == "fix" && $2 == k { print $4 }' "$T/st")
   AMW=$(chgs "$1" "$S" | awk -F'\t' '{ printf "%s%s, what %s", (c++ ? "; " : ""), $1, $2 }')
   awk '/^## / { on = ($0 == "## Laws"); next } on' ".vid/tw/out/issue-$1.md" > "$T/ol" 2>/dev/null || :; { echo; laws; echo; } | awk "$A1"' /^>/ { $0 = unptr($0) } { print }' > "$T/nl"   # the laws alone, as written
+  # GM-2 T5: in GitHub manual the cause is the move's own, never read from the plan= hash a taken-over ticket brings
+  if manual; then AMW=${AMC:-the owner\'s amendment}; [ -n "${NOTELL:-}" ] || mtells "$1" "$L"; return 0; fi
   if [ -n "$AMW" ]; then AMW="by plan change $AMW"; elif [ -n "$LD" ]; then AMW="as its rows $LD were ruled known limits or taken out of the plan"; elif [ "$(fld "$L" export)" = "$EXP" ] && [ -s "$T/ol" ] && ! cmp -s "$T/ol" "$T/nl"; then AMW="at the spec export $EXP, the laws it quotes changed"
   else AMW="at the spec export $EXP, the text it quotes changed"; fi; tells "$1" "$L"; }
+# GM-2 T5, T6: mtells <n> <its log line>, GitHub manual's `tell` lines into $T/tell: each test added, restated or taken out since its
+# last writing. The hash a row was sent at is the log's; a ticket taken over with none has them rebuilt (next.sh differ against the
+# applied commit: a quote that matches reads as sent at the applied line's hash, one that differs as restated). A test taken out is
+# named as taken out at the owner's word, and where it went: a step (its open ticket), the to-place list, or out of the plan
+mtells() { : > "$T/tell"; fld "$2" rows | tr , '\n' | grep -v '^-*$' > "$T/p0" || true
+  awk -v n="$1" '$1 == "sent" && $3 == "ticket=" n { h = $4; sub(/^hash=/, "", h); H[$2] = h } END { for (r in H) print r " " H[r] }' "$T/lg" > "$T/sh"
+  if [ ! -s "$T/sh" ]; then sh "$HERE/next.sh" differ "$1" "$AT" > "$T/dif" 2>/dev/null || :
+    while IFS= read -r r; do awk -F'\t' -v r="$r" '$3 == r { f = 1 } END { exit !f }' "$T/dif" || echo "$r $(rhash "$r")"; done < "$T/p0" > "$T/sh"; fi
+  pm() { awk -F'\t' -v r="$1" '$1 == r { print $8; exit }' "$T/rows"; }
+  went() { _s=$(stepof "$1"); if [ -n "$_s" ]; then _m=''; for _x in $(opn); do [ "$_x" != "$2" ] && [ "$(fld "$(tk "$_x")" step)" = "$_s" ] && _m=$_x; done
+      if [ -n "$_m" ]; then echo "step $_s, ticket #$_m"; else echo "step $_s, not yet published"; fi
+    elif awk -F'\t' -v r="$1" '$1 == r { f = 1 } END { exit !f }' .vid/tw/to-place 2>/dev/null; then echo 'the to-place list'; else echo 'out of the plan'; fi; }
+  { grep -vxF -f "$T/p0" "$T/ids" | while IFS= read -r r; do printf -- '- added: %s (%s)\n' "$r" "$(pm "$r")"; done
+    grep -xF -f "$T/p0" "$T/ids" | while IFS= read -r r; do h=$(awk -v r="$r" '$1 == r { print $2 }' "$T/sh"); [ "$h" = "$(rhash "$r")" ] || printf -- '- restated: %s (%s)\n' "$r" "$(pm "$r")"; done
+    grep -vxF -f "$T/ids" "$T/p0" | while IFS= read -r r; do printf -- '- taken out: %s (%s), at the owner'"'"'s word; it went to %s\n' "$r" "$(pm "$r")" "$(went "$r" "$1")"; done; } > "$T/tell" || true; }
 # 0.26.10.29.2 (R11): tells <n> <its log line>, the amendment's comment lines into $T/tell, which ticket writes into the meta as `tell` lines
 # and github.sh tw-post posts: its cause (each plan change, its what and why; else the rows ruled known limits, a landing, a ruling, or
 # the export), then each row added, removed or changed since its last writing, by id and promise, one a line
@@ -588,10 +632,13 @@ due() {
   EXP=$(awk '$1 == "export" { v = $2 } END { print v }' "$T/lg"); : > "$T/due"; : > "$T/ho"
   for n in $(opn); do L=$(tk "$n"); k=$(fld "$L" kind); s=$(fld "$L" step)
     if { [ "$k" = step ] || [ "$k" = skeleton ]; } && ! awk -F'\t' -v s="$s" '$1 == s { f = 1 } END { exit !f }' "$T/steps"; then wd "$n" "$s"; continue; fi
-    rc=0; ( amendset "$n"; ticket "$T/re.md" ) > /dev/null 2>&1 || rc=$?
+    rc=0; if manual; then ( NOTELL=1; amendset "$n" ) > /dev/null 2>&1 || rc=$?; else ( amendset "$n"; ticket "$T/re.md" ) > /dev/null 2>&1 || rc=$?; fi
     # 0.26.10.29.2 (R11): with a pull request naming it, the known-limit fix ticket is told once (`tell <n> limits=`, github.sh tw-tell), not withdrawn
     if [ "$rc" = 4 ]; then x=$(paste -sd , "$T/ids0"); if prn "$n"; then grep -qx "told $n limits=$x at=.*" "$T/lg" || echo "tell $n limits=$x"; else echo "withdraw $n limits=$x"; fi
     elif [ "$rc" = 3 ]; then wd "$n" "$s"
+    # GM-2 T5, T6: in GitHub manual an amendment is owed only when the plan's rows differ from the log line's; never a withdrawal for size
+    elif manual; then if [ "$rc" = 0 ] && [ "$(sort -u "$T/ids")" != "$(fld "$L" rows | tr , '\n' | grep -v '^-*$' | sort -u)" ]; then
+        if fld "$L" rows | tr , '\n' | grep -v '^-*$' | grep -qvxF -f "$T/ids"; then echo "2 amend $n"; printf '%s\ta\t%s\n' "$n" "$(fld "$L" rows | tr , '\n' | grep -v '^-*$' | grep -vxF -f "$T/ids" | paste -sd , -)" >> "$T/ho"; else echo "3 amend $n"; fi; fi
     # 0.26.10.29.2 (R11): a step or skeleton ticket that lost more than half of the rows it held at its last writing is withdrawn, not
     # amended, its step kept (`kept=`): its kept rows go out in a new ticket that names it (R3's `- earlier work:`)
     elif [ "$rc" = 0 ] && { [ "$k" = step ] || [ "$k" = skeleton ]; } && [ "$(fld "$L" rows | tr , '\n' | grep -v '^-*$' | grep -cvxF -f "$T/ids")" -gt "$(($(fld "$L" rows | tr , '\n' | grep -c .) / 2))" ]; then echo "$(wd "$n" "$s") kept=$s"
@@ -629,7 +676,8 @@ case "$CMD" in
   write)
     gate || { sed 's/^/ViD writer: refused — the gate: /' "$T/why" >&2; exit 1; }
     load; EXP=$(awk '$1 == "export" { v = $2 } END { print v }' "$T/lg"); [ -n "$EXP" ] || ref 'no export yet — sh checks/github.sh spec-export first'
-    if [ "${1:-}" = amend ]; then amendset "${2:-}"; F=$OUT/amend-$2.md; else newset "${1:-}" "${2:-}"; F=$OUT/$K-${2:-$S}.md; fi
+    if [ "${1:-}" = amend ]; then AMC=''; if manual && [ "${3:-}" = --cause ]; then AMC=$(printf '%s' "${4:-}" | tr '\t\n' '  '); [ -n "$AMC" ] || die 'write amend <n> --cause takes a line'; fi   # GM-2 T5
+      amendset "${2:-}"; F=$OUT/amend-$2.md; else newset "${1:-}" "${2:-}"; F=$OUT/$K-${2:-$S}.md; fi
     [ "$K" = skeleton ] || [ -n "$(sv eng)" ] || ref "no engines line in .vid/tw/handed: the skeleton's head report declares them first"
     # v0.26.10.28.2 (R3): a base is a commit; none, an empty code repository, the skeleton's alone: DevAgent starts main
     case $BASE in none) [ "$K" = skeleton ] || ref "no base: the code repository is empty, and only the skeleton starts main" ;; ''|*[!0-9a-f]*) ref "no base: the code repository's main is not known${BASE:+ ($BASE)} (sh checks/github.sh tw-sync first)" ;; esac
@@ -638,15 +686,17 @@ case "$CMD" in
     if [ -s "$T/ref" ]; then sed 's/^/writer: check refused — /' "$T/ref"; exit 1; fi; echo "writer: check passed — $1" ;;
   parts) [ -f "${1:-}" ] && [ -n "${2:-}" ] && [ -n "${3:-}" ] || die 'usage — sh checks/writer.sh parts <file> <issue> <dir>'; parts_ "$1" "$2" "$3" ;;
   due) load; due ;;
+  topup) for _v in "${1:-x}" "${2:-x}"; do case $_v in *[!0-9]*) die 'usage — sh checks/writer.sh topup <added> <tests>' ;; esac; done   # GM-2 T6: the size flag, one rule
+    if [ "$1" -gt 5 ]; then echo "$1 added, more than 5"; elif [ $(($1 * 5)) -gt "$2" ]; then echo "$1 added to $2, more than a fifth"; fi ;;
   where) load; where_ "${1:-}" ;;   # 0.26.10.29.2 (R3, R11)
   handovers) load; due > /dev/null; cat "$T/ho" ;;   # 0.26.10.29.2 (R3)
   cause) load; EXP=$(awk '$1 == "export" { v = $2 } END { print v }' "$T/lg"); : > "$T/tell"; ( amendset "${1:-}" ) > /dev/null 2>&1 || true; grep '^Cause: ' "$T/tell" || true ;;   # 0.26.10.29.2 (R11): an amendment's causes, for a withdrawal no plan change made
   name) load; NS=${1:-}; NI=${2:-}; [ -n "$NS" ] && [ -n "$NI" ] || die 'usage — sh checks/writer.sh name <step> <D-id,…>'   # 0.26.10.29.5 (DP-1 R5)
     awk -F'\t' -v s="$NS" '$1 == s { f = 1 } END { exit !f }' "$T/steps" || ref "$NS is no step of the recorded plan $PH"
-    NL=''; for d in $(printf '%s\n' "$NI" | tr ', ' '\n\n' | grep -v '^$' || true); do case $d in D-*[!0-9]*|D-) ref "unknown decision id: $d (not in DECISIONS.md at HEAD)" ;; D-*) ;; *) ref "unknown decision id: $d (not in DECISIONS.md at HEAD)" ;; esac; awk -v d="- **$d**" 'index($0, d) == 1 { f = 1 } END { exit !f }' "$T/dec" || ref "unknown decision id: $d (not in DECISIONS.md at HEAD)"; NL="$NL${NL:+,}$d"; done
+    NL=''; for d in $(printf '%s\n' "$NI" | tr ', ' '\n\n' | grep -v '^$' || true); do case $d in D-*[!0-9]*|D-) ref "unknown decision id: $d (not in DECISIONS.md at $AN)" ;; D-*) ;; *) ref "unknown decision id: $d (not in DECISIONS.md at $AN)" ;; esac; awk -v d="- **$d**" 'index($0, d) == 1 { f = 1 } END { exit !f }' "$T/dec" || ref "unknown decision id: $d (not in DECISIONS.md at $AN)"; NL="$NL${NL:+,}$d"; done
     [ -n "$NL" ] || die 'usage — sh checks/writer.sh name <step> <D-id,…>'; printf '%s %s\n' "$NS" "$NL" >> .vid/tw/named; echo "writer: named $NL for $NS" ;;
   pending) load; pendreach; for r in $REACH; do printf '%s %s\n' "$r" "$(stepof "$r" | grep . || echo -)"; done ;;   # v0.26.10.26.7 (R9): the reached rows no ticket holds yet, `<row> <step>`
   fresh) [ -f "${1:-}" ] && [ -f "${1%.md}.meta" ] || die 'usage — sh checks/writer.sh fresh <file> [<n>]'; load; fresh "$1" "${2:-}" > "$T/fr"
     if [ -s "$T/fr" ]; then sed 's/^/writer: stale — /' "$T/fr"; exit 1; fi; echo "writer: fresh — $1" ;;
-  *) die "unknown subcommand ${CMD:-(none)} — gate, write, check, parts, due, pending, fresh, where, cause, handovers, name" ;;
+  *) die "unknown subcommand ${CMD:-(none)} — gate, write, check, parts, due, topup, pending, fresh, where, cause, handovers, name" ;;
 esac

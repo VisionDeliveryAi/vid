@@ -4,8 +4,11 @@
 # beside itself, `. "$HERE/lib.sh"`, after setting HERE; loaded, it defines these, sets one trap (mustread's, below) and runs nothing else. plan.sh
 # and develop's own scripts keep their own.
 # serves: tickets
-# put <file>: stdin into a dot file beside it, then renamed in, so a record is replaced whole and never emptied first (0.26.10.28.1, F3)
-put() { _p=$(dirname "$1")/.put.$$.$(basename "$1"); cat > "$_p" && mv -f "$_p" "$1"; }
+# mvr <from> <to> (0.26.11.1.4, R6): the rename tried up to 5 times, 1 s apart, since a synced folder may refuse one for a moment; if every try fails,
+# non-zero, with the source and the target as they were. No copy fallback: a record copied over would be seen half written
+mvr() { _mn=1; until mv -f "$1" "$2"; do [ "$_mn" -lt 5 ] || return 1; _mn=$((_mn + 1)); sleep 1; done; }
+# put <file>: stdin into a dot file beside it, then renamed in through mvr, so a record is replaced whole and never emptied first (0.26.10.28.1, F3)
+put() { _p=$(dirname "$1")/.put.$$.$(basename "$1"); cat > "$_p" && mvr "$_p" "$1"; }
 # skey <key>: .vid/tw/settings' value of `<key>:`, its trailing space trimmed; twkey, the same
 skey() { sed -n "s/^$1:[[:space:]]*//p" .vid/tw/settings 2>/dev/null | head -n 1 | sed 's/[[:space:]]*$//'; }
 twkey() { skey "$1"; }

@@ -15,6 +15,11 @@
 #                                              `door:` line, for /vid fix's ticket-mode branch to draft
 #   answer <Q<n>|<n>:<k>> [--by RM|delegate|stand-in] … held row: a | b <N> | c | d "<words>"; question: "<words>", posted as `RM:`; findings:
 #                                              <finding> fix|row|known|no "<words>"; close: again|limit "<words>". Recorded with who and an event
+#   GM-2 T8, in GitHub manual: the scan reads .vid/next/read, and every question is the owner's, a `Q<n>` line keyed <n>:<k>, k its
+#                                              place among the issue's questions, with no waits-on-the-lead comment; answer <n>:<k> "<words>"
+#                                              posts `RM:` once, the blocked label off as today; answer <n>:<k> there "<words>" posts nothing;
+#                                              each recorded in .vid/next/questions; an answer with no words, or a second one, is refused
+#                                              answer Q<n> answers the question its record holds, at that question's place in the read
 #   control pause|continue "<words>"           `run: stopped owner asked to pause` or `run: active`, recorded
 #   control seed production|synthetic "<words>" (0.26.11.1.1, R6) the owner's word for staging's data, theirs alone (no --by), with who
 #                                              and when; production refused before a production deploy has passed
@@ -48,6 +53,8 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 . "$HERE/lib.sh"   # 0.26.10.28.4 (9.3 R3): the shared helpers, lib.sh beside this file
 [ -f .vid/RUN-STATE.md ] || { echo "ViD queue: run it at the top of ViD's repository" >&2; exit 2; }
 D=.vid/decide; Q=$D/queue; RS=.vid/RUN-STATE.md; RD=.vid/round/read; HAND=.vid/tw/handed; TAB=$(printf '\t'); SOH=$(printf '\001'); BY=''   # who answers: set by answer alone, never read from the environment (v0.26.10.28.8)
+# GM-2 T8: in GitHub manual the scan reads the call's read, .vid/next/read, whose first part is the round read in its own form
+! manual || RD=.vid/next/read
 mkdir -p "$Q" .vid/round; touch "$Q/ids" "$Q/answers" "$Q/questions" "$Q/recommend" "$Q/seen"
 die() { echo "ViD queue: $*" >&2; exit 1; }
 PX=$(skey labels-prefix)
@@ -61,7 +68,8 @@ held_items() { awk -F'\t' '$1 == "open" { print $2 "\t" $3 "\t" substr($4, 1, 12
       $3 == "held" { w = $6; sub(/^held — /, "", w); a = ($4 == "evidence missing" && $8 == "passed"); weak = index($6, "a weak test") && index($6, "not proven"); prod = index($6, "a product failure") || index($6, "passes at this head")
         r = ("held:" $1 in R) ? R["held:" $1] : a ? "a — its tests pass and its evidence alone is missing" : weak ? "c — the corrected test still misses its break" : "b — 1 more round"
         print "held:" $1 "\t#" t "\theld " $1 " · #" t " · " w " · how far? " (a ? "(a) accept by ruling " : "") "(b) N more rounds (c) a known limit (d) amend · recommended: " r }' "$f"; done; }
-q_items() { awk -F'\t' -v A="$Q/answers" 'BEGIN { while ((getline l < A) > 0) { split(l, x, "\t"); D[x[2]] = 1 } } $4 == "asked" && !("question:" $1 in D) { print "question:" $1 "\t#" substr($1, 1, index($1, ":") - 1) "\t" $3 }' "$Q/questions"; }
+# GM-2 T8: in GitHub manual every question is the owner's, so one only seen is a line too
+q_items() { awk -F'\t' -v A="$Q/answers" -v M="$(manual && echo 1)" 'BEGIN { while ((getline l < A) > 0) { split(l, x, "\t"); D[x[2]] = 1 } } ($4 == "asked" || (M && $4 == "seen")) && !("question:" $1 in D) { print "question:" $1 "\t#" substr($1, 1, index($1, ":") - 1) "\t" $3 }' "$Q/questions"; }
 # a ticket's findings: its newest evidence file's `finding:` lines; a line for the ticket, and one for each high one. 0.26.11.1.3 (R3): a
 # `finding: real` line is none of them: its staging okay's `real:` answer settles it, never the owner's finding ruling
 fnd() { ls -t .vid/results/pr-"$1"-*.txt 2>/dev/null | head -n 1 | xargs -I{} sed -n '/^finding: real — /d; s/^finding: //p' {} 2>/dev/null; }
@@ -72,24 +80,26 @@ f_items() { awk -F'\t' '($1 == "open" || $1 == "merged") && $3 != "-" { print $2
 nk() { k0=''; for d in $(ls "$D/close/$1" 2>/dev/null | grep -E '^[0-9]+$' | sort -n); do [ -f "$D/close/$1/$d/ask" ] && k0=$d; done; echo "$k0"; }
 # v0.26.10.26.1: a stage's newest candidate's items too, `close:stage-<N>/<c>:…`; its rest chunk and S1, lost, answered again alone
 # 0.26.10.29.2 (R2): none of a candidate a re-cut withdrew; (R7) a close with a shrink item open asks that question alone, its red items
-# held back until it is answered
+# held back until it is answered. (0.26.11.1.4, R2) a stage close's lost line shows the newest earlier answer for the same stage, kind and
+# chunk, whatever its candidate and loss count (the answers file is appended, so its last match), shown only: never sent as why:
 snc() { c0=''; for d in $(ls "$D/stage/$1" 2>/dev/null | grep -E '^[0-9]+$' | sort -n); do [ -f "$D/stage/$1/$d/ask" ] && c0=$d; done; echo "$c0"; }
 cdir() { case $1 in stage-*) x=${1#stage-}; echo "$D/stage/${x%%/*}/${x#*/}" ;; *) echo "$D/close/$1" ;; esac; }
 c_items() { { for s in $(ls "$D/close" 2>/dev/null); do k=$(nk "$s"); [ -n "$k" ] && [ ! -f "$D/close/$s/$k/withdrawn" ] && ! grep -q "^closed $s " "$HAND" 2>/dev/null && echo "$s $k"; done
     for x in $(ls "$D/stage" 2>/dev/null); do k=$(snc "$x"); [ -n "$k" ] && [ ! -f "$D/stage/$x/$k/withdrawn" ] && echo "stage-$x $k" && echo "stage-$x $k/d1" && echo "stage-$x $k/cs" && echo "stage-$x $k/w1" && echo "stage-$x $k/rh" && echo "stage-$x $k/cr"; for o in $(ls "$D/stage/$x" 2>/dev/null | grep -E '^[0-9]+$'); do echo "stage-$x $o/d2"; echo "stage-$x $o/cp"; done; done; } | while read -r s k; do F=$(cdir "$s/$k"); f=$F/items; [ -f "$f" ] || continue
-    awk -v s="$s" -v sk="$s/$k" -v NB="$(cat "$F/numbers" 2>/dev/null)" -v A="$Q/answers" -v SM="$F/same" -v IF="$f" 'BEGIN { while ((getline l < A) > 0) { split(l, x, "\t"); D[x[2]] = 1 } while ((getline l < SM) > 0) SA[l] = 1; while ((getline l < IF) > 0) if (l ~ /^shrink /) { split(l, y, " "); if (!(("close:" sk ":shrink:" y[2]) in D)) SH = 1 } close(IF) }
-    { k = "close:" sk ":" $1 ":" $2 (($NF ~ /^#[0-9]+$/) ? ":" substr($NF, 2) : ""); if (k in D) next; if ($1 == "red" && SH) next; if ($NF ~ /^#[0-9]+$/) $NF = ""; w = substr($0, length($1 $2) + 3)
+    awk -v s="$s" -v sk="$s/$k" -v NB="$(cat "$F/numbers" 2>/dev/null)" -v A="$Q/answers" -v SM="$F/same" -v IF="$f" 'function nz(e, p) { sub(/:[0-9]+$/, "", e); if (match(e, /^close:stage-[^\/]+\/[0-9]+/)) { p = substr(e, 1, RLENGTH); sub(/\/[0-9]+$/, "", p); e = p substr(e, RLENGTH + 1) } return e }
+    BEGIN { while ((getline l < A) > 0) { split(l, x, "\t"); D[x[2]] = 1; if (s ~ /^stage-/ && x[2] ~ /^close:stage-.*:lost:/) AB[nz(x[2])] = " · answered before (" x[1] ", " x[5] "): " x[3] (x[4] == "" ? "" : " \"" x[4] "\"") } while ((getline l < SM) > 0) SA[l] = 1; while ((getline l < IF) > 0) if (l ~ /^shrink /) { split(l, y, " "); if (!(("close:" sk ":shrink:" y[2]) in D)) SH = 1 } close(IF) }
+    { k = "close:" sk ":" $1 ":" $2 (($NF ~ /^#[0-9]+$/) ? ":" substr($NF, 2) : ""); if (k in D) next; ab = ($1 == "lost" && (nz(k) in AB)) ? AB[nz(k)] : ""; if ($1 == "red" && SH) next; if ($NF ~ /^#[0-9]+$/) $NF = ""; w = substr($0, length($1 $2) + 3)
       if ($1 == "red") print k "\tstep " s "\tthe close of " s ", chunk " $2 ", failing: " w (NB == "" ? "" : " · " NB) " · a fix ticket is written for them; answer limit to rule them known limits"
       else if ($1 == "twice") print k "\tstep " s "\tthe close of " s ", " $2 " failed again after its fix: " w (NB == "" ? "" : " · " NB) " · answer again for another fix ticket, or limit"
       else if ($1 == "shrink") { sub(/ · before: /, " · red at the close before it: ", w); print k "\tstep " s "\tthe close of " s " did not shrink after its fix: red now: " w (NB == "" ? "" : " · " NB) " · answer again for a fix ticket, or limit to rule the rows red now known limits" }   # 0.26.10.29.2 (R7)
       else if (sk ~ /\/w1$/) { sub(/^twice: /, "", w); sub(/^— /, "", w); print k "\t" s "\tthe walk W1 of " s ": " ($1 == "refused" ? "its return refused twice: " : "not done — ") w " · answer again: the walker starts again, at the same staged commit" ($1 != "refused" && w ~ /^browser: none( |$)/ ? "; or, yours alone, close without the walk: the stage closes with the walk a known limit" : "") }   # 0.26.10.28.6 (R1 (b))
-      else if (sk ~ /\/d2$/) print k "\t" s "\tthe production deploy of " s ": " w " · answer again"
+      else if (sk ~ /\/d2$/) print k "\t" s "\tthe production deploy of " s ": " w ab " · answer again"
       else if ($1 == "notreal") print k "\t" s "\tthe staging deploy D1 of " s ": " w " · answer again once it is fixed, for DevAgent to report again; or, yours alone, known \"<words>\" for a known limit of this project, or row \"<words>\" for a new row"   # 0.26.11.1.3 (R3)
       else if ($1 == "notdone") print k "\t" s "\tthe staging deploy D1 of " s ": its report refused twice: " w " · answer again; or, yours alone, known \"<words>\": the duty a known limit of this project"   # 0.26.11.1.1 (R3)
       else if ($1 == "stand-in") { n0 = s; sub(/^stage-/, "", n0); print k "\t" s "\tstand-in " n0 " " $2 " — " w " · yours alone: answer limit \"<words>\" to pay it against the stand-in, a known limit, or again once the real service is on, to deploy and run staging afresh at this candidate" }   # 0.26.11.1.1 (R4)
-      else if ($2 == "d1" || $2 == "rh") print k "\t" s "\tthe " ($2 == "rh" ? "rehearsal RH" : "staging deploy D1") " of " s ": " ($1 == "lost" ? "lost twice" : $1 == "refused" ? "its report refused twice: " substr(w, 8) : $1 == "failed" ? "failed twice at " substr(w, 4) ", which DevAgent says needs no product change" : "failed at " substr(w, 4) ", needing a product change, and its row was declined") " · answer again" (($1 == "declined") ? " to okay the same commit again" : "")
-      else if ($2 == "p1cx" || $2 == "s1") print k "\t" s "\tthe close of " s ", " ($2 == "s1" ? "its grade S1" : "its rest chunk p1cx") ", lost twice · answer again"
-      else print k "\tstep " s "\tthe close of " s ", chunk " $2 ", lost twice; its rows could not run: " w (($1 == "lost" && ($2 in SA)) ? " · the same as the attempt before, at this commit, so a bare again reads the same · answer again with what must change first, which DevAgent is told, or limit" : " · answer again, or limit") }' "$f"; done; }
+      else if ($2 == "d1" || $2 == "rh") print k "\t" s "\tthe " ($2 == "rh" ? "rehearsal RH" : "staging deploy D1") " of " s ": " ($1 == "lost" ? "lost twice" : $1 == "refused" ? "its report refused twice: " substr(w, 8) : $1 == "failed" ? "failed twice at " substr(w, 4) ", which DevAgent says needs no product change" : "failed at " substr(w, 4) ", needing a product change, and its row was declined") ab " · answer again" (($1 == "declined") ? " to okay the same commit again" : "")
+      else if ($2 == "p1cx" || $2 == "s1") print k "\t" s "\tthe close of " s ", " ($2 == "s1" ? "its grade S1" : "its rest chunk p1cx") ", lost twice" ab " · answer again"
+      else print k "\tstep " s "\tthe close of " s ", chunk " $2 ", lost twice; its rows could not run: " w ab (($1 == "lost" && ($2 in SA)) ? " · the same as the attempt before, at this commit, so a bare again reads the same · answer again with what must change first, which DevAgent is told, or limit" : " · answer again, or limit") }' "$f"; done; }
 # v0.26.10.25.5 (R1, R3): a draft asked, its count in words, until it lands or the owner says no
 d_items() { for x in $(ls "$D/drafts" 2>/dev/null | grep -E '^[0-9]+$' | sort -n); do X=$D/drafts/$x; [ -f "$X/asked" ] && [ ! -f "$X/landed" ] && [ ! -f "$X/declined" ] && [ ! -f "$X/replaced" ] || continue
     w=$(cat "$X/state" 2>/dev/null); printf 'draft:%s\tthe spec\tdraft %s by SP: %s · %s%s · answer yes to land it, or no\n' "$x" "$x" "$(cat "$X/why")" "$(cat "$X/words" 2>/dev/null)" "${w:+ · $w}"; done; }
@@ -162,7 +172,7 @@ cmd_sync() { items > "$Q/it0" || exit 1; put "$Q/items" < "$Q/it0" || exit 1; : 
   grep -q '^questions:' "$Q/rs" || sed "1a\\
 questions: $k open · next Q$nq" "$Q/rs" > "$Q/rs2" && mv "$Q/rs2" "$Q/rs" 2>/dev/null; grep -q '^## Open product questions' "$Q/rs" || { printf '\n## Open product questions\n\n' >> "$Q/rs"; cat "$Q/lines" >> "$Q/rs"; } || return 1; cat "$Q/rs"; }
   rs_edit qsec || exit 1   # 0.26.10.28.4 (9.3 R2): through the run record's one writer
-  awk -F'\t' -v A="$Q/answers" 'BEGIN { while ((getline l < A) > 0) { split(l, x, "\t"); D[x[2]] = 1 } } $4 == "seen" && !("question:" $1 in D) { print "question " substr($1, 1, index($1, ":") - 1) " " substr($1, index($1, ":") + 1) }' "$Q/questions"
+  manual || awk -F'\t' -v A="$Q/answers" 'BEGIN { while ((getline l < A) > 0) { split(l, x, "\t"); D[x[2]] = 1 } } $4 == "seen" && !("question:" $1 in D) { print "question " substr($1, 1, index($1, ":") - 1) " " substr($1, index($1, ":") + 1) }' "$Q/questions"
   cmd_regress | while IFS= read -r l; do grep -qxF "$l" "$Q/seen" || { echo "$l" >> "$Q/seen"; echo "$l"; }; done   # v0.26.10.26.3 (R3): once a close
   for f in "$Q"/f.*; do [ -f "$f" ] || continue; p=${f##*.}; t=$(awk -F'\t' -v p="$p" '($1 == "open" || $1 == "merged") && $2 == p { print $3; exit }' "$RD"); awk -v t="$t" '{ s = ($2 ~ /^(high|medium|low)$/) ? $2 : "low"; w = $0; sub(/^[^—]*— /, "", w); print "finding " t " " s " " substr(w, 1, 60) }' "$f"; done | while IFS= read -r l; do grep -qxF "$l" "$Q/seen" || { echo "$l" >> "$Q/seen"; echo "$l"; }; done
   # an answer the owner gave on a held row that the next decision still holds (but amend)
@@ -173,7 +183,40 @@ questions: $k open · next Q$nq" "$Q/rs" > "$Q/rs2" && mv "$Q/rs2" "$Q/rs" 2>/de
 announce() { awk -F'\t' '$1 ~ /^hold:/ { k = $1; sub(/^hold:/, "", k); print "hold " k }' "$Q/items" | while IFS= read -r l; do grep -qxF "$l" "$Q/seen" || { echo "$l" >> "$Q/seen"; echo "$l $(num "hold:${l#hold }")"; }; done
   ! grep -q '^context:window	' "$Q/items" || grep -qx 'context-window' "$Q/seen" || { echo 'context-window' >> "$Q/seen"; echo "context-window $(num context:window)"; }; return 0; }
 # dev-side questions, from the round's read: a comment whose first line begins `Question:`, or a role's prefix and `question`
-cmd_scan() { awk -F'\t' -v Q="$Q/questions" 'BEGIN { while ((getline l < Q) > 0) { split(l, x, "\t"); K[x[1]] = 1 } }
+# GM-2 T8, in GitHub manual: every question the owner's, recorded asked, keyed <n>:<k>, k its place among its issue's questions (1 the
+# first), as next.sh lists it; a question's first line begins `Question:` or a role's prefix and `question`, never `RM: `, so an
+# answer is no question; a question is answered by an `RM: ` comment whose first line is `RM: ` and the question's line whole. An issue is read once, from its first line in the read (open, merged, issue, then assigned); a question
+# already recorded under another key, the same issue and the same words, is not recorded again. A key counts as held only with the
+# same words: a question whose <n>:<k> a record kept from GitHub auto holds (keyed there by the comment's place) is recorded as
+# <n>:q<k>, a key no GitHub auto record can have. MQ: the awk both read
+MQ='function isq(s) { return (s ~ /^Question:/ || s ~ /^[A-Z][A-Z]: [Qq]uestion/) && s !~ /^RM: / }
+  function sc(n, h,   c, i, m, RMS, j) { if (n in DONE) return; DONE[n] = 1; m = split(h, c, "\001"); for (i = 1; i <= m; i++) if (c[i] ~ /^RM: /) RMS[c[i]] = 1
+    for (i = 1; i <= m; i++) if (isq(c[i])) { j++; gsub(/\t/, " ", c[i]); one(n, n ":" j, c[i], (("RM: " c[i]) in RMS) ? "answered" : "asked") } }
+  $1 == "open" { sc($2, $10) } $1 == "merged" { sc($2, $6) } $1 == "issue" || $1 == "assigned" { sc($2, $4) }'
+mscan() { awk -F'\t' -v Q="$Q/questions" 'BEGIN { while ((getline l < Q) > 0) { split(l, x, "\t"); K[x[1]] = x[3]; W[x[2] SUBSEP x[3]] = 1 } }
+    function one(n, k, w, a) { if ((n SUBSEP w) in W) return; if (k in K) { if (K[k] == w) return; k = n ":q" substr(k, length(n) + 2); while ((k in K) && K[k] != w) k = k "+"; if (k in K) return }
+      print k "\t" n "\t" w "\t" a >> Q; K[k] = w; W[n SUBSEP w] = 1 }'"$MQ" "$RD" 2>/dev/null; }
+# mqplace <key>: the place <n>:<k> in the read of the question a queue record holds, by its issue and its words (a Q<n> names a record,
+# whose key a GitHub auto record may give another meaning); refused when the read no longer holds it
+mqplace() { n0=${1%%:*}; w0=$(awk -F'\t' -v i="$1" '$1 == i { print $3; exit }' "$Q/questions"); [ -n "$w0" ] || die "no question $1 in the queue's records"
+  p0=$(QW="$w0" awk -F'\t' -v N="$n0" 'function one(n, k, w, a) { if (n == N && w == ENVIRON["QW"]) print k }'"$MQ" "$RD" 2>/dev/null | head -n 1)
+  [ -n "$p0" ] || die "the question $QT names, on #$n0, is no longer in the read: $w0"; echo "$p0"; }
+# mqtext <n>:<k>: that question's line in the read
+mqtext() { awk -F'\t' -v i="$1" 'function one(n, k, w, a) { if (k == i) print w }'"$MQ" "$RD" 2>/dev/null | head -n 1; }
+# mans <n>:<k> [there] "<words>": the owner's answer, posted once as `RM: <the question's line>` and his words, the blocked label off as
+# today once the issue has no open question; or `there`, answered on GitHub by himself, posting nothing. Both recorded in
+# .vid/next/questions, `<n>:<k> TAB <there|posted> TAB <at> TAB <words>` (GM-2 §5), and in the queue's answers, so the line closes
+mans() { i=$1; shift; n=${i%%:*}; NQ=.vid/next/questions; how=posted; if [ "${1:-}" = there ]; then [ $# -ge 2 ] || die "the answer there to #$i needs the owner's words"; how=there; shift; fi
+  w=$(printf '%s' "$*" | tr '\t\n"' "  '"); [ -n "$(printf '%s' "$w" | tr -d ' ')" ] || die "the answer to #$i needs the owner's words"
+  ! awk -F'\t' -v i="$i" '$1 == i { f = 1 } END { exit !f }' "$NQ" 2>/dev/null || die "#$i is answered already: $(awk -F'\t' -v i="$i" '$1 == i { print $2 " at " $3 }' "$NQ" | tail -n 1)"
+  # the question's line from the read, never from a record's key, which a GitHub auto record may hold for another question; its
+  # record found by the issue and the words
+  l=$(mqtext "$i"); [ -n "$l" ] || die "no question #$i in the read"; qk() { QL="$l" awk -F'\t' -v n="$n" '$2 == n && $3 == ENVIRON["QL"] { print $1; exit }' "$Q/questions"; }   # through the environment: awk reads escapes in a -v value
+  kk=$(qk); [ -n "$kk" ] || { mscan; kk=$(qk); }; [ -n "$kk" ] || die "no question #$i" 
+  if [ "$how" = posted ]; then printf 'RM: %s\n\n%s\n' "$l" "$*" > "$Q/post"; sh "$HERE/github.sh" comment "$n" --body-file "$Q/post" > /dev/null || die "the answer on #$n could not be posted"; fi
+  mkdir -p .vid/next; printf '%s\t%s\t%s\t%s\n' "$i" "$how" "$(stamp)" "$w" >> "$NQ"; rec "question:$kk" - "$w" "$BY" "$([ "$how" = there ] && echo 'answered there' || echo answered)"
+  [ "$how" = there ] || unblock "$n"; echo "answered #$i $how"; }
+cmd_scan() { ! manual || { mscan; return 0; }; awk -F'\t' -v Q="$Q/questions" 'BEGIN { while ((getline l < Q) > 0) { split(l, x, "\t"); K[x[1]] = 1 } }
     function sc(n, h,   c, i, m, rm) { m = split(h, c, "\001"); for (i = 1; i <= m; i++) if (c[i] ~ /^RM: /) rm = rm "\001" c[i]
         for (i = 1; i <= m; i++) if (c[i] ~ /^Question:/ || c[i] ~ /^[A-Z][A-Z]: [Qq]uestion/) { k = n ":" i; if (k in K) continue; a = index(rm, c[i]) ? "answered" : "seen"; gsub(/\t/, " ", c[i]); print k "\t" n "\t" c[i] "\t" a >> Q } }
     $1 == "open" { sc($2, $10) } $1 == "merged" { sc($2, $6) } $1 == "issue" { sc($2, $4) }' "$RD" 2>/dev/null; }
@@ -190,7 +233,7 @@ cmd_answer() { [ $# -ge 2 ] || die 'usage — answer <Q<n>|<n>:<k>> [--by RM|del
     held:*) r=${k#held:}; v=$1; shift; case $v in a) w=accept ;; b) w="more ${1:-1}"; [ $# -gt 0 ] && shift ;; c) w=limit ;; d) w=amend ;; *) die 'a held row: a, b <N>, c or d' ;; esac
       sh "$HERE/decide.sh" rule "$r" $w --by "$BY" > /dev/null || die "the ruling on $r was refused"; rec "$k" "$v" "$*" "$BY" "${w%% *}"
       [ "$v" != d ] || echo "door: /vid fix — amend ${r%-T[0-9]*} in the owner's words: $*" ;;
-    question:*) i=${k#question:}; n=${i%%:*}; [ "$BY" = owner ] || ! cat "$D"/stage/*/*/d2/ask 2>/dev/null | awk -F'\t' -v n="$n" '$1 == "issue" && $2 == n { f = 1 } END { exit !f }' || die "a question on a production okay is the owner's alone"; l=$(awk -F'\t' -v i="$i" '$1 == i { print $3; exit }' "$Q/questions"); [ -n "$l" ] || die "no question $i"
+    question:*) i=${k#question:}; n=${i%%:*}; if manual; then case $QT in Q[0-9]*) i=$(mqplace "$i") || exit 1 ;; esac; mans "$i" "$@"; return 0; fi; [ "$BY" = owner ] || ! cat "$D"/stage/*/*/d2/ask 2>/dev/null | awk -F'\t' -v n="$n" '$1 == "issue" && $2 == n { f = 1 } END { exit !f }' || die "a question on a production okay is the owner's alone"; l=$(awk -F'\t' -v i="$i" '$1 == i { print $3; exit }' "$Q/questions"); [ -n "$l" ] || die "no question $i"
       printf 'RM: %s\n\n%s\n' "$l" "$*" > "$Q/post"; sh "$HERE/github.sh" comment "$n" --body-file "$Q/post" > /dev/null || die "the answer on #$n could not be posted"
       rec "$k" - "$*" "$BY" "$([ "$BY" = owner ] && echo answered || echo delegated)"; unblock "$n" ;;
     findings:*|finding:*) tk=${k#*:}; tk=${tk%%:*}; f=$1; v=$2; shift 2; case $v in fix|row|known|no) ;; *) die 'a finding: fix, row, known or no' ;; esac
@@ -554,6 +597,7 @@ case $CMD in
     awk -F'\t' -v i="$i" -v OFS='\t' '$1 == i { $4 = "asked" } { print }' "$Q/questions" > "$Q/qq" || exit 1; put "$Q/questions" < "$Q/qq" || exit 1; cmd_sync > /dev/null; m=$(num "question:$i"); echo "asked $m"
     # v0.26.10.26.7 (R8, W-10): the dev side hears, once, that its question waits; never its text, which cmd_scan would read as the answer
     # once posted, recorded in $Q/waited, so a failed post is tried again at the next ask
-    if ! grep -qxF "$i" "$Q/waited" 2>/dev/null; then printf 'RM: this question waits on the lead (%s); go on with what it does not block.\n' "$m" > "$Q/post"
+    # GM-2 T8: none in GitHub manual, where every question is the owner's
+    if ! manual && ! grep -qxF "$i" "$Q/waited" 2>/dev/null; then printf 'RM: this question waits on the lead (%s); go on with what it does not block.\n' "$m" > "$Q/post"
       if sh "$HERE/github.sh" comment "${i%%:*}" --body-file "$Q/post" > /dev/null 2>&1; then echo "$i" >> "$Q/waited"; ev "queue-waiting n=${i%%:*} q=$m"; else echo "waiting-comment-failed ${i%%:*}"; fi; fi ;;
   *) echo 'usage: sh checks/queue.sh sync|recommend|ask|answer|control|status|addresses|cost|defect|lesson' >&2; exit 2 ;; esac

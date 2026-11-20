@@ -139,7 +139,8 @@ cmd_ask() { s=$1; owed1 "$s" || die "no close is owed for $s"; E=$(sed -n 's/^en
   # the rows: its tickets' and the steps' it builds on, rows and regression rows, and every row an earlier ask covered; less deploy-owed rows,
   # known limits, and rows an open fix ticket holds or another close found red (V2 §5.3 step 18)
   B=$(plan_block | awk -F' [|] ' -v s="step $s" '$1 == s { for (i = 2; i <= NF; i++) if ($i ~ /^builds-on: /) { sub(/^builds-on: /, "", $i); print $i } }' | tr ' ' '\n' | grep -v '^-$' | grep .)
-  R=$( { for n in $(for x in "$s" $B; do tix "$x" | cut -d' ' -f1; done); do awk '/^## / { x = substr($0, 4); next } x == "Rows" && /^> / { split(substr($0, 3), a, "|"); i = a[1]; gsub(/[ \t]/, "", i); if (i !~ /^[A-Z]+-[0-9]/) { i = a[2]; gsub(/[ \t]/, "", i) } print i } x == "Regression rows" && /^- [A-Z]+-[0-9]/ { print $2 }' ".vid/tw/out/issue-$n.md"; done
+  # 0.26.11.1.4 (R4): a ticket with no merge is skipped: its code is not at the close's commit, and its own decision and the stage's C3 cover its rows
+  R=$( { for n in $(for x in "$s" $B; do tix "$x" | cut -d' ' -f1; done); do [ -n "$(mrg "$n")" ] || continue; awk '/^## / { x = substr($0, 4); next } x == "Rows" && /^> / { split(substr($0, 3), a, "|"); i = a[1]; gsub(/[ \t]/, "", i); if (i !~ /^[A-Z]+-[0-9]/) { i = a[2]; gsub(/[ \t]/, "", i) } print i } x == "Regression rows" && /^- [A-Z]+-[0-9]/ { print $2 }' ".vid/tw/out/issue-$n.md"; done
     [ -z "$p" ] || cut -d' ' -f1 "$C/$s/$p/rows"; } | awk '!s[$0]++')
   { cmd_owned "$s"; fxo; } > .vid/round/cx   # v0.26.10.25.5: another step's close owns a row, never this step's own
   mkdir -p "$K"; : > "$K/rows"; for r in $R; do owed_ "$r" || limited "$r" || grep -qxF "$r" .vid/round/cx || printf '%s %s\n' "$r" "$(secs "$r")" >> "$K/rows"; done

@@ -21,6 +21,17 @@
 # login toy); a sub-issue is an issue whose parent file names its parent, listed by a GET of repos/<repo>/issues/<n>/sub_issues
 # (SQ; any method or field on that path refused). The write log, $FAKEGH/writes: one line per write, `<owner/name> <what>`,
 # each gh call that writes and, through an update hook in every repository the fake serves or makes, each ref pushed to it.
+# GM-2 T11: an issue's id, read by a GET of repos/<repo>/issues/<n> (--jq .id), is 100000 + n; `-X POST
+# repos/<repo>/issues/<p>/sub_issues -F sub_issue_id=<id>` makes the issue of that id a sub-issue of p (its parent file; refused when
+# it has a parent already, as GitHub refuses); `-X POST repos/<repo>/issues/<n>/dependencies/blocked_by -F issue_id=<id>` adds the
+# issue of that id to n's blocked-by file (one number a line; refused when it is there already). Each is a line of the write log,
+# `<repo> sub-issue <p> <child>` and `<repo> blocked-by <n> <blocker>`. Any other method or field on these paths is refused.
+# IR I1: record-read's three GETs (any method or field refused): repos/<repo>/pulls/<n> with --jq .head.sha, the pull request's head;
+# repos/<repo>/pulls/<n>/files with the jq of its names not removed, the names its head changes from where it left its base (no
+# renames: a renamed file is its new name); repos/<repo>/contents/<path>?ref=<sha> with --jq '.content | @base64d', the file at that
+# commit and one newline after it, as gh prints a string (%20, %23, %3F and %25 read back), else Not Found.
+# GM-3 S1: `issue list --label <l> --state <open|closed|all> --limit <k> --json number,state --jq '.[] | [.number, .state] | @tsv'`, each
+# issue's number and OPEN or CLOSED, in number order, cut at the limit.
 set -u
 IFS='
 '   # a path with a space stays one word
@@ -118,6 +129,9 @@ case "$CMD" in
       for d in $(ls -d "$F"/issues/* 2>/dev/null); do [ "$(cat "$d/state")" = OPEN ] && grep -qx toy "$d/assignees" 2>/dev/null || continue; printf '%s\t%s\t%s\t%s\n' "${d##*/}" "$(labels_of "$d")" "$(heads "$d")" "$(cat "$d/title")"; done | sort -n | head -n "$(opt --limit "$@")"; exit 0; fi
     if [ "$q" = "$RIQ" ]; then for d in $(ls -d "$F"/issues/* 2>/dev/null | sort -t/ -k1,1); do [ "$(cat "$d/state")" = OPEN ] || continue; printf '%s\t%s\t%s\t%s\n' "${d##*/}" "$(labels_of "$d")" "$(heads "$d")" "$(upd "$d")"; done | sort -n; exit 0; fi
     if [ "$q" = "$DMIQ" ]; then for d in $(ls -d "$F"/issues/* 2>/dev/null); do [ "$(cat "$d/state")" = OPEN ] || continue; printf '%s\t%s\t%s\t%s\t%s\n' "${d##*/}" "$(labels_of "$d")" "$(heads "$d")" "$(upd "$d")" "$(sed -n 's/^- chunk \([^,]*\),.*/\1/p' "$d/body" | paste -sd ' ' -)"; done | sort -n; exit 0; fi
+    if [ "$q" = '.[] | [.number, .state] | @tsv' ]; then for d in $(ls -d "$F"/issues/* 2>/dev/null); do   # GM-3 S1: github.sh tickets
+        [ "$st" != open ] || [ "$(cat "$d/state")" = OPEN ] || continue; [ "$st" != closed ] || [ "$(cat "$d/state")" = CLOSED ] || continue
+        [ -z "$l" ] || grep -qxF "$l" "$d/labels" 2>/dev/null || continue; printf '%s\t%s\n' "${d##*/}" "$(cat "$d/state")"; done | sort -n | head -n "$(opt --limit "$@")"; exit 0; fi
     [ "$q" = '.[].number' ] || die "unknown --jq for issue list: $q" 64
     for d in $(ls -d "$F"/issues/* 2>/dev/null | sort -t/ -k1); do n=${d##*/}
       [ "$st" = open ] && [ "$(cat "$d/state")" != OPEN ] && continue
@@ -191,12 +205,39 @@ case "$CMD" in
     wlog "$REPO" 'api graphql addSubIssue'; printf '%s' "${p#I_}" > "$F/issues/${c#I_}/parent"; echo "{\"data\":{\"addSubIssue\":{\"issue\":{\"number\":${p#I_}}}}}"; exit 0 ;;
   api\ *)
     shift; X=POST; path=''; jq=''; set -- "$@"; T=''; DE=''; ST=''; BF=''
-    FLD=''; XSET=''; while [ $# -gt 0 ]; do case "$1" in -X) X=$2; XSET=1; shift 2 ;; --jq) jq=$2; shift 2 ;; --paginate) shift ;; -f|-F) FLD=1; case "$2" in title=*) T=${2#title=} ;; description=*) DE=${2#description=} ;; state=*) ST=${2#state=} ;; body=@*) BF=${2#body=@} ;; esac; shift 2 ;; *) path=$1; shift ;; esac; done
+    FLD=''; XSET=''; NF_=0; SI=''; II=''; while [ $# -gt 0 ]; do case "$1" in -X) X=$2; XSET=1; shift 2 ;; --jq) jq=$2; shift 2 ;; --paginate) shift ;; -f|-F) FLD=1; NF_=$((NF_ + 1)); case "$2" in title=*) T=${2#title=} ;; description=*) DE=${2#description=} ;; state=*) ST=${2#state=} ;; body=@*) BF=${2#body=@} ;; sub_issue_id=*) SI=${2#sub_issue_id=} ;; issue_id=*) II=${2#issue_id=} ;; esac; shift 2 ;; *) path=$1; shift ;; esac; done
+    # iss <id>: the issue number of an issue id (GM-2 T11: 100000 + n), or nothing when no such issue is here
+    iss() { case "$1" in ''|*[!0-9]*) return 0 ;; esac; [ "$1" -gt 100000 ] && [ -d "$F/issues/$(($1 - 100000))" ] && echo $(($1 - 100000)); return 0; }
     case "$path" in
-      "repos/$REPO/issues/"*/sub_issues)   # GM-1 S10: a GET alone
+      "repos/$REPO/issues/"*/sub_issues)   # GM-1 S10: a GET; GM-2 T11: or a POST of one field, sub_issue_id
         n=${path#repos/$REPO/issues/}; n=${n%/sub_issues}; [ -d "$F/issues/$n" ] || die "no issue $n" 1
+        if [ "$X" = POST ] && [ -n "$XSET" ]; then [ "$NF_" = 1 ] && [ -n "$SI" ] || die "a sub-issue is added with one field, sub_issue_id" 64
+          c=$(iss "$SI"); [ -n "$c" ] || die "no issue with the id $SI" 1; [ ! -s "$F/issues/$c/parent" ] || die "Sub issue may only have one parent" 1
+          wlog "$REPO" "sub-issue $n $c"; printf '%s' "$n" > "$F/issues/$c/parent"; echo "{\"number\":$c}"; exit 0; fi
         [ -z "$FLD" ] && { [ -z "$XSET" ] || [ "$X" = GET ]; } || die "sub_issues is read with GET alone" 64; [ "$jq" = "$SQ" ] || die "unknown --jq for sub_issues: $jq" 64
         for d in $(ls -d "$F"/issues/* 2>/dev/null); do [ "$(cat "$d/parent" 2>/dev/null)" = "$n" ] || continue; printf '%s\t%s\t%s\t%s\n' "${d##*/}" "$(tr 'A-Z' 'a-z' < "$d/state")" "$(cat "$d/title")" "$(asg "$d")"; done | sort -n ;;
+      "repos/$REPO/issues/"*/dependencies/blocked_by)   # GM-2 T11: a POST of one field, issue_id
+        n=${path#repos/$REPO/issues/}; n=${n%/dependencies/blocked_by}; [ -d "$F/issues/$n" ] || die "no issue $n" 1
+        [ "$X" = POST ] && [ -n "$XSET" ] && [ "$NF_" = 1 ] && [ -n "$II" ] || die "a blocked-by link is added with -X POST and one field, issue_id" 64
+        b=$(iss "$II"); [ -n "$b" ] || die "no issue with the id $II" 1; ! grep -qx "$b" "$F/issues/$n/blocked-by" 2>/dev/null || die "issue $n is blocked by $b already" 1
+        wlog "$REPO" "blocked-by $n $b"; echo "$b" >> "$F/issues/$n/blocked-by"; echo "{\"number\":$b}" ;;
+      "repos/$REPO/issues/"[0-9]*)   # GM-2 T11: an issue's id, a GET alone
+        n=${path#repos/$REPO/issues/}; case "$n" in *[!0-9]*) die "unknown api path $path" 64 ;; esac; [ -d "$F/issues/$n" ] || die "no issue $n" 1
+        [ -z "$FLD" ] && { [ -z "$XSET" ] || [ "$X" = GET ]; } || die "an issue is read with GET alone" 64; [ "$jq" = .id ] || die "unknown --jq for an issue: $jq" 64
+        echo $((100000 + n)) ;;
+      "repos/$REPO/pulls/"*/files|"repos/$REPO/pulls/"*|"repos/$REPO/contents/"*)   # IR I1: GETs alone
+        [ -z "$FLD" ] && { [ -z "$XSET" ] || [ "$X" = GET ]; } || die "$path is read with GET alone" 64
+        case "$path" in
+          */files) n=${path#repos/$REPO/pulls/}; n=${n%/files}; d=$F/prs/$n; [ -d "$d" ] || die "Not Found (HTTP 404)" 1
+            [ "$jq" = '.[] | select(.status != "removed") | .filename' ] || die "unknown --jq for a pull request's files: $jq" 64
+            h=$(cat "$d/headoid" 2>/dev/null || headsha "$(cat "$d/head")"); if [ -f "$d/merge" ]; then b=$(git -C "$REMOTE" rev-parse "$(cat "$d/merge")^1"); else b=$(headsha "$(cat "$d/base")"); fi
+            git -C "$REMOTE" diff --no-renames --name-only --diff-filter=d "$(git -C "$REMOTE" merge-base "$b" "$h")" "$h" ;;
+          "repos/$REPO/pulls/"*) n=${path#repos/$REPO/pulls/}; d=$F/prs/$n; [ -d "$d" ] || die "Not Found (HTTP 404)" 1; [ "$jq" = .head.sha ] || die "unknown --jq for a pull request: $jq" 64
+            cat "$d/headoid" 2>/dev/null || headsha "$(cat "$d/head")" ;;
+          *) [ "$jq" = '.content | @base64d' ] || die "unknown --jq for contents: $jq" 64
+            q=${path#repos/$REPO/contents/}; r=$(printf '%s' "$q" | sed -n 's/.*[?]ref=\([0-9a-f]*\)$/\1/p'); q=$(printf '%s' "$q" | sed 's/[?]ref=[0-9a-f]*$//; s/%20/ /g; s/%23/#/g; s/%3F/?/g; s/%25/%/g')
+            git -C "$REMOTE" cat-file -e "$r:$q" 2>/dev/null || die "Not Found (HTTP 404)" 1; git -C "$REMOTE" show "$r:$q"; echo ;;
+        esac ;;
       "repos/$REPO/milestones")
         wlog "$REPO" 'api milestone'; n=$(ls "$F/milestones" 2>/dev/null | sort -n | tail -n 1); n=$(( ${n:-0} + 1 )); mkdir -p "$F/milestones/$n"
         printf '%s' "$T" > "$F/milestones/$n/title"; printf '%s' "$DE" > "$F/milestones/$n/description"; echo open > "$F/milestones/$n/state"

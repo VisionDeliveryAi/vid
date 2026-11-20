@@ -95,7 +95,7 @@ The three commands in the Install section above.
 An install is checked the way ViD checks anything: the judges prove they
 convict, and one real init completes. Three steps, in order:
 
-1. **Version.** Type `/vid:vid-help`. It shows the installed version, which must be **0.26.11.1.3**.
+1. **Version.** Type `/vid:vid-help`. It shows the installed version, which must be **0.26.11.1.4**.
 2. **Court self-test.** Ask Claude: *"Run ViD's court self-test suite —
    `checks/selftest/run.sh` under the installed plugin root — and report
    the verdict line."* Expected: every case that ran convicts, `selftest:
@@ -232,6 +232,7 @@ plugin is `vid`, and each verb is one of its skills.
   again, because fixes inject defects.
 - **vid-add** (`/vid:vid-add`): a feature after the fact: mini-interview, PRD appends,
   develop scoped to the change, then grade and fix scoped to it.
+- **vid-incorporate** (`/vid:vid-incorporate`): a decision record or proposal the owner names: the map, the amendment, one yes.
 - **vid-view** (`/vid:vid-view`): the project viewer: self-contained HTML snapshots of the
   project, now and at each milestone, with a change log across them, read
   from git and ViD's records. Progress, your open and answered questions,

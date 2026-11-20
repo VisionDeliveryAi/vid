@@ -85,8 +85,11 @@ Three modes, chosen by what exists and who called:
 - **append mode** — INVENTORY.md exists and the caller names a DELTA: the
   REQs an add introduced (vid-add, after its append commit and before
   develop), the resolved surfaces a standalone design round produced
-  (vid-design §4), or the rows a stage cut writes (vid-stage, "The doors
-  the cut uses": a stage's own journey row, `origin: domain`).
+  (vid-design §4), the rows a stage cut writes (vid-stage, "The doors
+  the cut uses": a stage's own journey row, `origin: domain`), or an
+  incorporation's decision lines, with the REQs each one serves
+  (vid-incorporate: in develop and GitHub manual after those lines have
+  landed, in GitHub auto in the working tree before its draft).
   Derivation runs over the delta with every axis of §1; genus lenses run
   scoped to the delta (their rounds end by §2, "Loop until dry"); every
   new guard or never row is written with its control sibling (§4.4); then the strength pass last (§3, mode delta: the
@@ -101,6 +104,25 @@ Three modes, chosen by what exists and who called:
   provenance=spec-only`), there is no code yet, so append mode stops after
   the ratification the same way: its new rows are written `owed: spec-only
   — first stage`, and the skeleton materialises them with the rest (§6).
+  GitHub manual is a ticket mode, so an incorporation there stops the
+  same way (`owed: spec-only — ticket`).
+  **An incorporation's delta** (IR I4) derives as every delta does, its
+  rows from requirements: each new row's `derived-from` names the REQs
+  the decision line serves, never a decision id, and its provenance is
+  `origin: incorporation <YYYY-MM-DD> D-NNN` (the incorporation's date
+  and the decision line the row tests); a rule row, which carries its REQ
+  in `origin:`, writes it after them, `origin: incorporation
+  <YYYY-MM-DD> D-NNN REQ-NNN`. A decision line that serves no requirement,
+  or sets no rule a row can test, brings no row, and the incorporation's
+  map says so: `left: DECISIONS.md | D-NNN | <why>`. The delta also
+  carries each line the incorporation marks `replaced-by:`, with the REQs
+  that line serves, and every existing row derived from those REQs is
+  checked against the replacing rule. A CHANGED row (§5), any row whose
+  premise the record changes (one resting on a replaced line among
+  them), is amended in the same amendment, or named in the map by `left:
+  INVENTORY.md | <row id> | <why>`. The buckets are ratified with this
+  skill's own questions ("What ViD says"), as every delta's are; a yes to
+  the map never stands for their ratification.
 - **re-derivation mode** — the standalone invocation ("vid
   test-inventory"), over the whole effective PRD after appends or a
   consolidation: derive everything with every axis of §1, run the genus

@@ -4,7 +4,10 @@
 # the rename aside (2), the rename in (3), the removal of the old one (4). After each, .vid/decide holds its content before the restore or
 # after it, whole. Killed between the two renames, .vid/decide is absent, .vid/.old.<pid>.decide holds its content whole, and the
 # script's next start renames it back. The roll-back is reached by a stub git that refuses the landing's own commit in the project
-# (the dry run's, in its scratch copy, goes through). Env: CHECKS.
+# (the dry run's, in its scratch copy, goes through). 0.26.11.1.4 (R5, R6): with the rename aside refused twice and then let through, the
+# roll-back and the state-restore retry it and .vid/decide is restored; the stub drops mvr's -f before it reads its arguments. So for
+# the rename in refused twice (3t); for the rename back, the rename in refused every time and the rename back twice (3b), .vid/decide
+# whole as before; and for the next start's rename of the old folder back, refused twice (r). Env: CHECKS.
 set -eu
 unset CLAUDE_CODE_SESSION_ID 2>/dev/null || true
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
@@ -19,9 +22,14 @@ exec "$RCP" "\$@"
 EOF
 cat > "$T/stub/mv" <<EOF
 #!/bin/sh
+[ "\${1:-}" != -f ] || shift
 case "\${STOP:-}" in
   2) case "\${2:-}" in *.old.*.decide) exit 1 ;; esac ;;
+  2t) case "\${2:-}" in *.old.*.decide) n=\$(( \$(cat "$T/n2" 2>/dev/null || echo 0) + 1 )); echo "\$n" > "$T/n2"; [ "\$n" -gt 2 ] || exit 1 ;; esac ;;
   3) case "\${1:-}" in *.put.*.decide) exit 1 ;; esac ;;
+  3t) case "\${1:-}" in *.put.*.decide) n=\$(( \$(cat "$T/n3" 2>/dev/null || echo 0) + 1 )); echo "\$n" > "$T/n3"; [ "\$n" -gt 2 ] || exit 1 ;; esac ;;
+  3b) case "\${1:-}" in *.put.*.decide) exit 1 ;; *.old.*.decide) n=\$(( \$(cat "$T/nb" 2>/dev/null || echo 0) + 1 )); echo "\$n" > "$T/nb"; [ "\$n" -gt 2 ] || exit 1 ;; esac ;;
+  r) case "\${1:-}" in *.old.*.decide) n=\$(( \$(cat "$T/nr" 2>/dev/null || echo 0) + 1 )); echo "\$n" > "$T/nr"; [ "\$n" -gt 2 ] || exit 1 ;; esac ;;
   k) case "\${1:-}" in *.put.*.decide) kill -9 "\$PPID"; exit 1 ;; esac ;;
 esac
 exec "$RMV" "\$@"
@@ -53,9 +61,18 @@ ld() { git reset -q -- ARCHITECTURE.md 2>/dev/null || true; git checkout -q -- A
 # a step that fails leaves the live folder whole: rolled back, or the restore refused with its backup kept and said so
 for s in 1 2 3 4; do ld "$s"; [ "$RC" = 2 ] && { grep -q 'rolled back' "$T/out" || { kb=$(sed -n 's/.*their backup is kept in \([^ ]*\) (bk-\*).*/\1/p' "$T/out"); [ -n "$kb" ] && [ -d "$kb/bk-decide" ] && rm -rf "$kb"; }; } || fail "the landing stopped at its roll-back's step $s was neither rolled back nor kept its backup ($RC)"
   is before || fail "the roll-back stopped at step $s: .vid/decide is not whole"; done
+# 0.26.11.1.4 (R5, R6): the rename aside refused twice, then let through: the roll-back retries it and restores .vid/decide
+rm -f "$T/n2"; ld 2t; [ "$RC" = 2 ] && grep -q 'rolled back' "$T/out" || fail "a roll-back whose rename aside was refused twice did not roll back ($RC)"
+is before || fail 'a roll-back whose rename aside was refused twice: .vid/decide is not restored'; [ "$(cat "$T/n2")" = 3 ] || fail "the rename aside was tried $(cat "$T/n2") times, not 3"
+# 0.26.11.1.4 (R6): the rename in refused twice, then let through; the rename in refused every time and the rename back twice
+rm -f "$T/n3"; ld 3t; [ "$RC" = 2 ] && grep -q 'rolled back' "$T/out" || fail "a roll-back whose rename in was refused twice did not roll back ($RC)"
+is before || fail 'a roll-back whose rename in was refused twice: .vid/decide is not restored'; [ "$(cat "$T/n3")" = 3 ] || fail "the rename in was tried $(cat "$T/n3") times, not 3"
+rm -f "$T/nb"; ld 3b; [ "$RC" = 2 ] || fail "a roll-back whose rename in was refused went on ($RC)"; kb=$(sed -n 's/.*their backup is kept in \([^ ]*\) (bk-\*).*/\1/p' "$T/out"); [ -z "$kb" ] || rm -rf "$kb"
+is before || fail 'a roll-back whose rename back was refused twice: .vid/decide is not whole'; [ "$(cat "$T/nb" 2>/dev/null)" = 3 ] || fail "the rename back was tried $(cat "$T/nb" 2>/dev/null) times, not 3"
 ld k; [ "$RC" != 0 ] || fail 'a roll-back killed between its renames went on'; [ ! -e .vid/decide ] || fail 'killed between the renames, .vid/decide is there'
 old1 before || fail "the roll-back's old folder is not whole"
-sh "$LS" > "$T/out" 2>&1 || true; is before || fail "land.sh's next start did not rename the old folder back"; [ -z "$(ls -d .vid/.old.* 2>/dev/null)" ] || fail 'the old folder is still beside it'
+rm -f "$T/nr"; PATH="$T/stub:$PATH" STOP=r sh "$LS" > "$T/out" 2>&1 || true; is before || fail "land.sh's next start, its rename refused twice, did not rename the old folder back"
+[ "$(cat "$T/nr" 2>/dev/null)" = 3 ] || fail "land.sh's next start tried the rename back $(cat "$T/nr" 2>/dev/null) times, not 3"; [ -z "$(ls -d .vid/.old.* 2>/dev/null)" ] || fail 'the old folder is still beside it'
 git reset -q -- ARCHITECTURE.md 2>/dev/null || true; git checkout -q -- ARCHITECTURE.md 2>/dev/null || true
 # github.sh state-restore: saved, then changed, then restored with each step failed
 sh "$GS" state-save > "$T/out" 2>&1 || fail 'state-save failed'; sum .vid/decide > "$T/saved"
@@ -66,7 +83,14 @@ gr() { rm -rf .vid/decide .vid/.old.* .vid/.put.*; cp -R "$T/live-copy" .vid/dec
 for s in 1 2 3; do gr "$s"; [ "$RC" != 0 ] || fail "a restore stopped at step $s went on"; is live || fail "a restore stopped at step $s: .vid/decide is not its content before, whole"
   [ -z "$(ls -d .vid/.old.* 2>/dev/null)" ] || fail "a restore stopped at step $s left an old folder"; done
 gr 4; [ "$RC" != 0 ] || fail 'a restore stopped at step 4 went on'; is saved || fail 'a restore stopped at step 4: .vid/decide is not the saved content, whole'
+rm -f "$T/n2"; gr 2t; [ "$RC" = 0 ] || fail "a restore whose rename aside was refused twice failed ($RC)"; is saved || fail 'a restore whose rename aside was refused twice: .vid/decide is not the saved content'
+[ "$(cat "$T/n2")" = 3 ] || fail "the restore's rename aside was tried $(cat "$T/n2") times, not 3"
+rm -f "$T/n3"; gr 3t; [ "$RC" = 0 ] || fail "a restore whose rename in was refused twice failed ($RC)"; is saved || fail 'a restore whose rename in was refused twice: .vid/decide is not the saved content'
+[ "$(cat "$T/n3")" = 3 ] || fail "the restore's rename in was tried $(cat "$T/n3") times, not 3"
+rm -f "$T/nb"; gr 3b; [ "$RC" != 0 ] || fail 'a restore whose rename in was refused went on'; is live || fail 'a restore whose rename back was refused twice: .vid/decide is not its content before, whole'
+[ "$(cat "$T/nb" 2>/dev/null)" = 3 ] || fail "the restore's rename back was tried $(cat "$T/nb" 2>/dev/null) times, not 3"
 gr k; [ "$RC" != 0 ] || fail 'a restore killed between its renames went on'; [ ! -e .vid/decide ] || fail 'killed between the renames, .vid/decide is there'
 old1 live || fail "the restore's old folder is not whole"
-sh "$GS" > "$T/out" 2>&1 || true; is live || fail "github.sh's next start did not rename the old folder back"; [ -z "$(ls -d .vid/.old.* 2>/dev/null)" ] || fail 'the old folder is still beside it'
+rm -f "$T/nr"; PATH="$T/stub:$PATH" STOP=r sh "$GS" > "$T/out" 2>&1 || true; is live || fail "github.sh's next start, its rename refused twice, did not rename the old folder back"
+[ "$(cat "$T/nr" 2>/dev/null)" = 3 ] || fail "github.sh's next start tried the rename back $(cat "$T/nr" 2>/dev/null) times, not 3"; [ -z "$(ls -d .vid/.old.* 2>/dev/null)" ] || fail 'the old folder is still beside it'
 exit 0

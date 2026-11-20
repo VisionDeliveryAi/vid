@@ -61,7 +61,7 @@ sed 's/^| web | the pages |/| web | the pages and the operator pages |/' ARCHITE
 W2='the module table as the merge of S01 shows it, 100% "as is", the owner'"'"'s %s \n'
 ld draft --why "$W2"; ok '^impact reset=0 added=0 reached=0 records=0$'
 ld 2 --words 'Yes, the module table'; [ "$RC" = 0 ] || fail "the module-table edit did not land ($RC)"; ok '^landed 2 at '
-[ "$(git log -1 --format=%s)" = "Land draft 2, the law: $W2" ] || fail "the module-table commit: $(git log -1 --format=%s)"
+[ "$(git log -1 --format=%s)" = "Land draft 2, the architecture: $W2" ] || fail "the module-table commit: $(git log -1 --format=%s)"
 [ "$(git log -1 --format=%B | grep '^Decisions:')" = "Decisions: admits $W2 (impact reset=0 added=0 reached=0 records=0) — the owner's yes" ] || fail "the landing's Decisions: line: $(git log -1 --format=%B | grep '^Decisions:')"
 sh "$CHECKS/writer.sh" gate > "$T/out" 2>&1 || fail 'the gate is shut after the module-table landing'
 ld 1 --words 'Yes, land it'; [ "$RC" = 4 ] || fail "a stale draft was not refused ($RC)"; ok 'stale'

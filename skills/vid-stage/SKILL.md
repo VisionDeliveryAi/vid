@@ -197,7 +197,21 @@ ids: `scope --upto k --reqs` minus the same at k-1), rows (`scope
 --upto k` minus `--upto k-1`) and journeys (the journey rows among
 them), and the rung's `row-lines` — the rows placed by hand, judgement
 included. The project's own STAGES.md is never overwritten by a
-candidate. Counts come from there, never estimated.
+candidate. Counts come from there, never estimated. In the same copy
+each rung also lists its rows provable only at a later stage (0.26.11.1.4,
+R9), read as skills/vid-plan/SKILL.md § "Rows provable only at a later stage"
+reads them: each row's subject, marker and promise, against what each
+stage of the rung builds and leaves out, one line a row, `<row> —
+provable only at stage <n>: <its surface>`, with a count per stage
+("none" when none). The owner answers them at the sitting, each by the
+cut's existing `row:` lines, or keeps them; a rung changed so is tried
+again. It is a step, never a refusal: no rung is dropped for them, and
+the plan's own reading still lists what the cut left. On a re-cut the
+copy also counts the moved rows: the ids whose stage differs between the
+base and the scratch copy (`sh checks/stages.sh stage-of <id>` in the
+project and in the copy), of every kind, protection rows included, never
+counted by hand. A protection row moves with the row it protects: it
+takes the stage of the row or item its `protects:` names.
 
 **Nothing untried reaches the owner** (0.26.10.29.4 phase 4 R6). Any
 rung, outline or variation offered at the sitting, one made up during it
@@ -209,8 +223,9 @@ no further split or merge on its own; a change ViD thinks better is shown
 as one more rung, tried and counted the same way, for the owner to pick.
 
 **One table, one decision.** The sitting's main question is the ladder,
-shown as one table: each rung, its stages, the counts per stage, its
-placed-row count, and what actually differs from the finest — fewer
+shown as one table: each rung, its stages, the counts per stage (its
+rows provable only at a later stage among them, and on a re-cut its
+moved rows), its placed-row count, and what actually differs from the finest — fewer
 stage closes and deploys, a later or bigger first release, a risk tested
 later — or "unchanged" where nothing differs; claim no difference it
 doesn't have. Cards are drawn for the recommended rung only, and again

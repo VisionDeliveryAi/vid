@@ -73,17 +73,20 @@
 #             the publish-approved event in the same words, as vid-plan does after ratify); refused while a check flag is open, when the spec files at the base are not the newest ratified ones,
 #             when a spec file the draft did not hold changed between them, or when the plan block is not the newest recorded
 #   ratified  exit 0 only while the spec files' hash is the ratified one, the block is the newest recorded plan and
-#             the check is clean: a recorded plan change keeps the ratification
+#             the check is clean: a recorded plan change keeps the ratification. GM-2 T6, T7: in GitHub manual a size flag is no
+#             flag here (the move shows it as a warning), so it never shuts the writer's gate
 #   hash      the spec files' hash: PRD.md, INVENTORY.md, STAGES.md, GRADING-CHECKLIST.md, ARCHITECTURE.md, PLAN.md
 #   setup <key> <answer> --words "<the owner's words>"   (v0.26.10.26.7, R11) one setup answer: layout, team (one line each),
 #             split, repo, spec-repo ("not yet" writes no key) or github-mode (v0.26.10.28.8, R3: auto, ViD's own DevAgent works
 #             the tickets, or team, an outside team's; GM-1 S1: manual, the owner's team by hand, which, like a change away from
 #             manual, only /vid mode's own call sets, VID_CALLER=mode), state-repo (GM-1 S1: owner/name, ViD's own private
-#             repository, never repo: or spec-repo:) or slack-channels (names, comma-separated, or none); written to .vid/tw/settings, and `setup-answered key=` in
+#             repository, never repo: or spec-repo:) or slack-channels (names, comma-separated, or none); GM-2 (§5): issue-form (a path in
+#             ViD's repository, from its top, no .., never one of the spec export's own files), issue-parent (an issue number, or
+#             none) or plan-page (artifact, its link once made, or none); written to .vid/tw/settings, and `setup-answered key=` in
 #             .vid/plan/setup, the planner's own record (it writes no event) — until
 #             the first ratify, check flags `setup <key>` for each of layout, team, split, repo, spec-repo (none with
 #             layout: one) and github-mode that no such event covers; in GitHub manual (GM-1 S1) state-repo too, and github-mode
-#             not under /vid mode's own mark
+#             not under /vid mode's own mark (GM-2 §5's issue-form, issue-parent and plan-page are asked by /vid mode, not flagged here)
 #   prereq    (v0.26.10.12.3.2, R10) what the skeleton ticket quotes, no PLAN.md needed: one line per gap, exit 0; the page's notes repeat each
 #   prd-form  (0.26.10.28.1, stage 9 R6, CK-R-006) refuses a PRD.md in the legacy block form (no ```vid-prd block) in one line,
 #             exit 1, naming /vid create-prd's import door; silent, exit 0, on an enriched PRD or none
@@ -241,6 +244,15 @@ inventory() {
 # tab-separated, the rows expanded), $T/shared (the shared: line)
 model() {
   load "${1:-}"; inventory
+  # GM-3 S2: in GitHub manual a step with a published ticket (the log's published line, not withdrawn) is of the stage its
+  # recorded writing's header names (`- stage: <k>`), its first ticket of kind step or skeleton: $T/pubst, `<step> <k>` a line
+  : > "$T/pubst"; if [ -n "$MAN" ] && [ -f .vid/tw/log ]; then
+    awk 'function kv(k,   i) { for (i = 3; i <= NF; i++) if (index($i, k "=") == 1) return substr($i, length(k) + 2); return "" }
+      $1 == "withdrawn" { W[$2] = 1 } $1 == "published" && $2 ~ /^[0-9]+$/ && !($2 in K) { O[++n] = $2; K[$2] = kv("kind"); S[$2] = kv("step") }
+      END { for (i = 1; i <= n; i++) if (!(O[i] in W) && K[O[i]] ~ /^(step|skeleton)$/ && S[O[i]] != "") print O[i] " " S[O[i]] }' .vid/tw/log |
+    while read -r n s; do [ -f ".vid/tw/out/issue-$n.md" ] || continue
+      k=$(awk '/^## / { h = ($0 ~ /^## Header[ \t]*$/); next } h && index($0, "- stage: ") == 1 { v = substr($0, 10); sub(/,.*/, "", v); gsub(/[ \t]/, "", v); print v; exit }' ".vid/tw/out/issue-$n.md")
+      case $k in ''|*[!0-9]*) ;; *) echo "$s $k" ;; esac; done > "$T/pubst"; fi
   awk -v MAN="$MAN" -v FL="$T/flags" -v RW="$T/rows" -v SP="$T/steps" -v SH="$T/shared" -v CEIL="$(ceil)" -v TM="$T/teams" -v LN="$T/lanes" -v NO="$T/notes" '
     function trim(s) { gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
     function on(l, x,   n, a, i) { n = split(l, a, /[ ,]+/); for (i = 1; i <= n; i++) if (a[i] == x) return 1; return 0 }
@@ -252,7 +264,7 @@ model() {
     function same(p, q,   n, a, i) { n = split(p, a, /[ ,]+/); for (i = 1; i <= n; i++) if (a[i] != "" && !on(q, a[i])) return 0
       n = split(q, a, /[ ,]+/); for (i = 1; i <= n; i++) if (a[i] != "" && !on(p, a[i])) return 0; return 1 }
     # R1, R2: the setup, its team: lines and their lanes
-    f == 0 { if ($0 !~ /^team:/) next; l = trim(substr($0, 6)); n = split(l, a, "|"); for (i = 1; i <= n; i++) a[i] = trim(a[i]); nm = a[1]
+    f == 0 { if ($0 !~ /^team:/) next; l = trim(substr($0, 6)); n = split(l, a, "|"); for (i = 1; i <= n; i++) a[i] = trim(a[i]); nm = (MAN ? tolower(a[1]) : a[1])   # GM-3 S2: lower-cased in GitHub manual
       w = (nm == "" ? "no name" : nm !~ /^[a-z][a-z0-9]*$/ ? "the name " nm " is not lower-case letters and digits, starting with a letter" : (nm in tmk) ? "the name " nm " is used twice" : (n != 4 || a[2] == "") ? "not team: <name> | <area> | strict or core | <people>" : a[3] !~ /^(strict|core)$/ ? "\"" a[3] "\" is not strict or core" : a[4] !~ /^[1-9][0-9]*$/ ? "people \"" a[4] "\" is not a whole number of 1 or more" : "")
       if (w != "") { flag("setup", "\"team: " substr(l, 1, 40) "\"", w); next }
       tmk[nm] = 1; nt++; print nm "\t" a[2] "\t" a[3] "\t" a[4] > TM; for (k = 1; k <= a[4]; k++) { x = (a[4] == 1 ? nm : nm "-" k); lane[x] = nm; LO[++nl] = x }; next }
@@ -321,6 +333,7 @@ model() {
       sfk[id] = (K["fakes"] == "-" ? "" : K["fakes"]); if (skind[id] != "" && skind[id] !~ /^(skeleton|hardening)$/) flag("form", id, "kind " skind[id] "; a kind is skeleton, hardening, or absent")
       next }
     f == 8 { mod[$0] = 1; next }
+    f == 9 { if (!($1 in PSG)) PSG[$1] = $2; next }
     END {
       for (i = 1; i <= nr; i++) { id = order[i]; if (rkind[id] != "row" || !M[id, "protection"] || rstage[id] == "later") continue
         n = split(ritem[id], a, " "); for (j = 1; j <= n; j++) { x = a[j]; prot[x] = prot[x] (prot[x] == "" ? "" : " ") id } }
@@ -392,16 +405,18 @@ model() {
         # GM-1 S3 (§5): in GitHub manual the own stage of a step is the stage most of its planned rows are in, the earliest on a tie; each
         # planned row of another stage is a row to place, `place <row> — in step <s> of stage <k>; its own stage is <j>`, in place of
         # the step-level "its rows are in stages" flag
-        if (MAN && pst[s] != "") { m = split(pst[s], qa, " "); bst = ""
+        # GM-3 S2: a step with a published ticket is of the stage the header of its ticket names (PSG), its rows of another stage to place
+        if (MAN && (pst[s] != "" || (s in PSG))) { m = split(pst[s], qa, " "); bst = ""
           for (j = 1; j <= m; j++) { k = qa[j]; if (bst == "" || pc[s, k] > pc[s, bst] || (pc[s, k] == pc[s, bst] && before(k, bst))) bst = k }
-          sst[s] = bst; for (j = 1; j <= n; j++) { r = a[j]; if ((r in rkind) && rkind[r] == "row" && cls[r] ~ /^(planned|moved|owed)$/ && rstage[r] != bst && !(r in placed)) { placed[r] = 1; flag("place", r, "in step " s " of stage " bst "; its own stage is " rstage[r]) } } }
+          if (s in PSG) bst = PSG[s]; sst[s] = bst; for (j = 1; j <= n; j++) { r = a[j]; if ((r in rkind) && rkind[r] == "row" && cls[r] ~ /^(planned|moved|owed)$/ && rstage[r] != bst && !(r in placed)) { placed[r] = 1; flag("place", r, "in step " s " of stage " bst "; its own stage is " rstage[r]) } } }
         cnt[s] = c; if (!MAN && got ~ / and /) flag("step", s, "its rows are in stages " got); if (!c && srows[s] != "") flag("step", s, "holds no row")
         # GM-1 S4: in GitHub manual stage 0 may hold several steps, the skeleton one of them
         if (c > CEIL + 0) flag("size", s, c " rows, over the ceiling of " CEIL "; split it"); if (!MAN && !ssk[s] && sst[s] == "0") flag("skeleton", s, "is in stage 0; stage 0 holds the skeleton alone")
         if (s == skel) { if (sb[s] != "") flag("skeleton", s, "builds on " sb[s] "; the skeleton builds on nothing")
           z = 0; if (MAN) for (r in s0) z++
           # GM-1 S4: in GitHub manual, with a stage 0, the skeleton is one of its steps; each stage-0 row is in one of them, or a row to place
-          if (MAN && z) { if (sst[s] != "0") flag("skeleton", s, "is in stage " sst[s] "; with a stage 0 the skeleton is one of stage 0" "\047" "s steps") }
+          # GM-3 S2: a published skeleton ticket is the skeleton of stage 0, so neither this flag nor the no-stage-0 ones below refuse it
+          if (MAN && (z || (s in PSG))) { if (sst[s] != "0" && !(s in PSG)) flag("skeleton", s, "is in stage " sst[s] "; with a stage 0 the skeleton is one of stage 0" "\047" "s steps") }
           else { z = 0; for (r in s0) { z++; if (!(r in has)) flag("skeleton", s, "lacks " r ", a row of stage 0") }
           if (z) { for (r in has) if (!(r in s0)) flag("skeleton", s, "holds " r ", which is no row of stage 0") }
           else { if (c != 1) flag("skeleton", s, "holds " c " rows; with no stage 0 the skeleton holds one, the golden path"); if (c == 1 && rstage[last] != "1") flag("skeleton", s, "its row " last " is in stage " rstage[last] ", not stage 1") } }
@@ -413,17 +428,17 @@ model() {
       # R2: each step in a lane of the setup (devagent with no team: line); its dashed links name other steps
       if (!nt) { print "devagent\tthe whole product\tcore\t1" > TM; lane["devagent"] = "devagent"; LO[++nl] = "devagent" }
       for (i = 1; i <= nl; i++) { print LO[i] "\t" lane[LO[i]] > LN; ll = ll (i > 1 ? ", " : "") LO[i] } if (ll == "") ll = "none"
-      for (i = 1; i <= ns; i++) { s = sorder[i]; x = slane[s]
+      for (i = 1; i <= ns; i++) { s = sorder[i]; x = slane[s]; if (MAN) slane[s] = x = tolower(x)   # GM-3 S2: as the names of the setup
         if (x == "" || x == "-") { if (nl > 1) flag("lane", s, "no lane; with " nl " lanes every step names one (" ll ")") } else if (!(x in lane)) flag("lane", s, "lane " x " is no lane of the setup (" ll ")")
         n = split(sfk[s], a, /[ ,]+/); for (j = 1; j <= n; j++) { b = a[j]; if (b == "") continue
           if (!(b in sidx)) flag("step", s, "fakes " b ", which is no step"); else if (b == s) flag("step", s, "fakes itself"); else if (on(sb[s], b)) flag("step", s, "fakes " b ", which it also builds on") } }
       # R10: every row of a step in one needs line; each step it needs a step its own builds on, of its stage or earlier
       for (i = 1; i <= nr; i++) { r = order[i]; if ((r in instep) && !(r in nd)) flag("needs", r, "in step " instep[r] ", and in no needs line") }
-      for (i = 1; i <= nnd; i++) { r = NDO[i]; s = ((r in instep) ? instep[r] : "")
+      for (i = 1; i <= nnd; i++) { r = NDO[i]; s = ((r in instep) ? instep[r] : ""); rsg = ((s in PSG) ? PSG[s] : rstage[r])   # GM-3 S2: the stage of the ticket of its step
         if (s == "") { flag("needs", r, (!(r in rkind) ? "no row of the inventory" : rkind[r] == "tr" ? "a transition; its journey stands for it" : rkind[r] == "record" ? "a record" : cls[r] == "limit" ? "a known limit" : cls[r] == "later" ? "a later-phase row" : "in no step") "; a needs line names rows of steps"); continue }
         n = split(nd[r], a, /[ ,]+/); for (j = 1; j <= n; j++) { t = a[j]; if (t == "") continue
           if (!(t in sidx)) flag("needs", r, "needs " t ", which is no step"); else if (t == s) flag("needs", r, "needs " t ", its own step")
-          else if (sst[t] ~ /^[0-9]+$/ && rstage[r] ~ /^[0-9]+$/ && sst[t] + 0 > rstage[r] + 0) flag("needs", r, "needs " t ", a step of stage " sst[t] ", later than its own stage " rstage[r] ": list it under Provable only at a later stage")
+          else if (sst[t] ~ /^[0-9]+$/ && rsg ~ /^[0-9]+$/ && sst[t] + 0 > rsg + 0) flag("needs", r, "needs " t ", a step of stage " sst[t] ", later than its own stage " rsg ": list it under Provable only at a later stage")
           else if (!rch(s, t)) flag("needs", r, r " in " s " needs " t ", which " s " does not build on" (on(sfk[s], t) ? "; only a dashed link" : "")) } }
       # R5: the notes, beside the flags and never one — steps ahead of the stage order; journeys not built on their home
       for (i = 1; i <= ns; i++) { s = sorder[i]; w = 1; n = split(sb[s], a, /[ ,]+/); for (j = 1; j <= n; j++) if ((a[j] in sidx) && sidx[a[j]] < i && wv[a[j]] >= w) w = wv[a[j]] + 1
@@ -447,7 +462,7 @@ model() {
       for (i = 1; i <= nr; i++) { id = order[i]; t = rkind[id]; if (t == "tr") { pj = rpar[id]; st = rstage[pj]; c = ""; ct = "with its journey" } else { st = rstage[id]; c = cls[id]; ct = ctext[id] }
         print id "\t" t "\t" rpar[id] "\t" ritem[id] "\t" st "\t" c "\t" rmarks[id] "\t" rp[id] "\t" rf[id] "\t" ct "\t" rc[id] "\t" rg[id] > RW }
       for (i = 1; i <= ns; i++) { s = sorder[i]; print s "\t" sn[s] "\t" sst[s] "\t" srows[s] "\t" sb[s] "\t" ssk[s] "\t" smod[s] "\t" skind[s] "\t" slane[s] "\t" cnt[s] "\t" sfk[s] "\t" gd[s] + 0 > SP }; print shv > SH
-    }' f=0 "$T/set" f=1 "$T/items" f=2 "$T/answers" f=3 "$T/stages" f=4 "$T/stageof" f=5 "$T/irows" f=6 "$T/rowsblk" f=7 "$T/stepsblk" f=8 "$T/mods"
+    }' f=0 "$T/set" f=1 "$T/items" f=2 "$T/answers" f=3 "$T/stages" f=4 "$T/stageof" f=5 "$T/irows" f=6 "$T/rowsblk" f=7 "$T/stepsblk" f=8 "$T/mods" f=9 "$T/pubst"
   touch "$T/flags" "$T/rows" "$T/steps" "$T/shared" "$T/teams" "$T/lanes" "$T/notes"
   cat "$T/iflags" "$T/flags" > "$T/fl0"
   if [ -f PLAN.md ] && grep -q '^```vid-steps' PLAN.md; then echo "form PLAN.md — a vid-steps block; the steps are RUN-STATE's plan block, in develop's form" >> "$T/fl0"; fi
@@ -639,6 +654,10 @@ case "$CMD" in
       if [ -n "$MAN" ]; then   # GM-1 S3: the rows the owner accepted as to place, no flag
         printf '\n## The rows to place\n\nRows the owner accepted as to place (.vid/tw/to-place): each is shown here, and is no flag.\n\n'
         if [ -s "$T/toplace" ]; then awk -F'\t' '{ printf "- %s, %s: to place, in the owner'"'"'s words: %s\n", $1, $3, $4 }' "$T/toplace"; else echo '- none'; fi; fi
+      if [ -n "$MAN" ] && [ -s .vid/tw/dropped ]; then   # GM-3 S2: the rows the switch took out of steps not published
+        printf '\n## The rows taken out of steps not published\n\nAt the switch, each named by a step not yet published and missing from the applied inventory, so taken out of the plan (.vid/tw/dropped).\n\n'
+        awk '$1 == "dropped" && !s[$2 " " $3]++ { printf "- %s, out of step %s\n", $2, $3 }
+          $1 == "dropped-step" && !s["step " $2]++ { printf "- step %s, taken out of the plan: every row it held was taken out\n", $2 }' .vid/tw/dropped; fi
       printf '\n## Notes\n\nComputed beside the flags; a note never refuses the check or the ratification. For each, the plan is changed or\nthe prose says why it stands.\n\n'
       if [ -s "$T/notes" ]; then sed 's/^/- /' "$T/notes"; else echo '- none'; fi; setuppage
       planpage
@@ -703,9 +722,9 @@ case "$CMD" in
     echo "planner: ratified, hash $H, in the owner's words" ;;
   setup)   # v0.26.10.26.7 (R11, W-13): one setup answer, as the owner gave it: its key in .vid/tw/settings and setup-answered
     K=${1:-}; V=${2:-}; [ $# -ge 2 ] && shift 2; OW=''; [ "${1:-}" = --words ] && OW=${2:-}
-    [ -n "$K" ] && [ -n "$V" ] && [ -n "$OW" ] || die 'usage — sh checks/planner.sh setup <layout|team|split|repo|spec-repo|state-repo|slack-channels|github-mode> <the answer, or "not yet" for a repository> --words "<the owner'"'"'s words>"'
-    case $K in layout|team|split|repo|spec-repo|state-repo|slack-channels|github-mode) ;; *) die "setup $K: no setup question has that key" ;; esac
-    case "$K:$V" in layout:separate|layout:one|split:journey|split:fine|team:*|repo:*|spec-repo:*|github-mode:auto|github-mode:team|github-mode:manual|state-repo:*|slack-channels:*) ;; *) die "setup $K: $V is no answer to it" ;; esac
+    [ -n "$K" ] && [ -n "$V" ] && [ -n "$OW" ] || die 'usage — sh checks/planner.sh setup <layout|team|split|repo|spec-repo|state-repo|slack-channels|github-mode|issue-form|issue-parent|plan-page> <the answer, or "not yet" for a repository> --words "<the owner'"'"'s words>"'
+    case $K in layout|team|split|repo|spec-repo|state-repo|slack-channels|github-mode|issue-form|issue-parent|plan-page) ;; *) die "setup $K: no setup question has that key" ;; esac
+    case "$K:$V" in layout:separate|layout:one|split:journey|split:fine|team:*|repo:*|spec-repo:*|github-mode:auto|github-mode:team|github-mode:manual|state-repo:*|slack-channels:*|issue-form:*|issue-parent:*|plan-page:*) ;; *) die "setup $K: $V is no answer to it" ;; esac
     # GM-1 S1: GitHub manual is entered and left only by /vid mode, which marks its own calls (VID_CALLER=mode)
     if [ "$K" = github-mode ] && [ "${VID_CALLER:-}" != mode ] && { [ "$V" = manual ] || [ "$(ghmode)" = manual ]; }; then
       echo "ViD planner: refused — github-mode $V: GitHub manual is entered and left only through /vid mode, which takes stock first" >&2; exit 1; fi
@@ -717,12 +736,19 @@ case "$CMD" in
         for k in repo spec-repo; do [ "$(lo "$(skey "$k")")" != "$(lo "$V")" ] || die "setup state-repo: $V is the $k:; ViD's own state repository is neither the code repository nor the spec repository"; done ;;
       repo:*|spec-repo:*) [ "$V" = 'not yet' ] || [ "$(skey state-repo | tr 'A-Z' 'a-z')" != "$(printf %s "$V" | tr 'A-Z' 'a-z')" ] || die "setup $K: $V is the state-repo:, ViD's own state repository" ;;
       slack-channels:*) [ "$V" = none ] || printf %s "$V" | grep -Eq '^#?[A-Za-z0-9][A-Za-z0-9._-]*(,#?[A-Za-z0-9][A-Za-z0-9._-]*)*$' || die "setup slack-channels: $V is not channel names, comma-separated, or none" ;;
+      # GM-2 (§5): the issue form, a file of ViD's repository the export carries beside the spec; the parent issue; the plan page
+      issue-form:*) printf %s "$V" | grep -Eq '^[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)*$' || die "setup issue-form: $V is not a path in ViD's repository (letters, digits, . _ - and /, from its top)"
+        case /$V/ in */../*|*/./*) die "setup issue-form: $V is not a plain path (no . or .. in it)" ;; esac
+        case $V in PRD.md|DECISIONS.md|BASELINE.md|ARCHITECTURE.md|GRADING-CHECKLIST.md|TEST-DIFFERENCES.md|INVENTORY.md|STAGES.md|PLAN.md|design|design/*) die "setup issue-form: $V is one of the spec's own files; the form is a file of its own" ;; esac ;;
+      issue-parent:*) [ "$V" = none ] || printf %s "$V" | grep -Eq '^[1-9][0-9]*$' || die "setup issue-parent: $V is not an issue number, or none" ;;
+      plan-page:*) case $V in artifact|none) ;; https://*) printf %s "$V" | grep -Eq '^https://[^[:space:]]+$' || die "setup plan-page: $V is not a link" ;; *) die "setup plan-page: $V is not artifact, a link, or none" ;; esac ;;
     esac
     mkdir -p .vid/tw; touch .vid/tw/settings
     grep -q '^labels-prefix:' .vid/tw/settings || echo 'labels-prefix:' >> .vid/tw/settings   # no question asks it; the writer needs the line (the walk)
     case "$K:$V" in
       repo:'not yet'|spec-repo:'not yet') grep -v "^$K:" .vid/tw/settings > "$T/st" || true; put .vid/tw/settings < "$T/st" || exit 1 ;;   # a written default goes
-      team:*) grep -q '^setup-answered key=team ' .vid/plan/setup 2>/dev/null || { grep -v '^team:' .vid/tw/settings > "$T/st" || true; put .vid/tw/settings < "$T/st" || exit 1; }   # the first answer replaces a written default
+      team:*) ! manual || V=$(printf '%s\n' "$V" | awk -F'|' -v OFS='|' '{ $1 = tolower($1) } 1')   # GM-3 S2: the name lower-cased in GitHub manual
+        grep -q '^setup-answered key=team ' .vid/plan/setup 2>/dev/null || { grep -v '^team:' .vid/tw/settings > "$T/st" || true; put .vid/tw/settings < "$T/st" || exit 1; }   # the first answer replaces a written default
         grep -qxF "team: $V" .vid/tw/settings || echo "team: $V" >> .vid/tw/settings ;;
       *) grep -v "^$K:" .vid/tw/settings > "$T/st" || true; echo "$K: $V" >> "$T/st" || exit 1; put .vid/tw/settings < "$T/st" || exit 1 ;;
     esac
@@ -748,7 +774,10 @@ case "$CMD" in
     H=$(hash); L=$(tail -n 1 .vid/plan/ratified 2>/dev/null || true)
     case "$L" in "ratified hash=$H "*) ;; *) echo "planner: not ratified — the newest ratification is not of these spec files (hash $H)" >&2; exit 1 ;; esac
     W=$(planok); [ -z "$W" ] || { echo "planner: not ratified — $W" >&2; exit 1; }
-    model; [ ! -s "$T/flags" ] || { echo "planner: not ratified — planner.sh check flags the plan ($(head -n 1 "$T/flags"))" >&2; exit 1; }
+    # GM-2 T6, T7: in GitHub manual a size flag (rule A's ceiling) is a warning the move shows, never a
+    # flag that shuts the gate behind it
+    model; if [ -n "$MAN" ]; then grep -v '^size ' "$T/flags" > "$T/flags.g" || :; cat "$T/flags.g" > "$T/flags"; fi
+    [ ! -s "$T/flags" ] || { echo "planner: not ratified — planner.sh check flags the plan ($(head -n 1 "$T/flags"))" >&2; exit 1; }
     echo "planner: ratified, hash $H, plan $(phash)" ;;
   *) die "unknown subcommand $CMD — check, prereq, rows, review, page, counts, answer, ratify, reratify, ratified, hash, setup" ;;
 esac

@@ -128,7 +128,7 @@ Every row may carry optional trailing labeled fields, in any order:
 
 - `| origin: REQ-NNN | domain | finding-NNN | derivation <date>` — provenance:
   which requirement, genus-row proposal, grade finding, or re-derivation
-  sitting produced the row.
+  sitting produced the row. `| origin: incorporation <date> D-NNN` — the decision line an incorporation (/vid:vid-incorporate) added; a rule row names its REQs after it.
 - `| paid-at: gate-N <date> <deploy log row>` — on a deploy-owed row, the
   rung that paid it (v0.9.1 3.6); written by /vid deploy, never by a
   sandbox run.

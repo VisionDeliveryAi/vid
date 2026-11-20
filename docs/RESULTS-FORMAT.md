@@ -299,7 +299,7 @@ A focus-areas line, when the ask has one, says what to grade first and deepest. 
 
 ## The sort (T5)
 
-Only a failed run stops a ticket: a test failing, or a planted break the tests miss. A grade's verdicts decide no row. After the ticket's first decision, whatever it reads, SR, a fresh agent, sorts each `breached` or `unclear` line of the one grade, once a ticket; `kept` lines and findings do not reach it. The folder holds `sorted.txt`, the ticket's one sort report:
+Only a failed run stops a ticket: a test failing, or a planted break the tests miss. A grade's verdicts decide no row. At the ticket's first head, once its grade holds a `breached` or `unclear` line, SR, a fresh agent, sorts each such line of the one grade, once a ticket, before the ask; `kept` lines and findings do not reach it. The folder holds `sorted.txt`, the ticket's one sort report:
 
 ```
 by: SR

@@ -182,6 +182,8 @@
 # an id of their derived-from, a RULE id of the RULE join, a screen code the briefed rows mark, or a DIF id their
 # `divergence:` fields name; the safe rule covers only unlabelled decisions citing no id, and a `scope: project`
 # line, a builder's only, under today's screen narrowing. A labelled no-id decision outside the brief is gone.
+# IR I3: a joined line that carries `| replaced-by: D-NNN[, D-MMM]` (checks/hooks/pre-commit, IR I2) is followed by each
+# line it names, whatever their labels, and so on down, each line once in section 3; a grader gets each one's rule.
 # v0.9.7.1 (3.4, R4) — returns and continuations. `protected` (below) is the one protected-path set: the commit
 # hook's rule 1 directories (tests/invariants/, checks/, design/), every file checks/lawfiles names, PRD.md,
 # DEPLOYMENT.md, DESIGN-BRIEF.md and the harness file; DECISIONS.md is not in it.
@@ -1016,7 +1018,14 @@ if [ "${1:-}" = write ]; then
       while ((getline l < saf) > 0) SA[++ns] = l; while ((getline l < sbf) > 0) SB[l] = 1; while ((getline l < dbf) > 0) DB[l] = 1
       while ((getline l < smf) > 0) SM[l] = 1 }
     function mnm(s) { gsub(/\./, "/", s); sub(/\/+$/, "", s); return s }
-    { hit = 0; match($0, /\*\*D-[0-9]+\*\*/); if (substr($0, RSTART, RLENGTH) in N) hit = 1
+    # IR I3: emit(i) quotes line i, then each line its rule part'"'"'s `replaced-by:` mark names, whatever their labels, each
+    # line once in the section; a grader gets each one'"'"'s rule, the line up to '"'"' | why:'"'"', the mark included
+    function emit(i,   p, r, n, t, k, f, m, a, q) { if (i in P) return; P[i] = 1
+      p = index(L[i], " | why:"); r = p ? substr(L[i], 1, p - 1) : L[i]; print (role == "grader" ? r : L[i])
+      n = split(r, t, "|"); for (k = 2; k <= n; k++) { f = t[k]; gsub(/^[ \t]+|[ \t]+$/, "", f)
+        if (f ~ /^replaced-by:/) { m = split(substr(f, 13), a, /[ ,]+/); for (q = 1; q <= m; q++) if (a[q] in ID) emit(ID[a[q]]) } } }
+    { L[++nl] = $0; if (match($0, /^- \*\*D-[0-9]+\*\*/) && !(substr($0, 5, RLENGTH - 6) in ID)) ID[substr($0, 5, RLENGTH - 6)] = nl
+      hit = 0; match($0, /\*\*D-[0-9]+\*\*/); if (substr($0, RSTART, RLENGTH) in N) hit = 1
       for (i = 1; !hit && i <= nj; i++) if (has($0, J[i])) hit = 1
       lab = label()
       # a label adds a match: its items meet the briefed rows, their derived-from ids, the RULE join, their screen codes or DIF ids
@@ -1025,9 +1034,8 @@ if [ "${1:-}" = write ]; then
       for (i = 1; !hit && role == "builder" && i <= nap; i++) if (mnm(AP[i]) in SM) hit = 1
       # the safe rule, a builder'"'"'s: an unlabelled line citing no id, or a scope: project line — narrowed to the step'"'"'s screens
       if (!hit && role == "builder" && (lab == "project" || (lab == "" && !anyid($0)))) { named = 0; mine = 0; for (i = 1; i <= ns; i++) if (has($0, SA[i])) { named = 1; if (SA[i] in SB) mine = 1 } hit = (!named || mine) }
-      if (!hit) next
-      if (role == "grader") { p = index($0, " | why:"); if (p) { print substr($0, 1, p - 1); next } }
-      print }' "$W/dec" > "$W/decs"
+      if (hit) H[nl] = 1 }
+    END { for (i = 1; i <= nl; i++) if (i in H) emit(i) }' "$W/dec" > "$W/decs"
   # a grader's extras: owed siblings, flagged tests, the receipt's per-case status
   if [ "$WROLE" = grader ]; then
     awk -F'|' -v rf="$W/rowids" -v df="$W/dfids" "$WHOLE"'

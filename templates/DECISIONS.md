@@ -1,9 +1,10 @@
 # {{PROJECT_NAME}} — DECISIONS
 
-Append-only, except labels. One line per decision. Trigger (law in
-CLAUDE.md): the choice picked between plausible alternatives, constrains
-future code, or would surprise a competent newcomer. Entries without an
-`| enforced:` ref, or without a label, are rejected at commit.
+Append-only, except labels and replaced-by marks. One line per decision.
+Trigger (law in CLAUDE.md): the choice picked between plausible
+alternatives, constrains future code, or would surprise a competent
+newcomer. Entries without an `| enforced:` ref, or without a label, are
+rejected at commit.
 
 Format:
 
@@ -22,9 +23,15 @@ Module column, a dotted label read as a path). A decision that bears on
 one module, or a few, names them beside its row, requirement or screen
 items, never instead of them: a module item reaches only the briefs of
 builders whose step names the module, and graders, test authors and
-fixers join by rows. `scope: project` only when it bears on many areas. A
-commit may change a line's label and nothing else; that is the one edit
-this file allows.
+fixers join by rows. `scope: project` only when it bears on many areas.
+
+A line a later decision replaces, whole or in part, is marked, and only
+marked: `| replaced-by: D-NNN[, D-MMM]` in its rule part, right before
+` | why:`, ids in the order added. Where the lines differ, the named lines
+win; the old line's words stay as written, and wherever it is quoted the
+lines it names follow it. A commit may change a line's label, or add its
+`replaced-by:` mark, or add a D-id to the mark it has, keeping the ids
+already there, and nothing else; that is the one edit this file allows.
 
 `origin: proposal` marks defaults the model chose when the owner skipped a
 hint or delegated the choice. `model:` is optional (§9 model-change

@@ -22,6 +22,7 @@ V2='/vid:vid-devagent <job note>'; fst() { awk -v a="$V2" -v b="$S" 'index($0, a
 grep -i '\*\*GitHub auto\*\*' "$H" | fst || fail "the help card's GitHub auto line does not offer $V2 before the background line"
 grep -A 6 -i '\*\*GitHub auto\*\*' "$M" | fst || fail "the README's GitHub auto does not offer $V2 before the background line"
 grep -q '^| \*\*/vid:vid-devagent\*\* |' "$H" || fail 'the help card has no /vid:vid-devagent row'
+W='a decision record or proposal the owner names: the map, the amendment, one yes'; grep -q '^| \*\*/vid:vid-incorporate\*\* | '"$W"' |' "$H" && grep -qF -- '(`/vid:vid-incorporate`): '"$W" "$M" || fail 'the help card or the README does not list /vid:vid-incorporate (IR I7)'
 # before: in the text read as one line, the verb's first place ahead of the background line's first place
 bef() { tr '\n' ' ' | awk '{ i = index($0, "/vid:vid-devagent"); j = index($0, "dm.sh up"); exit !(i && j && i < j) }'; }
 D=$R/devagent/README.md; [ ! -f "$D" ] || { bef < "$D" || fail "devagent/README.md does not offer /vid:vid-devagent before dm.sh up"; }

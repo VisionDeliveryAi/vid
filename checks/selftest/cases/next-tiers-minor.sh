@@ -4,7 +4,8 @@
 # of its rows are in; after the applied version REQ-011's fail-if is changed, reaching ROW-018,
 # ROW-021, of REQ-003 and so of stage 2, which has no open ticket, is added to S05, and ROW-022, of stage 1, to S04.
 # `next.sh triggers` lists, each in the minor tier with its evidence: reached-open ROW-018 (naming #4) and added-inactive
-# ROW-021; and ROW-022, of the active stage 1, as important added-active. Env: CHECKS.
+# ROW-021; and ROW-022, of the active stage 1, as important added-active. GM-2 T9: a minor trigger is only counted, its line
+# `quiet minor … minor`. Env: CHECKS.
 set -eu
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 . "$CHECKS/selftest/fixtures/planner-toy.sh"
@@ -25,7 +26,7 @@ grep -q 'within the hour' PRD.md && grep -q '^step S05 .*ROW-017 ROW-021 ' .vid/
 { printf 'issue\t4\tticket\tvid: claimed by the team\t2026-11-18T09:00:00Z\n'
   printf 'ticket\t4\tOPEN\t-\t2026-11-17T09:00:00Z\n'; printf 'body\t4\t%s\n' '## Tests' '- ROW-017' '- ROW-002' '- ROW-018'; } > .vid/next/read
 sh "$CHECKS/next.sh" triggers > "$T/out" 2>&1 || fail 'next.sh triggers failed'
-grep -q "^trigger${TB}minor${TB}reached-open${TB}ROW-018${TB}.*#4" "$T/out" || fail 'the reached ROW-018 in the open #4 is not minor'
-grep -q "^trigger${TB}minor${TB}added-inactive${TB}ROW-021${TB}" "$T/out" || fail 'the added ROW-021 of stage 2, with no open ticket, is not minor'
+grep -q "^quiet${TB}minor${TB}reached-open${TB}ROW-018${TB}.*#4.*${TB}minor\$" "$T/out" || fail 'the reached ROW-018 in the open #4 is not minor'
+grep -q "^quiet${TB}minor${TB}added-inactive${TB}ROW-021${TB}.*${TB}minor\$" "$T/out" || fail 'the added ROW-021 of stage 2, with no open ticket, is not minor'
 grep -q "^trigger${TB}important${TB}added-active${TB}ROW-022${TB}" "$T/out" || fail "the added ROW-022 of stage 1, #4's stage by most of its rows, is not important"
 exit 0

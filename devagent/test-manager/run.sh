@@ -39,6 +39,9 @@
 # serves: dev side (0.26.10.28.4, M9)
 set -eu
 die() { echo "run.sh: $*" >&2; exit 1; }
+# mvr <from> <to> (0.26.11.1.4, R6): a rename tried up to 5 times, 1 s apart, since a synced folder may refuse one for a moment; non-zero, the two as
+# they were, when every try fails. ViD's own record writes use the same helper; this script loads none of ViD's
+mvr() { _mn=1; until mv -f "$1" "$2"; do [ "$_mn" -lt 5 ] || return 1; _mn=$((_mn + 1)); sleep 1; done; }
 CMD=${1:-}; [ $# -eq 0 ] || shift
 # stamp <pid>: its start, as nothing moves it (v0.26.10.25.2.1, F-003, F-016): the boot's id and /proc's start in ticks on Linux and WSL, where ps's start
 # drifts; under Git Bash, whose /proc start moves with its boot time and whose ps has no -o, the two read together, in seconds; else ps's (macOS)
@@ -189,7 +192,7 @@ if [ "$CMD" = start ]; then
   echo $! > "$D/pid"; echo "$D"; exit 0
 fi
 [ -n "$D" ] || { D=$W/runs/$(date -u '+%Y%m%dT%H%M%SZ')-$$; mkdir -p "$D"; }
-echo $$ > "$D/pid"; stamp $$ > "$D/lstart.t" && mv "$D/lstart.t" "$D/lstart"   # whole or not there: a half-written start reads as no start, never another's
+echo $$ > "$D/pid"; stamp $$ > "$D/lstart.t" && mvr "$D/lstart.t" "$D/lstart"   # whole or not there: a half-written start reads as no start, never another's
 LOG=$D/log; : > "$LOG"; : > "$D/groups"; : > "$D/covers"; CO=$D/checkout
 RUN_ID=run$$; CASE_LIMIT=$(key case-limit); ALL=$(key engines); [ -n "$ENGINES" ] || ENGINES=$ALL
 # the selection's form: bare names go into the record's select-form:, at <words>; runner words, a path, or a record with no form stand
@@ -299,10 +302,10 @@ one_run() { ENGINE=$1; RESULTS=$2; n=0; GONE=''; admit
   done; }
 if [ -z "$FAULTS" ]; then for E in $ENGINES; do one_run "$E" "$D/cases-$E.xml"; [ -z "$GONE" ] || finish "$EC" "$GONE"; done
   # the rest chunk (v0.26.10.26.1 R7): each case whose name matches a row left out, by the format's matching, leaves the report, and that row's covers: line
-  if [ -n "$LEAVE" ] && [ "$LEAVE" != none ]; then for f in "$D"/cases-*.xml; do LC_ALL=C awk -v L="$LEAVE" "$DROP" "$f" > "$f.t" && mv "$f.t" "$f"; done
-    LC_ALL=C awk -v L="$LEAVE" 'BEGIN { n = split(L, q, " "); for (i = 1; i <= n; i++) x[q[i]] = 1 } !($2 in x)' "$D/covers" > "$D/covers.t" && mv "$D/covers.t" "$D/covers"; fi
+  if [ -n "$LEAVE" ] && [ "$LEAVE" != none ]; then for f in "$D"/cases-*.xml; do LC_ALL=C awk -v L="$LEAVE" "$DROP" "$f" > "$f.t" && mvr "$f.t" "$f"; done
+    LC_ALL=C awk -v L="$LEAVE" 'BEGIN { n = split(L, q, " "); for (i = 1; i <= n; i++) x[q[i]] = 1 } !($2 in x)' "$D/covers" > "$D/covers.t" && mvr "$D/covers.t" "$D/covers"; fi
   # the labelled plant (v0.26.10.27.1 R8): each case of a planted row reads failed; a row with no case plants nothing, and nothing is pushed
-  if [ -n "$PLANT" ]; then : > "$D/planted"; for f in "$D"/cases-*.xml; do LC_ALL=C awk -v L="$PLANT" -v HF="$D/planted" "$PLANTX" "$f" > "$f.t" && mv "$f.t" "$f"; done
+  if [ -n "$PLANT" ]; then : > "$D/planted"; for f in "$D"/cases-*.xml; do LC_ALL=C awk -v L="$PLANT" -v HF="$D/planted" "$PLANTX" "$f" > "$f.t" && mvr "$f.t" "$f"; done
     for r in $PLANT; do grep -qx "$r" "$D/planted" || finish 1 "not pushed: the plant's row $r has no case in this run"; done
     for r in $PLANT; do LINES="${LINES}plant: $r — a labelled plant, for the test alone: its cases made to read failed, nothing else changed
 "; done; fi
@@ -329,19 +332,19 @@ sortc() { awk -v SE="${1:-}" 'BEGIN { RS = "<" }
     if (waited >= 5) printf "analyst due: setup cases=%d\n", waited; if (slow != "") printf "analyst due: slow cases=%s\n", slow; if (SE != "") print S + 0 > SE }'; }
 cat "$D"/cases-*.xml "$D"/faults/*/cases-*.xml 2>/dev/null | sortc "$D/setup-errors" > "$D/sorted"
 # the analyst: no fault run asks for it, and a slow case already asked about fires no more
-if [ -n "$FAULTS" ]; then { grep -v '^analyst due:' "$D/sorted" || true; } > "$D/s2"; mv "$D/s2" "$D/sorted"; else A=$W/analyst-asked; touch "$A"; s=$(sed -n 's/^analyst due: slow cases=//p' "$D/sorted" | sed 's/, /,/g' | tr , '\n' | grep -vxF -f "$A" || true); { grep -v '^analyst due: slow' "$D/sorted" || true; [ -z "$s" ] || echo "analyst due: slow cases=$(printf '%s\n' "$s" | paste -sd , - | sed 's/,/, /g')"; } > "$D/s2"; mv "$D/s2" "$D/sorted"; [ -z "$s" ] || printf '%s\n' "$s" >> "$A"; fi
+if [ -n "$FAULTS" ]; then { grep -v '^analyst due:' "$D/sorted" || true; } > "$D/s2"; mvr "$D/s2" "$D/sorted"; else A=$W/analyst-asked; touch "$A"; s=$(sed -n 's/^analyst due: slow cases=//p' "$D/sorted" | sed 's/, /,/g' | tr , '\n' | grep -vxF -f "$A" || true); { grep -v '^analyst due: slow' "$D/sorted" || true; [ -z "$s" ] || echo "analyst due: slow cases=$(printf '%s\n' "$s" | paste -sd , - | sed 's/,/, /g')"; } > "$D/s2"; mvr "$D/s2" "$D/sorted"; [ -z "$s" ] || printf '%s\n' "$s" >> "$A"; fi
 # R12 (v0.26.10.25.3): a pull request's head runs' setup: errors, counted across its runs in the work folder, setup-errors, as analyst-asked is kept: at 5, whatever
 # their time, the analyst is due, once a pull request; a run whose own setup trigger fired says nothing more
 case $ASK in pr-*-*) [ -n "$FAULTS" ] || { SF=$W/setup-errors; touch "$SF"
   u=$(awk -v p="${ASK%-*}" -v e="$(cat "$D/setup-errors" 2>/dev/null || echo 0)" -v o="$SF.t" '$1 == p { t = $2; k = $3; a = $4; next } { print > o }
-    END { t += e; k++; if (a == "" && t >= 5) { a = "asked"; d = 1 } print p, t, k, a > o; if (d) print "analyst due: setup errors=" t " runs=" k }' "$SF"); mv "$SF.t" "$SF"
+    END { t += e; k++; if (a == "" && t >= 5) { a = "asked"; d = 1 } print p, t, k, a > o; if (d) print "analyst due: setup errors=" t " runs=" k }' "$SF"); mvr "$SF.t" "$SF"
   [ -z "$u" ] || grep -q '^analyst due: setup' "$D/sorted" || echo "$u" >> "$D/sorted"; } ;; esac
 [ -z "$FAULTS" ] || for F in "$D"/faults/*; do r=${F##*/}; if [ -f "$F/inconclusive.txt" ]; then echo "fault $r inconclusive: $(cat "$F/inconclusive.txt")"
   else echo "fault $r: $(sortc < "$F/cases-$PE.xml" | sed -n 's/^cases: //p')"; fi; done >> "$D/sorted"
 [ -z "$HALT" ] || finish 3 'stopped: by stop'
 [ -z "$HERE" ] || finish 0 "own run, reported to nobody, nothing pushed: $D/cases-$PE.xml"
 K=$(attempts) || finish 1 "not pushed: $K"; ID=$ASK-$((${K:-0} + 1)); R=$D/report; mkdir -p "$R/$ID"
-if [ -n "$FAULTS" ]; then rmdir "$R/$ID"; git -C "$CO" archive "origin/vid-results/$ASK-$K" | tar -x -C "$R"; mv "$R/$ASK-$K" "$R/$ID"; mkdir -p "$R/$ID/faults"
+if [ -n "$FAULTS" ]; then rmdir "$R/$ID"; git -C "$CO" archive "origin/vid-results/$ASK-$K" | tar -x -C "$R"; mvr "$R/$ASK-$K" "$R/$ID"; mkdir -p "$R/$ID/faults"
   for F in "$D"/faults/*; do if [ -f "$F/inconclusive.txt" ] && [ -d "$R/$ID/faults/${F##*/}" ]; then continue; fi; rm -rf "$R/$ID/faults/${F##*/}"; cp -R "$F" "$R/$ID/faults/"; done; pushrep TM || finish 1 "not pushed: vid-results/$ID"; finish 0 "pushed vid-results/$ID"; fi
 EL=''; [ "$(printf '%s\n' $ENGINES | sort -u)" != "$(printf '%s\n' $ALL | sort -u)" ] || EL="engines: $ALL
 "

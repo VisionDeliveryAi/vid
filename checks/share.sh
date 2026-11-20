@@ -617,15 +617,15 @@ index_md() { awkf
 
 # findings_md: FINDINGS.md and findings/F-NNN.md from the run's findings file, in either form the owner's tools read:
 # `## F-<n> · <title>` with `- **Field:** value` bullets, or the queue's `## <step>: …` with `- seen:`, `- first:` and
-# `- words:` (numbered in order; a heading beginning Note skipped). A field the records do not give is `unrated`. With no
+# `- words:` (numbered in order; a heading beginning Note skipped). The form is read at each `## ` heading, so one file may
+# hold both (0.26.11.1.4, R8). A field the records do not give is `unrated`. With no
 # findings file, FINDINGS.md says so and the rest of the bundle is written all the same.
 findings_md() {
   FF=''; for c in "$H/.vid/VID-FINDINGS.md" "$H/.vid/VID-UPSTREAM-FINDINGS.md"; do [ -f "$c" ] && { FF=$c; break; }; done
   NFIND=0; mkdir -p "$W/gen/findings"
   if [ -n "$FF" ]; then
     FREL=records/.vid/$(basename "$FF")
-    FORM=2; grep -q '^## F-[0-9][0-9]* · ' "$FF" && FORM=1
-    awk -v FORM=$FORM -v D="$W/gen/findings" -v RID="$PROJ/$RUN" -v SRC="$FREL" -v RF="$W/gen/findings/rows" '
+    awk -v D="$W/gen/findings" -v RID="$PROJ/$RUN" -v SRC="$FREL" -v RF="$W/gen/findings/rows" '
       function cell(s) { gsub(/\|/, "/", s); gsub(/\n/, " ", s); return (s == "" ? "unrated" : s) }
       function g(k) { return (k in F) ? F[k] : "" }
       function flush(   f, k, i, o) { if (!act) return; act = 0; f = sprintf("%s/F-%03d.md", D, n)
@@ -638,18 +638,17 @@ findings_md() {
         printf "%s", o > f; close(f)
         printf "| %d | [F-%03d](findings/F-%03d.md) | %s | unrated | unrated | unrated | %s | unrated |\n", n, n, n, cell(TT), cell(g("Cost")) >> RF; close(RF)
         split("", F); split("", K); nk = 0; cur = "" }
-      FORM == 1 && /^## F-[0-9]+ · / { flush(); n++; act = 1; ON = $2; sub(/^F-/, "", ON); TT = $0; sub(/^## F-[0-9]+ · /, "", TT); cur = ""; next }
-      FORM == 1 && /^## / { flush(); cur = ""; next }
-      FORM == 1 && act && /^- \*\*[^*]+:\*\* / { k = $0; sub(/^- \*\*/, "", k); v = k; sub(/:\*\* .*/, "", k); sub(/^[^*]*:\*\* /, "", v); if (!(k in F)) K[++nk] = k; F[k] = v; cur = k; next }
-      FORM == 1 && act && cur != "" { F[cur] = F[cur] "\n" $0; next }
-      FORM == 2 && /^## / { flush(); h = substr($0, 4); st = 1; next }
-      FORM == 2 && st == 1 && /^- seen: [0-9]+$/ { se = substr($0, 9); st = 2; next }
-      FORM == 2 && st == 2 && /^- first: / { fi = substr($0, 10); st = 3; next }
-      FORM == 2 && st == 3 && /^- words: / { if (tolower(substr(h, 1, 4)) == "note") { st = 0; next }
+      /^## F-[0-9]+ · / { flush(); FM = 1; st = 0; n++; act = 1; ON = $2; sub(/^F-/, "", ON); TT = $0; sub(/^## F-[0-9]+ · /, "", TT); cur = ""; next }
+      /^## / { flush(); FM = 2; cur = ""; h = substr($0, 4); st = 1; next }
+      FM == 1 && act && /^- \*\*[^*]+:\*\* / { k = $0; sub(/^- \*\*/, "", k); v = k; sub(/:\*\* .*/, "", k); sub(/^[^*]*:\*\* /, "", v); if (!(k in F)) K[++nk] = k; F[k] = v; cur = k; next }
+      FM == 1 && act && cur != "" { F[cur] = F[cur] "\n" $0; next }
+      FM == 2 && st == 1 && /^- seen: [0-9]+$/ { se = substr($0, 9); st = 2; next }
+      FM == 2 && st == 2 && /^- first: / { fi = substr($0, 10); st = 3; next }
+      FM == 2 && st == 3 && /^- words: / { if (tolower(substr(h, 1, 4)) == "note") { st = 0; next }
         n++; act = 1; ON = n; w = substr($0, 10); stp = h; sub(/:.*/, "", stp); TT = w; if (match(TT, /[a-z)][:.] /)) TT = substr(TT, 1, RSTART); TT = substr(TT, 1, 160)
         K[++nk] = "Seen"; F["Seen"] = fi " · " stp " · seen " se " time" (se == "1" ? "" : "s") " (queue.sh defect)"; K[++nk] = "What happened"; F["What happened"] = w; cur = "What happened"; st = 4; next }
-      FORM == 2 && st == 4 { F[cur] = F[cur] "\n" $0; next }
-      FORM == 2 { st = 0 }
+      FM == 2 && st == 4 { F[cur] = F[cur] "\n" $0; next }
+      FM == 2 { st = 0 }
       END { flush(); print n + 0 }' "$FF" > "$W/nfind"
     NFIND=$(cat "$W/nfind")
   fi
@@ -668,7 +667,9 @@ findings_md() {
 }
 
 # run_md: RUN.md, FORMAT's run card: its 12 fields in their order, each filled from the run's records or `unknown`; costs in
-# time and tokens alone
+# time and tokens alone. 0.26.11.1.4 (R8): the version line names each vid= the session events carry and the time of the last
+# session event, never a bare version; "Who and what" lists the events' sessions, then each transcript the share took
+# that no event names, its model from the bundle's statistics. Role and machine stay unknown: no record holds them
 run_md() {
   _kv() { sed -n "s/^$1:[[:space:]]*//p" "$2" 2>/dev/null | head -n 1; }
   REPO=$(_kv repo "$H/.vid/tw/settings"); SREPO=$(_kv spec-repo "$H/.vid/tw/settings")
@@ -680,21 +681,26 @@ run_md() {
     function ep(t) { return ((dn(substr(t, 1, 4) + 0, substr(t, 6, 2) + 0, substr(t, 9, 2) + 0) * 24 + substr(t, 12, 2)) * 60 + substr(t, 15, 2)) * 60 + substr(t, 18, 2) }
     function val(k,   i, v) { i = index($0, " " k "="); if (!i) return ""; v = substr($0, i + length(k) + 2); if (substr(v, 1, 1) == "\"") { v = substr(v, 2); sub(/".*/, "", v) } else sub(/ .*/, "", v); return v }
     { a = val("at"); if (a ~ /^20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]Z$/) { if (t0 == "" || a < t0) t0 = a; if (a > t1) t1 = a } }
-    $1 == "session" { s = val("id"); if (s != "" && !(s in S)) { S[s] = 1; o[++n] = s; md[s] = val("model") }; v = val("vid"); if (v != "" && v != "-") ver = v }
+    $1 == "session" { s = val("id"); if (s != "" && !(s in S)) { S[s] = 1; o[++n] = s; md[s] = val("model") }; vat = a; v = val("vid"); if (v != "" && v != "-") { ver = v; if (!(v in V)) { V[v] = 1; vl = vl (vl == "" ? "" : ", ") v } } }
     END { print "start\t" (t0 == "" ? "unknown" : t0); print "end\t" (t1 == "" ? "unknown" : t1)
       if (t0 != "") { e = ep(t1) - ep(t0); printf "elapsed\t%dh %02dm\n", int(e / 3600), int((e % 3600) / 60) } else print "elapsed\tunknown"
-      print "vid\t" (ver == "" ? "unknown" : ver); for (i = 1; i <= n; i++) print "session\t" o[i] "\t" (md[o[i]] == "" || md[o[i]] == "-" ? "unknown" : md[o[i]]) }' "$EVF" > "$W/runfacts"
+      print "vid\t" (ver == "" ? "unknown" : ver); print "vids\t" vl; print "vidat\t" vat; for (i = 1; i <= n; i++) print "session\t" o[i] "\t" (md[o[i]] == "" || md[o[i]] == "-" ? "unknown" : md[o[i]]) }' "$EVF" > "$W/runfacts"
   rf() { awk -F'\t' -v k="$1" '$1 == k { print $2; exit }' "$W/runfacts"; }
   VER=$(rf vid); if [ "$VER" = unknown ]; then _pj=$(dirname "$0")/../.claude-plugin/plugin.json; [ -f "$_pj" ] && VER=$(sed -n 's/.*"version":[[:space:]]*"\([^"]*\)".*/\1/p' "$_pj" | head -n 1); VER=${VER:-unknown}; fi
+  if [ -n "$(rf vids)" ]; then VLINE="$(rf vids), as of the last session event, $(rf vidat)"
+  elif [ "$VER" != unknown ]; then VLINE="$VER, the ViD that built this share (no session event names a version)"; else VLINE=unknown; fi
+  [ -f "$W/st.s" ] || : > "$W/st.s"
+  awk -F'\t' 'FILENAME == ARGV[1] { if ($1 == "session") { E[$2] = 1; printf "| %s | unknown | unknown | %s |\n", $2, $3 } next }
+    FILENAME == ARGV[2] { M[$1] = $4; next } !($1 in E) && !($1 in G) { G[$1] = 1; m = M[$2]; printf "| %s | unknown | unknown | %s |\n", $1, (m == "" || m == "-" ? "unknown" : m) }' "$W/runfacts" "$W/st.s" "$W/took" > "$W/who"
   TOK=$(awk -F'\t' '{ a += $5; b += $6; c += $7; o += $8; n++ } END { if (n) printf "input %d, cache read %d, cache write %d, output %d, over %d transcripts here (measured, from conversations/INDEX.md)", a, b, c, o, n }' "$W/tokens")
   case $MODE in local-auto) MW='local auto (develop)' ;; github-auto) MW='GitHub auto (tickets, ViD'"'"'s DevAgent)' ;; *) MW='GitHub team (tickets)' ;; esac
   {
     echo "# Run card · $PROJ / $RUN"; echo
     echo '## Project'; echo; echo "- **Name:** $PROJ"; echo "- **Code repository:** ${REPO:-unknown}"; echo "- **Spec repository:** ${SREPO:-unknown}"; echo
-    echo '## Run'; echo; echo "- **Id:** ${RID:-unknown}"; echo "- **Mode:** $MW"; echo "- **ViD version:** $VER"; echo "- **Records version:** ${RV:-unknown}"; echo
+    echo '## Run'; echo; echo "- **Id:** ${RID:-unknown}"; echo "- **Mode:** $MW"; echo "- **ViD version:** $VLINE"; echo "- **Records version:** ${RV:-unknown}"; echo
     echo '## Dates'; echo; echo "- **Start:** $(rf start) (the first event)"; echo "- **End:** $(rf end) (the last event)"; echo "- **Elapsed:** $(rf elapsed)"; echo
     echo '## Who and what'; echo
-    if grep -q '^session	' "$W/runfacts"; then echo '| Session | Role | Machine | Model |'; echo '|---|---|---|---|'; awk -F'\t' '$1 == "session" { printf "| %s | unknown | unknown | %s |\n", $2, $3 }' "$W/runfacts"
+    if [ -s "$W/who" ]; then echo '| Session | Role | Machine | Model |'; echo '|---|---|---|---|'; cat "$W/who"
     else echo 'unknown'; fi; echo
     echo '## Machines and tools'; echo; echo 'unknown'; echo
     echo '## Stand-ins'; echo; if [ "$MODE" = github-auto ]; then echo "- **The dev side:** ViD's DevAgent (the owner's GitHub mode answer at the plan's setup: auto)."; else echo 'unknown'; fi; echo

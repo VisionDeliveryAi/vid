@@ -2,7 +2,7 @@
 # Purpose: selftest case — the plan holds no ticket back in GitHub manual (GM-1 S4). On the planner's toy in GitHub
 # manual, S05 (stage 2) made to build on the skeleton S01 (stage 0), whose ticket #1 is published and open, with an
 # open-ticket limit of 1 already reached: `next.sh triggers` lists S05 as a publish move, as it does S02, S03 and S04,
-# each "listed; done from phase 2", and never S01, which is published. Env: CHECKS.
+# each named `publish <step>` with its hash (GM-2 §5), and never S01, which is published. Env: CHECKS.
 set -eu
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 . "$CHECKS/selftest/fixtures/planner-toy.sh"
@@ -18,6 +18,6 @@ printf 'published 1 kind=skeleton step=S01 rows=ROW-003,ROW-004 plan=p1 base=b1 
 printf '# Skeleton ticket S01\n\n## Rows\n\n> %s\n' "$(grep '^ROW-003 ' INVENTORY.md)" > .vid/tw/out/issue-1.md
 printf 'ticket\t1\tOPEN\t-\t2026-11-18T09:00:00Z\nbody\t1\tThe skeleton: ROW-003 and ROW-004.\n' > .vid/next/read
 sh "$CHECKS/next.sh" triggers > "$T/out" 2>&1 || fail 'next.sh triggers failed'
-for s in S02 S03 S04 S05; do grep -q "^move${TB}[0-9]*${TB}publish${TB}$s${TB}listed; done from phase 2\$" "$T/out" || fail "$s is not listed as publishable"; done
-! grep -q "^move${TB}[0-9]*${TB}publish${TB}S01${TB}" "$T/out" || fail 'S01, already published, is listed as a publish move'
+for s in S02 S03 S04 S05; do grep -q "^move${TB}publish${TB}$s${TB}[0-9a-f]\{40\}${TB}" "$T/out" || fail "$s is not listed as publishable"; done
+! grep -q "^move${TB}publish${TB}S01${TB}" "$T/out" || fail 'S01, already published, is listed as a publish move'
 exit 0

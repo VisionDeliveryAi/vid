@@ -238,6 +238,13 @@
 #   new step meets the open-ticket limit (.vid/tw/settings open-tickets:; refused by=open-tickets): the newest
 #   `sync`'s open tickets in .vid/tw/log, those `published` after it, and the started steps with no ticket published.
 #   `ticket:<n>` evidence resolves against a `published <n>` line of .vid/tw/log.
+#   GM-2 T2, in GitHub manual: `start` checks only that the plan is recorded and holds the step, and records the start as
+#   today; the stage scope, the graded gate, the open-ticket limit and rules A and B are skipped (the publish's warnings).
+#   `start` and `change` called with no stage open open a `stage name=replan` of their own and end it on every path; a
+#   caller holding a plan, replan or run stage open is left alone. A move's change passes --trigger owner-answer
+#   --evidence ticket:<n> and the owner's words as its why. GM-2 T7: `change` in GitHub manual skips rules A and B for rows added
+#   to a started step, and a row of a started step it leaves in no step is taken when .vid/tw/to-place holds it with the owner's
+#   words (its fourth field), in place of the evidence check; any other such row is refused.
 # v0.26.10.12.2.2 (R1) — ticket mode's plan block, only widened: under `mode: tickets` the
 #   inventory's ids are every id of every ```vid-inventory line (the first field, or the second on a rule, difference,
 #   exception, suppression, hostility or seam line), a rows: or protected: token may be any of them or a range of one
@@ -253,8 +260,9 @@
 #                      exit 0. Exit 1, the refusal on stderr, when CLAUDE_CODE_SESSION_ID's newest `stage name=add
 #                      state=start` (events at the home, this checkout's when home-of finds none or more than one, in
 #                      the gate's order) has after it no `stage name=add state=end` and no `stage name=init|develop|fix|
-#                      deploy state=start` of that session. (R4) Also exit 1 when the gate is on at this checkout, the
-#                      home, and no `step-start` or `step-resumed` comes after the gate's newest `stage name=develop
+#                      deploy state=start` of that session. (IR I5) `stage name=incorporate` is read as `name=add` is: its
+#                      start opens the hold, its end closes it, and the refusal names the verb whose start is open.
+#                      (R4) Also exit 1 when the gate is on at this checkout, the home, and no `step-start` or `step-resumed` comes after the gate's newest `stage name=develop
 #                      state=start`, in the gate's order. `start <id>` on a started step records `step-resumed step=<id>
 #                      plan=<hash>`, outside ticket mode; admission is otherwise unchanged.
 #   run-start          (R5) the place, `<at> <line>` tab-separated, of the first develop start after the newest start of
@@ -332,7 +340,7 @@ gate_at() {
 
 # --- v0.9.6 Phase D: the plan block ------------------------------------------------
 TMPD=''
-tmpd() { [ -n "$TMPD" ] || { TMPD=$(mktemp -d); trap 'rm -rf "$TMPD"' EXIT; }; }
+tmpd() { [ -n "$TMPD" ] || { TMPD=$(mktemp -d); trap 'rm -rf "$TMPD"; own_end' EXIT; }; }   # GM-2 T2: own_end, a no-op unless a stage of its own is open
 AWKAT='function lastat(  i) { for (i = NF; i >= 2; i--) if (index($i, "at=") == 1) { if ($i ~ /^at=[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]Z$/) return substr($i, 4); return "" } return "" }
 function kv(k,  i) { for (i = 2; i <= NF; i++) if (index($i, k "=") == 1) return substr($i, length(k) + 2); return "" }'
 # stage_order <events file>: the stage, step-start and step-resumed events in the gate's order (time, then file order),
@@ -681,8 +689,11 @@ rules() {
 }
 # admit_step <step> <tree-ish>: the admission (start, admit)
 admit_step() {
-  _s=$1; _at=$2
+  _s=$1; _at=$2; _nh=''
   load_plan || return 1
+  # GM-2 T2: in GitHub manual the holds are skipped — the stage scope, the graded gate, the open-ticket limit and rules A and B; their
+  # facts are the publish's warnings (GM M12). The plan must still be recorded and hold the step, and the start is recorded as today
+  ! pman "$H" || _nh=yes
   _lh=$(events plan-change | tail -n 1 | awk "$AWKAT"' { print kv("hash") }')
   if [ -z "$_lh" ]; then echo "ViD plan: refused — the plan has no recorded change: run sh checks/plan.sh change create \"<why>\"." >&2; refused_ev unrecorded-plan "$_s"; return 1; fi
   # v0.9.7.0.11 (3.8a, R16): a raw-hash mismatch is no change when the block equals the last recorded plan in canonical form
@@ -691,7 +702,7 @@ admit_step() {
   grep -q "^step	$_s	" "$TMPD/parsed" || { echo "ViD plan: refused — no step $_s in the plan." >&2; refused_ev no-step "$_s"; return 1; }
   # v0.26.10.5 (R6): with STAGES.md at the home, a step holding a row outside stages 1 to the current one is refused,
   # started or not, a pull-forward or not — the next stage's steps are planned when the current one closes
-  if [ -f "$H/STAGES.md" ] && [ -f "$H/checks/stages.sh" ]; then
+  if [ -z "$_nh" ] && [ -f "$H/STAGES.md" ] && [ -f "$H/checks/stages.sh" ]; then
     ( cd "$H" && sh checks/stages.sh scope ) > "$TMPD/stscope" 2> "$TMPD/stscope.err" || { echo "ViD plan: refused — the stage scope cannot be read (checks/stages.sh scope): $(head -n 1 "$TMPD/stscope.err")" >&2; refused_ev stage "$_s"; return 1; }
     _cur=$( cd "$H" && sh checks/stages.sh current )
     # v0.26.10.12.3 (R6): in ticket mode the next stage too once the current has its candidate (handed); a seam is stage 1;
@@ -722,15 +733,16 @@ admit_step() {
     echo "ViD plan: $_s already started — admitted (a started step is never refused again)"; return 0; fi
   _bf=$(strat)
   # v0.9.7.2 (3.5, R7): the graded gate — every admission of a new step under breadth first, a split of charged rows too
-  if [ "$_bf" = breadth-first ]; then graded_gate "$_s" || return 1; fi
-  if tickets_mode; then tlimit "$_s" || return 1; fi   # v0.26.10.12.3 (R6): the open-ticket limit, every new step
+  if [ -z "$_nh" ] && [ "$_bf" = breadth-first ]; then graded_gate "$_s" || return 1; fi
+  if [ -z "$_nh" ] && tickets_mode; then tlimit "$_s" || return 1; fi   # v0.26.10.12.3 (R6): the open-ticket limit, every new step
   awk -F'\t' -v s="$_s" '$1 == "row" && $3 == s { print $2 }' "$TMPD/parsed" > "$TMPD/steprows"
   awk -F'\t' 'FILENAME == ARGV[1] { C[$1] = 1; next } !($1 in C)' "$TMPD/charged" "$TMPD/steprows" > "$TMPD/newrows"
   # v0.9.7.2 (3.2): a hardening step's admission runs rule A with its parked rows counted as new rows
   if [ "$_bf" = breadth-first ] && [ "$(awk -F'\t' -v s="$_s" '$1 == "step" && $2 == s { print $7 }' "$TMPD/parsed")" = hardening ]; then cp "$TMPD/steprows" "$TMPD/newrows"; fi
-  if [ -s "$TMPD/newrows" ]; then rules "$_s" "$_at" "$TMPD/newrows" yes || return 1; fi
+  if [ -z "$_nh" ] && [ -s "$TMPD/newrows" ]; then rules "$_s" "$_at" "$TMPD/newrows" yes || return 1; fi
   mkdir -p "$H/.vid"; printf 'step-start step=%s plan=%s base=%s at=%s\n' "$_s" "$PLANHASH" "$(git rev-parse --short=12 HEAD 2>/dev/null || echo nohead)" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >> "$H/.vid/metrics-events"
-  if [ -s "$TMPD/newrows" ]; then echo "ViD plan: admitted $_s under plan $PLANHASH"; else echo "ViD plan: admitted $_s under plan $PLANHASH — its rows all belonged to a started step, so neither rule applies"; fi
+  if [ -n "$_nh" ]; then echo "ViD plan: admitted $_s under plan $PLANHASH — GitHub manual: no hold (its stage, its builds-on, rules A and B, the graded gate and the open-ticket limit are the publish's warnings)"
+  elif [ -s "$TMPD/newrows" ]; then echo "ViD plan: admitted $_s under plan $PLANHASH"; else echo "ViD plan: admitted $_s under plan $PLANHASH — its rows all belonged to a started step, so neither rule applies"; fi
   return 0
 }
 # step_base <step>: `base step=<id> commit=<sha> from=step-start|brief|step-start-time` (v0.9.6.1 3.5)
@@ -848,7 +860,12 @@ change_body() {
   started
   # a row of a started step may not be left in no step, unless owed, held or later
   awk -F'\t' 'NR == FNR { if ($1 == "row") P[$2] = 1; next } !($1 in P) { print $1 "\t" $2 "\t" $3 }' "$TMPD/parsed" "$TMPD/charged" > "$TMPD/orph"
-  if [ -s "$TMPD/orph" ]; then
+  # GM-2 T7: in GitHub manual a row left in no step stands on .vid/tw/to-place with the owner's words, in place of the evidence
+  # check, which ticket mode never fills; any other such row is refused
+  if [ -s "$TMPD/orph" ] && pman "$H"; then
+    BADO=$(awk -F'\t' 'FILENAME == ARGV[1] { if ($4 ~ /[^ \t]/) P[$1] = 1; next } !($1 in P) { printf "%s%s", (n++ ? " " : ""), $1 }' "$H/.vid/tw/to-place" "$TMPD/orph" 2>/dev/null || cut -f1 "$TMPD/orph" | paste -sd ' ' -)
+    if [ -n "$BADO" ]; then echo "ViD plan: refused — this change leaves rows of started steps in no step: $BADO. In GitHub manual each such row stands on .vid/tw/to-place with the owner's words." >&2; exit 1; fi
+  elif [ -s "$TMPD/orph" ]; then
     cp "$TMPD/orph" "$TMPD/map.o"
     awk -F'\t' '{ print $1 "\t-\t" }' "$TMPD/orph" > "$TMPD/map"
     states HEAD || exit 1
@@ -881,7 +898,8 @@ change_body() {
   # 0.26.10.29.2 (R1): in ticket mode the change's own raise (`other` naming unverified-rows=<n>) is the ceiling its
   # rows added to started steps are judged by, as planner.sh check reads it in tplanner
   if tickets_mode && [ "$WHAT" = other ]; then BUDOV=$(printf '%s\n' "$WHY" | sed -n 's/.*unverified-rows=\([0-9][0-9]*\).*/\1/p' | head -n 1); fi
-  for st in $(cat "$TMPD/started"); do
+  # GM-2 T7: in GitHub manual rows added to a started step skip rules A and B, as start's admission does (T2)
+  pman "$H" || for st in $(cat "$TMPD/started"); do
     grep -q "^step	$st	" "$TMPD/parsed" || continue
     if [ -n "$_pv" ]; then awk -F'\t' -v s="$st" 'FILENAME == ARGV[1] { if ($1 == "row" && $3 == s) C[$2] = 1; next } $1 == "row" && $3 == s && !($2 in C) { print $2 }' "$_pv" "$TMPD/parsed" > "$TMPD/added"
     else awk -F'\t' -v s="$st" 'FILENAME == ARGV[1] { C[$1] = 1; next } $1 == "row" && $3 == s && !($2 in C) { print $2 }' "$TMPD/charged" "$TMPD/parsed" > "$TMPD/added"; fi
@@ -912,7 +930,11 @@ guard() {
   tickets_mode && return 0
   _ge=$H/.vid/metrics-events; [ -f "$_ge" ] || return 0
   _g1=$(printf '%s\n' "$_gp" | head -n 1); _gn=$(( $(printf '%s\n' "$_gp" | grep -c .) - 1 ))
-  if [ -n "${CLAUDE_CODE_SESSION_ID:-}" ] && stage_order "$_ge" | awk -F'\t' -v s="$CLAUDE_CODE_SESSION_ID" '$3 == "stage" && $6 == s { if ($4 == "add" && $5 == "start") o = 1; else if (($4 == "add" && $5 == "end") || ($5 == "start" && $4 ~ /^(init|develop|fix|deploy)$/)) o = 0 } END { exit !o }'; then
+  # IR I5: an incorporation is held as an add is, by its own stage name; the refusal names the open one
+  if [ -n "${CLAUDE_CODE_SESSION_ID:-}" ] && _gv=$(stage_order "$_ge" | awk -F'\t' -v s="$CLAUDE_CODE_SESSION_ID" '$3 == "stage" && $6 == s { if ($4 ~ /^(add|incorporate)$/ && $5 == "start") { o = 1; v = $4 } else if (($4 ~ /^(add|incorporate)$/ && $5 == "end") || ($5 == "start" && $4 ~ /^(init|develop|fix|deploy)$/)) o = 0 } END { if (o) print v; exit !o }'); then
+    if [ "$_gv" = incorporate ]; then
+      echo "ViD pre-commit: rejected — product code staged during /vid incorporate: $_g1 (and $_gn more): an incorporation writes the spec and its tests; develop builds it as a plan step once the incorporation hands over (vid-incorporate)." >&2; return 1
+    fi
     echo "ViD pre-commit: rejected — product code staged during /vid add: $_g1 (and $_gn more): an add writes the spec and its tests; develop builds it as a plan step once the add hands over (vid-add §3)." >&2; return 1
   fi
   if [ -f "$H/.vid/RUN-STATE.md" ] && gate_at "$H" > /dev/null 2>&1 && stage_order "$_ge" | awk -F'\t' '$3 == "stage" { if ($4 == "develop" && $5 == "start") { d = 1; g = 0 } next } { g = 1 } END { exit !(d && !g) }'; then
@@ -920,6 +942,23 @@ guard() {
   fi
   return 0
 }
+# GM-2 T2: pman <home>, GitHub manual there — its newest github-mode answer manual, or a call /vid mode marks (VID_CALLER=mode) — as
+# tinv reads it (plan.sh keeps its own helpers, not lib.sh's)
+pman() { [ "${VID_CALLER:-}" = mode ] || [ "$(sed -n 's/^setup-answered key=github-mode value="\([a-z]*\)".*/\1/p' "$1/.vid/plan/setup" 2>/dev/null | tail -n 1)" = manual ]; }
+# own_stage <what> (GM-2 T2): in GitHub manual, `start` or `change` called with no stage open (the gate off) opens a `stage
+# name=replan` of its own first, so each move that admits a step or records a plan change needs no sitting, as /vid mode opens
+# its plan sitting; own_end ends it on every path, a refusal too (the EXIT trap, tmpd's included, and INT and TERM). A caller that
+# holds a plan, replan or run stage open reads the gate on and is left alone: nothing is opened or ended. With its stage open
+# and the gate still off (RUN-STATE not planned, the run stopped), refused, the stage ended. Outside manual nothing is opened
+OWNSIT=''; OWNSN=''
+own_end() { [ -n "$OWNSIT" ] || return 0; OWNSIT=''; sh "$(dirname "$0")/event.sh" "stage name=replan state=end session=$OWNSN" > /dev/null || echo "ViD plan: the end of its own replan stage was not recorded (session $OWNSN)" >&2; }
+own_stage() {
+  _oh=$(home_of 2>/dev/null) || return 0; pman "$_oh" || return 0
+  ! sh "$0" gate > /dev/null 2>&1 || return 0
+  OWNSN=${CLAUDE_CODE_SESSION_ID:-plan-$$-$(date +%s)}
+  sh "$(dirname "$0")/event.sh" "stage name=replan state=start session=$OWNSN records=29" > /dev/null || { echo "ViD plan: refused — GitHub manual: $1 could not open its own replan stage (checks/event.sh)" >&2; exit 1; }
+  OWNSIT=1; trap 'own_end' EXIT; trap 'own_end; exit 1' INT TERM
+  _og=$(sh "$0" gate 2>/dev/null) || { echo "ViD plan: refused — GitHub manual: $1 opened its own replan stage, and the gate is still off: ${_og#off }" >&2; exit 1; }; }
 need_gate() { # $1=what: inside the gate H is set; ambiguous, refused; outside, a note and exit 0
   G=$(sh "$0" gate 2>/dev/null); _grc=$?
   case "$G" in 'on '*) H=${G#on }; return 0 ;; esac
@@ -1095,7 +1134,7 @@ case "${1:-}" in
     done
     case "$NNW" in *'
 '*) echo 'ViD plan: refused — the --not-needed-by why is one line.' >&2; exit 2 ;; esac
-    need_gate 'plan change'
+    own_stage 'the plan change'; need_gate 'plan change'   # GM-2 T2
     tmpd
     block "$H/.vid/RUN-STATE.md" > "$TMPD/block"
     CAND=$(h256 < "$TMPD/block")
@@ -1117,7 +1156,7 @@ case "${1:-}" in
     exit 0 ;;
   start)
     [ -n "${2:-}" ] || usage
-    need_gate 'admission'
+    own_stage 'the admission'; need_gate 'admission'   # GM-2 T2
     RESUMING=yes; admit_step "$2" HEAD; exit $? ;;
   admit)
     [ "${2:-}" = --brief ] && [ -f "${3:-}" ] || usage

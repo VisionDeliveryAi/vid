@@ -17,6 +17,7 @@ mkdir -p "$T/t/docs"; printf '%s\n' "$SET" > "$T/set"; while IFS= read -r p; do 
 # 0.26.10.28.5 (R4): the screenshots are the design pack's, which the page does not use; they leave the set
 [ ! -e "$T/t/viewer/page/screenshots" ] || fail 'the set holds viewer/page/screenshots'
 [ -f "$T/t/viewer/page/ViD Viewer v4.dc.html" ] && [ -f "$T/t/viewer/view.sh" ] || fail "the set leaves out the viewer's page or view.sh"
+[ -f "$T/t/skills/vid-incorporate/SKILL.md" ] && [ -f "$T/t/checks/incorporate.sh" ] || fail 'the set leaves out /vid incorporate, its skill or its helper (IR I7)'
 # every path DevAgent names, relative to its file for ../, to the release tree otherwise
 find "$T/t/devagent" -type f | while IFS= read -r f; do dir=$(dirname "$f"); grep -oE '(\.\./)*(agents|skills|devagent|docs|hooks|templates|dev-manager|test-manager|checks/selftest)/[A-Za-z0-9_./-]+\.(md|sh)' "$f" 2>/dev/null | sort -u | while IFS= read -r p; do case $p in ../*|dev-manager/*|test-manager/*) t=$dir/$p; [ -e "$t" ] || t=$T/t/devagent/$p ;; *) t=$T/t/$p ;; esac; [ -e "$t" ] || echo "${f#"$T"/t/} names $p, not in the release tree" >> "$T/bad"; done; done
 [ ! -f "$T/bad" ] || { cat "$T/bad" >&2; fail 'a path outside the release set'; }

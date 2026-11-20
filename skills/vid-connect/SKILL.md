@@ -28,4 +28,6 @@ One job: connect a call, and close it. It decides nothing. Every rule is in `che
 ## The end
 
 `sh checks/connect.sh end`: the records saved, then the lock freed, one line each. Run it on every way the call ends once
-the start held the lock, a failure included. If it exits 1, say which line failed.
+the start held the lock, a failure included. If it exits 1, say which line failed. In `/vid next` it comes after the moves
+named and the page (GM-2 T10): every move runs inside the lock the start took, its script calls marked as the call's own
+(`VID_CALLER=next`), and nothing waits on the owner while the lock is held.

@@ -5,7 +5,7 @@
 # `next.sh triggers` lists S03, S04 and S05 as publish moves, each warned past the limit (1 open, 2 with it, over 1); S05
 # (stage 2) also warned that stage 1, the lowest active stage, has 3 tests not yet accepted; S03 and S04, of stage 1, are
 # not warned for their stage, S04 though its rows now begin with ROW-017, of stage 2: a step's stage is the one most of its
-# rows are in. Env: CHECKS.
+# rows are in. GM-2 §5: a move and its warnings are named by kind and subject, `publish <step>`. Env: CHECKS.
 set -eu
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 . "$CHECKS/selftest/fixtures/planner-toy.sh"
@@ -28,8 +28,7 @@ printf 'row ROW-012 held | stand-in: the self-test\n' >> .vid/tw/handed
 { printf 'issue\t2\tticket\tvid: claimed by the team\t2026-11-18T09:00:00Z\n'
   printf 'ticket\t1\tCLOSED\t-\t2026-11-17T09:00:00Z\nticket\t2\tOPEN\t-\t2026-11-17T09:00:00Z\n'; } > .vid/next/read
 sh "$CHECKS/next.sh" triggers > "$T/out" 2>&1 || fail 'next.sh triggers failed'
-for s in S03 S04 S05; do k=$(awk -F'\t' -v s="$s" '$1 == "move" && $3 == "publish" && $4 == s { print $2 }' "$T/out")
-  [ -n "$k" ] || fail "$s is not a publish move"
+for s in S03 S04 S05; do k=publish; grep -q "^move${TB}publish${TB}$s${TB}[0-9a-f]\{40\}${TB}" "$T/out" || fail "$s is not a publish move"
   grep -q "^warning${TB}$k${TB}$s${TB}limit${TB}1 open tickets, 2 with this one, over open-tickets: 1${TB}" "$T/out" || fail "$s is not warned past the open-ticket limit"
   if [ "$s" = S05 ]; then grep -q "^warning${TB}$k${TB}S05${TB}stage-ahead${TB}stage 2, ahead of stage 1, the lowest active stage, whose 3 tests are not yet accepted${TB}" "$T/out" || fail 'S05 is not warned that stage 1 has 3 tests not accepted, the held ROW-012 among them'
   else ! grep -q "^warning${TB}$k${TB}$s${TB}stage-ahead${TB}" "$T/out" || fail "$s, of stage 1, is warned for its stage"; fi; done

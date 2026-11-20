@@ -22,7 +22,7 @@ command. `sh checks/writer.sh` writes and checks; `sh checks/github.sh` exports 
 
 ## Before any work
 
-1. Refuse in one line unless `.vid/RUN-STATE.md` says `mode: tickets`.
+1. Refuse in one line unless `.vid/RUN-STATE.md` says `mode: tickets`. In GitHub manual, read `manual.md` first.
 2. Refuse in one line unless `checks/writer.sh` is present and `checks/records-version` is 29 or later.
 3. **The go.** `sh checks/writer.sh gate`. Each line it prints is a thing missing:
    - the plan not ratified, or ratified again after a change to a ratified file;

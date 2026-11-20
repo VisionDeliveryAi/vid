@@ -60,7 +60,7 @@ Run `round.sh wait` and `round.sh step` yourself, in the foreground, in this tur
 | `close <step>` | Nothing: `next` asks for the close run |
 | `asked <n> close <step>` | Nothing: DevAgent runs the chunks |
 | `closed <step>` | Say it to the owner, once: the step closed on a run in every engine |
-| `close-again <step> <chunk>`, `close-lost …`, `close-red …` | Nothing for the first; the others are `Q<n>` lines for the owner |
+| `close-again <step> <chunk>`, `close-lost …`, `close-red …` | Nothing for the first; the others are `Q<n>` lines for the owner. Where ViD's line gives no recommendation, give none of your own: relay the line as it stands, with the owner's earlier answer it shows (0.26.11.1.4, R2) |
 | `failing <row>`, `close-fix <step> <rows>`, `close-done <step>` | Nothing: a close's red rows read failing and go in one fix line, which `next` makes one fix ticket; once its fix tickets merge, `next` asks the whole close again (v0.26.10.25.4) |
 | `close-twice <step> <row>` | A `Q<n>` line: the row failed again after its fix. Tell the owner both reasons, and go on; their `again` writes another fix line, their `limit` rules it a known limit |
 | `close-shrink <step> <rows>` (0.26.10.29.2, R7) | A `Q<n>` line: the close asked again after its fix tickets merged is red on rows that are not a strict subset of the close before it, so the fix loop has not shrunk and no fix line is written. Tell the owner both closes' red rows, as the line names them, and go on; their `again` writes the fix line, their `limit` rules the rows red now known limits. A stage's C3 is read the same way |

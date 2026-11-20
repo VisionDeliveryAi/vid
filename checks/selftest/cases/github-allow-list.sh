@@ -4,7 +4,10 @@
 # ticket mode's calls removed with it: gh auth status, repo view, label create, issue create|edit|view|list|comment|
 # close, pr view|list|comment, repo create (v0.26.10.12.3 R2), api for milestones and an issue comment's edit
 # (v0.26.10.12.3 fix 3: -X PATCH alone, the code repository's alone), and 0.26.10.28.7's share forms (api user, users/<WHO>,
-# orgs/<SOWN>/memberships/<LOGIN>, repos/<SREPO>/collaborators/<WHO> and repos/<SREPO>/invitations); no other line calls gh; the file holds no
+# orgs/<SOWN>/memberships/<LOGIN>, repos/<SREPO>/collaborators/<WHO> and repos/<SREPO>/invitations), GM-2 T3's three (the read
+# of an issue's id, repos/$REPO/issues/<n>; and, under FORMPOST, which the file sets empty first (as it does RECREAD and RR, record-read's), -X POST of one -F field to an
+# issue's sub_issues, sub_issue_id, and to its dependencies/blocked_by, issue_id), and IR I1's record-read forms (GETs of the
+# linked repository's pulls/<N>, pulls/<N>/files and contents/<path>?ref=<sha>); no other line calls gh; the file holds no
 # `auth token` and no `--with-token`. Run: comment, label and close log only listed calls; with gh auth status failing,
 # each of them stops after that one call; each of the ten removed subcommands is a usage error that calls no gh. Env: CHECKS.
 set -eu
@@ -16,6 +19,10 @@ OK='auth status|repo view|repo create|label create|issue create|issue edit|issue
 # 0.26.10.28.7 (R6): the share's own forms, exactly these (share-allow proves each is tied to its one target)
 # GM-1 S6: next-read's one new call, a GET of an issue's sub-issues (next-read checks it is refused with any method but GET or a field)
 OK="$OK"'|api "repos/\$REPO/issues/\$p/sub_issues"'
+# GM-2 T3: the read of an issue's id, for the links of a first post in the form (its POSTs are api -X, checked below)
+OK="$OK"'|api "repos/\$REPO/issues/\$b"|api "repos/\$REPO/issues/\$N"'
+# IR I1: record-read's three GETs of the linked repository (github-record-read checks each is a read, with no method or field)
+OK="$OK"'|api "repos/\$RR/pulls/\$N"|api "repos/\$RR/pulls/\$N/files"|api "repos/\$RR/contents/\$q\?ref=\$H"'
 OK="$OK"'|api user|api "users/\$WHO"|api "orgs/\$SOWN/memberships/\$LOGIN"|api "repos/\$SREPO/collaborators/\$WHO"|api "repos/\$SREPO/invitations"'
 grep -v '^[[:space:]]*#' "$GS" | grep -oE 'ghc [a-z"-][^ ]* [^ ]*' | sed 's/^ghc //' | awk '{ print $1 " " $2 }' | sort -u > "$T/calls"
 [ -s "$T/calls" ] || fail 'no ghc call found — the case reads nothing'
@@ -25,6 +32,13 @@ grep -v '^[[:space:]]*#' "$GS" | grep -nE '(^|[;&|(]|\$\()[[:space:]]*gh[[:space
 # the issue comment's edit (fix 3): only repos/$REPO/issues/comments/<digits>, only with -X PATCH, called only so
 grep -q '"repos/\$REPO/issues/comments/"\[0-9\]\*) case "\${_p##\*/}" in \*\[!0-9\]\*) gref' "$GS" && grep -q '\[ "\$_m" = PATCH \] || gref' "$GS" || fail 'the issue comment edit is not limited to -X PATCH on the code repository'
 [ "$(grep -v '^[[:space:]]*#' "$GS" | grep -c 'issues/comments/\$')" = 1 ] && grep -q 'ghc api -X PATCH "repos/\$REPO/issues/comments/\$c" -F ' "$GS" || fail 'an issue comment is reached other than by its edit'
+# GM-2 T3: the form post's two links, each -X POST of its one -F field, only under FORMPOST, which no environment sets
+grep -q "^REPO=''; SHARE=''; .*FORMPOST=''" "$GS" || fail 'FORMPOST is not set empty before any call'
+# IR I1: nor record-read's mode and repository, RECREAD and RR, set empty on the same line
+grep "^REPO=''; SHARE=''; " "$GS" | grep -q " RECREAD='';" && grep "^REPO=''; SHARE=''; " "$GS" | grep -q " RR=''" || fail 'RECREAD or RR is not set empty before any call'
+[ "$(grep -v '^[[:space:]]*#' "$GS" | grep -c 'FORMPOST=yes ghc api -X POST "repos/\$REPO/issues/\$[A-Za-z]*/sub_issues" -F "sub_issue_id=\$ID"')" = 1 ] || fail 'the sub-issue link is not one -X POST of -F sub_issue_id under FORMPOST'
+[ "$(grep -v '^[[:space:]]*#' "$GS" | grep -c 'FORMPOST=yes ghc api -X POST "repos/\$REPO/issues/\$[A-Za-z]*/dependencies/blocked_by" -F "issue_id=\$[A-Za-z]*"')" = 2 ] || fail 'the blocked-by links are not -X POST of -F issue_id under FORMPOST'
+[ "$(grep -v '^[[:space:]]*#' "$GS" | grep -c 'sub_issues"* -F\|blocked_by"* -F')" = "$(grep -v '^[[:space:]]*#' "$GS" | grep -c 'FORMPOST=yes ghc api -X POST')" ] || fail 'a link is posted outside FORMPOST'
 grep -q 'auth token' "$GS" && fail 'the file holds "auth token"'
 grep -q -- '--with-token' "$GS" && fail 'the file holds "--with-token"'
 # a run logs only listed calls
