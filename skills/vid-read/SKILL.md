@@ -1,16 +1,21 @@
 ---
 name: vid-read
-description: Internal — the reads of a ViD call in ticket mode: GitHub through `checks/next.sh read` (the round read, each published ticket's body, its sub-issues at every depth, the issues assigned to the owner), then Slack, when set up, for context alone. Invoked by /vid next; written so /vid run can invoke it too. Not a verb.
+description: The reads of a ViD call in ticket mode, in both GitHub modes: GitHub through the one read, `checks/round.sh read` into `.vid/round/read` (the round read; in GitHub manual each published ticket's body, its sub-issues at every depth and the issues assigned to the owner too), then Slack, when set up, for context alone. Invoked by /vid next; the owner's command `/vid:vid-read` shows it at any time. Use when the owner says "vid read" or asks what ViD reads on GitHub now.
 ---
 
-# vid-read
+# /vid:vid-read
 
 One job: read, and write down what was read. It decides nothing, and never stops a call: it says what it could not read.
 
+**Called by the owner** as `/vid:vid-read`, in either GitHub mode: inside /vid run's own conversation it uses the run's lock and
+leaves it held; anywhere else the vid-connect skill's start first and its end after, however the call ends (GM-4 S0).
+
 ## GitHub
 
-`sh checks/next.sh read`: `github.sh next-read`'s lines into `.vid/next/read`. Say each `unread` line it holds, in plain
-words: what could not be read, and why.
+`sh checks/round.sh read`: the one read of GitHub (GM-4 F3), `github.sh round-read`'s lines written whole into
+`.vid/round/read`; in GitHub manual with the ticket bodies, sub-issues and assignees, which `round.sh` adds itself. Say each
+`unread` line it holds, in plain words: what could not be read, and why. On exit 1 the read failed and the file is as it
+was: say the lines it printed.
 
 ## Slack, for context alone
 

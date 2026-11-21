@@ -4,7 +4,7 @@
 # (it logs its calls, its `wslpath -a` gives the file's absolute path, and it runs `sh …` natively) and no
 # .vid/windows, `sh checks/lib/wsl.sh notice` records `wsl: yes` at the main checkout and prints the one yes line,
 # naming that file; the PRD court run after it goes through `wsl.exe`. With ViD's skills beside checks/: init and
-# create-prd ask no WSL question and run `notice`; vid-run (after its refresh), vid-plan (after its refresh, before its
+# create-prd ask no WSL question and run `notice`; vid-connect (after its refresh; the run skill's start since GM-4 F2 and K10), vid-plan (after its refresh, before its
 # courts) and vid-develop run it in their start; RECORDS.md's `.vid/windows` row names `notice` as its writer; and
 # vid-run's loop paragraph holds the pinned sentence on running the round itself (0.26.11.1.3, R4). Env: CHECKS.
 set -eu
@@ -42,7 +42,7 @@ grep -q "^sh .*/prd\.sh " "$T/wsl.log" || fail "after the notice recorded yes, t
 # the skills, RECORDS.md and vid-run's loop sentence
 S=$CHECKS/../skills
 [ -d "$S" ] && [ -f "$CHECKS/../RECORDS.md" ] || { echo 'needs skills/ and RECORDS.md beside checks/'; exit 77; }
-for k in vid-init vid-create-prd vid-run vid-plan vid-develop; do
+for k in vid-init vid-create-prd vid-connect vid-plan vid-develop; do
   tr '\n' ' ' < "$S/$k/SKILL.md" | tr -s ' ' | grep -qF 'checks/lib/wsl.sh" notice' || fail "$k does not run checks/lib/wsl.sh notice"
 done
 for k in "$S"/*/SKILL.md; do
@@ -51,8 +51,8 @@ for k in "$S"/*/SKILL.md; do
   ! grep -qi 'WSL question' "$T/flat" || fail "${k#"$S"/} still names the WSL question"
 done
 at() { grep -n -F -- "$2" "$1" | head -1 | cut -d: -f1; }
-VR=$S/vid-run/SKILL.md; n=$(at "$VR" 'checks/lib/wsl.sh" notice')
-[ "$n" -gt "$(at "$VR" 'checks/refresh.sh"')" ] && [ "$n" -lt "$(at "$VR" '## The loop')" ] || fail "vid-run does not run the notice after its refresh, before the loop"
+VR=$S/vid-run/SKILL.md; VC=$S/vid-connect/SKILL.md; n=$(at "$VC" 'checks/lib/wsl.sh" notice')
+[ "$n" -gt "$(at "$VC" '`connect refresh:`')" ] && [ "$n" -lt "$(at "$VC" '## The end')" ] || fail "vid-connect does not run the notice after its refresh, before the end"
 VP=$S/vid-plan/SKILL.md; n=$(at "$VP" 'checks/lib/wsl.sh" notice')
 [ "$n" -gt "$(at "$VP" 'checks/refresh.sh"')" ] && [ "$n" -lt "$(at "$VP" 'checks/prd.sh PRD.md')" ] || fail "vid-plan does not run the notice after its refresh, before its courts"
 VD=$S/vid-develop/SKILL.md; n=$(at "$VD" 'checks/lib/wsl.sh" notice')

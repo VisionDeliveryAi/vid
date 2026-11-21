@@ -10,16 +10,15 @@ with a ```vid-placement block) — otherwise point the owner at /vid init.
 
 **The start (v0.26.10.24 R1).** Outside ticket mode, read `checks/records-version` first: absent or below 32, tell the owner the project's checks/ needs the refresh and stop before any work; the refresh is vid-develop's ("Version skew"), run before the add is asked again. **Stage events (v0.9.5 3.11, R11; v0.26.10.11 R6; RECORDS.md).** Outside ticket mode, in the project, record `sh checks/event.sh "stage name=add state=start session=$CLAUDE_CODE_SESSION_ID records=30 base=$(git rev-parse --short=12 HEAD)"` when this verb starts — `base=` is HEAD before the add's first commit, which develop's completion grade reads; outside ticket mode, whenever a session takes the add over, record it again with its first `base=` — and `sh checks/event.sh "stage name=add state=end session=$CLAUDE_CODE_SESSION_ID"` when it hands back or hands over (§3); develop writes its own. Every event this skill names is written the same way, `sh checks/event.sh '<event>'`, which appends it to `.vid/metrics-events` with its time.
 
-**GitHub manual (GM-1 S1).** When
+**GitHub manual (GM-3 U2).** When
 `sh "${CLAUDE_PLUGIN_ROOT}/checks/devagent-start.sh" mode` prints `manual`,
-the door is shut: say in one line, "In GitHub manual the door does not
-change the spec: change it by hand, as today, and the change shows as
-pending at /vid next.", and draft, record and commit nothing;
-`checks/land.sh` refuses too.
+the add drafts through the door as the ticket-mode branch below does, with
+GitHub manual's one difference as the door says it (no plan block).
+The hand-back names /vid next in place of /vid run.
 
 **Ticket mode (v0.26.10.25.5, R1).** While `.vid/RUN-STATE.md` says `mode:
-tickets`, the add is a draft, as `/vid fix`'s ticket-mode branch drafts
-(the vid-fix skill): it records no stage event, so the run's stage stays
+tickets`, the add is a draft through the door, the vid-fix skill's
+ticket-mode branch: it records no stage event, so the run's stage stays
 the newest and `plan.sh` stays on, and it commits nothing. Run §1, §2 (the
 placement in STAGES.md included) and §2b's derivation and ratification in
 the working tree, uncommitted, the new rows written `owed: spec-only —
@@ -30,12 +29,11 @@ count: first the whole-set review in delta mode by a fresh agent, its
 output (`none`, or `finding <row id> | <why>` lines) in a file; then `sh
 checks/land.sh draft --review <that file> --why "/vid add: <the add, in a line>"
 --plan <the block file>` prints it (refused, it names the check and keeps
-the tree: v0.26.10.26.7, R4, R5), and `sh checks/queue.sh ask draft <n>` asks the
-owner once. No §3: grading stays per ticket, and staging stays the dev
-team's. The owner's yes lands it in `/vid run`, which publishes its
-tickets. The hand-back (§5) names `/vid run` on both its lines: "the add
-is draft <n>, asked as Q<k>", and "say yes in /vid:vid-run to land it",
-then back to /vid run's loop at 2 (v0.26.10.26.7, R3).
+the tree: v0.26.10.26.7, R4, R5); the door's ask and landing take it from
+there. No §3: grading stays per ticket, and staging stays the dev
+team's. The hand-back (§5) is the door's: "the add is draft <n>, asked as
+Q<k>", and that the owner's yes lands it, then back to /vid run's loop at 2,
+or the call (v0.26.10.26.7, R3).
 
 ## 1. Mini-interview
 

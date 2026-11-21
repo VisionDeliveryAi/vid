@@ -12,12 +12,13 @@ set -eu
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 fail() { echo "stage9-rows: $*" >&2; cat "$T/out" >&2 2>/dev/null || true; exit 1; }
 g() { git -c user.email=vid@selftest -c user.name=vid "$@"; }
-# R4: the skill's line, between the mode check and the lock (in ViD's own layout, where skills/ sits beside checks/)
-SK=$CHECKS/../skills/vid-run/SKILL.md
+# R4: the skill's line, between the mode check and the lock (in ViD's own layout, where skills/ sits beside checks/); vid-connect's
+# since GM-4 F2 and K10, which move the run skill's start there
+SK=$CHECKS/../skills/vid-connect/SKILL.md
 if [ -f "$SK" ]; then
-  awk '/this project is not in ticket mode/ { m = NR } /This project was planned by the old ticket mode; re-plan it with \/vid plan\./ { r = NR } /^\*\*The lock\.\*\*/ { l = NR }
-    END { exit !(m && r && l && m <= r && r < l) }' "$SK" || fail "vid-run's refusal of an old-ticket-mode project is missing or out of place"
-  grep -q 'a `.vid/tickets/` folder and no `.vid/tw/settings`' "$SK" || fail "vid-run's refusal does not name what it reads"
+  awk '/this project is not in ticket mode/ { m = NR } /This project was planned by the old ticket mode; re-plan it with \/vid plan\./ { r = NR } /`connect lock:`/ && !l { l = NR }
+    END { exit !(m && r && l && m <= r && r < l) }' "$SK" || fail "vid-connect's refusal of an old-ticket-mode project is missing or out of place"
+  grep -q 'a `.vid/tickets/` folder and no `.vid/tw/settings`' "$SK" || fail "vid-connect's refusal does not name what it reads"
 fi
 # CK-R-257: the export in ticket mode, then in develop mode
 export CLAUDE_CONFIG_DIR="$T/claude"; mkdir -p "$T/claude/projects"

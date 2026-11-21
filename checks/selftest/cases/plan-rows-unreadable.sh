@@ -91,11 +91,12 @@ echo '* scope --upto -*' > "$T/stfail"; rd sh checks/metrics.sh stage-close --st
 [ "$RC" = 0 ] && grep -q '^stage-closed n=0 ' .vid/metrics-events && grep -q '^## stage 0 ' .vid/SLICE-REPORTS.md || fail "stage 0 did not close, or its report asked a stage below 0 ($RC)"
 
 # 4. the text check: no read of planner.sh rows or stages.sh scope under checks/ swallows its failure
-# each `;`-part of a line that reads either (raw, or through lib.sh's lread or mustread): no `|| true` or `|| :`, no pipe of its output, and a
-# raw read or an lread has a branch for its failure (16 lines at the base: close.sh 4, end, grade, land 2, metrics 3, plan, planner, queue, walk 2)
+# each `;`-part of a line that reads either (raw, run by `sh`, or through lib.sh's lread or mustread): no `|| true` or `|| :`, no pipe of its
+# output, and a raw read or an lread has a branch for its failure (16 lines at the base: close.sh 4, end, grade, land 2, metrics 3, plan,
+# planner, queue, walk 2). A raw read is a command, `sh` running the script: a message that names the command in its words reads nothing
 for f in "$CHECKS"/*.sh; do case ${f##*/} in test.sh) continue ;; esac   # test.sh's read sits in an if whose other branch keeps every case
   awk -v F="${f##*/}" '/^[ \t]*#/ { next } { n = split($0, sg, ";"); for (i = 1; i <= n; i++) { s = sg[i]
-      raw = (s ~ /(planner\.sh"? rows|stages\.sh"? scope|"\$_pl" rows)( |"|\)|$)/); lib = (s ~ /(lread|mustread) [^ ]+ (planner rows|stages scope)/)
+      raw = (s ~ /(^|[^A-Za-z0-9_])sh ("?[^ ]*\/)?(planner\.sh"? rows|stages\.sh"? scope)( |"|\)|$)/ || s ~ /(^|[^A-Za-z0-9_])sh "\$_pl" rows( |"|\)|$)/); lib = (s ~ /(lread|mustread) [^ ]+ (planner rows|stages scope)/)
       if (!raw && !lib) continue
       if (s ~ /[|][|] *(true|:)/ || s ~ /(rows|scope)[^|]*[^|][|][^|]/ || (raw && s !~ /(rows|scope)[^|&]*([|][|]|&&)/) || (s ~ /lread / && s !~ /[|][|]/)) print F ":" FNR ":" s } }' "$f"; done > "$T/sw"
 [ ! -s "$T/sw" ] || { cp "$T/sw" "$T/out"; fail "$(grep -c . "$T/sw") reads swallow a failure"; }

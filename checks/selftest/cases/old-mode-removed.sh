@@ -1,6 +1,6 @@
 #!/bin/sh
 # Purpose: selftest case — the first ticket mode is removed and nothing calls it (0.26.10.28.1, 9.1 R1, R2, R8; stage 9 S2).
-# checks/ticket.sh, the skills vid-replan, vid-ticket-approve and vid-ticket-implement and the fixture
+# checks/ticket.sh, the skills vid-ticket-approve and vid-ticket-implement (vid-replan is GM-3's new skill, the name taken again) and the fixture
 # checks/selftest/fixtures/round.sh are gone; no script, hook, skill or case calls ticket.sh or one of github.sh's ten
 # removed subcommands (publish, pull, run-full, session, clone, next-ticket, claim, push, review, merge), by name or by
 # $0 — a call is `sh …ticket.sh` or `sh …github.sh <removed>`, never a mention; develop's own files (metrics.sh,
@@ -12,7 +12,7 @@ fail() { echo "old-mode-removed: $*" >&2; exit 1; }
 R=$CHECKS/..; [ -d "$R/skills" ] && [ -d "$R/devagent" ] || R=''
 [ ! -e "$CHECKS/ticket.sh" ] || fail 'checks/ticket.sh is still there'
 [ ! -e "$CHECKS/selftest/fixtures/round.sh" ] || fail 'the old round fixture is still there'
-if [ -n "$R" ]; then for s in vid-replan vid-ticket-approve vid-ticket-implement; do [ ! -e "$R/skills/$s" ] || fail "skills/$s is still there"; done; fi
+if [ -n "$R" ]; then for s in vid-ticket-approve vid-ticket-implement; do [ ! -e "$R/skills/$s" ] || fail "skills/$s is still there"; done; fi
 OLD='publish|pull|run-full|session|clone|next-ticket|claim|push|review|merge'
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 if [ -n "$R" ]; then set -- "$R/checks" "$R/hooks" "$R/skills" "$R/devagent" "$R/agents" "$R/templates"; else set -- "$CHECKS"; fi

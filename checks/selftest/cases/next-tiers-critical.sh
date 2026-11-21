@@ -12,7 +12,7 @@ g() { git -c user.email=vid@selftest -c user.name=vid "$@"; }
 TB=$(printf '\t')
 pt_toy "$T/toy"; git init -q; printf '.vid/\n' > .gitignore; g add -A; g commit -qm 'the spec'
 printf 'setup-answered key=github-mode value="manual" words="the toy, manual" at=2026-11-19T09:00:00Z\n' >> .vid/plan/setup
-mkdir -p .vid/tw/out .vid/next; git rev-parse HEAD > .vid/tw/applied
+mkdir -p .vid/round .vid/tw/out .vid/next; git rev-parse HEAD > .vid/tw/applied
 printf 'published 2 kind=step step=S02 rows=ROW-001,ROW-005 plan=p1 base=b1 export=e1 parts=1 taken-over=comments at=2026-11-10T09:00:00Z\n' > .vid/tw/log
 printf '# Step ticket S02\n\n## Rows\n\n> %s\n> %s\n' "$(grep '^ROW-001 ' INVENTORY.md)" "$(grep '^ROW-005 ' INVENTORY.md)" > .vid/tw/out/issue-2.md
 sed 's/^\(ROW-001 .*\)holding only jobs it has not sent before\./\1holding only jobs it has not sent before, newest first./' INVENTORY.md > "$T/i" && cat "$T/i" > INVENTORY.md
@@ -20,7 +20,7 @@ grep -q 'newest first' INVENTORY.md || fail 'ROW-001 was not restated'
 pt_rs 's/ | lane: devagent//'; ! grep -q 'lane:' .vid/RUN-STATE.md || fail "the steps' lanes were not removed"
 { printf 'issue\t2\tticket\tvid: claimed by the team\001a note\t2026-11-11T09:00:00Z\n'
   printf 'issue\t7\tblocked\tQuestion: which feed first?\t2026-11-12T09:00:00Z\n'
-  printf 'ticket\t2\tOPEN\t-\t2026-11-10T09:00:00Z\nbody\t2\tTests: ROW-001 and ROW-005.\n'; } > .vid/next/read
+  printf 'ticket\t2\tOPEN\t-\t2026-11-10T09:00:00Z\nbody\t2\tTests: ROW-001 and ROW-005.\n'; } > .vid/round/read
 mkdir -p .vid/decide/close/S02/1; printf 'asked\t2026-11-12T09:00:00Z\n' > .vid/decide/close/S02/1/ask
 printf 'twice ROW-005 now: the feed read failed · before: the feed read failed\n' > .vid/decide/close/S02/1/items
 sh "$CHECKS/next.sh" triggers > "$T/out" 2>&1 || fail 'next.sh triggers failed'

@@ -29,6 +29,7 @@ sh "$CHECKS/next.sh" triggers > "$T/tr" 2> "$T/out" || fail 'next.sh triggers fa
 ! grep -qE "^move${TB}(amend|withdraw)${TB}" "$T/tr" || { grep '^move' "$T/tr" > "$T/out"; fail 'an amend or withdraw move is listed for unchanged rows'; }
 # a row added to S02
 pt_rs 's/^\(step S04 .*rows:.*\) ROW-002 /\1 /'; pt_rs 's/^\(step S02 .*rows:\) /\1 ROW-002 /'
+printf 'stage name=replan state=start session=call records=29 at=%s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >> .vid/metrics-events   # the call's stage, as vid-connect's start opens it (GM-4 F2, I4)
 sh "$CHECKS/plan.sh" change rows 'S02 takes ROW-002' --trigger owner-answer --evidence "ticket:$N2" --expect 'S02 gains a test' > "$T/out" 2>&1 || fail 'the plan change was refused'
 sh "$CHECKS/writer.sh" due > "$T/due" 2>&1 || { cp "$T/due" "$T/out"; fail 'writer.sh due failed after the change'; }
 [ "$(cat "$T/due")" = "amend $N2" ] || { cp "$T/due" "$T/out"; fail "due does not owe amend $N2 alone once its step gained a row"; }

@@ -14,7 +14,7 @@ TB=$(printf '\t')
 ago() { _s=$(( $(date -u +%s) - $1 * 86400 )); date -u -r "$_s" '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || date -u -d "@$_s" '+%Y-%m-%dT%H:%M:%SZ'; }
 pt_toy "$T/toy"; git init -q; printf '.vid/\n' > .gitignore; g add -A; g commit -qm 'the spec'
 printf 'setup-answered key=github-mode value="manual" words="the toy, manual" at=2026-11-19T09:00:00Z\n' >> .vid/plan/setup
-mkdir -p .vid/tw/out .vid/next; git rev-parse HEAD > .vid/tw/applied
+mkdir -p .vid/round .vid/tw/out .vid/next; git rev-parse HEAD > .vid/tw/applied
 pt_teams 'devagent | everything | core | 1' 'mobile | the app | core | 1'
 D8=$(ago 8); [ -n "$D8" ] || fail 'no date 8 days ago'
 { printf 'published 2 kind=step step=S02 rows=ROW-001,ROW-005 plan=p1 base=b1 export=e1 parts=1 taken-over=comments at=%s\n' "$D8"
@@ -27,7 +27,7 @@ grep -q '^step S04 .*ROW-021' .vid/RUN-STATE.md && grep -q '^ROW-021 ' INVENTORY
 { printf 'issue\t2\tticket\ta note\t%s\nissue\t3\tticket\ta note\t%s\nissue\t30\tunit\t-\t%s\n' "$D8" "$D8" "$D8"
   printf 'ticket\t2\tOPEN\t-\t%s\n' "$D8"; printf 'body\t2\t%s\n' '## Tests' '- ROW-001' '- ROW-005' '- ROW-012, ours'
   printf 'ticket\t3\tOPEN\t-\t%s\n' "$D8"; printf 'body\t3\t%s\n' '## Tests' '- ROW-006'
-  printf 'sub\t3\t3\t30\tOPEN\t-\tthe footer unit\n'; } > .vid/next/read
+  printf 'sub\t3\t3\t30\tOPEN\t-\tthe footer unit\n'; } > .vid/round/read
 sh "$CHECKS/next.sh" triggers > "$T/out" 2>&1 || fail 'next.sh triggers failed'
 grep -q "^trigger${TB}important${TB}added-active${TB}ROW-021${TB}" "$T/out" || fail 'the added ROW-021 of the active stage 1 is not important'
 grep -q "^trigger${TB}important${TB}team-added${TB}#2 ROW-012${TB}" "$T/out" || fail "the team's ROW-012 on #2 is not important"

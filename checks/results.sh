@@ -8,8 +8,18 @@
 #       report is. Report lines, then one tab-separated line per row or transition: row, kind, red, t3, fault, reason; then
 #       the grades' findings, an `open grade line:` for each row whose newest grade line is breached or unclear, a `finding: note` line for each note it of the sort, a `finding: real` line for each prove it real (0.26.11.1.3, R3), a fault folder for no row, and the head report's engines, environments and
 #       retested. Every head report of the pull request also feeds .vid/results/stand-in.txt: <head12> TAB <the line>, each once
+#   read --ticket <n> --at <commit>              GM-4 E1 (GitHub manual: a ticket decided at a commit of main) the same, from the reports
+#       under a ticket's ids at that commit, step-<n>-<commit12>-<k> (TM), grade-step-<n>-<commit12>-<k> (GR, read at the ticket's first
+#       asked commit alone: the oldest `vid: decide` on its issue at a commit of main's first-parent line, kept in
+#       .vid/decide/first-ask-<n>) and sort-step-<n>-<commit12>-<k> (SR), into .vid/results/step-<n>-<commit12>.txt; its first line
+#       `ticket <n>, at <commit>`. GM-4 E3: in GitHub manual a test the newest `amended <n>` log line names in added= or restated=
+#       counts the ticket's evidence only from reports made (their branch's commit) after that line; every other test from its
+#       publication, a landed one included. A test the ticket lists marked retired (GM-3 U4) is no row of the read
 #   page <evidence>                              a page of that file: <evidence less .txt>.html, by page.sh
 #   declare --pr <p> --head <commit>             that head report's engines and environments, into .vid/tw/handed and .vid/budget
+#   declare --ticket <n> --at <commit>           GM-4 E4: the same from a ticket's head report at a commit (the skeleton's acceptance)
+#   declare --engines "<primary> <other>…" --words "<w>"   GM-4 F16: the engines the owner names, their words kept, the one writer of
+#       .vid/tw/handed's engines line: `engines <them> | stand-in: owner at <now>, words "<w>"`; refused without words or names
 #       (0.26.10.29.2 R10: the budget's stacks= and unverified-rows= only when the count differs from stacks=, so a raise stands)
 #   close --step <s>                             the step close (v0.26.10.25.3 R9): each chunk of the step's newest ask, .vid/decide/close/<s>/<k>/ask
 #       (v0.26.10.25.4 R3), by its newest report req-<issue>-<chunk>-<k>; prints, and writes to the ask's read, tab-separated: chunk <name>
@@ -93,12 +103,16 @@ ticket() { F=.vid/tw/out/issue-$1.md; [ -f "$F" ] || die "no published ticket at
     s == "Rows" && match($0, /^- [^ ]+ marks: /) { split($0, w, " "); m = substr($0, RLENGTH + 1); gsub(/\t/, " ", m); M[w[2]] = m; next }
     s == "Regression rows" && /^- [A-Z]+-[0-9]/ { split($0, w, " "); print "reg\t" w[2]; next }
     s == "Faulted rows" && /^- [A-Z]+-[0-9]/ { split($0, w, " "); sub(/:$/, "", w[2]); print "flt\t" w[2]; next }
-    END { for (i = 1; i <= n; i++) printf "row\t%s\t%s\t%s\t%d\n", o[i], K[o[i]], (M[o[i]] == "" ? "-" : M[o[i]]), N[o[i]] }' "$F" > "$T/tk"
+    END { for (i = 1; i <= n; i++) if (M[o[i]] !~ /^retired;/) printf "row\t%s\t%s\t%s\t%d\n", o[i], K[o[i]], (M[o[i]] == "" ? "-" : M[o[i]]), N[o[i]]; for (r in M) if (M[r] ~ /^retired;/) print "rtd\t" r }' "$F" > "$T/tk"
+  # GM-3 U4, GM-4 E2: RTD, the tests the ticket lists retired (their marks, and its newest log line's retired=): no row of the read, and
+  # no evidence beside the ticket's own (a regression or faulted line, retested:, a fault folder) brings one back
+  { sed -n "s/^rtd$TAB//p" "$T/tk"; awk -v n="$1" '($1 == "published" || $1 == "amended") && $2 == n { l = $0 } END { k = split(l, w, " "); for (i = 3; i <= k; i++) if (w[i] ~ /^retired=/) { m = split(substr(w[i], 9), q, ","); for (j = 1; j <= m; j++) if (q[j] != "" && q[j] != "-") print q[j] } }' .vid/tw/log 2>/dev/null; } | sort -u > "$T/rtd"
+  RTD=" $(tr '\n' ' ' < "$T/rtd")"; awk -F'\t' -v R="$RTD" '!(($1 == "reg" || $1 == "flt") && index(R, " " $2 " "))' "$T/tk" > "$T/tk2" && mv "$T/tk2" "$T/tk"
   KIND=$(sed -n "s/^kind$TAB//p" "$T/tk" | head -n 1); ENGS=$(sed -n "s/^eng$TAB//p" "$T/tk" | tr '\n' ' ')
   if [ -n "$ENGS" ] && grep -q '^engine-split ' .vid/tw/handed 2>/dev/null; then for e in $(sed -n 's/^engines \([^|]*\)|.*/\1/p' .vid/tw/handed | tail -n 1); do case " $ENGS " in *" $e "*) ;; *) ENGS="$ENGS$e " ;; esac; done; fi; }   # R11: every declared engine, once a row has split
 # form <id> <asked commit, or empty>: WHY says why the report may not be read, with exit 1. With KIND empty it leaves the cases files alone
 form() { R=refs/heads/vid-results/$1; WHY=''
-  case $1 in red-*) FN=results.txt; BY=TM ;; pr-*|req-*) FN=results.txt; BY=TM ;; grade-pr-*) FN=grade.txt; BY=GR ;; grade-[0-9]*) FN=grade.txt; BY=GR ;; sort-pr-*) FN=sorted.txt; BY=SR ;; deploy-[0-9]*) FN=report.txt; BY=DP ;; *) WHY="not a T2, head report, head grade, sort report, run report or deploy report: $1"; return 1 ;; esac
+  case $1 in red-*) FN=results.txt; BY=TM ;; pr-*|step-*|req-*) FN=results.txt; BY=TM ;; grade-pr-*|grade-step-*) FN=grade.txt; BY=GR ;; grade-[0-9]*) FN=grade.txt; BY=GR ;; sort-pr-*|sort-step-*) FN=sorted.txt; BY=SR ;; deploy-[0-9]*) FN=report.txt; BY=DP ;; *) WHY="not a T2, head report, head grade, sort report, run report or deploy report: $1"; return 1 ;; esac
   G rev-parse -q --verify "$R" > /dev/null 2>&1 || { WHY="no branch vid-results/$1"; return 1; }
   x=$(G ls-tree -r --name-only "$R" | grep -v "^$1/" | head -n 1 || true); [ -z "$x" ] || { WHY="the branch holds more than its folder: $x"; return 1; }
   G cat-file -e "$R:$1/$FN" 2>/dev/null || { WHY="no $FN"; return 1; }
@@ -108,13 +122,13 @@ form() { R=refs/heads/vid-results/$1; WHY=''
   case $1 in red-*) ;; req-*|grade-[0-9]*|deploy-[0-9]*) [ -n "$2" ] && [ "$c" = "$2" ] || { WHY="the commit $c is not the one asked for, ${2:-none}"; return 1; } ;; *) h=${1%-*}; h=${h##*-}
     if [ -n "$2" ]; then [ "$c" = "$2" ] || { WHY="the commit $c is not the one asked for, $2"; return 1; }
     else case $c in "$h"*) ;; *) WHY="the commit $c is not this report's head, $h"; return 1 ;; esac; fi ;; esac
-  case $1 in sort-pr-*) x=$(G show "$R:$1/$FN" | awk 'NR > 2 && !/^[^ ]+ (test it|note it|drop it|prove it real) — / { print; exit }'); [ -z "$x" ] || { WHY="a line of sorted.txt holds none of the four words: $x"; return 1; } ;; esac   # 0.26.11.1.3 (R3): prove it real
-  case $1 in pr-*) x=$(G show "$R:$1/$FN" | sed -n 's/^retested: *//p' | tr ' ' '\n' | grep -v '^$' | grep -Ev '^[A-Z]+-[0-9][A-Za-z0-9-]*$' | head -n 1 || true); [ -z "$x" ] || { WHY="a retested: line holds more than row ids: $x"; return 1; } ;; esac   # read carries it, for the decider
+  case $1 in sort-pr-*|sort-step-*) x=$(G show "$R:$1/$FN" | awk 'NR > 2 && !/^[^ ]+ (test it|note it|drop it|prove it real) — / { print; exit }'); [ -z "$x" ] || { WHY="a line of sorted.txt holds none of the four words: $x"; return 1; } ;; esac   # 0.26.11.1.3 (R3): prove it real
+  case $1 in pr-*|step-*) x=$(G show "$R:$1/$FN" | sed -n 's/^retested: *//p' | tr ' ' '\n' | grep -v '^$' | grep -Ev '^[A-Z]+-[0-9][A-Za-z0-9-]*$' | head -n 1 || true); [ -z "$x" ] || { WHY="a retested: line holds more than row ids: $x"; return 1; } ;; esac   # read carries it, for the decider
   case $1 in req-*) for e in $CE; do iswhole "$R:$1/cases-$e.xml" || { WHY="no whole cases file for $e"; return 1; }; done; return 0 ;; esac   # a close chunk's report: every engine of its chunk
   [ "$FN" = results.txt ] && [ -n "$KIND" ] || return 0
   E=$ENGS; case $1 in red-*) E=${ENGS%% *} ;; *) [ "$KIND" != skeleton ] || { E=$(G show "$R:$1/$FN" | sed -n 's/^engines: *//p' | head -n 1); [ -n "$E" ] || { WHY='a skeleton head report declares no engines'; return 1; }; } ;; esac
   for e in $E; do iswhole "$R:$1/cases-$e.xml" || { WHY="no whole cases file for $e"; return 1; }; done
-  case $1 in pr-*) for r in $(G ls-tree -r --name-only "$R" | sed -n "s|^$1/faults/\([^/]*\)/.*|\1|p" | sort -u); do G cat-file -e "$R:$1/faults/$r/inconclusive.txt" 2>/dev/null || iswhole "$R:$1/faults/$r/cases-${E%% *}.xml" || { WHY="no whole cases file for ${E%% *} in faults/$r"; return 1; }; done ;; esac; }
+  case $1 in pr-*|step-*) for r in $(G ls-tree -r --name-only "$R" | sed -n "s|^$1/faults/\([^/]*\)/.*|\1|p" | sort -u); do G cat-file -e "$R:$1/faults/$r/inconclusive.txt" 2>/dev/null || iswhole "$R:$1/faults/$r/cases-${E%% *}.xml" || { WHY="no whole cases file for ${E%% *} in faults/$r"; return 1; }; done ;; esac; }
 sl() { G show "$R:$1/results.txt" | sed -n "s/^$2: *//p"; }
 # the evidence, from the stream $T/in: the format's matching, red rule and faults
 EV='function norm(s) { gsub(/[-_.]/, "-", s); return s }
@@ -148,7 +162,7 @@ EV='function norm(s) { gsub(/[-_.]/, "-", s); return s }
   $1 == "kind" { KD = $2 } $1 == "eng" { en[++ne] = $2 } $1 == "xeng" { en[++ne] = $2; xa[$2] = 1 } $1 == "later" { LAT = 1 }
   $1 == "line" { print $2 }
   $1 == "row" { i = ++nr; id[i] = $2; kd[i] = $3; cl[i] = $4; ow[i] = ($5 ~ /(^|[ ;])(owed-[a-z-]*|seam)($|[ ;])/); dwo[$2] = ow[i]; prot[$2] = ($5 ~ /(^|[ ;])protection($|[ ;])/); rl[$2] = ($5 ~ /(^|[ ;])rule($|[ ;])/); bs[i] = $6; bm[$2] = $6; nj[$2] = $7 + 0; if ($2 != $6) jt[$6] = jt[$6] " " $2 }
-  $1 == "flt" { fl[$2] = 1 } $1 == "hs" { hs = $2; hw = $3 } $1 == "h" { add("h:" $2, $3, $4, $5, $6) } $1 == "cov" { cov[$2] = $3 } $1 == "ret" { ret[$2] = 1 }
+  $1 == "flt" { fl[$2] = 1 } $1 == "old" { old[$2] = 1 } $1 == "hs" { hs = $2; hw = $3 } $1 == "h" { add("h:" $2, $3, $4, $5, $6) } $1 == "cov" { cov[$2] = $3 } $1 == "ret" { ret[$2] = 1 }
   $1 == "ts" { ts[$2] = $3; tw[$2] = $4; o2[++n2] = $2 } $1 == "tr" { tl[$2, $3] = 1 } $1 == "t" { add("t:" $2, $3, $4, $5, $6) }
   $1 == "fd" { fdir[$2] = 1; if ($3 != "") fctl[$2] = $3 } $1 == "fi" { inc[$2] = $3 } $1 == "f" { add("f:" $2, $3, $4, $5, $6) }
   $1 == "gx" { gx[++ng] = $2 } $1 == "gt" { gt[++ngt] = $2 } $1 == "tail" { tl2[++nt] = $2 }
@@ -156,9 +170,9 @@ EV='function norm(s) { gsub(/[-_.]/, "-", s); return s }
       if (c == "t" && KD != "skeleton" && KD != "reached" && !ow[i]) { RED = "no-red"; RW = (n2 ? "no T2 lists it" : "no T2")
         for (j = 1; j <= n2; j++) { k = o2[j]; if (ts[k] == "lost") { RW = "T2 " k " refused, its rows unread: " tw[k]; RED = "missing"; continue } if ((k, r) in tl || (k, b) in tl) { if (ts[k] != "read") { RED = "missing"; RW = "T2 " k " refused: " tw[k]; break }
             scan("t:" k, r); RED = (sfail && !serr) ? "red" : "no-red"; RW = (RED == "red") ? "" : (sbline != "" ? "T2: " sbline : (sn ? "T2: it passed" : "T2: no case")); break } } }
-      isret = (hs == "read" && ((r in ret) || (b in ret)))
+      isret = (hs == "read" && ((r in ret) || (b in ret))); hs0 = hs; if (hs == "read" && ((r in old) || (b in old))) { hs = "old"; isret = 0 }   # GM-4 E3
       if (ow[i]) { T3v = "owed"; TR = isret ? "retested: owed again" : "" }
-      else if (hs == "refused") { T3v = "missing"; TR = "head report refused: " hw } else if (hs == "none") { T3v = "missing"; TR = "no head report" }
+      else if (hs == "refused") { T3v = "missing"; TR = "head report refused: " hw } else if (hs == "none") { T3v = "missing"; TR = "no head report" } else if (hs == "old") { T3v = "missing"; TR = "no head report since its amendment" }
       else { split("", ES); split("", EN); split("", EF); split("", UX); CT = 1; t3(r); CT = 0; T3v = T3; TR = TW; Pe = ""; Fe = ""
         for (j = 1; j <= ne; j++) { e = en[j]; if (EF[e]) Fe = Fe (Fe == "" ? "" : " ") e; else if (ES[e] && !EN[e]) Pe = Pe (Pe == "" ? "" : " ") e; if (UX[e]) cx[e]++ }
         if (Pe != "" && Fe != "") spl[++nsl] = "split\t" r "\t" Pe "\t" Fe }
@@ -168,6 +182,7 @@ EV='function norm(s) { gsub(/[-_.]/, "-", s); return s }
         if (FV == "") { if (need && (!FQ || isret)) { FVv = (T3v == "failed" || T3v == "setup") ? "waits" : "missing"; FR = (FVv == "waits") ? "" : "no fault folder" } }
         else if (T3v == "failed" || T3v == "setup") FVv = "waits" (need ? "" : " extra"); else if (T3v != "passed") { FVv = "missing" (need ? "" : " extra"); FR = "no T3 to read it by" } else { FVv = FV (need ? "" : " extra"); FR = FW } }
       if (ow[i] && (r in fdir)) { used[r] = 1; FR = "a fault folder no owed row needs" }
+      if (hs == "old" && ((r in fdir) || (b in fdir))) { used[r] = 1; used[b] = 1 } hs = hs0
       printf "%s\t%s\t%s\t%s\t%s\t%s\n", r, (c != "t" && kd[i] == "transition") ? "retested" : kd[i], RED, T3v, FVv, why(why(RW, TR), FR) }
     for (j = 1; j <= nsl; j++) print spl[j]
     for (j = 1; j <= ne; j++) if ((en[j] in xa) && cx[en[j]]) printf "engine %s: %d could not run\n", en[j], cx[en[j]]
@@ -178,24 +193,28 @@ EV='function norm(s) { gsub(/[-_.]/, "-", s); return s }
 # one report's cases into the stream, each line headed by its words: push <rev> <head…>
 push() { cases "$1" | awk -F'\t' -v h="$2" '$1 == "c" { print h "\t" $2 "\t" $3 "\t" $4 "\t" $5 }' >> "$T/in"; }
 tally() { cases "$1" | awk -F'\t' '$1 == "c" { t[$3]++ } END { printf "%d passed, %d failed, %d errored, %d skipped", t["passed"], t["failed"], t["errored"], t["skipped"] }'; }
-# standins <p>: stand-in-pr-<p>.txt, rebuilt from each head's newest attempt, oldest report first; stand-in.txt, all of them, each line once
-standins() { P=$1; O=.vid/results/stand-in-pr-$P.txt; : > "$T/hd"; : > "$T/so"   # the rebuild in $T/so, published once (R6)
-  for h in $(G for-each-ref --format='%(refname:lstrip=3)' "refs/heads/vid-results/pr-$P-*" 2>/dev/null | sed -n "s/^pr-$P-\([0-9a-f]\{12\}\)-[0-9][0-9]*\$/\1/p" | sort -u); do
-    k=$(newest "pr-$P-$h"); i=pr-$P-$h-$k; form "$i" '' || continue; printf '%s %s %s\n' "$(G log -1 --format=%ct "refs/heads/vid-results/$i")" "$h" "$i" >> "$T/hd"; done
+# standins <key>: stand-in-<key>.txt (the key pr-<p>, or GM-4 E1's step-<n>), rebuilt from each head's newest attempt, oldest report
+# first; stand-in.txt, all of them, each line once
+standins() { KS=$1; O=.vid/results/stand-in-$KS.txt; : > "$T/hd"; : > "$T/so"   # the rebuild in $T/so, published once (R6)
+  for h in $(G for-each-ref --format='%(refname:lstrip=3)' "refs/heads/vid-results/$KS-*" 2>/dev/null | sed -n "s/^$KS-\([0-9a-f]\{12\}\)-[0-9][0-9]*\$/\1/p" | sort -u); do
+    k=$(newest "$KS-$h"); i=$KS-$h-$k; form "$i" '' || continue; printf '%s %s %s\n' "$(G log -1 --format=%ct "refs/heads/vid-results/$i")" "$h" "$i" >> "$T/hd"; done
   sort -n "$T/hd" | while read -r _d h i; do R=refs/heads/vid-results/$i; sl "$i" stand-in | while IFS= read -r l; do [ -n "$l" ] || continue
       cut -f2- "$T/so" | grep -qxF "stand-in: $l" || printf '%s\tstand-in: %s\n' "$h" "$l" >> "$T/so"; done; done || exit 1; put "$O" < "$T/so" || exit 1
-  for n in $(ls .vid/results | sed -n 's/^stand-in-pr-\([0-9][0-9]*\)\.txt$/\1/p' | sort -n); do cat ".vid/results/stand-in-pr-$n.txt"; done | awk -F'\t' '!s[$2]++' > "$T/si" || exit 1; put .vid/results/stand-in.txt < "$T/si" || exit 1; }
-cmd_read() { N=''; P=''; HD=''; while [ $# -ge 2 ]; do case $1 in --ticket) N=$2 ;; --pr) P=$2 ;; --head) HD=$2 ;; *) die "unknown $1" ;; esac; shift 2; done
-  [ -n "$N" ] && [ -n "$P" ] && [ -n "$HD" ] || die 'usage — sh checks/results.sh read --ticket <n> --pr <p> --head <commit>'
+  { for n in $(ls .vid/results | sed -n 's/^stand-in-pr-\([0-9][0-9]*\)\.txt$/\1/p' | sort -n); do cat ".vid/results/stand-in-pr-$n.txt"; done
+    for n in $(ls .vid/results | sed -n 's/^stand-in-step-\([0-9][0-9]*\)\.txt$/\1/p' | sort -n); do cat ".vid/results/stand-in-step-$n.txt"; done; } | awk -F'\t' '!s[$2]++' > "$T/si" || exit 1; put .vid/results/stand-in.txt < "$T/si" || exit 1; }
+# GM-4 E1: K, the key of the reports read and of the evidence file: pr-<p> for a pull request's head, step-<n> for a ticket at a commit
+cmd_read() { N=''; P=''; HD=''; AT=''; while [ $# -ge 2 ]; do case $1 in --ticket) N=$2 ;; --pr) P=$2 ;; --head) HD=$2 ;; --at) AT=$2 ;; *) die "unknown $1" ;; esac; shift 2; done
+  if [ -n "$AT" ]; then [ -n "$N" ] && [ -z "$P$HD" ] || die 'usage — sh checks/results.sh read --ticket <n> --at <commit>'; HD=$AT; K=step-$N
+  else [ -n "$N" ] && [ -n "$P" ] && [ -n "$HD" ] || die 'usage — sh checks/results.sh read --ticket <n> --pr <p> --head <commit> | --ticket <n> --at <commit>'; K=pr-$P; fi
   ticket "$N"; HD=$(G rev-parse -q --verify "$HD^{commit}" 2>/dev/null || echo "$HD"); H=$(printf %s "$HD" | cut -c1-12); : > "$T/in"; printf 'kind\t%s\n' "$KIND" >> "$T/in"; mkdir -p .vid/results
-  printf 'line\tticket %s, pull request %s, head %s\n' "$N" "$P" "$HD" >> "$T/in"
+  if [ -n "$AT" ]; then printf 'line\tticket %s, at %s\n' "$N" "$HD"; else printf 'line\tticket %s, pull request %s, head %s\n' "$N" "$P" "$HD"; fi >> "$T/in"
   for k in $(G for-each-ref --format='%(refname:lstrip=3)' "refs/heads/vid-results/red-$N-*" 2>/dev/null | sed -n "s/^red-$N-\([0-9][0-9]*\)\$/\1/p" | sort -rn); do i=red-$N-$k; R=refs/heads/vid-results/$i
     if form "$i" ''; then printf 'ts\t%s\tread\t\n' "$i"; printf 'line\treport T2 %s read: %s\n' "$i" "$(tally "$R:$i/cases-${ENGS%% *}.xml")"; push "$R:$i/cases-${ENGS%% *}.xml" "t$TAB$i"
     else printf 'ts\t%s\trefused\t%s\n' "$i" "$WHY"; printf 'line\treport T2 %s refused %s\n' "$i" "$WHY"; fi >> "$T/in"
     l=$(G show "$R:$i/results.txt" 2>/dev/null | sed -n 's/^rows: *//p' | head -n 1 || true)
     if [ -n "$l" ]; then for r in $l; do printf 'tr\t%s\t%s\n' "$i" "$r"; done >> "$T/in"; else [ -z "$WHY" ] || printf 'ts\t%s\tlost\t%s\n' "$i" "$WHY" >> "$T/in"; fi; done
   case $KIND in skeleton|reached) ;; *) [ -n "$(G for-each-ref "refs/heads/vid-results/red-$N-*" 2>/dev/null)" ] || printf 'line\treport T2 none\n' >> "$T/in" ;; esac
-  k=$(newest "pr-$P-$H"); i=pr-$P-$H-${k:-0}; RET=''; FD=''
+  k=$(newest "$K-$H"); i=$K-$H-${k:-0}; RET=''; FD=''
   if [ -z "$k" ]; then printf 'hs\tnone\t\nline\treport head none\n' >> "$T/in"
   elif ! form "$i" "$HD"; then printf 'hs\trefused\t%s\nline\treport head %s refused %s\n' "$WHY" "$i" "$WHY" >> "$T/in"
   else R=refs/heads/vid-results/$i; printf 'hs\tread\t\n' >> "$T/in"; E=$ENGS; [ "$KIND" != skeleton ] || E=$(sl "$i" engines | head -n 1)
@@ -214,24 +233,45 @@ cmd_read() { N=''; P=''; HD=''; while [ $# -ge 2 ]; do case $1 in --ticket) N=$2
   for r in $RET; do more "$r" retested o; done
   for r in $FD; do ! printf %s "$r" | grep -Eq '^[A-Z]+-[0-9][A-Za-z0-9-]*$' || more "$r" regression r; done   # R13: a fault folder is read wherever it is
   # the ticket's one grade (v0.26.10.25.2 R2): the oldest grade report's head, its newest attempt, and no other
-  GL=''; : > "$T/gr"; i=$(G for-each-ref --sort=committerdate --format='%(refname:lstrip=3)' "refs/heads/vid-results/grade-pr-$P-*" 2>/dev/null | head -n 1); if [ -n "$i" ]; then i=${i%-*}; h=${i##*-}; i=$i-$(newest "$i"); if form "$i" ''; then GL="report grade $i read"; { G show "refs/heads/vid-results/$i:$i/grade.txt"; echo; } >> "$T/gr"; else GL="report grade $i refused $WHY"; fi; [ "$h" = "$H" ] || printf 'later\t1\n' >> "$T/in"; fi
+  # GM-4 E1: a ticket's grade is read at its first asked commit alone (the oldest the decisions log holds, else this one), never a later one's
+  GL=''; : > "$T/gr"; i=$(G for-each-ref --sort=committerdate --format='%(refname:lstrip=3)' "refs/heads/vid-results/grade-$K-*" 2>/dev/null | head -n 1)
+  # the first asked commit: the oldest `vid: decide` on the ticket's issue, kept once seen (.vid/decide/first-ask-<n>); else the decisions log's oldest
+  if [ -n "$AT" ]; then FA=$(cut -c1-12 ".vid/decide/first-ask-$N" 2>/dev/null || true)
+    # an ask off main's first-parent line is answered `not on main` and decides nothing (E1): skipped, so a later ask on main is first
+    if [ -z "$FA" ]; then G rev-list --first-parent refs/heads/main > "$T/fp" 2>/dev/null || : > "$T/fp"
+      FX=$(awk -F'\t' -v n="$N" -v FP="$T/fp" 'BEGIN { while ((getline l < FP) > 0) M[l] = 1 } $1 == "issue" && $2 == n { k = split($4, c, "\001"); for (i = 1; i <= k; i++) if (c[i] ~ /^vid: decide [0-9a-f]+[ \t]*$/) { y = c[i]; sub(/^vid: decide /, "", y); sub(/[ \t]*$/, "", y); if (length(y) == 40 && (y in M)) { print y; exit } } }' .vid/round/read 2>/dev/null || true)
+      if [ -n "$FX" ]; then mkdir -p .vid/decide; printf '%s\n' "$FX" > "$T/fa" && put ".vid/decide/first-ask-$N" < "$T/fa"; FA=$(printf %s "$FX" | cut -c1-12); fi; fi
+    [ -n "$FA" ] || FA=$(awk -F'\t' -v p="$K" '$2 == p { print $3; exit }' .vid/decide/log 2>/dev/null || true); FA=${FA:-$H}; i=''; [ -z "$(newest "grade-$K-$FA")" ] || i=grade-$K-$FA-$(newest "grade-$K-$FA"); fi; if [ -n "$i" ]; then i=${i%-*}; h=${i##*-}; i=$i-$(newest "$i"); if form "$i" ''; then GL="report grade $i read"; { G show "refs/heads/vid-results/$i:$i/grade.txt"; echo; } >> "$T/gr"; else GL="report grade $i refused $WHY"; fi; [ "$h" = "$H" ] || printf 'later\t1\n' >> "$T/in"; fi
   [ "$KIND" = reached ] || printf 'line\t%s\n' "${GL:-report grade none}" >> "$T/in"; awk '/^finding: / { if (!s[$0]++) print "gx\t" $0; next } /^(by|commit): / || !NF { next } { v[$1] = $2; k[$1] = $3 } END { for (r in v) { if (v[r] != "kept") print "gx\tlist: " r; if (v[r] ~ /^(breached|unclear)$/) print ((v[r] == "breached" && k[r] == "test") ? "gt\t" : "gx\topen grade line: ") r } }' "$T/gr" >> "$T/in"
-  i=$(G for-each-ref --sort=committerdate --format='%(refname:lstrip=3)' "refs/heads/vid-results/sort-pr-$P-*" 2>/dev/null | tail -n 1)
+  i=$(G for-each-ref --sort=committerdate --format='%(refname:lstrip=3)' "refs/heads/vid-results/sort-$K-*" 2>/dev/null | tail -n 1)
   if [ -z "$i" ]; then [ "$KIND" = reached ] || printf 'line\treport sort none\n' >> "$T/in"
   elif ! form "$i" ''; then printf 'line\treport sort %s refused %s\n' "$i" "$WHY" >> "$T/in"
   else printf 'line\treport sort %s read\n' "$i" >> "$T/in"; G show "refs/heads/vid-results/$i:$i/sorted.txt" | awk 'NR > 2 && $2 == "note" && $3 == "it" { print "gx\tfinding: note — " substr($0, length($1) + 14) }
     NR > 2 && $2 == "prove" && $3 == "it" && $4 == "real" { print "gx\tfinding: real — " substr($0, length($1) + 20) }' >> "$T/in"; fi   # 0.26.11.1.3 (R3): a real check, for the staging okay
-  # R4: a landed id's evidence starts at its landing: from a ticket published before it, none of its lines is read
-  stale "$N" > "$T/stale"; if [ -s "$T/stale" ]; then for f in in.rows in; do awk -F'\t' -v S="$T/stale" 'BEGIN { while ((getline l < S) > 0) X[l] = 1 }
+  # R4: a landed id's evidence starts at its landing: from a ticket published before it, none of its lines is read. GM-4 E3: in GitHub
+  # manual a landing the team has not got changes nothing it was asked for, so nothing is dropped for it; one list replaces it there,
+  # the tests whose evidence counts from an amendment (amends): a T2's rows and a head report made before it are not read for them
+  if manual; then : > "$T/stale"; amends "$N"; else stale "$N" > "$T/stale"; fi; cat "$T/rtd" >> "$T/stale"; if [ -s "$T/stale" ]; then for f in in.rows in; do awk -F'\t' -v S="$T/stale" 'BEGIN { while ((getline l < S) > 0) X[l] = 1 }
       ($1 == "row" || $1 == "flt") && (($2 in X) || ($6 in X)) { next } ($1 ~ /^(ret|fd|fi|f)$/) && ($2 in X) { next } $1 == "tr" && ($3 in X) { next } { print }' "$T/$f" > "$T/$f.s" && mv "$T/$f.s" "$T/$f"; done; fi
-  setups "$P"; { cat "$T/in.rows"; cat "$T/in"; } | awk "$EV" > "$T/ev" || exit 1; put ".vid/results/pr-$P-$H.txt" < "$T/ev" || exit 1; standins "$P"; cat ".vid/results/pr-$P-$H.txt"; }
-# setups <p>: R12's count, the setup: errors of each engine over the pull request's head reports, each head's newest attempt, as tail lines
-setups() { : > "$T/su"; for h in $(G for-each-ref --format='%(refname:lstrip=3)' "refs/heads/vid-results/pr-$1-*" 2>/dev/null | sed -n "s/^pr-$1-\([0-9a-f]\{12\}\)-[0-9][0-9]*\$/\1/p" | sort -u); do
-    k=$(newest "pr-$1-$h"); i=pr-$1-$h-$k; form "$i" '' || continue; R=refs/heads/vid-results/$i
+  setups "$K"; { cat "$T/in.rows"; cat "$T/in"; } | awk "$EV" > "$T/ev" || exit 1; put ".vid/results/$K-$H.txt" < "$T/ev" || exit 1; standins "$K"; cat ".vid/results/$K-$H.txt"; }
+# GM-4 E3 (GitHub manual): amends <n>, for each test the newest `amended <n>` log line naming it in added= or restated= names, the T2
+# rows (`tr` lines) of reports made at or before that line dropped, and `old <row>` when the head report read was made at or before it
+rtime() { G log -1 --format=%ct "refs/heads/vid-results/$1" 2>/dev/null || echo 0; }
+amends() { [ -f .vid/tw/log ] || return 0; awk -v n="$1" '$1 == "amended" && $2 == n { a = ""; for (i = 3; i <= NF; i++) if ($i ~ /^at=/) a = substr($i, 4); for (i = 3; i <= NF; i++) if ($i ~ /^(added|restated)=/) { m = split(substr($i, index($i, "=") + 1), w, ","); for (j = 1; j <= m; j++) if (w[j] != "" && w[j] != "-") A[w[j]] = a } } END { for (r in A) print r "\t" A[r] }' .vid/tw/log > "$T/am"
+  [ -s "$T/am" ] || return 0; : > "$T/am2"; while IFS=$TAB read -r r a; do printf '%s\t%s\n' "$r" "$(epoch "$a")" >> "$T/am2"; done < "$T/am"
+  awk -F'\t' '$1 == "ts" { print $2 }' "$T/in" | sort -u | while read -r i; do printf '%s\t%s\n' "$i" "$(rtime "$i")"; done > "$T/rt"
+  HT=0; ! grep -q "^hs${TAB}read" "$T/in" || HT=$(rtime "$(sed -n 's/^line\treport head \([^ ]*\) read:.*/\1/p' "$T/in" | head -n 1)")
+  awk -F'\t' -v A="$T/am2" -v RT="$T/rt" 'BEGIN { while ((getline l < A) > 0) { split(l, x, "\t"); W[x[1]] = x[2] } while ((getline l < RT) > 0) { split(l, x, "\t"); M[x[1]] = x[2] } }
+    $1 == "tr" { b = $3; sub(/-T[0-9]+$/, "", b); if (((b in W) && M[$2] + 0 <= W[b] + 0) || (($3 in W) && M[$2] + 0 <= W[$3] + 0)) next } { print }' "$T/in" > "$T/in.a" && mv "$T/in.a" "$T/in"
+  awk -F'\t' -v h="$HT" '$2 + 0 >= h + 0 { print "old\t" $1 }' "$T/am2" >> "$T/in"; }
+# setups <key>: R12's count, the setup: errors of each engine over the pull request's head reports (the key pr-<p>), or a ticket's
+# (GM-4 E1, step-<n>), each head's newest attempt, as tail lines
+setups() { : > "$T/su"; for h in $(G for-each-ref --format='%(refname:lstrip=3)' "refs/heads/vid-results/$1-*" 2>/dev/null | sed -n "s/^$1-\([0-9a-f]\{12\}\)-[0-9][0-9]*\$/\1/p" | sort -u); do
+    k=$(newest "$1-$h"); i=$1-$h-$k; form "$i" '' || continue; R=refs/heads/vid-results/$i
     for e in $(G ls-tree --name-only "$R:$i" | sed -n 's/^cases-\([^ ]*\)\.xml$/\1/p'); do cases "$R:$i/cases-$e.xml" | awk -F'\t' -v e="$e" '$1 == "c" && $3 == "errored" && $4 ~ /^setup:/ { n++ } END { print e "\t" n + 0 }'; done; done >> "$T/su"
   awk -F'\t' '{ if (!($1 in n)) o[++m] = $1; n[$1] += $2; k[$1]++ } END { for (i = 1; i <= m; i++) if (n[o[i]]) printf "tail\tsetup errors %s: %d cases over %d runs\n", o[i], n[o[i]], k[o[i]] }' "$T/su" >> "$T/in"; }
 # more <row> <kind> <class>: a row beyond the ticket's own. A journey is one line, every transition's cases needed, or a line each when retested
-more() { has "$1" && return 0; n=$(tcount "$1"); m=$(mark "$1"); case " $RET " in *" $1 "*) i=0; while [ "$i" -lt "${n:-0}" ]; do i=$((i + 1)); printf 'row\t%s-T%d\ttransition\t%s\t%s\t%s\n' "$1" "$i" "$3" "$m" "$1"; done >> "$T/in.rows"; [ "${n:-0}" = 0 ] || return 0 ;; esac
+more() { has "$1" && return 0; case "$RTD " in *" ${1%-T[0-9]*} "*) return 0 ;; esac; n=$(tcount "$1"); m=$(mark "$1"); case " $RET " in *" $1 "*) i=0; while [ "$i" -lt "${n:-0}" ]; do i=$((i + 1)); printf 'row\t%s-T%d\ttransition\t%s\t%s\t%s\n' "$1" "$i" "$3" "$m" "$1"; done >> "$T/in.rows"; [ "${n:-0}" = 0 ] || return 0 ;; esac
   printf 'row\t%s\t%s\t%s\t%s\t%s\t%s\n' "$1" "$2" "$3" "$m" "$1" "${n:-0}" >> "$T/in.rows"; }
 # v0.26.10.25.5 (R4): stale <n>, the ids landed after ticket n was published; tfile <row>, the newest ticket holding it, by the log
 stale() { [ -f .vid/tw/log ] || return 0; awk -v n="$1" '$1 == "published" && $2 == n { p = 1; next } p && $1 == "landed" { for (i = 2; i <= NF; i++) if ($i ~ /^ids=/) { m = split(substr($i, 5), a, ","); for (j = 1; j <= m; j++) print a[j] } }' .vid/tw/log | sort -u; }   # by the log's order: a landing's line follows the ticket's
@@ -247,9 +287,15 @@ cmd_page() { E=${1:-}; [ -f "$E" ] || die "no evidence file at '$E'"; M=$T/$(bas
   awk -F'\t' -v n="$(basename "$E" .txt)" 'BEGIN { print "# Results: " n "\n" } function c(s) { gsub(/\|/, "/", s); return s }
     NF == 6 { if (!h++) print "\n| Row | Kind | Red | T3 | Fault | Reason |\n|---|---|---|---|---|---|"; printf "| %s | %s | %s | %s | %s | %s |\n", c($1), c($2), c($3), c($4), c($5), c($6); next }
     { if (h && !t++) print ""; print "- " $0 }' "$E" > "$M"; sh "$HERE/page.sh" "$M" --out "${E%.txt}.html"; }
-cmd_declare() { P=''; HD=''; while [ $# -ge 2 ]; do case $1 in --pr) P=$2 ;; --head) HD=$2 ;; *) die "unknown $1" ;; esac; shift 2; done
-  [ -n "$P" ] && [ -n "$HD" ] || die 'usage — sh checks/results.sh declare --pr <p> --head <commit>'
-  HD=$(G rev-parse -q --verify "$HD^{commit}" 2>/dev/null || echo "$HD"); H=$(printf %s "$HD" | cut -c1-12); k=$(newest "pr-$P-$H"); [ -n "$k" ] || { echo "no head report at $H"; return 0; }; i=pr-$P-$H-$k; KIND=''
+cmd_declare() { P=''; HD=''; K=''; EN=''; WD=''; WS=''; while [ $# -ge 2 ]; do case $1 in --pr) P=$2; K=pr-$2 ;; --head|--at) HD=$2 ;; --ticket) K=step-$2 ;; --engines) EN=$2 ;; --words) WD=$2; WS=1 ;; *) die "unknown $1" ;; esac; shift 2; done
+  # GM-4 F16: the engines the owner names, in their words: this the one writer of the handed record's engines line
+  if [ -n "$EN$WS" ]; then [ -z "$K$HD" ] || die 'usage — sh checks/results.sh declare --engines "<primary> <other>…" --words "<the owner'"'"'s words>"'
+    printf '%s' "$EN" | grep -Eq '^[A-Za-z0-9._+-]+( [A-Za-z0-9._+-]+)*$' || { echo "ViD results: refused — \"$EN\" is not the engines' names, the primary first, a space between" >&2; exit 1; }
+    [ -n "$(printf '%s' "$WD" | tr -d '[:space:]')" ] || { echo "ViD results: refused — the engines go on record only in the owner's words" >&2; exit 1; }
+    mkdir -p .vid/tw; { grep -v '^engines ' .vid/tw/handed 2>/dev/null || true; printf 'engines %s | stand-in: owner at %s, words "%s"\n' "$EN" "$(now)" "$(printf '%s' "$WD" | tr '\t\n' '  ' | tr '"' "'")"; } > "$T/h" || exit 1; put .vid/tw/handed < "$T/h" || exit 1
+    echo "declared engines=$EN by the owner's words"; return 0; fi
+  [ -n "$K" ] && [ -n "$HD" ] || die 'usage — sh checks/results.sh declare --pr <p> --head <commit> | --ticket <n> --at <commit> | --engines "<primary> <other>…" --words "<w>"'
+  HD=$(G rev-parse -q --verify "$HD^{commit}" 2>/dev/null || echo "$HD"); H=$(printf %s "$HD" | cut -c1-12); k=$(newest "$K-$H"); [ -n "$k" ] || { echo "no head report at $H"; return 0; }; i=$K-$H-$k; KIND=''
   form "$i" "$HD" || { echo "refused $WHY"; return 0; }; E=$(sl "$i" engines | head -n 1); M=$(sl "$i" environments | head -n 1)
   if [ -n "$E" ]; then mkdir -p .vid/tw; { grep -v '^engines ' .vid/tw/handed 2>/dev/null || true; printf 'engines %s | stand-in: results reader\n' "$E"; } > "$T/h" || exit 1; put .vid/tw/handed < "$T/h" || exit 1; fi
   # 0.26.10.29.2 (R10): stacks= and unverified-rows= are rewritten only when the declared count differs from stacks=; the same
@@ -286,11 +332,13 @@ CL='function norm(s) { gsub(/[-_.]/, "-", s); return s }
     print "chunk\t" C "\t" (red ? "red" : inc ? "incomplete" : "green") "\t" K; for (i = 1; i <= nl; i++) print L[i]; for (i = 1; i <= nx; i++) print X[i] }'
 # acc <row> <engines>: h lines, the cases of the row's newest accepted head report whose head is an ancestor of the close's commit (CK-R-160)
 acc() { awk -F'\t' -v r="$1" '($4 == r || index($4, r "-T") == 1) && $5 ~ /^(accepted|accepted by ruling|passing)$/ { print NR "\t" $2 "\t" $3 }' .vid/decide/log 2>/dev/null | sort -rn | while IFS=$TAB read -r _n p h; do
-    G merge-base --is-ancestor "$h" "$C" 2>/dev/null || continue; q=$(newest "pr-$p-$h"); [ -n "$q" ] || continue; q=pr-$p-$h-$q
+    G merge-base --is-ancestor "$h" "$C" 2>/dev/null || continue; case $p in step-*) kq=$p ;; *) kq=pr-$p ;; esac; q=$(newest "$kq-$h"); [ -n "$q" ] || continue; q=$kq-$h-$q   # GM-4 E2: a ticket's too
     for e in $2; do cases "refs/heads/vid-results/$q:$q/cases-$e.xml" | awk -F'\t' -v e="$e" -v r="$1" '$1 == "c" { print "h\t" e "\t" r "\t" $2 }'; done; break; done; }
 # v0.26.10.26.1 (R2, R4): stdir <N>, the stage's newest candidate folder; ids, every id of INVENTORY.md, a line each
 stdir() { c=''; for d in $(ls ".vid/decide/stage/$1" 2>/dev/null | grep -E '^[0-9]+$' | sort -n); do [ -f ".vid/decide/stage/$1/$d/ask" ] && c=$d; done; echo ".vid/decide/stage/$1/${c:-0}"; }
-invids() { sed -n '/^```vid-inventory/,/^```$/p' INVENTORY.md 2>/dev/null | awk -F'|' '{ a = $1; gsub(/[ \t]/, "", a); b = $2; gsub(/[ \t]/, "", b); if (a ~ /^ROW-[0-9]+$/) print a; else if (b ~ /^[A-Z]+-[0-9]+$/) print b }'; }
+# GM-4 E12: in GitHub manual the inventory read at the applied commit (lib.sh applied), so no read carries a pending change
+invat_() { if manual; then _a=$(applied); [ -z "$_a" ] || git show "$_a:INVENTORY.md" 2>/dev/null; else cat INVENTORY.md 2>/dev/null; fi; }
+invids() { invat_ | sed -n '/^```vid-inventory/,/^```$/p' | awk -F'|' '{ a = $1; gsub(/[ \t]/, "", a); b = $2; gsub(/[ \t]/, "", b); if (a ~ /^ROW-[0-9]+$/) print a; else if (b ~ /^[A-Z]+-[0-9]+$/) print b }'; }
 # unmatched <rev> <engine>: the rest chunk's cases whose name holds no id of the inventory, `unmatched <case> <status>`
 unmatched() { invids > "$T/ids"; cases "$1" | awk -F'\t' -v I="$T/ids" 'BEGIN { while ((getline l < I) > 0) W[++n] = l }
     $1 == "c" { c = $2; gsub(/[-_.]/, "-", c); f = 0; for (i = 1; i <= n && !f; i++) { q = c; while ((p = index(q, W[i])) > 0) { b = (p > 1) ? substr(q, p - 1, 1) : ""; a = substr(q, p + length(W[i]), 1); if (b !~ /[A-Za-z0-9]/ && a !~ /[A-Za-z0-9]/) { f = 1; break } q = substr(q, p + 1) } }
@@ -392,6 +440,9 @@ cmd_deploy() { ST=''; KD=d1; DCA=''; while [ $# -ge 2 ]; do case $1 in --stage) 
 # no duties.txt. A line of another duty is not read
 DUT1='log-in environments outside-services sending-domain deploy-notes captures'
 DUT2='service-switch-on backups point-in-time-recovery storage-versioning dns https monitoring'
+# GM-4 E9 (GM M14, D7): dutl <list> <the okay's ask>: in GitHub manual, with the okay listing later work (its `later-work` lines), the
+# list and later-work-off, the duty that keeps that work off for the people using the product; else the list as it is
+dutl() { if manual && grep -q "^later-work$TAB" "$2" 2>/dev/null; then echo "$1 later-work-off"; else echo "$1"; fi; }
 duties() { G cat-file -e "$R:$1/duties.txt" 2>/dev/null || { echo none; return 0; }
   G show "$R:$1/duties.txt" | tr -d '\r' | awk -v L="$2" -v DA=' — ' 'BEGIN { n = split(L, d, " "); for (i = 1; i <= n; i++) W[d[i]] = 1 }
     /^[ \t]*$/ { next } { x = $0; p = index(x, ": "); if (!p) next; k = substr(x, 1, p - 1); if (!(k in W)) next; r = substr(x, p + 2); q = index(r, DA); s = q ? substr(r, 1, q - 1) : ""; w = q ? substr(r, q + length(DA)) : ""
@@ -404,8 +455,8 @@ duties() { G cat-file -e "$R:$1/duties.txt" 2>/dev/null || { echo none; return 0
 # 0.26.11.1.3 (R3): for each real check the okay lists (`real <n> <line>` in its ask), a `real: #<the okay's issue>-<n> done — <what was run,
 # where>` or `… not done — <why>` line, none missing or `not done` but one the owner ruled (.vid/decide/real-known), each read as `real <n>
 # <done|not done|missing> <words>`; a line keyed to another okay is not read, and of one key the newest line stands
-d1x() { sk=$(sed -n "s/^seed$TAB//p" "$2" | head -n 1); rw=$(sed -n "s/^rows$TAB//p" "$2" | head -n 1); ri=$(sed -n "s/^issue$TAB//p" "$2" | head -n 1)
-  { G show "$R:$1/staging.txt" | tr -d '\r' | sed 's/^/S	/'; duties "$1" "$DUT1" | sed 's/^/D	/'; } | awk -F'\t' -v seed="${sk:-synthetic}" -v rows="$rw" -v L="$DUT1" -v KF=.vid/decide/duties-known -v DA=' — ' -v RA="$2" -v RI="$ri" -v RK=.vid/decide/real-known '
+d1x() { sk=$(sed -n "s/^seed$TAB//p" "$2" | head -n 1); rw=$(sed -n "s/^rows$TAB//p" "$2" | head -n 1); ri=$(sed -n "s/^issue$TAB//p" "$2" | head -n 1); DL1=$(dutl "$DUT1" "$2")
+  { G show "$R:$1/staging.txt" | tr -d '\r' | sed 's/^/S	/'; duties "$1" "$DL1" | sed 's/^/D	/'; } | awk -F'\t' -v seed="${sk:-synthetic}" -v rows="$rw" -v L="$DL1" -v KF=.vid/decide/duties-known -v DA=' — ' -v RA="$2" -v RI="$ri" -v RK=.vid/decide/real-known '
     BEGIN { while ((getline l < KF) > 0) { split(l, y, "\t"); K[y[1]] = 1 } n = split(L, d, " "); m = split(rows, rw, " ")
       while ((getline l < RA) > 0) if (l ~ /^real\t[0-9]+\t/) { split(l, y, "\t"); RN[++nr] = y[2]; RY[y[2]] = substr(l, length(y[1] y[2]) + 3) } while ((getline l < RK) > 0) { split(l, y, "\t"); RD[y[1]] = 1 } }
     function why(s) { if (bad == "") bad = s }
@@ -462,7 +513,7 @@ deploy2() { i=$2; k=$3; G show "$R:$i/report.txt" > "$T/rp"; o=$(sed -n 's/^outc
   esac
   [ -z "$bad" ] || { printf 'd2\trefused\t%s\t%s\n' "$k" "$bad"; return 0; }
   case $o in passed) printf 'd2\tpassed\t%s\n' "$k"; sed -n 's/^production: *\([^ ]*\).*/production\t\1/p' "$T/rp"; sed -n 's/^logs: *\(.*\)/logs\t\1/p' "$T/rp"
-      dd=$(duties "$i" "$DUT2"); if [ "$dd" = none ]; then for x in $DUT2; do printf 'duty\t%s\tmissing\t\n' "$x"; done; else printf '%s\n' "$dd" | grep '^duty' || true; fi ;;   # 0.26.11.1.1 (R3): never refused for its duties; a line in no form, or no duties.txt, reads as none
+      DL2=$(dutl "$DUT2" "$CD/ask"); dd=$(duties "$i" "$DL2"); if [ "$dd" = none ]; then for x in $DL2; do printf 'duty\t%s\tmissing\t\n' "$x"; done; else printf '%s\n' "$dd" | grep '^duty' || true; fi ;;   # 0.26.11.1.1 (R3): never refused for its duties; a line in no form, or no duties.txt, reads as none
     *) printf 'd2\tfailed\t%s\t%s\t%s\n' "$k" "${o#failed }" "${pc:--}"; sed -n 's/^production: *\([^ ]*\).*/production\t\1/p' "$T/rp" ;; esac; }
 CMD=${1:-}; [ $# -gt 0 ] && shift
 case $CMD in

@@ -10,7 +10,7 @@
 # retired ROW-019, restated ROW-013 and ROW-012 (quoted differently in #2), reset ROW-011, and unpublished HOS-003, DIF-001,
 # RULE-004 (S04) and ROW-017 (S05): eleven in all. ROW-006 is not counted and is listed as a stage to correct; ROW-015 and
 # HOS-001 are not counted; the known limit ROW-009 and the later-phase ROW-020, retired, and the record DIF-003 are not
-# counted (F4). `triggers` changes no file of the project, ViD's records included (F7). Env: CHECKS.
+# counted (F4). `triggers` changes no file of the project, ViD's records included (F7). GM-3 U6: its planning-analysis line names INVENTORY.md, uncommitted, as differing from HEAD (replan.sh ready). Env: CHECKS.
 set -eu
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 . "$CHECKS/selftest/fixtures/planner-toy.sh"
@@ -22,7 +22,7 @@ sed -e 's/^\(ROW-012 .*\)| origin: domain volume$/\1| origin: domain volume, see
 [ "$(grep -c 'see \.vid/plan/review$' INVENTORY.md)" = 2 ] || fail 'the pointers did not land'
 git init -q; printf '.vid/\n' > .gitignore; g add -A; g commit -qm 'the spec'
 printf 'setup-answered key=github-mode value="manual" words="the toy, manual" at=2026-11-19T09:00:00Z\n' >> .vid/plan/setup
-mkdir -p .vid/tw/out .vid/next; git rev-parse HEAD > .vid/tw/applied
+mkdir -p .vid/round .vid/tw/out .vid/next; git rev-parse HEAD > .vid/tw/applied
 srows() { sed -n "s/^step $1 .*rows: \([^|]*\)|.*/\1/p" .vid/RUN-STATE.md | sed 's/RULE-001\.\.RULE-003/RULE-001 RULE-002 RULE-003/' | tr -s ' ' ',' | sed 's/^,//;s/,$//'; }
 { printf 'published 1 kind=skeleton step=S01 rows=%s plan=p1 base=b1 export=e1 parts=1 taken-over=comments at=2026-11-10T09:00:00Z\n' "$(srows S01)"
   printf 'published 2 kind=step step=S02 rows=%s plan=p1 base=b1 export=e1 parts=1 taken-over=comments at=2026-11-10T09:00:00Z\n' "$(srows S02)"
@@ -46,11 +46,14 @@ sed -e 's/^\(ROW-013 .*\)leaves the listings as one read does/\1leaves the listi
 [ "$(grep -c -e 'exactly as one read' -e 'twice a day' -e 'operator log within the hour' INVENTORY.md)" = 3 ] || fail 'the restatements did not land'
 printf 'ROW-002 no-step 2026-11-19T09:00:00Z yes, place them later\nROW-018 no-step 2026-11-19T09:00:00Z yes, place them later\nROW-006 other-stage 2026-11-19T09:00:00Z yes, place them later\n' > .vid/tw/to-place
 printf 'row ROW-009 known-limit | stand-in: the self-test\n' > .vid/tw/handed
-printf 'ticket\t1\tCLOSED\t-\t2026-11-10T09:00:00Z\nticket\t2\tOPEN\t-\t2026-11-10T09:00:00Z\nticket\t3\tOPEN\t-\t2026-11-10T09:00:00Z\n' > .vid/next/read
+printf 'ticket\t1\tCLOSED\t-\t2026-11-10T09:00:00Z\nticket\t2\tOPEN\t-\t2026-11-10T09:00:00Z\nticket\t3\tOPEN\t-\t2026-11-10T09:00:00Z\n' > .vid/round/read
 sums() { find . -type f -exec cksum {} + | sort; }   # .git too
 sums > "$T/before"
 sh "$CHECKS/next.sh" triggers > "$T/out" 2>&1 || fail 'next.sh triggers failed'
 sums > "$T/after"; cmp -s "$T/before" "$T/after" || { diff "$T/before" "$T/after" >&2 || true; fail 'next.sh triggers changed a file of the project'; }
+# GM-3 U6: triggers reads replan.sh ready, whose analysis reads HEAD: the working tree's uncommitted INVENTORY.md is named, and
+# reading it wrote nothing (above, .git/index included)
+grep -q "^move${TB}planning-analysis${TB}.*replan.sh ready refused: refused — the spec files in the working tree differ from HEAD's (INVENTORY.md)" "$T/out" || fail "planning-analysis does not say ready refused, naming INVENTORY.md as differing from HEAD"
 awk -F'\t' '$1 == "counted" { print $2, $3 }' "$T/out" | sort > "$T/got"
 printf '%s\n' 'added ROW-021' 'reset ROW-011' 'restated ROW-012' 'restated ROW-013' 'retired ROW-019' 'to-place ROW-002' 'to-place ROW-018' 'unpublished DIF-001' 'unpublished HOS-003' 'unpublished ROW-017' 'unpublished RULE-004' > "$T/want"
 cmp -s "$T/got" "$T/want" || fail "counted $(paste -sd ' ' "$T/got" | tr ' ' ' '), not one row of each kind as planted"

@@ -16,7 +16,8 @@
 # `--json isPrivate` whether private; the code repository's url is its remote. A comment's address ends
 # #issuecomment-<issue * 1000 + k>; `--json viewerPermission` answers ADMIN, or the repository's `perm` file (v0.26.10.12.3.1); `gh api -X PATCH repos/<repo>/issues/comments/<id> -F body=@<file>` edits it (fix 3). Only the calls checks/github.sh makes
 # are understood; any other exits 64, naming itself.
-# GM-1 S10: an issue's creation time (issues/<n>/created, else 2026-11-01T09:00:00Z) and assignees (issues/<n>/assignees, one
+# GM-1 S10: an issue's creation time (issues/<n>/created, written at its create when FAKEGH_CREATED_NOW is set, else
+# 2026-11-01T09:00:00Z) and assignees (issues/<n>/assignees, one
 # login a line), read by `issue view --json state,assignees,createdAt` (TQ) and `issue list --assignee @me` (AQ; @me is the
 # login toy); a sub-issue is an issue whose parent file names its parent, listed by a GET of repos/<repo>/issues/<n>/sub_issues
 # (SQ; any method or field on that path refused). The write log, $FAKEGH/writes: one line per write, `<owner/name> <what>`,
@@ -30,6 +31,14 @@
 # repos/<repo>/pulls/<n>/files with the jq of its names not removed, the names its head changes from where it left its base (no
 # renames: a renamed file is its new name); repos/<repo>/contents/<path>?ref=<sha> with --jq '.content | @base64d', the file at that
 # commit and one newline after it, as gh prints a string (%20, %23, %3F and %25 read back), else Not Found.
+# GM-4 K12: the lock log, $FAKEGH/locks: one line per push of refs/heads/vid-state/lock to a repository the fake makes, `<owner/name> taken`
+# for a take or a renewal, `<owner/name> freed` for its deletion, so a case sees a direct call's lock taken and freed, and where.
+# GM-4 K12: spec-publish's git data calls on the code repository, each `-X POST --input <file>` alone (any field refused), the file in the
+# one-entry-a-line JSON spec-publish writes: repos/<repo>/git/blobs (content, base64) made a blob; git/trees (base_tree optional; each
+# entry path, mode, type, sha; a tree entry replaces everything under its path) made a tree; git/commits (message, tree, parents,
+# author) made a commit; git/refs (ref refs/heads/<b>, sha) made a branch, refused when it exists. --jq .sha (.ref for a ref) prints
+# what was made; each is a line of the write log (`<repo> git blob|tree|commit`, `<repo> git ref <ref>`). git/refs/heads/<b> with -X
+# PATCH --input <file> (sha) moves an existing branch, `<repo> git ref move <ref>` in the write log.
 # GM-3 S1: `issue list --label <l> --state <open|closed|all> --limit <k> --json number,state --jq '.[] | [.number, .state] | @tsv'`, each
 # issue's number and OPEN or CLOSED, in number order, cut at the limit.
 set -u
@@ -68,8 +77,9 @@ DMIQ='.[] | [.number, ([.labels[].name] | join(",")), ([.comments[].body | split
 heads() { for _j in $(ls "$1/comments" 2>/dev/null | sort -n); do head -n 1 "$1/comments/$_j"; done | awk 'NR > 1 { printf "\001" } { printf "%s", $0 }'; }
 upd() { cat "$1/updated" 2>/dev/null || date -u '+%Y-%m-%dT%H:%M:%SZ'; }
 wlog() { printf '%s %s\n' "$1" "$2" >> "$F/writes"; }
-# hook <bare repository> <owner/name>: its update hook logs each ref pushed
-hook() { mkdir -p "$1/hooks"; printf '#!/bin/sh\nprintf "%%s push %%s\\n" %s "$1" >> %s\n' "'$2'" "'$F/writes'" > "$1/hooks/update"; chmod +x "$1/hooks/update"; }
+# hook <bare repository> <owner/name>: its update hook logs each ref pushed; GM-4 K12: and each push of the lock, a take or a free, in $F/locks
+hook() { mkdir -p "$1/hooks"; { printf '#!/bin/sh\nprintf "%%s push %%s\\n" %s "$1" >> %s\n' "'$2'" "'$F/writes'"
+  printf '[ "$1" = refs/heads/vid-state/lock ] || exit 0\ncase $3 in *[!0]*) w=taken ;; *) w=freed ;; esac\nprintf "%%s %%s\\n" %s "$w" >> %s\n' "'$2'" "'$F/locks'"; } > "$1/hooks/update"; chmod +x "$1/hooks/update"; }
 TQ='[.state, ([.assignees[].login] | join(",")), .createdAt] | @tsv'
 AQ='.[] | [.number, ([.labels[].name] | join(",")), ([.comments[].body | split("\n") | .[0]] | join("\u0001")), .title] | @tsv'
 SQ='.[] | [.number, .state, .title, ([.assignees[].login] | join(","))] | @tsv'
@@ -98,6 +108,9 @@ case "$CMD" in
   'issue create')
     shift 2; chkrepo "$@"; wlog "$REPO" 'issue create'; n=$(nxt); d=$F/issues/$n; mkdir -p "$d/comments"
     printf '%s' "$(opt --title "$@")" > "$d/title"; body_from "$@" > "$d/body"; echo OPEN > "$d/state"
+    # with FAKEGH_CREATED_NOW set, the issue's creation time is the moment it is made, as GitHub gives it (a read inside the call that
+    # posted it reads it new); without it, the default date below, which cases with older tickets rely on
+    [ -z "${FAKEGH_CREATED_NOW:-}" ] || date -u '+%Y-%m-%dT%H:%M:%SZ' > "$d/created"
     m=$(opt --milestone "$@"); [ -n "$m" ] && printf '%s' "$m" > "$d/milestone"
     l=$(opt --label "$@"); [ -n "$l" ] && printf '%s\n' "$l" | tr ',' '\n' > "$d/labels"
     echo "https://github.com/$REPO/issues/$n"; exit 0 ;;
@@ -205,7 +218,7 @@ case "$CMD" in
     wlog "$REPO" 'api graphql addSubIssue'; printf '%s' "${p#I_}" > "$F/issues/${c#I_}/parent"; echo "{\"data\":{\"addSubIssue\":{\"issue\":{\"number\":${p#I_}}}}}"; exit 0 ;;
   api\ *)
     shift; X=POST; path=''; jq=''; set -- "$@"; T=''; DE=''; ST=''; BF=''
-    FLD=''; XSET=''; NF_=0; SI=''; II=''; while [ $# -gt 0 ]; do case "$1" in -X) X=$2; XSET=1; shift 2 ;; --jq) jq=$2; shift 2 ;; --paginate) shift ;; -f|-F) FLD=1; NF_=$((NF_ + 1)); case "$2" in title=*) T=${2#title=} ;; description=*) DE=${2#description=} ;; state=*) ST=${2#state=} ;; body=@*) BF=${2#body=@} ;; sub_issue_id=*) SI=${2#sub_issue_id=} ;; issue_id=*) II=${2#issue_id=} ;; esac; shift 2 ;; *) path=$1; shift ;; esac; done
+    FLD=''; XSET=''; NF_=0; SI=''; II=''; IN=''; while [ $# -gt 0 ]; do case "$1" in -X) X=$2; XSET=1; shift 2 ;; --jq) jq=$2; shift 2 ;; --input) IN=$2; shift 2 ;; --paginate) shift ;; -f|-F) FLD=1; NF_=$((NF_ + 1)); case "$2" in title=*) T=${2#title=} ;; description=*) DE=${2#description=} ;; state=*) ST=${2#state=} ;; body=@*) BF=${2#body=@} ;; sub_issue_id=*) SI=${2#sub_issue_id=} ;; issue_id=*) II=${2#issue_id=} ;; esac; shift 2 ;; *) path=$1; shift ;; esac; done
     # iss <id>: the issue number of an issue id (GM-2 T11: 100000 + n), or nothing when no such issue is here
     iss() { case "$1" in ''|*[!0-9]*) return 0 ;; esac; [ "$1" -gt 100000 ] && [ -d "$F/issues/$(($1 - 100000))" ] && echo $(($1 - 100000)); return 0; }
     case "$path" in
@@ -238,6 +251,33 @@ case "$CMD" in
             q=${path#repos/$REPO/contents/}; r=$(printf '%s' "$q" | sed -n 's/.*[?]ref=\([0-9a-f]*\)$/\1/p'); q=$(printf '%s' "$q" | sed 's/[?]ref=[0-9a-f]*$//; s/%20/ /g; s/%23/#/g; s/%3F/?/g; s/%25/%/g')
             git -C "$REMOTE" cat-file -e "$r:$q" 2>/dev/null || die "Not Found (HTTP 404)" 1; git -C "$REMOTE" show "$r:$q"; echo ;;
         esac ;;
+      "repos/$REPO/git/blobs"|"repos/$REPO/git/trees"|"repos/$REPO/git/commits"|"repos/$REPO/git/refs")   # GM-4 K12: spec-publish's git data calls
+        [ "$X" = POST ] && [ -n "$XSET" ] && [ -z "$FLD" ] && [ -n "$IN" ] && [ -f "$IN" ] || die "the git data API is written with -X POST and --input <file> alone" 64
+        RG() { git --git-dir="$REMOTE" "$@"; }; jv() { sed -n "s/.*\"$1\":\"\\([^\"]*\\)\".*/\\1/p" "$IN" | head -n 1; }
+        case "$path" in
+          */blobs) wlog "$REPO" 'git blob'; r=$(jv content | base64 -d | RG hash-object -w --stdin) || die 'the blob could not be made' 1 ;;
+          */trees) wlog "$REPO" 'git tree'; ix=$F/gd.index; rm -f "$ix"; b=$(jv base_tree)
+            sed -n 's/^{"path":"\([^"]*\)","mode":"\([0-9]*\)","type":"\([a-z]*\)","sha":"\([0-9a-f]*\)"}.*$/\1	\2	\3	\4/p' "$IN" > "$F/gd.e"
+            GIT_INDEX_FILE=$ix RG read-tree --empty || die 'no index' 1
+            # the base: every entry of base_tree but those under a tree entry's path; then each blob entry, then each tree entry at its path
+            if [ -n "$b" ]; then RG ls-tree -r "$b" > "$F/gd.b" || die "no tree $b" 1
+              awk -F'\t' 'FILENAME == ARGV[1] { if ($3 == "tree") P[$1] = 1; next } { p = $2; for (x in P) if (p == x || index(p, x "/") == 1) next; print }' "$F/gd.e" "$F/gd.b" | GIT_INDEX_FILE=$ix RG update-index --index-info || die 'the base could not be read' 1; fi
+            awk -F'\t' '$3 == "blob" { print $2 " " $4 "\t" $1 }' "$F/gd.e" | GIT_INDEX_FILE=$ix RG update-index --index-info || die 'an entry could not be put' 1
+            # a tree entry's files at its path (read-tree --prefix needs a work tree, which the bare remote has none of)
+            awk -F'\t' '$3 == "tree" { print $1 "\t" $4 }' "$F/gd.e" | while IFS='	' read -r p s; do RG ls-tree -r "$s" | awk -F'\t' -v P="$p" '{ print $1 "\t" P "/" $2 }' | GIT_INDEX_FILE=$ix RG update-index --index-info || exit 1; done || die 'a tree entry could not be put' 1
+            r=$(GIT_INDEX_FILE=$ix RG write-tree) || die 'the tree could not be written' 1 ;;
+          */commits) wlog "$REPO" 'git commit'; t=$(jv tree); m=$(jv message); set --
+            for p in $(sed -n 's/.*"parents":\[\([^]]*\)\].*/\1/p' "$IN" | tr ',' '\n' | tr -d '"'); do set -- "$@" -p "$p"; done
+            r=$(printf '%s\n' "$m" | GIT_AUTHOR_NAME="$(jv name)" GIT_AUTHOR_EMAIL="$(jv email)" GIT_COMMITTER_NAME=fake GIT_COMMITTER_EMAIL=gh@fake RG commit-tree "$t" "$@") || die 'the commit could not be made' 1 ;;
+          */refs) rf=$(jv ref); c=$(jv sha); wlog "$REPO" "git ref $rf"; case "$rf" in refs/heads/?*) ;; *) die 'Reference name invalid' 1 ;; esac
+            ! RG rev-parse -q --verify "$rf" > /dev/null || die 'Reference already exists' 1; RG update-ref "$rf" "$c" || die 'the ref could not be made' 1; r=$rf ;;
+        esac
+        case "$jq" in .sha|.ref|'') ;; *) die "unknown --jq for the git data API: $jq" 64 ;; esac; echo "$r" ;;
+      "repos/$REPO/git/refs/heads/"*)   # GM-4 K13: spec-publish's move of its own branch, -X PATCH --input <file> (sha, force) alone
+        [ "$X" = PATCH ] && [ -z "$FLD" ] && [ -n "$IN" ] && [ -f "$IN" ] || die 'a branch is moved with -X PATCH and --input <file> alone' 64
+        rf=refs/heads/${path#"repos/$REPO/git/refs/heads/"}; c=$(sed -n 's/.*"sha":"\([0-9a-f]*\)".*/\1/p' "$IN" | head -n 1); wlog "$REPO" "git ref move $rf"
+        git --git-dir="$REMOTE" rev-parse -q --verify "$rf" > /dev/null || die 'Reference does not exist' 1; git --git-dir="$REMOTE" update-ref "$rf" "$c" || die 'the ref could not be moved' 1
+        case "$jq" in .ref|'') ;; *) die "unknown --jq for a ref's move: $jq" 64 ;; esac; echo "$rf" ;;
       "repos/$REPO/milestones")
         wlog "$REPO" 'api milestone'; n=$(ls "$F/milestones" 2>/dev/null | sort -n | tail -n 1); n=$(( ${n:-0} + 1 )); mkdir -p "$F/milestones/$n"
         printf '%s' "$T" > "$F/milestones/$n/title"; printf '%s' "$DE" > "$F/milestones/$n/description"; echo open > "$F/milestones/$n/state"

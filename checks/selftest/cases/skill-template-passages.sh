@@ -30,7 +30,7 @@ has "$TI" "or an incorporation's decision lines, with the REQs each one serves" 
   'a yes to the map never stands for their ratification'
 has "$VS" 'the counts per stage (its rows provable only at a later stage among them, and on a re-cut its moved rows)'
 R=$(grep '^| \*\*/vid:vid-next\*\* |' "$VH") || fail 'vid-help has no /vid:vid-next row'
-inx "vid-help's /vid:vid-next row" "$R" 'then it does the moves the owner names in the call, in his words' 'and writes the plan page'
+inx "vid-help's /vid:vid-next row" "$R" 'then it does the moves the owner names in the call, in your words' 'and writes the plan page'
 has "$TD" 'Append-only, except labels and replaced-by marks.' \
   'is marked, and only marked: `| replaced-by: D-NNN[, D-MMM]` in its rule part, right before ` | why:`' \
   'Where the lines differ, the named lines win' 'wherever it is quoted the lines it names follow it' \

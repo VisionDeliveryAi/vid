@@ -17,8 +17,9 @@ grep -q '^spec-repo owner/code-spec created ' .vid/tw/log || fail 'no spec-repo 
 RC=0; sh "$GS" spec-setup --make-only > "$T/out" 2>&1 || RC=$?; [ "$RC" = 0 ] && ok 'exists (private)' || fail "a second --make-only failed ($RC)"
 RC=0; sh "$GS" spec-export > "$T/out" 2>&1 || RC=$?; [ "$RC" = 0 ] || fail "the round's first export failed ($RC)"; grep -q '^export ' .vid/tw/log || fail 'no export line after spec-export'
 # the skills, when SKILL.md files are here (the plugin's layout)
-SK=$CHECKS/../skills; if [ -f "$SK/vid-run/SKILL.md" ]; then
-  a=$(grep -n 'spec-setup --make-only' "$SK/vid-run/SKILL.md" | head -n 1 | cut -d: -f1); b=$(grep -n 'state-restore' "$SK/vid-run/SKILL.md" | head -n 1 | cut -d: -f1); c=$(grep -n 'lock-take' "$SK/vid-run/SKILL.md" | head -n 1 | cut -d: -f1)
-  [ -n "$a" ] && [ "$a" -le "$b" ] && [ "$a" -lt "$c" ] || fail "the run skill does not make the spec repository before the restore and the lock ($a, $b, $c)"
+# the connect's (vid-connect, since GM-4 F2 and K10 move the run skill's start there)
+SK=$CHECKS/../skills; if [ -f "$SK/vid-connect/SKILL.md" ]; then VC=$SK/vid-connect/SKILL.md
+  a=$(grep -n 'spec-setup --make-only' "$VC" | head -n 1 | cut -d: -f1); b=$(grep -n 'state-restore' "$VC" | head -n 1 | cut -d: -f1); c=$(grep -n 'lock-take' "$VC" | head -n 1 | cut -d: -f1)
+  [ -n "$a" ] && [ "$a" -le "$b" ] && [ "$a" -lt "$c" ] || fail "the connect does not make the spec repository before the restore and the lock ($a, $b, $c)"
   ! grep -q "owner's go after ratification" "$SK/vid-tickets/SKILL.md" || fail "the ticket writer still publishes at the plan's approval"; fi
 echo 'spec-setup-make: ok'

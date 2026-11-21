@@ -50,11 +50,13 @@ spec). `sh checks/planner.sh` judges it all (its header names each subcommand).
    words>"` (v0.26.10.26.7, R11), never by writing the key yourself: a default you write is no answer, and `planner.sh
    check` flags each unanswered key until the first ratify. **A session that cannot ask** (headless, or no owner to
    answer) puts the questions in its answer, in plain words, and plans nothing:
-   - **Where the code lives and the specs go.** `layout: separate` (the default: the code repository and ViD's
-     private spec repository) or `layout: one` (one repository, ViD's specs under `docs/specs`); the code repository
-     as `repo: <owner>/<name>`; with `separate`, `spec-repo:` (default `<repo>-spec`); with `one`, no `spec-repo:`
-     (publishing waits for a later build, which exports into `docs/specs`); an empty `labels-prefix:` when none is
-     there. "Not yet" is offered for the repositories alone: their keys stay out, and a later `/vid:vid-plan` asks again.
+   - **Where the code lives and the specs go.** `layout: separate` (the default: the code repository and ViD's private
+     spec repository) or `layout: one` (one repository: the team reads the specs in a folder of the code repository).
+     With one repository, ViD's own publish into the folder comes with `vid-spec-publish`: each export mirrored into the
+     folder by a pull request the team merges. The code repository as `repo: <owner>/<name>`; `spec-repo:` in both
+     layouts (default `<repo>-spec`), ViD's own export; with `one`, `spec-path: <folder>` (default `docs/specs`) and
+     `spec-stamp: <a file in the folder>` (the file the publish sets to the export it holds, or `none`); an empty
+     `labels-prefix:` when none is there. "Not yet" is offered for the repositories alone: their keys stay out, and a later `/vid:vid-plan` asks again.
    - **The teams.** One line each, `team: <name> | <area in words> | strict|core | <people>`: a name of lower-case
      letters and digits, starting with a letter; *strict* when the team does only its area, *core* when the area is
      its main one but it may help elsewhere. The default is offered, `devagent | the whole product | core | 1`, and
@@ -246,14 +248,14 @@ change to PRD.md, INVENTORY.md, STAGES.md, GRADING-CHECKLIST.md, ARCHITECTURE.md
 
 ## The review
 
-Spawn a fresh agent (the Agent tool, general-purpose, no model override: it runs on the session's, claude-opus-5-5)
-with passes/row-review.md, PRD.md, PLAN.md and `sh checks/planner.sh rows --added` verbatim, and nothing else: it
-judges the rows ViD appended alone, the inventory's being the owner's, ratified. Save its output under `.vid/plan/`
-and record it: `sh checks/planner.sh review --in <file>`. Fix each finding's row (the hash changes: check and review
+Invoke the `vid-row-review` skill (GM-4 F12) with the rows `sh checks/planner.sh rows --added` prints; its output saved
+under `.vid/plan/`, record it: `sh checks/planner.sh review --in <file>`. Fix each finding's row (the hash changes: check and review
 again), or, when the row is right as written, leave the finding on the page for the owner to keep (`sh
 checks/planner.sh answer <n> keep --words "<the owner's words>"`) or have fixed.
-Run every helper in the foreground (`run_in_background: false` on the Agent call), wait for its result, and never end a
-turn, nor schedule a wake-up, while one, or a command you started in the background, is running.
+**At most 3 rounds of review a sitting, fewer when the count does not fall:** the rounds close after the 3rd review, or
+after a review that finds no fewer than the one before, and `planner.sh review` then records nothing and says why. Once
+they close, PL fixes nothing more on its own: each open finding is the owner's, to keep or to have fixed (`answer <n>
+fixed --words "<the owner's words>"` once it is), and ratify needs no new review.
 
 ## The page
 

@@ -3,7 +3,8 @@
 # committed and that commit recorded as the applied version, then, after it: ROW-001's obligation restated, ROW-021
 # added, REQ-011's fail-if changed (reaching ROW-018, which derives from it) and ROW-019 removed. `next.sh pending`
 # prints exactly one line each: reset ROW-001, added ROW-021, reached ROW-018 and retired ROW-019, as
-# `inventory.sh impact --base <applied> --tickets` sorts the first three. Env: CHECKS.
+# `inventory.sh impact --base <applied> --tickets` sorts the first three; and (GM-3 U1, lane A's review) `spec PRD.md 2 lines`,
+# REQ-011's changed line, since a PRD change shows among the spec lines too. Env: CHECKS.
 set -eu
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 . "$CHECKS/selftest/fixtures/planner-toy.sh"
@@ -18,6 +19,6 @@ sed 's/fail-if: a day of failed sends leaves no operator-visible trace/fail-if: 
 pt_del ROW-019
 grep -q 'newest first' INVENTORY.md && grep -q '^ROW-021 ' INVENTORY.md && ! grep -q '^ROW-019 ' INVENTORY.md && grep -q 'within the hour' PRD.md || fail 'the changes did not land'
 sh "$CHECKS/next.sh" pending > "$T/out" 2>&1 || fail 'next.sh pending failed'
-printf 'pending\tadded\tROW-021\npending\treached\tROW-018\npending\treset\tROW-001\npending\tretired\tROW-019\n' > "$T/want"
-sort "$T/out" | cmp -s - "$T/want" || fail "the pending changes are not one each of reset ROW-001, added ROW-021, reached ROW-018 and retired ROW-019"
+printf 'pending\tadded\tROW-021\npending\treached\tROW-018\npending\treset\tROW-001\npending\tretired\tROW-019\nspec\tPRD.md\t2 lines\n' > "$T/want"
+sort "$T/out" | cmp -s - "$T/want" || fail "the pending changes are not one each of reset ROW-001, added ROW-021, reached ROW-018 and retired ROW-019, then spec PRD.md 2 lines"
 exit 0

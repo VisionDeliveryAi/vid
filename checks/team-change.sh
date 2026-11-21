@@ -3,10 +3,11 @@
 # `/vid next team-change #<n> <id> yes|no "<words>"` calls. Run at the top of ViD's repository, in GitHub manual alone.
 #   sh checks/team-change.sh <n> <id> yes|no "<the owner's words>"
 # The change must be one `next.sh changes` lists now (added or dropped, on ticket n, with its evidence hash): one an answer covers
-# with that evidence, or none at all, is refused; a team-added id found only in the pending spec (`pending-only`) is refused, as
-# the apply move's (phase 3). Words are needed, kept on one line (a tab or newline a space, a `"` a `'`).
-# yes: the preparation a publish makes (github.sh spec-export, tw-sync), then the plan's block changed and checked before anything
-# is recorded: added, the test into ticket n's step, out of the step that held it, its no-step line off .vid/tw/to-place (an
+# with that evidence, or none at all, is refused. GM-3 U5: a team-added id found only in the pending spec (`pending-only`) takes a
+# no as any change does; its yes is refused, pointing to the apply move, since the analysis takes it into its ticket's step by
+# default and the apply's yes takes it in (GM M9). Words are needed, kept on one line (a tab or newline a space, a `"` a `'`).
+# yes: the plan's block changed and checked before anything is recorded (GM-4 F5: the preparation a publish makes, the export, the
+# sync, the read and the handovers, is github.sh tw-hand's, made for each ticket it changes): added, the test into ticket n's step, out of the step that held it, its no-step line off .vid/tw/to-place (an
 # other-stage line kept: it still stands in a step of another stage); dropped, the test out of
 # the step. The test leaves its `needs` line (a line left with no row goes) and, moved in, joins the line of its new step's rows
 # that names all the step's builds-on, made when there is none. A step left with no test goes from the block, and from every
@@ -15,8 +16,9 @@
 # as a warning. A `place` flag puts the test on .vid/tw/to-place, `other-stage` (a test of another stage than its step's) or
 # `no-step`, with the words. Then plan.sh change rows, trigger owner-answer, evidence ticket:<n>, the words its why (refused: the
 # block and the to-place list restored, nothing recorded). The answer is recorded at once; then each ticket the change reaches
-# (ticket n, and the open tickets of the step the test left), in the order writer.sh due gives, is withdrawn (github.sh tw-close)
-# or amended (writer.sh write amend, github.sh tw-post --amend), on the same words, its cause the change taken in.
+# (ticket n, and the open tickets of the step the test left), in the order writer.sh due gives, is withdrawn or amended through K1's
+# one path (GM-4 F5: github.sh tw-hand withdraw|amend <m> --words --cause, with the lock, the saved records and the save), on the same
+# words, its cause the change taken in.
 # no: one comment on ticket n (github.sh tw-team-no), saying the test stays as the ticket had it; then the answer recorded.
 # The record, .vid/next/team-answers (GM-2 §5): `<n>\t<added|dropped>\t<id>\t<evidence hash>\t<yes|no>\t<at>\t<words>`, appended;
 # next.sh changes reads it and offers the change again only once its evidence changes.
@@ -45,14 +47,14 @@ sh "$HERE/next.sh" changes > "$T/ch" 2> "$T/che" || { sed 's/^/    /' "$T/che" >
 C=$(awk -F'\t' -v n="$N" -v id="$ID" '($1 == "added" || $1 == "dropped") && $2 == n && $3 == id { print; exit }' "$T/ch")
 [ -n "$C" ] || ref "next.sh changes lists no change of $ID on #$N: answered with its evidence unchanged, or no change"
 KD=$(printf '%s' "$C" | cut -f1); ST=$(printf '%s' "$C" | cut -f4); EV=$(printf '%s' "$C" | cut -f5)
-[ "$ST" != pending-only ] || ref "$ID is in the pending spec alone, not the applied one: with the apply move; done from phase 3"
 record() { mkdir -p .vid/next; printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$N" "$KD" "$ID" "$EV" "$AN" "$(now)" "$WQ" >> .vid/next/team-answers; }
 if [ "$AN" = no ]; then
   sh "$HERE/github.sh" tw-team-no "$N" "$ID" "$KD" > "$T/no" 2>&1 || { sed 's/^/    /' "$T/no" >&2; ref "the comment on #$N could not be posted — nothing recorded"; }
   record; echo "ViD team-change: no — $KD $ID on #$N: the test stays as the ticket had it; one comment posted, the answer recorded"; exit 0; fi
+# GM-3 U5: the yes to a pending-only addition is the apply's
+[ "$ST" != pending-only ] || ref "$ID is in the pending spec alone, not the applied one: the analysis (/vid next planning-analysis) takes it into #$N's step, and your words to /vid next implement-replan take it in"
 
-# yes: the preparation a publish makes, then the block changed
-{ sh "$HERE/github.sh" spec-export && sh "$HERE/github.sh" tw-sync; } > "$T/prep" 2>&1 || { sed 's/^/    /' "$T/prep" >&2; ref 'the export or the sync failed — nothing recorded'; }
+# yes: the block changed (GM-4 F5: each post's preparation is tw-hand's)
 plan_block > "$T/blk"; [ -s "$T/blk" ] || ref 'RUN-STATE holds no plan block'
 awk -v id="$ID" -v kd="$KD" -v ts="$TS" -v GONE="$T/gone" -v SRC="$T/src" "$RNG"'
   function tr(s) { gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
@@ -114,14 +116,12 @@ echo "ViD team-change: yes — $KD $ID on #$N: the plan change recorded$([ ! -s 
 # the tickets the change reaches: ticket n and the open tickets of the step the test left; each as writer.sh due owes it
 { echo "$N"; for s in $(cat "$T/src"); do awk -v s="step=$s" '$1 == "withdrawn" { W[$2] = 1 } ($1 == "published" || $1 == "amended") { for (i = 3; i <= NF; i++) if ($i == s) P[$2] = 1 } END { for (t in P) if (!(t in W)) print t }' .vid/tw/log; done; } | sort -u > "$T/reach"
 owed() { echo "ViD team-change: the plan change and the answer are recorded; $1 — it stays owed, a move at the next call" >&2; exit 1; }
-sh "$HERE/github.sh" tw-handovers > "$T/ho" 2>&1 || { sed 's/^/    /' "$T/ho" >&2; owed 'the handovers could not be logged, so no ticket was changed'; }
 sh "$HERE/writer.sh" due > "$T/due" 2>&1 || { sed 's/^/    /' "$T/due" >&2; owed 'writer.sh due failed, so no ticket was changed'; }
 if [ "$KD" = added ]; then CN="the team's addition of $ID to this ticket, taken in"; else CN="the team's removal of $ID from this ticket, taken in"; fi
 while read -r k m _r; do grep -qx "$m" "$T/reach" || continue; if [ "$m" = "$N" ]; then c=$CN; else c="$ID moves to step $TS, ticket #$N, where the team added it"; fi
   case $k in
-    withdraw) sh "$HERE/github.sh" tw-close --words "$WQ" --cause "$c" "$m" > "$T/o" 2>&1 || { sed 's/^/    /' "$T/o" >&2; owed "the withdrawal of #$m failed"; } ;;
-    amend) F=$(sh "$HERE/writer.sh" write amend "$m" --cause "$c" 2> "$T/o") || { sed 's/^/    /' "$T/o" >&2; owed "the amendment of #$m could not be written"; }
-      sh "$HERE/github.sh" tw-post --amend "$m" --words "$WQ" "$F" > "$T/o" 2>&1 || { sed 's/^/    /' "$T/o" >&2; owed "the amendment of #$m failed"; } ;;
+    withdraw) sh "$HERE/github.sh" tw-hand withdraw "$m" --words "$WQ" --cause "$c" > "$T/o" 2>&1 || { sed 's/^/    /' "$T/o" >&2; owed "the withdrawal of #$m failed"; } ;;
+    amend) sh "$HERE/github.sh" tw-hand amend "$m" --words "$WQ" --cause "$c" > "$T/o" 2>&1 || { sed 's/^/    /' "$T/o" >&2; owed "the amendment of #$m failed"; } ;;
     *) continue ;; esac
   sed 's/^/    /' "$T/o"; done < "$T/due"
 exit 0

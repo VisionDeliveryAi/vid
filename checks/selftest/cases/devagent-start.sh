@@ -81,10 +81,10 @@ grep -v '^setup-answered key=github-mode ' .vid/plan/setup > "$T/st" || true; ca
 sh "$CHECKS/planner.sh" check > "$T/out" 2>&1 || true; ! grep -q '^setup github-mode' "$T/out" || fail 'a ratified plan is flagged for github-mode'
 cd /; pt_toy "$T/q"; grep -v '^setup-answered key=github-mode ' .vid/plan/setup > "$T/st" || true; cat "$T/st" > .vid/plan/setup
 sh "$CHECKS/planner.sh" check > "$T/out" 2>&1 || true; grep -q "^setup github-mode — no answer of the owner's is recorded" "$T/out" || fail 'github-mode unanswered is not flagged before the first ratify'
-# vid-run: the start paragraph names the call; the read-access line only in GitHub team or with no answer (R10)
-S=$CHECKS/../skills/vid-run/SKILL.md
+# the run's start (vid-connect's since GM-4 F2 and K10): it names the call; the read-access line only in GitHub team or with no answer (R10)
+S=$CHECKS/../skills/vid-connect/SKILL.md
 if [ -f "$S" ]; then
-  grep -q 'sh "${CLAUDE_PLUGIN_ROOT}/checks/devagent-start.sh"' "$S" && grep -q 'devagent-start.sh.*as it is' "$S" || fail 'vid-run does not name the call, or to show its output as it is'
-  grep 'read access' "$S" | grep -q 'devagent-start.sh" mode` prints `auto`' || fail 'vid-run'"'"'s read-access line is not conditioned on the GitHub mode'
+  grep -q 'sh "${CLAUDE_PLUGIN_ROOT}/checks/devagent-start.sh"' "$S" && grep -q 'devagent-start.sh.*as it is' "$S" || fail 'vid-connect does not name the call, or to show its output as it is'
+  grep 'read access' "$S" | grep -q 'devagent-start.sh" mode` prints `auto`' || fail 'vid-connect'"'"'s read-access line is not conditioned on the GitHub mode'
 fi
 echo 'devagent-start: ok'

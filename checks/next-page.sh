@@ -1,31 +1,23 @@
 #!/bin/sh
-# Purpose: GitHub manual's plan page and to-do log (GM-2 T12). Run at the top of ViD's repository, in GitHub manual only (lib.sh
-# manual). It reads nothing from GitHub and writes nothing to it, or to the project's own files: its sources are the call's read
-# (.vid/next/read), the read before it (.vid/next/read.prev, kept by next.sh read), the log (.vid/tw/log), the plan block, the
-# plan's rows (planner.sh rows --newest, for a step's stage as next.sh reads it), the setup's teams, STAGES.md's stage names and
-# the call's `next.sh triggers` lines, in the file the call hands it. It counts nothing the call's lines count: their counts and
+# Purpose: GitHub manual's plan page (GM-2 T12). Run at the top of ViD's repository, in GitHub manual only (lib.sh manual). It
+# reads nothing from GitHub and writes nothing to it, or to the project's own files: its sources are the call's read
+# (.vid/round/read, GM-4 F3), the read before it (.vid/round/read.prev, kept by the connect at the call's start), the log
+# (.vid/tw/log), the plan block, the plan's steps and the setup's teams as the planner reads them (planner.sh steps and teams,
+# GM-4 F10), STAGES.md's stage names, the owner's queue (.vid/decide/queue: its open lines, what the last call raised) and the
+# call's `next.sh triggers` lines, in the file the call hands it. It counts nothing the call's lines count: their counts and
 # tiers are printed as they stand.
 #   write <triggers file>   the page: one self-contained HTML file that opens offline, plan.html in the folder /vid view writes to
 #                      (viewer/view.sh: ~/ViD Viewer/<the repository's folder name>/), beside its pages; prints `page <path>`.
 #                      In order: what is new since the last call, the to-do list, what is not yet with the team counted by
-#                      kind, the triggers by tier, then the plan by team, stage and track. Then the to-do log, appended (below)
-#   todo-done <kind> <subject> <move|words> [<words>]   a done line for the to-do; the move runner calls it after each move it
-#                      does (`move`); `/vid next done` calls it with the owner's words (`words`), refused unless the to-do is
-#                      on the list. Its hash: the move's in .vid/next/moves (the last listing), else the to-do's newest line's
-# The to-do log, .vid/next/todo, appended, tab-separated (GM-2 §5): `<at>\t<appeared|done>\t<kind> <subject>\t<hash>\t<move|
-# records|words|->\t<words or ->`. The to-dos are the call's critical triggers first (`trigger critical`: kind its what, the hash
-# of the trigger line with every count of days left out), then its moves (`move`: kind, subject and hash as the line gives them).
-# A to-do is on the list while its newest line is `appeared`: logged so the first call it is raised, and again when its hash
-# changes while it is on the list. It is done when the move that handles it is done (todo-done move), when the owner says so
-# (todo-done words), or when the call's lines no longer raise it (`records`, by write, its hash `-`, so any later raising of it
-# differs; a to-do done by a move or in words and then no longer raised gets that line too; while a part of the read is unread,
-# a to-do no longer raised stays on the list, so a failed read neither drops it nor brings it back as new); a done one comes
-# back, `appeared` again, when it is raised with a hash other than its done line's.
+#                      kind, the triggers by tier, then the plan by team, stage and track.
+# The to-do list (GM-4 F4) is the owner's queue: each open `Q<n>` line, in its order, a move or a trigger the last call raised by
+# its kind and subject, with the command that does it, answers it or takes it off the list (/vid next done), and when it was
+# first asked. Nothing is logged here: an answer is the queue's (queue.sh answer).
 # What is new since the last call compares the two reads: each published ticket opened, closed, taken (as next.sh reads taken:
 # a `vid: claimed` comment, an assignee or a sub-issue) or given units; each unit closed; each pull request of a ticket, or of
 # one of its units, opened or merged; each question (a `Question:` comment head) the read before did not hold; each team change
 # whose test the body names now and did not then, or did then and does not now; each important trigger shown (T9 shows one only
-# when it is new or changed) but a team change, and each critical one first logged at this call. A ticket a read could not read
+# when it is new or changed) but a team change, and each critical one first raised at this call (queue.sh raise). A ticket a read could not read
 # in part is left out of the comparison, and the page says so. With no read before (the first call after the switch), or one
 # that failed whole (an `unread round` line and no `ticket` line), it says it has nothing to compare with.
 # serves: tickets
@@ -37,24 +29,9 @@ T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 TAB=$(printf '\t')
 die() { echo "ViD next-page: $*" >&2; exit 2; }
 ref() { echo "ViD next-page: refused — $*" >&2; exit 1; }
-RD=.vid/next/read; PRV=.vid/next/read.prev; TODO=.vid/next/todo; LOG=.vid/tw/log
+RD=.vid/round/read; PRV=.vid/round/read.prev; LOG=.vid/tw/log; QD=.vid/decide/queue
 # clean <words>: the owner's words on one line, a tab or a newline one space, a " written ' (GM-2 §5)
 clean() { printf '%s' "$1" | tr '\t\n\r' '   ' | tr '"' "'"; }
-
-todo_done() {
-  U='usage — sh checks/next-page.sh todo-done <kind> <subject> <move|words> [<words>]'; [ $# -ge 3 ] || die "$U"
-  K=$1; shift; S=''; H=''
-  while [ $# -gt 0 ]; do case $1 in move|words) H=$1; shift; break ;; esac; S="${S:+$S }$1"; shift; done
-  [ -n "$H" ] && [ -n "$S" ] && [ $# -le 1 ] || die "$U"
-  WD=$(clean "${1:-}"); [ -n "$WD" ] || WD=-
-  [ "$H" = move ] || [ "$WD" != - ] || ref "a to-do done in words needs the owner's words"
-  KEY="$K $S"
-  LAST=$(awk -F'\t' -v k="$KEY" '$3 == k { l = $2 "\t" $4 } END { print l }' "$TODO" 2>/dev/null || true)
-  [ "$H" = move ] || [ "${LAST%%"$TAB"*}" = appeared ] || ref "\"$KEY\" is no to-do on the list (.vid/next/todo)"
-  HS=$(awk -F'\t' -v k="$K" -v s="$S" '$1 == k && $2 == s { h = $3 } END { print h }' .vid/next/moves 2>/dev/null || true)
-  [ -n "$HS" ] || { [ -z "$LAST" ] || HS=${LAST#*"$TAB"}; }; [ -n "$HS" ] || HS=-
-  mkdir -p .vid/next; printf '%s\tdone\t%s\t%s\t%s\t%s\n' "$(now)" "$KEY" "$HS" "$H" "$WD" >> "$TODO"
-  echo "todo done $KEY"; }
 
 # inputs: every source as tagged lines into $T/f, read by the one awk program below
 inputs() {
@@ -71,17 +48,15 @@ inputs() {
       for (i = 2; i <= NF; i++) { x = tr($i); if (x ~ /^lane:/) ln = tr(substr(x, 6)); else if (x ~ /^rows:/) rw = substr(x, 6); else if (x ~ /^name:/) nm = tr(substr(x, 6)) }
       gsub(/[ \t,]+/, " ", rw); m = split(rw, t, " "); r = ""; for (j = 1; j <= m; j++) if (t[j] != "") r = r " " rng(t[j])
       print "ST\t" id "\t" (ln == "" ? "-" : ln) "\t" nm "\t" substr(r, 2) }' >> "$T/f"
-  # the setup's teams, as next.sh's teams_ reads them: none, devagent of one
-  { cat .vid/tw/settings 2>/dev/null || true; } | awk -F'|' 'function tr(s) { gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
-    /^team:/ { l = tr(substr($0, 6)); n = split(l, a, "|"); for (i = 1; i <= n; i++) a[i] = tr(a[i])
-      if (n == 4 && a[1] ~ /^[a-z][a-z0-9]*$/ && a[4] ~ /^[1-9][0-9]*$/ && !(a[1] in s)) { s[a[1]] = 1; print "TEAM\t" a[1] "\t" a[4] "\t" a[2]; k++ } }
-    END { if (!k) print "TEAM\tdevagent\t1\t-" }' >> "$T/f"
+  # GM-4 F10: the setup's teams and each step's stage as the planner reads them (planner.sh teams, steps), never written again here
+  mustread "$T/pteams" planner teams; awk -F'\t' 'NF >= 4 { print "TEAM\t" $1 "\t" $4 "\t" $2 }' "$T/pteams" >> "$T/f"
+  mustread "$T/psteps" planner steps; awk -F'\t' '{ print "PST\t" $1 "\t" $3 }' "$T/psteps" >> "$T/f"
   { awk '/^```vid-stages/ { b = 1; next } b && /^```/ { exit } b' STAGES.md 2>/dev/null || true; } |
     awk -F'|' '$1 ~ /^STAGE-[0-9]+[ \t]*$/ { s = $1; sub(/^STAGE-/, "", s); gsub(/[ \t]/, "", s); n = $2; gsub(/^[ \t]+|[ \t]+$/, "", n); print "SN\t" (s + 0) "\t" n }' >> "$T/f"
-  [ ! -f "$TODO" ] || sed 's/^/TD	/' "$TODO" >> "$T/f"
-  # each critical trigger's to-do hash: its line with every count of days left out (T9's change)
-  awk -F'\t' '$1 == "trigger" && $2 == "critical" { print $3 " " $4 "\t" $0 }' "$1" | while IFS="$TAB" read -r k l; do
-    printf 'TH\t%s\t%s\n' "$k" "$(printf '%s\n' "$l" | sed -E 's/[0-9]+ days?//g' | git hash-object --stdin)"; done >> "$T/f"
+  # GM-4 F4: the owner's queue's open lines, `QL <Q n> <key> <asked at> <words>` in its order, and each critical trigger first
+  # raised at the newest raise (FR <its key>)
+  if [ -f "$QD/items" ] && [ -f "$QD/ids" ]; then awk -F'\t' 'FILENAME == ARGV[1] { N[$1] = $2; A[$1] = $3; next } ($1 in N) { print "QL\t" N[$1] "\t" $1 "\t" A[$1] "\t" $3 }' "$QD/ids" "$QD/items" >> "$T/f"; fi
+  if [ -f "$QD/raised" ]; then awk -F'\t' -v g="$(cat "$QD/raises" 2>/dev/null || echo 0)" '$2 == g && $3 == "critical" { print "FR\t" $1 }' "$QD/raised" >> "$T/f"; fi
   for r in "$RD" "$PRV"; do [ ! -f "$r" ] || awk -F'\t' '$1 == "ticket" { print $2 "\t" $5 }' "$r"; done | sort -u | while IFS="$TAB" read -r n c; do
     printf 'TE\t%s\t%s\n' "$n" "$(epoch "$c")"; done >> "$T/f"
   printf 'CFG\trepo\t%s\nCFG\tpx\t%s\nCFG\tnow\t%s\nCFG\tnowt\t%s\nCFG\tapplied\t%s\nCFG\ttitle\t%s\n' "$(skey repo)" "$(skey labels-prefix)" "$(date -u +%s)" "$(now)" "$(applied | cut -c1-12)" "$TITLE" >> "$T/f"; }
@@ -90,12 +65,12 @@ write() {
   [ -f "$1" ] || ref "no triggers file at $1"
   P=$(pwd -P); NAME=$(basename "$P"); OUT="$HOME/ViD Viewer/$NAME"
   case "$OUT/" in "$P/"*) ref "the viewer's folder $OUT is inside the project; nothing is written there" ;; esac
-  mkdir -p "$OUT" .vid/next || ref "cannot write $OUT"
+  mkdir -p "$OUT" || ref "cannot write $OUT"
   TITLE=$({ git show HEAD:PRD.md 2>/dev/null || cat PRD.md 2>/dev/null || true; } | sed -n '1s/^# //p' | sed 's/[[:space:]]*—[[:space:]]*PRD[[:space:]]*$//')
   [ -n "$TITLE" ] || TITLE=$NAME
   mustread "$T/rows" planner rows --newest
   inputs "$1"
-  awk -F'\t' -v TL="$T/tl" -v PG="$T/page" '
+  awk -F'\t' -v PG="$T/page" '
     function esc(s) { gsub(/&/, "\\&amp;", s); gsub(/</, "\\&lt;", s); gsub(/>/, "\\&gt;", s); gsub(/"/, "\\&quot;", s); gsub(/\047/, "\\&#39;", s); return s }
     function num(s) { return s ~ /^[0-9]+$/ }
     function add(a, x) { return a == "" ? x : a ", " x }
@@ -104,10 +79,6 @@ write() {
     function pr(n) { return (REPO == "" ? "#" n : "<a href=\"https://github.com/" REPO "/pull/" n "\">#" n "</a>") }
     function o(s) { print s > PG }
     function gs(s) { return G[s] == "" ? "?" : G[s] }
-    # stg <rows>: the stage most of the rows of class planned, moved or owed are in, the earliest on a tie (next.sh, the planner)
-    function stg(l,   m, A, j, x, N, b) { m = split(l, A, " "); split("", N); b = ""
-      for (j = 1; j <= m; j++) { x = A[j]; if (RC[x] ~ /^(planned|moved|owed)$/ && num(RG[x])) N[RG[x]]++ }
-      for (x in N) if (b == "" || N[x] > N[b] || (N[x] == N[b] && x + 0 < b + 0)) b = x; return b }
     # tk <read> <n>: the published ticket n names: n itself, or the ticket whose unit it is
     function tk(r, n) { return (n in ISPUB) ? n : ((r, n) in C2T) ? C2T[r, n] : (("C", n) in C2T) ? C2T["C", n] : (("P", n) in C2T) ? C2T["P", n] : "" }
     function taken(r, n) { return index("\001" IH[r, n] "\001", "\001vid: claimed") || (TA[r, n] != "" && TA[r, n] != "-") || UT[r, n] + 0 > 0 }
@@ -139,15 +110,17 @@ write() {
     $1 == "ST" { SO[++ns] = $2; SL[$2] = $3; SNM[$2] = $4; SR[$2] = $5; INPLAN[$2] = 1; next }
     $1 == "TEAM" { TM[++nm] = $2; TAR[$2] = $4; NL[$2] = $3; for (i = 1; i <= $3; i++) { l = ($3 == 1 ? $2 : $2 "-" i); LT[l] = $2; LS[$2, i] = l } nlan += $3; next }
     $1 == "SN" { SNAME[$2] = $3; next }
-    $1 == "TD" { k = $4; if ($3 == "appeared" && (!(k in LST) || LST[k] == "done")) FIRST[k] = $2; LST[k] = $3; LH[k] = $5; next }
-    $1 == "TH" { THS[$2] = $3; next }
+    # qk <key>: a raised item'"'"'s kind (its what) and subject, `<kind> <subject>`, its raising (@<since>) left out
+    function qk(k,   a, x, s, i) { split(k, a, ":"); x = (a[1] == "move") ? 3 : 4; s = k; for (i = 1; i <= x; i++) sub(/^[^:]*:/, "", s); sub(/@[0-9]+$/, "", s); return a[2] " " s }
+    $1 == "QL" { QLO[++nql] = $2 SUBSEP $3 SUBSEP $4 SUBSEP $5; if ($3 ~ /^question:/) { q = $3; sub(/^question:/, "", q); n = q; sub(/:.*/, "", n); QI[++nqi] = n SUBSEP "#" q SUBSEP $5 } next }
+    $1 == "FR" { FRESH[qk($2)] = 1; next }
+    $1 == "PST" { PSTG[$2] = $3; next }
     $1 == "TE" { TE[$2] = $3; next }
     $1 == "X" { t = $2
       if (t == "count") { if (!($3 in CNT)) CK[++ncnt] = $3; CNT[$3] = $4 }
       else if (t == "unread") { UNX[++nux] = $3 " " $4 ": " $5 }
       else if (t == "trigger") TRG[++ntr] = $3 SUBSEP $4 SUBSEP $5 SUBSEP $6
       else if (t == "tiers") { HASTIERS = 1; for (i = 3; i <= NF; i++) { split($i, kv, "="); TIER[kv[1]] = kv[2]; TIO[++nti] = kv[1] } }
-      else if (t == "question") { h = substr($0, length($1 $2 $3) + 4); QT[$3] = h; q = $3; sub(/^#/, "", q); sub(/:.*/, "", q); QI[++nqi] = q SUBSEP $3 SUBSEP h }
       else if (t == "move") { MV[++nmv] = $3 SUBSEP $4 SUBSEP $5 SUBSEP $6; if ($3 == "publish") PM[$4] = 1
         if ($3 == "team-change") { s = $4; sub(/^#/, "", s); split(s, a, " "); TCN[a[1]]++; TCI[++ntc] = a[1] SUBSEP a[2] SUBSEP $4 } }
       else if (t == "warning") WN[$3, $4] = WN[$3, $4] "\001" $6
@@ -169,18 +142,6 @@ write() {
       if (PREV && RB["P"] && !PT) { PREV = 0; PFAIL = 1 }
       # a ticket left out of the comparison: a read that holds an unread line naming it or one of its units
       for (r = 1; r <= 2; r++) { x = (r == 1 ? "C" : "P"); for (i = 1; i <= NUN[x]; i++) { split(UNL[x, i], a, SUBSEP); if (a[2] == "-") continue; n = tk(x, a[2]); if (n != "") BAD[n] = 1 } }
-      # ---- the to-dos: the critical triggers, then the moves; the log -----------------------------------------------------
-      for (i = 1; i <= ntr; i++) { split(TRG[i], a, SUBSEP); if (a[1] != "critical") continue; k = a[2] " " a[3]; if (k in IT) continue
-        IT[k] = 1; IO[++ni] = k; IK[k] = "trigger"; IHS[k] = THS[k]; IW[k] = a[2]; IS[k] = a[3]; IE[k] = a[4] }
-      for (i = 1; i <= nmv; i++) { split(MV[i], a, SUBSEP); k = a[1] " " a[2]; if (k in IT) continue
-        IT[k] = 1; IO[++ni] = k; IK[k] = "move"; IHS[k] = a[3]; IW[k] = a[1]; IS[k] = a[2]; IE[k] = a[4] }
-      for (i = 1; i <= ni; i++) { k = IO[i]; h = IHS[k]
-        if (!(k in LST) || (LST[k] == "done" && LH[k] != h)) { print NOWT "\tappeared\t" k "\t" h "\t-\t-" > TL; FIRST[k] = NOWT; FRESH[k] = 1; ON[++non] = k }
-        else if (LST[k] == "appeared") { if (LH[k] != h) print NOWT "\tappeared\t" k "\t" h "\t-\t-" > TL; ON[++non] = k } }
-      # one the lines no longer raise: done by the records, or, with a part of the read unread, kept on the list as it stands
-      # (its hash -, so any later raising of it differs and it comes back); one done with a hash, not raised, gets that line too
-      for (k in LST) if (!(k in IT) && (LST[k] == "appeared" || LH[k] != "-")) { if (ANYU) { if (LST[k] == "appeared") { ON[++non] = k; IK[k] = "kept" } }
-        else { print NOWT "\tdone\t" k "\t-\trecords\t-" > TL; if (LST[k] == "appeared") RDONE[++nrd] = k } }
       # ---- what is new since the last call --------------------------------------------------------------------------------
       if (PREV) {
         for (i = 1; i <= nt; i++) { n = TO[i]; if (!HAS["C", n] || (n in BAD)) continue
@@ -232,21 +193,25 @@ write() {
       x = 0; for (n in BAD) x++; if (PREV && x) o("<p class=\"muted\">" pl_(x, "ticket") " could not be read in full at this call or the last, and " (x > 1 ? "are" : "is") " left out of this comparison.</p>")
       o("</div>")
       # the to-do list
-      o("<div class=\"panel\" id=\"todo\"><h2>Your to-do<span class=\"n\">" non + 0 "</span></h2>")
-      if (!non) o("<p class=\"muted\">Nothing waits on you.</p>")
+      o("<div class=\"panel\" id=\"todo\"><h2>Your to-do<span class=\"n\">" nql + 0 "</span></h2>")
+      if (!nql) o("<p class=\"muted\">Nothing waits on you.</p>")
       else { o("<ul class=\"list todo\">")
-        for (i = 1; i <= non; i++) { k = ON[i]; w = IW[k]; s = IS[k]; e = IE[k]; t = "<b>" esc(k) "</b>"
-          if (IK[k] == "kept") t = t ": not raised at this call, whose read is unread in part; kept on the list"
-          else if (IK[k] == "trigger") t = t ", critical: " esc(e) "<span class=\"cmd\">/vid next decline " esc(k) " &quot;…&quot;</span>"
-          else if (w == "answer") t = t ": answer " esc(QT[s] == "" ? "the question" : QT[s]) "<span class=\"cmd\">/vid next answer " esc(s) " [&quot;there&quot;] &quot;…&quot;</span>"
+        # GM-4 F4: the owner'"'"'s queue, each open line; a move or trigger the last call raised by its kind and subject, the re-plan
+        # moves as next-move.sh takes them (GM-3 U6), planning-analysis with no subject, implement-replan with the words alone
+        for (i = 1; i <= nql; i++) { split(QLO[i], a, SUBSEP); qn = a[1]; k = a[2]; e = a[4]; cr = (k ~ /^trigger:[^:]*:critical:/)
+          if (k ~ /^(move|trigger):/) { ks = qk(k); w = ks; sub(/ .*/, "", w); s = substr(ks, length(w) + 2); t = "<b>" esc(ks) "</b> <span class=\"muted\">" esc(qn) "</span>" }
+          else { ks = qn; t = "<b>" esc(qn) "</b>" }
+          if (k ~ /^trigger:/) t = t ", " (cr ? "critical" : "important") ": " esc(e) "<span class=\"cmd\">/vid next decline " esc(ks) " &quot;…&quot;</span>"
+          else if (k !~ /^move:/) t = t ": " esc(e) "<span class=\"cmd\">/vid next answer " esc(qn) " … &quot;…&quot;</span>"
           else if (w == "team-change") t = t ": take it in or decline it, " esc(e) "<span class=\"cmd\">/vid next team-change " esc(s) " yes|no &quot;…&quot;</span>"
-          else if (w == "analyse" || w == "apply") t = t ": " esc(e) "<span class=\"cmd\">/vid next " esc(w) "</span>"
-          else t = t ": " esc(e) "<span class=\"cmd\">/vid next " esc(k) " &quot;…&quot;</span>"
-          if (IK[k] == "move") { m = split(WN[w, s], wa, "\001"); for (j = 2; j <= m; j++) t = t "<span class=\"warns\">Warning: " esc(wa[j]) "</span>" }
-          t = t "<span class=\"cmd\">/vid next done " esc(k) " &quot;…&quot; · on the list since " esc(FIRST[k]) "</span>"
-          o("<li" (IK[k] == "trigger" ? " class=\"crit\"" : "") " data-todo=\"" esc(k) "\">" t "</li>") }
+          else if (w == "planning-analysis") t = t ": " esc(e) "<span class=\"cmd\">/vid next planning-analysis</span>"
+          else if (w == "implement-replan") t = t ": " esc(e) "<span class=\"cmd\">/vid next implement-replan &quot;…&quot;</span>"
+          else t = t ": " esc(e) "<span class=\"cmd\">/vid next " esc(ks) " &quot;…&quot;</span>"
+          if (k ~ /^move:/) { m = split(WN[w, s], wa, "\001"); for (j = 2; j <= m; j++) t = t "<span class=\"warns\">Warning: " esc(wa[j]) "</span>" }
+          if (k ~ /^move:/ || cr) t = t "<span class=\"cmd\">/vid next done " esc(ks) " &quot;…&quot; · on the list since " esc(a[3]) "</span>"
+          else t = t "<span class=\"cmd\">on the list since " esc(a[3]) "</span>"
+          o("<li" (cr ? " class=\"crit\"" : "") " data-todo=\"" esc(ks) "\" data-q=\"" esc(qn) "\">" t "</li>") }
         o("</ul>") }
-      if (nrd) { s = ""; for (i = 1; i <= nrd; i++) s = add(s, esc(RDONE[i])); o("<p class=\"muted\">Off the list, no longer raised: " s ".</p>") }
       o("</div></section>")
       # the counts and the tiers, as the call printed them
       o("<section class=\"panel\" id=\"counts\"><h2>Not yet with the team<span class=\"n\">each test counted once</span></h2><div class=\"counts\">")
@@ -259,7 +224,7 @@ write() {
       else if (!HASTIERS) o("<p class=\"muted\">The call showed no trigger.</p>")
       o("</section>")
       # the plan, by team, then stage, then track; a lane no team holds, then a ticket of no step, after
-      for (i = 1; i <= ns; i++) { s = SO[i]; G[s] = stg(SR[s]); STT[s] = (SL[s] in LT) ? LT[SL[s]] : "" }
+      for (i = 1; i <= ns; i++) { s = SO[i]; G[s] = PSTG[s]; STT[s] = (SL[s] in LT) ? LT[SL[s]] : "" }
       for (ti = 1; ti <= nm + 1; ti++) { tm = (ti > nm ? "" : TM[ti]); split("", GS); ng = 0
         for (i = 1; i <= ns; i++) { s = SO[i]; if (STT[s] != tm) continue; g = gs(s); if (!(g in GS)) { GS[g] = 1; GL[++ng] = g } }
         if (tm == "" && !ng) continue
@@ -282,13 +247,11 @@ write() {
       if (x) { o("<section class=\"team\" data-team=\"no-step\"><h2>Tickets of no step in the plan</h2><div class=\"tracks\"><div class=\"track\">"); for (i = 1; i <= nt; i++) if (!(TS_[TO[i]] in INPLAN)) card(TS_[TO[i]], TO[i]); o("</div></div></section>") }
       o("<footer>Written by /vid next from this call'"'"'s read of GitHub and ViD'"'"'s records, after its moves. Its counts and tiers are the call'"'"'s own lines; nothing on it is a new rule.</footer>")
       o("</div></body></html>") }' "$T/f"
-  [ ! -s "$T/tl" ] || cat "$T/tl" >> "$TODO"
   put "$OUT/plan.html" < "$T/page"
   echo "page $OUT/plan.html"; }
 
 manual || ref 'this project is not in GitHub manual (lib.sh manual): the plan page is GitHub manual'"'"'s'
 case "${1:-}" in
   write) [ $# -eq 2 ] || die 'usage — sh checks/next-page.sh write <triggers file>'; write "$2" ;;
-  todo-done) shift; todo_done "$@" ;;
-  *) die 'usage — sh checks/next-page.sh write <triggers file> | todo-done <kind> <subject> <move|words> [<words>]' ;;
+  *) die 'usage — sh checks/next-page.sh write <triggers file>' ;;
 esac

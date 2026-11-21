@@ -4,6 +4,24 @@
 #   owed            each step owing a close, one line `close <step>`: every ticket merged, with no `closed <step>` line and no ask; or its newest
 #                   ask red, done, with a fix line, every fix line's ticket merged or every row of it a known limit, and nothing waiting on the owner
 #   out             each step with an ask and no `closed <step>` line
+#   step <step>     (GM-4 K3, /vid:vid-step-close) the step's close, its one entry in both modes: its withdrawn asks told; out, the reports
+#                   fetched and the one read made, then read as decide reads it (its lines, `closed <step>` when it closed, else
+#                   `out <step> #<ask>`); owed, asked as ask asks it (`asked <n> close <step>`, or `closed <step>` with no row to run);
+#                   else `refused <step>: <what is missing>`, nothing posted, exit 1. GitHub manual (GM M8, M3): once closed, each open
+#                   ticket of the step closed with one comment (`ticket-closed #<n>`); an ask a landing withdrew is neither told, closed
+#                   nor asked again until the applied commit holds that landing
+#   stage <N>       (GM-4 K4, /vid:vid-stage-close) the stage's end, its one entry in both modes, whichever is next: the full run and
+#                   grade asked when due; the walk started (walk.sh start) when due, or read once its walker ended; every condition met,
+#                   the summary's facts written (`summary <N>`) while there is no summary.md, else the stage closed; otherwise
+#                   `refused stage <N>: <what is missing>`, nothing posted, exit 1. walk <N>, read-walk <N> and summary <N>: one alone.
+#                   GM-4 E12: in GitHub manual PRD.md, INVENTORY.md, STAGES.md and ARCHITECTURE.md are read at the applied commit;
+#                   D4: a published step is of the stage its ticket's header names
+#   deploy staging [<N>] | deploy production "<words>"   (GM-4 K5, /vid:vid-deploy, both GitHub modes) the staging okay posted when
+#                   due, else `refused staging: <what is missing>`; the owner's production yes in their words, the one way to give it,
+#                   `yes production <N> <c>`, else `refused production: <why>`; each refusal exit 1, nothing posted. GM-4 E9 (GM M14,
+#                   D7), in GitHub manual: each okay of stage N's candidate X lists the later work X holds; the staging and production
+#                   okays add the duty later-work-off with the list, the rehearsal's names both; nothing listed, no such duty. D4: in
+#                   GitHub manual no hold sentence in the staging okay
 #   ask <step>      packs the step's rows into chunks and posts the ask, an issue labelled <prefix>run; .vid/decide/close/<step>/<k>/ask
 #   decide <step>   reads the newest ask: every chunk green closes the step; a chunk with a row not run, or absent past close-wait-minutes: of
 #                   quiet, is asked again once, and lost again it is an item for the owner (0.26.10.28.10, R2: `same` when its rows could not run as
@@ -52,12 +70,14 @@ live() { for r in $1; do limited "$r" || { echo y; return 0; }; done; }
 # owed again (R3): the newest ask done, with a fix line, each line's ticket merged or every row of it a known limit, nothing for the owner
 # a row another step's close owned waits for that fix, then the close is owed again too
 again1() { againK "$C/$1/$2"; }
-againK() { K=$1; [ -f "$K/done" ] && { [ -s "$K/fixes" ] || [ -s "$K/waits" ]; } || return 1; ! grep -qE '^(twice|lost|shrink) ' "$K/items" 2>/dev/null || return 1   # 0.26.10.29.2 (R7): a shrink item holds it too
-  [ ! -s "$K/waits" ] || ! cmd_owned | grep -qxF -f "$K/waits" || return 1
+# GM-4 K3: WHY, what holds it, for `step`'s refusal
+againK() { K=$1; WHY="its close ask ${K##*/} has ended with no fix line to wait on"; [ -f "$K/done" ] || WHY="its close ask ${K##*/} is out"
+  [ -f "$K/done" ] && { [ -s "$K/fixes" ] || [ -s "$K/waits" ]; } || return 1; WHY="its close ask ${K##*/} waits on the owner's answer"; ! grep -qE '^(twice|lost|shrink) ' "$K/items" 2>/dev/null || return 1   # 0.26.10.29.2 (R7): a shrink item holds it too
+  WHY="a row its close ask ${K##*/} found red waits on another close's fix, not yet merged"; [ ! -s "$K/waits" ] || ! cmd_owned | grep -qxF -f "$K/waits" || return 1
   # 0.26.10.29.2 (R11): a fix line whose ticket a plan change withdrew (every row of it moved out of its step, so the step
   # that now holds them carries them and its own close covers them) is waited on no longer; a closed-outside one is written again (R4)
   while IFS=$TAB read -r f rs; do [ -n "$(live "$rs")" ] || continue; t=$(fixt "$f"); [ -z "$t" ] || ! awk -v t="$t" '$1 == "withdrawn" && $2 == t && $3 != "decision=closed-outside" { f = 1 } END { exit !f }' "$LOG" 2>/dev/null || continue
-    [ -n "$t" ] && [ -n "$(mrg "$t")" ] || return 1; done < "$K/fixes"; return 0; }
+    WHY="its fix ${t:+#$t }has no merge on record"; [ -z "$t" ] && WHY='its fix line has no ticket yet'; [ -n "$t" ] && [ -n "$(mrg "$t")" ] || return 1; done < "$K/fixes"; WHY=''; return 0; }
 # v0.26.10.26.7 (R9, W-11): rrows <step>, the rows its tickets hold and those its newest ask recorded as reached (land.sh);
 # rtix <file>, the published tickets, never withdrawn, whose reached rows (a reached-rows ticket: its rows) meet the file's;
 # rwait <step>, one of those tickets not yet merged; rpend <step>, a reached row no ticket holds yet meets its rows or is its own
@@ -78,9 +98,21 @@ wdue() { ! rpend "$1" || return 0; [ -n "${WDUE+x}" ] || WDUE=$(sh "$HERE/writer
   sk=$(plan_block | awk -F' [|] ' -v s="step $1" '$1 == s { for (i = 2; i <= NF; i++) if ($i == "kind: skeleton") print "y" }')
   cat "$C/$1"/*/fixes 2>/dev/null | cut -f1 > .vid/round/fk; printf '%s\n' "$WDUE" | awk -v s="$1" -v sk="$sk" -v FK=.vid/round/fk 'BEGIN { while ((getline l < FK) > 0) K[l] = 1 }
     ($1 == "new" && $2 == "step" && $3 == s) || ($1 == "new" && $2 == "skeleton" && sk != "") || ($1 == "new" && $2 == "fix" && ($3 in K)) { f = 1 } END { exit !f }'; }
-owed1() { closed "$1" && return 1; k=$(nk "$1"); [ -z "$k" ] || [ -f "$C/$1/$k/withdrawn" ] || { again1 "$1" "$k"; return; }; t=$(tix "$1"); [ -n "$t" ] || return 1
-  printf '%s\n' "$t" | grep -qE ' (step|skeleton)$' || return 1; printf '%s\n' "$t" | while read -r n x; do [ -n "$(mrg "$n")" ] || exit 1; done || return 1; ! rwait "$1" || return 1; ! wdue "$1"; }
-cmd_owed() { reclose; WOWED=$(sh "$HERE/walk.sh" owed 2>/dev/null || true)   # 0.26.10.28.6 (R1 (a)): first, so a walk recorded none frees staging and the close this round
+# GM-4 K3: WHY, the first thing it found missing, for `step`'s refusal. GitHub manual (GM M3): an ask a landing withdrew waits,
+# owed by no rule, until the applied commit holds that landing (lwait)
+owed1() { WHY='closed already'; closed "$1" && return 1; k=$(nk "$1"); [ -z "$k" ] || [ -f "$C/$1/$k/withdrawn" ] || { again1 "$1" "$k"; return; }
+  if [ -n "$k" ] && lwait "$C/$1/$k/withdrawn"; then WHY="its close ask $k was withdrawn by the landing $LW, which the applied commit does not hold yet"; return 1; fi
+  t=$(tix "$1"); WHY="no ticket of $1 is published"; [ -n "$t" ] || return 1
+  WHY="no step ticket of $1 is published"; printf '%s\n' "$t" | grep -qE ' (step|skeleton)$' || return 1
+  u=$(printf '%s\n' "$t" | while read -r n x; do [ -n "$(mrg "$n")" ] || echo "$n"; done | sort -n | sed 's/^/#/' | paste -sd ' ' -)
+  WHY="$u has no merge on record"; case $u in *' '*) WHY="$u have no merge on record" ;; esac; [ -z "$u" ] || return 1
+  WHY='a ticket holding its reached rows has no merge on record'; ! rwait "$1" || return 1; WHY="the ticket writer owes $1 a ticket"; ! wdue "$1" || return 1; WHY=''; }
+# lwait <withdrawn file> (GM-4 K3, GM M3): in GitHub manual, the landing that withdrew the ask (its first word, a commit of this
+# repository) is pending: the applied commit does not hold it. LW, that landing. A closed-outside withdrawal waits on nothing
+lwait() { manual || return 1; LW=$(head -n 1 "$1" 2>/dev/null | cut -d' ' -f1); [ -n "$LW" ] && git cat-file -e "$LW^{commit}" 2>/dev/null || return 1
+  _ap=$(applied); [ -z "$_ap" ] || ! git merge-base --is-ancestor "$LW" "$_ap" 2>/dev/null; }
+cmd_owed() { reclose; for x in $(steps); do [ -f "$C/$x/tickets" ] && closed "$x" && tclose "$x" > /dev/null; done   # GM-4 K3: a closed step's tickets left open, tried again, silent
+  WOWED=$(sh "$HERE/walk.sh" owed 2>/dev/null || true)   # 0.26.10.28.6 (R1 (a)): first, so a walk recorded none frees staging and the close this round
   SDUE=''; for x in $(sstages); do ! sdue "$x" || { echo "stage $x"; SDUE="$SDUE $x"; }; done
   for s in $(steps); do x=$(stof "$s"); if [ -n "$x" ]; then case " $SDUE " in *" $x "*) continue ;; esac; grep -q "^candidate $x " "$HAND" 2>/dev/null && continue; fi; owed1 "$s" && echo "close $s"; done
   # v0.26.10.26.2 (R1, R4): one okay, the highest stage's due; a CS once its D1 passed
@@ -105,8 +137,9 @@ wfin() { [ -f "$1/done" ] || [ -f "$1/withdrawn" ] || [ -f "$1/none" ] || [ -f "
 wout() { ! wfin "$1/w1" || return 1; ws=$(ls "$1/w1" 2>/dev/null | grep -E '^[0-9]+$' | sort -n | tail -n 1); [ -n "$ws" ] && [ -s "$1/w1/$ws/pid" ] && [ ! -f "$1/w1/$ws/read" ]; }
 # dout <folder>: its okay out, or closed failed for a product change and not yet asked again
 dout() { [ -f "$1/d1/ask" ] && [ ! -f "$1/d1/passed" ] && { [ ! -f "$1/d1/closed" ] || grep -q '^failed ' "$1/d1/closed"; }; }
-# R3 (v0.26.10.25.5): a withdrawn ask whose issue is still open, its issue closed again, at each owed; silent
-reclose() { for W in $(ls "$C"/*/*/withdrawn 2>/dev/null); do s=$(basename "$(dirname "$(dirname "$W")")"); ! grep -q '^issue ' "$W" || continue; i=$(sed -n "s/^issue$TAB//p" "$(dirname "$W")/ask" | head -n 1); [ -n "$i" ] || continue
+# R3 (v0.26.10.25.5): a withdrawn ask whose issue is still open, its issue closed again, at each owed; silent. reclose <step>, that
+# step's alone (GM-4 K3, `step`). GitHub manual (GM M3): one a pending landing withdrew waits for the apply (lwait), told and closed after
+reclose() { for W in $(ls "$C"/${1:-*}/*/withdrawn 2>/dev/null); do s=$(basename "$(dirname "$(dirname "$W")")"); ! grep -q '^issue ' "$W" || continue; ! lwait "$W" || continue; i=$(sed -n "s/^issue$TAB//p" "$(dirname "$W")/ask" | head -n 1); [ -n "$i" ] || continue
     w1=$(head -n 1 "$W" | cut -d' ' -f1); if [ "$w1" = closed-outside ]; then printf 'vid: withdrawn. Ticket %s of %s was closed outside ViD; its rows come in a new ticket, and this close is asked again once it merges. A later report for it is not read.\n' "$(head -n 1 "$W" | cut -d' ' -f2)" "$s" > .vid/round/wc
     else printf 'vid: withdrawn. The landing %s changed rows of %s; this close is asked again once its new tickets merge. A later report for it is not read.\n' "$w1" "$s" > .vid/round/wc; fi
     gh_ comment "$i" --body-file .vid/round/wc > /dev/null 2>&1 && gh_ close "$i" > /dev/null 2>&1 && echo "issue $i" >> "$W"; done; return 0; }
@@ -126,8 +159,9 @@ owed_() { grep -h "^- $1 marks: " $(tfile "$1") /dev/null 2>/dev/null | head -n 
 procs() { grep -h "^- $1 marks: " $(tfile "$1") /dev/null 2>/dev/null | head -n 1 | grep -q "run with the product's processes"; }
 # a row's case seconds in its newest head report's primary cases file: 30 a case, or a row, with none
 secs() { l=$(awk -F'\t' -v r="$1" '$4 == r { p = $2; h = $3 } END { if (p != "") print p, h }' "$D/log" 2>/dev/null); set -- "$1" $l; [ $# = 3 ] || { echo 30; return; }
-  k=$(git --git-dir=.vid/code for-each-ref --format='%(refname:lstrip=3)' "refs/heads/vid-results/pr-$2-$3-*" 2>/dev/null | sed 's/.*-//' | sort -n | tail -n 1); [ -n "$k" ] || { echo 30; return; }
-  git --git-dir=.vid/code show "refs/heads/vid-results/pr-$2-$3-$k:pr-$2-$3-$k/cases-$P1.xml" 2>/dev/null | awk -v id="$1" 'BEGIN { RS = "<"; gsub(/[-_.]/, "-", id) }
+  case $2 in step-*) _sk=$2 ;; *) _sk=pr-$2 ;; esac   # GM-4 E2: a ticket's decision, its reports under step-<n>
+  k=$(git --git-dir=.vid/code for-each-ref --format='%(refname:lstrip=3)' "refs/heads/vid-results/$_sk-$3-*" 2>/dev/null | sed 's/.*-//' | sort -n | tail -n 1); [ -n "$k" ] || { echo 30; return; }
+  git --git-dir=.vid/code show "refs/heads/vid-results/$_sk-$3-$k:$_sk-$3-$k/cases-$P1.xml" 2>/dev/null | awk -v id="$1" 'BEGIN { RS = "<"; gsub(/[-_.]/, "-", id) }
     /^testcase[ \t\n]/ { n = $0; sub(/.*[ \t\n]name="/, "", n); sub(/".*/, "", n); gsub(/[-_.]/, "-", n); p = index(n, id); if (!p || substr(n, p + length(id), 1) ~ /[A-Za-z0-9]/) next
       t = $0; if (sub(/.*[ \t\n]time="/, "", t)) { sub(/".*/, "", t); s += (t + 0 > 0) ? t : 30 } else s += 30; c++ } END { print (c ? int(s + 0.999) : 30) }'; }
 cmd_ask() { s=$1; owed1 "$s" || die "no close is owed for $s"; E=$(sed -n 's/^engines \(.*\) | stand-in.*/\1/p' "$HAND" | tail -n 1); [ -n "$E" ] || die 'the handed record names no engines yet'
@@ -144,7 +178,7 @@ cmd_ask() { s=$1; owed1 "$s" || die "no close is owed for $s"; E=$(sed -n 's/^en
     [ -z "$p" ] || cut -d' ' -f1 "$C/$s/$p/rows"; } | awk '!s[$0]++')
   { cmd_owned "$s"; fxo; } > .vid/round/cx   # v0.26.10.25.5: another step's close owns a row, never this step's own
   mkdir -p "$K"; : > "$K/rows"; for r in $R; do owed_ "$r" || limited "$r" || grep -qxF "$r" .vid/round/cx || printf '%s %s\n' "$r" "$(secs "$r")" >> "$K/rows"; done
-  [ -s "$K/rows" ] || { echo "closed $s | stand-in: close, no row to run" >> "$HAND"; ev "close-closed step=$s rows=0"; echo "closed $s"; return 0; }
+  [ -s "$K/rows" ] || { echo "closed $s | stand-in: close, no row to run" >> "$HAND"; ev "close-closed step=$s rows=0"; echo "closed $s"; tclose "$s" "$last"; return 0; }
   awk -v m=$((M * 60)) '{ if (n && t + $2 > m) { n++; t = 0 } else if (!n) n = 1; t += $2; c[n] = c[n] (c[n] == "" ? "" : " ") $1 } END { for (i = 1; i <= n; i++) print i "\t" c[i] }' "$K/rows" > "$K/packed"
   name=$(plan_block | awk -F' [|] ' -v s="step $s" '$1 == s { sub(/^name: /, "", $2); print $2 }')
   { printf 'close: %s\ncommit: %s\nengines: %s\n\n' "$s" "$last" "$E"
@@ -182,7 +216,7 @@ decide_k() { K=$KD/$k; [ ! -f "$K/withdrawn" ] || return 0; n=$(akey issue); tou
   awk -F'|' 'NR == FNR { if ($2 == "green" || $2 == "red") R[$1] = 1; next } { split($0, w, " ") } !(w[1] == "lost" && (w[2] in R))' "$K/chunks" "$K/items" > .vid/round/it || exit 1; put "$K/items" < .vid/round/it || exit 1   # a late report ends its chunk's loss
   if [ -s "$K/chunks" ] && ! awk -F'|' '$2 != "green" { exit 1 }' "$K/chunks"; then :; elif [ -s "$K/chunks" ] && [ -n "$CSM" ]; then numbers; cs_green; return 0; elif [ -s "$K/chunks" ] && [ -n "$STG" ]; then numbers; stage_green; return 0; elif [ -s "$K/chunks" ]; then numbers
     c=$(akey commit); echo "closed $s | stand-in: close #$n at $(printf %.12s "$c")" >> "$HAND"; ev "close-closed step=$s issue=$n commit=$c"
-    gh_ close "$n" > /dev/null 2>&1 || true; echo "closed $s"; return 0; fi
+    gh_ close "$n" > /dev/null 2>&1 || true; echo "closed $s"; tclose "$s" "$c"; return 0; fi
   # splits, from the close
   awk -F'\t' '$1 == "split" { print $2 "\t" $3 }' "$K/read" | while IFS=$TAB read -r r e; do grep -q "^engine-split $r " "$HAND" 2>/dev/null || { echo "engine-split $r | stand-in: $e" >> "$HAND"; ev "engine-split row=$r from=close step=$s"; echo "split $r"; }; done
   W=$(skey close-wait-minutes); W=$((${W:-180} * 60)); u=$(awk -F'\t' -v n="$n" '$1 == "issue" && $2 == n { print $5 }' .vid/round/read 2>/dev/null); q=$(( $(date +%s) - $(epoch "${u:-$(stamp)}") ))
@@ -253,10 +287,17 @@ decide_k() { K=$KD/$k; [ ! -f "$K/withdrawn" ] || return 0; n=$(akey issue); tou
   [ -f "$K/done" ] || grep '^lost ' "$K/items" | grep -qv '^lost s1 ' || { numbers; gh_ close "$n" > /dev/null 2>&1 || true; : > "$K/done"; ev "close-done step=$s issue=$n"; echo "close-done $s"; }; return 0; }
 # --- v0.26.10.26.1 (R1–R5): a stage's candidate, its full run C3 and its grade S1, in .vid/decide/stage/<N>/<c>/ ---
 SD=$D/stage; SX=$(mktemp -d "$PWD/.vid/round/stg.XXXXXX"); trap 'rm -rf "$SX"' EXIT
+# GM-4 E12 (GM M3: every pending change reaches the team only through the apply): the spec as the team has it. In GitHub manual
+# PRD.md, INVENTORY.md, STAGES.md and ARCHITECTURE.md at the applied commit (lib.sh applied), copied once into $SX/spec (a file the
+# commit lacks, absent), else the working tree: sf <file>, the path to read; SPD, that folder, where stages.sh runs (it reads them
+# from the folder it runs in), each read through lib.sh's mustread, written out where it runs; lrev, the commit whose history is read
+if manual; then SPD=$SX/spec; mkdir -p "$SPD"; _sa=$(applied); for _f in PRD.md INVENTORY.md STAGES.md ARCHITECTURE.md; do { [ -n "$_sa" ] && git show "$_sa:./$_f" > "$SPD/$_f" 2>/dev/null; } || rm -f "$SPD/$_f"; done; else SPD=$PWD; fi
+sf() { printf '%s/%s\n' "$SPD" "$1"; }
+lrev() { if manual; then applied; else echo HEAD; fi; }
 snc() { c0=''; for d in $(ls "$SD/$1" 2>/dev/null | grep -E '^[0-9]+$' | sort -n); do [ -f "$SD/$1/$d/ask" ] && c0=$d; done; echo "$c0"; }
 plr() { [ -f "$SX/plr" ] || { mustread "$SX/plr0" planner rows; grep -v '^#' "$SX/plr0" > "$SX/plr"; }; }   # R6: an unreadable plan stops the close
 # upto <N>: every row of stages 1 to N, by the admission's join: planner.sh rows' stage (its moved: counts), else stages.sh's; a seam stage 1
-upto() { [ -f "$SX/up$1" ] && return 0; plr; mustread "$SX/st0" stages scope --upto "$1"
+upto() { [ -f "$SX/up$1" ] && return 0; plr; ( cd "$SPD" && mustread "$SX/st0" stages scope --upto "$1" )
   awk -F'\t' -v c="$1" 'FILENAME == ARGV[1] { if ($5 ~ /^[0-9]+$/ || $5 == "later") P[$1] = ($5 != "later" && $5 + 0 <= c); if ($1 ~ /^SEAM-/ && c >= 1) S[$1] = 1; next }
     !($1 in P) || P[$1] { print } END { for (r in P) if (P[r]) print r; for (r in S) print r }' "$SX/plr" "$SX/st0" | sort -u > "$SX/up$1"; }
 sstages() { plr; x=$(awk -F'\t' '$5 ~ /^[0-9]+$/ { print $5 }' "$SX/plr" | sort -nu); echo "${x:-1}"; }
@@ -265,7 +306,15 @@ psteps() { [ -f "$SX/ps" ] || plan_block | awk "$RNG"' function tr(x) { gsub(/^[
   /^[ \t]*step[ \t]/ { n = split($0, f, "|"); id = tr(f[1]); sub(/^step[ \t]+/, "", id)
     for (i = 2; i <= n; i++) { x = tr(f[i]); if (x !~ /^rows:/) continue; m = split(substr(x, 6), t, /[ ,\t]+/)
       for (j = 1; j <= m; j++) { y = t[j]; if (y == "") continue; q = split(rng(y), e, " "); for (k = 1; k <= q; k++) print id "\t" e[k] } } }' > "$SX/ps"; }
-sst() { [ -f "$SX/sst" ] && return 0; psteps; : > "$SX/sst"; for N in $(sstages); do upto "$N"
+# GM-4 K4 (D4, GM-3 S2): in GitHub manual a step with a published ticket (not withdrawn) is of the stage its first ticket of kind step
+# or skeleton names in its recorded writing's header (`- stage: <k>`), as the planner reads it; the others by the rule above
+pubst() { manual && [ -f "$LOG" ] || return 0; awk 'function kv(k,   i) { for (i = 3; i <= NF; i++) if (index($i, k "=") == 1) return substr($i, length(k) + 2); return "" }
+    $1 == "withdrawn" { W[$2] = 1 } $1 == "published" && $2 ~ /^[0-9]+$/ && !($2 in K) { O[++n] = $2; K[$2] = kv("kind"); S[$2] = kv("step") }
+    END { for (i = 1; i <= n; i++) if (!(O[i] in W) && K[O[i]] ~ /^(step|skeleton)$/ && S[O[i]] != "") print O[i] " " S[O[i]] }' "$LOG" |
+  while read -r _pn _ps; do [ -f ".vid/tw/out/issue-$_pn.md" ] || continue; grep -q "^$_ps$TAB" "$SX/sst" && continue
+    _pk=$(awk '/^## / { h = ($0 ~ /^## Header[ \t]*$/); next } h && index($0, "- stage: ") == 1 { v = substr($0, 10); sub(/,.*/, "", v); gsub(/[ \t]/, "", v); print v; exit }' ".vid/tw/out/issue-$_pn.md")
+    case $_pk in ''|*[!0-9]*) ;; *) printf '%s\t%s\n' "$_ps" "$_pk" >> "$SX/sst" ;; esac; done; }
+sst() { [ -f "$SX/sst" ] && return 0; psteps; : > "$SX/sst"; pubst; for N in $(sstages); do upto "$N"
     awk -F'\t' -v N="$N" -v U="$SX/up$N" -v A="$SX/sst" 'BEGIN { while ((getline l < U) > 0) W[l] = 1; while ((getline l < A) > 0) { split(l, x, "\t"); G[x[1]] = 1 } }
       { S[$1] = 1; if (!($2 in W)) out[$1] = 1 } END { for (s in S) if (!(s in out) && !(s in G)) print s "\t" N }' "$SX/ps" >> "$SX/sst"; done; }
 stp() { sst; awk -F'\t' -v n="$1" '$2 == n { print $1 }' "$SX/sst"; }
@@ -293,13 +342,13 @@ sdue() { N=$1; W=$SX/why$N; : > "$W"; plr
 newest_merge() { MS=$(cut -f4 "$D/merges" 2>/dev/null | grep -v '^-*$'); last=''
   for c in $MS; do a=1; for o in $MS; do [ "$o" = "$c" ] || anc "$o" "$c" || a=''; done; [ -z "$a" ] || last=$c; done; [ -n "$last" ] || last=$(printf '%s\n' "$MS" | tail -n 1); echo "$last"; }
 # sreqs <N>: the stage's requirements, invariants left out
-sreqs() { mustread "$SX/sq$1" stages scope --upto "$1" --reqs; grep '^REQ-' "$SX/sq$1" | sort -u > "$SX/rq$1"; : > "$SX/rp$1"
-  [ "$1" -lt 1 ] || { mustread "$SX/sp$1" stages scope --upto "$(($1 - 1))" --reqs; grep '^REQ-' "$SX/sp$1" | sort -u > "$SX/rp$1"; }; comm -23 "$SX/rq$1" "$SX/rp$1"; }
+sreqs() { ( cd "$SPD" && mustread "$SX/sq$1" stages scope --upto "$1" --reqs ); grep '^REQ-' "$SX/sq$1" | sort -u > "$SX/rq$1"; : > "$SX/rp$1"
+  [ "$1" -lt 1 ] || { ( cd "$SPD" && mustread "$SX/sp$1" stages scope --upto "$(($1 - 1))" --reqs ); grep '^REQ-' "$SX/sp$1" | sort -u > "$SX/rp$1"; }; comm -23 "$SX/rq$1" "$SX/rp$1"; }
 # v0.26.10.27.4 (R1): lreqs, every live requirement of every stage
 # (`later` ones apart, in $SX/dfr); pmap, the plan block as `M <step> <module>` and `R <step> <row>` lines, ranges expanded;
 # addset <time>, the requirements of every /vid add landed after <time>: its rows', and those of the rows of every step sharing a
 # module with the add's steps, by the plan's modules:
-lreqs() { sh "$HERE/prd.sh" --effective 2>/dev/null | awk -F'|' -v DF="$SX/dfr" '{ k = $1; gsub(/[ \t]/, "", k); if (k !~ /^REQ-[0-9]/) next; l = 0; for (i = 3; i <= NF; i++) { x = $i; gsub(/^[ \t]+|[ \t]+$/, "", x); if (x ~ /^phase:[ \t]*later$/) l = 1 } if (l) print k > DF; else print k }' | sort -u; [ -f "$SX/dfr" ] && sort -u "$SX/dfr" -o "$SX/dfr" || : > "$SX/dfr"; }
+lreqs() { sh "$HERE/prd.sh" --effective "$(sf PRD.md)" 2>/dev/null | awk -F'|' -v DF="$SX/dfr" '{ k = $1; gsub(/[ \t]/, "", k); if (k !~ /^REQ-[0-9]/) next; l = 0; for (i = 3; i <= NF; i++) { x = $i; gsub(/^[ \t]+|[ \t]+$/, "", x); if (x ~ /^phase:[ \t]*later$/) l = 1 } if (l) print k > DF; else print k }' | sort -u; [ -f "$SX/dfr" ] && sort -u "$SX/dfr" -o "$SX/dfr" || : > "$SX/dfr"; }
 pmap() { plan_block | awk "$RNG"' function tr(x) { gsub(/^[ \t]+|[ \t]+$/, "", x); return x }
   /^[ \t]*step[ \t]/ { n = split($0, f, "|"); id = tr(f[1]); sub(/^step[ \t]+/, "", id)
     for (i = 2; i <= n; i++) { x = tr(f[i]); if (x ~ /^modules:/) { m = split(substr(x, 9), a, /[ ,\t]+/); for (j = 1; j <= m; j++) if (a[j] != "") print "M", id, a[j] }
@@ -313,7 +362,7 @@ addset() { pmap > "$SX/pm"; : > "$SX/ar"; for X in $(ls -d "$D"/drafts/* 2>/dev/
     awk -v SS="$SX/ss" 'BEGIN { while ((getline l < SS) > 0) S[l] = 1 } $1 == "R" && ($2 in S) { print $3 }' "$SX/pm" >> "$SX/ar"; done
   sort -u "$SX/ar" -o "$SX/ar"; rreqs "$SX/ar"; }
 # rreqs: a row's requirements, its derived-from items
-rreqs() { sed -n '/^```vid-inventory/,/^```$/p' INVENTORY.md | awk -F'|' -v I="$1" 'BEGIN { while ((getline l < I) > 0) W[l] = 1 } { a = $1; gsub(/[ \t]/, "", a) } (a in W) { n = split($7, t, /[ ,]+/); for (i = 1; i <= n; i++) if (t[i] ~ /^REQ-/) print t[i] }' | sort -u; }
+rreqs() { sed -n '/^```vid-inventory/,/^```$/p' "$(sf INVENTORY.md)" | awk -F'|' -v I="$1" 'BEGIN { while ((getline l < I) > 0) W[l] = 1 } { a = $1; gsub(/[ \t]/, "", a) } (a in W) { n = split($7, t, /[ ,]+/); for (i = 1; i <= n; i++) if (t[i] ~ /^REQ-/) print t[i] }' | sort -u; }
 cmd_ask_stage() { N=$1; sdue "$N" || die "no candidate is due for stage $N: $(paste -sd ';' "$SX/why$N")"; E=$(sed -n 's/^engines \(.*\) | stand-in.*/\1/p' "$HAND" | tail -n 1); [ -n "$E" ] || die 'the handed record names no engines yet'
   set -- $E; P1=$1; shift; P2=$*; M=$(skey close-chunk-minutes); M=${M:-20}; c=$(snc "$N"); if [ -n "$c" ] && [ ! -f "$SD/$N/$c/named" ]; then :; else c=$(( ${c:-0} + 1 )); fi
   K=$SD/$N/$c; mkdir -p "$K"; if [ -f "$K/ask" ]; then X=$(cat "$K/commit"); else X=$(newest_merge); fi; [ -n "$X" ] || die "no merge for stage $N's candidate"; echo "$X" > "$SX/cm" || exit 1; put "$K/commit" < "$SX/cm" || exit 1; upto "$N"
@@ -426,7 +475,7 @@ afirst() { [ -s "$D/landed" ] || return 0; upto "$1"; [ "$1" -lt 1 ] && : > "$SX
   while IFS= read -r l; do k=$((k + 1)); case $l in 'grade '*|'finding: '*) awk -F'\t' -v q="stage:$1:$c:$k" '$2 == q { f = 1 } END { exit !f }' "$D/queue/answers" 2>/dev/null || return 1 ;; esac; done < "$F/findings"; return 0; }
 # 0.26.11.1.1 (R3): the hosting, quoted as the skeleton ticket quotes it (ARCHITECTURE.md's vid-hosting block, a `> ` line each), and
 # the duties an okay names, `- <duty>: <what is asked>`, in plain words for an outside team; R6: the owner's newest seed word
-hostq() { printf 'The hosting:\n'; { git show HEAD:ARCHITECTURE.md 2>/dev/null || cat ARCHITECTURE.md 2>/dev/null || true; } | sed -n '/^```vid-hosting[[:space:]]*$/,/^```[[:space:]]*$/p' | grep -v '^```' | grep '[^[:space:]]' | sed 's/^/> /' > "$SX/hq" || true
+hostq() { printf 'The hosting:\n'; { if manual; then cat "$(sf ARCHITECTURE.md)" 2>/dev/null; else git show HEAD:ARCHITECTURE.md 2>/dev/null || cat ARCHITECTURE.md 2>/dev/null; fi || true; } | sed -n '/^```vid-hosting[[:space:]]*$/,/^```[[:space:]]*$/p' | grep -v '^```' | grep '[^[:space:]]' | sed 's/^/> /' > "$SX/hq" || true
   if [ -s "$SX/hq" ]; then cat "$SX/hq"; else echo '> none'; fi; }
 dutyq() { printf 'Duties:\n'; if [ "$1" = staging ]; then
     printf -- '- log-in: the log-in to the host works\n- environments: staging and production exist on the host, their versions pinned from the stack\n'
@@ -435,18 +484,38 @@ dutyq() { printf 'Duties:\n'; if [ "$1" = staging ]; then
     printf -- '- captures: each real answer the last staging run'"'"'s outside-service tests got saved, and your tests of that service built on the saved answers from then on; before any staging run, not needed\n'
   else printf -- '- service-switch-on: each outside service changing moved one step, stand-in to limited to live, and recorded\n- backups: the host'"'"'s managed backups of production'"'"'s data on\n'
     printf -- '- point-in-time-recovery: point-in-time recovery on for production'"'"'s data\n- storage-versioning: versioning on for the files production stores\n- dns: the product'"'"'s domain points at production\n'
-    printf -- '- https: production answers over https with a valid certificate\n- monitoring: production watched, and someone told when it stops answering\n'; fi; }
+    printf -- '- https: production answers over https with a valid certificate\n- monitoring: production watched, and someone told when it stops answering\n'; fi
+  # GM-4 E9 (GM M14, D7): in GitHub manual, with later work in the candidate (laterw), one duty more, the list under it
+  [ ! -s "$SX/lw" ] || { printf -- '- later-work-off: the work listed below is off for the people using the product\n'; sed 's/^/  /' "$SX/lw"; }; }
+# GM-4 E9 (GM M14, D7): laterw <N> <X>, in GitHub manual, the later work stage N's candidate X holds, one `- ` line each, into $SX/lw:
+# each published ticket of a later stage, withdrawn or not (a withdrawal takes no merged work out of X) (its recorded writing's header, `- stage: <k>`) accepted at a commit X holds
+# (its `step-` merge line, E4) or merged through a pull request in GitHub auto before the switch (its numeric merge line, in
+# merged-prs), and each pull request of .vid/decide/unit-merges merged into X whose ticket, as E4 maps it (its sub-issues too), is of
+# a later stage, by ticket. A pull request tied to no ticket is not listed. Empty outside GitHub manual
+hstg() { awk '/^## / { h = ($0 ~ /^## Header[ \t]*$/); next } h && index($0, "- stage: ") == 1 { v = substr($0, 10); sub(/,.*/, "", v); gsub(/[ \t]/, "", v); print v; exit }' ".vid/tw/out/issue-$1.md" 2>/dev/null; }
+laterw() { : > "$SX/lw"; manual || return 0; : > "$SX/lws"
+  awk '$1 == "published" { P[$2] = 1 } END { for (n in P) print n }' "$LOG" 2>/dev/null | sort -n | while read -r t; do k=$(hstg "$t"); case $k in ''|*[!0-9]*) continue ;; esac; [ "$k" -gt "$1" ] && echo "$t $k"; done > "$SX/lws" || true
+  # the merges on record, each of merged-prs: an acceptance (E4's `step-` line), or a pull request GitHub auto merged before the switch,
+  # its ticket by the pull request's ticket line as auto recorded it
+  [ ! -f "$D/merges" ] || while read -r t k; do awk -F'\t' -v t="$t" -v M="$D/merged-prs" 'BEGIN { while ((getline l < M) > 0) m[l] = 1 } ($1 in m) && $2 == t && $4 != "-" && $4 != "" { print $1 "\t" $4 }' "$D/merges" | while IFS=$TAB read -r p m; do
+      if [ "$m" = "$2" ] || anc "$m" "$2"; then case $p in step-*) printf -- '- #%s, a stage %s ticket, accepted at %.12s\n' "$t" "$k" "$m" ;; *) printf -- '- pull request #%s, of #%s (stage %s), merged at %.12s\n' "$p" "$t" "$k" "$m" ;; esac; fi; done; done < "$SX/lws" >> "$SX/lw"
+  # the units by their ticket as E4 maps them, decide.sh umap's one rule (its sub-issues too), a withdrawn ticket kept: its merged work is in X still
+  [ ! -f "$D/unit-merges" ] || sh "$HERE/decide.sh" umap --withdrawn > "$SX/lwu" || exit 1
+  [ ! -f "$D/unit-merges" ] || while IFS=$TAB read -r p t h m; do [ -n "$m" ] && [ "$m" != - ] || continue; k=$(awk -v t="$t" '$1 == t { print $2; exit }' "$SX/lws"); [ -n "$k" ] || continue
+      if [ "$m" = "$2" ] || anc "$m" "$2"; then printf -- '- pull request #%s, of #%s (stage %s), merged at %.12s\n' "$p" "$t" "$k" "$m"; fi; done < "$SX/lwu" >> "$SX/lw"
+  awk '!s[$0]++' "$SX/lw" > "$SX/lw1" && mv "$SX/lw1" "$SX/lw"; }
+lwrec() { sed "s/^/later-work$TAB/" "$SX/lw"; }   # the okay's ask keeps the list, for the reader (results.sh: the duty later-work-off)
 seedw() { w=$(awk -F'\t' '$2 == "control:seed" { v = $3 } END { print v }' "$D/queue/answers" 2>/dev/null); echo "${w:-synthetic}"; }
 # 0.26.11.1.3 (R3): reals, stage N's open real checks at the candidate X, one a line, into $SX/real: stage 0's skeleton line always, then each
 # `finding: real` line of the stage's tickets merged at or before X (each one's newest evidence), less each one an earlier okay of the
 # stage listed whose D1 passed (a D1 passes only with each listed line done, or ruled by the owner)
 SKL="skeleton: the skeleton's journey, end to end, where the product's people run it (their kind of machine, or the hosted site), on the real outside services and a real sign-in"
 reals() { for O in $(ls -d "$SD/$N"/*/d1* 2>/dev/null); do [ -f "$O/passed" ] && sed -n "s/^real$TAB[0-9]*$TAB//p" "$O/ask" 2>/dev/null; done > "$SX/rk"
-  { [ "$N" != 0 ] || echo "$SKL"; stix "$N" "$X" | while read -r t; do p=$(mrg "$t" | cut -d' ' -f1); [ -n "$p" ] && ls -t .vid/results/pr-"$p"-*.txt 2>/dev/null | head -n 1; done | while read -r f; do sed -n 's/^finding: real — //p' "$f"; done | awk -v K="$SX/rk" 'BEGIN { while ((getline l < K) > 0) k[l] = 1 } !($0 in k)'; } | awk '!s[$0]++' > "$SX/real"; }
+  { [ "$N" != 0 ] || echo "$SKL"; stix "$N" "$X" | while read -r t; do p=$(mrg "$t" | cut -d' ' -f1); case $p in step-*) [ ! -f ".vid/results/$p.txt" ] || echo ".vid/results/$p.txt" ;; ?*) ls -t .vid/results/pr-"$p"-*.txt 2>/dev/null | head -n 1 ;; esac; done | while read -r f; do sed -n 's/^finding: real — //p' "$f"; done | awk -v K="$SX/rk" 'BEGIN { while ((getline l < K) > 0) k[l] = 1 } !($0 in k)'; } | awk '!s[$0]++' > "$SX/real"; }
 cmd_okay() { N=$1; okdue "$N" || die "no okay is due for stage $N"; X=$(cat "$F/commit"); DK=$F/d1; mkdir -p "$DK"
   # 0.26.11.1.1 (R4, R6): the seam rows CS would ask now, and the owner's newest seed word
   E=$(sed -n 's/^engines \(.*\) | stand-in.*/\1/p' "$HAND" | tail -n 1); set -- $E; P1=${1:-}; KN=cs; DW='owed-staging|seam'; mkdir -p "$SX/ok"; cssel "$SX/ok"
-  RW=$(paste -sd ' ' "$SX/ok/seam"); SW=$(seedw); reals
+  RW=$(paste -sd ' ' "$SX/ok/seam"); SW=$(seedw); reals; laterw "$N" "$X"
   { printf 'okay: staging\ncommit: %s\nseed: %s\noutside-service rows: %s\n\n' "$X" "$SW" "${RW:-none}"
     printf 'Deploy this commit to staging, within the downtime tolerance the skeleton ticket'"'"'s hosting states. Report it as vid-results/deploy-<this issue>-<k>, by: DP, its commit the one above: report.txt with `outcome: passed` or `outcome: failed <step>`, and for a failed step `product change: yes` or `product change: no`; deploy.xml, one case per deploy step; and for a passed deploy staging.txt, with `staging: <address>`, one `signin: <role> <address>` line for each role you can sign in as, and one `differs: <what> — <on staging> — <on production>` line for each way staging differs from production beyond the head reports'"'"' stand-in: lines, or `differs: none`. Then comment `vid: reported d1-<k>` here; `vid: started` when you start. An owner-only step is your question here, labelled blocked.\n'
     # 0.26.11.1.1 (R1, R3, R4, R6): the further lines of a passed deploy, the seed's sentence, the hosting and the duties
@@ -455,10 +524,10 @@ cmd_okay() { N=$1; okdue "$N" || die "no okay is due for stage $N"; X=$(cat "$F/
     printf '\n'; hostq; printf '\n'; dutyq staging
     # 0.26.11.1.3 (R3): the real checks, each answered in staging.txt by a real: line keyed by this okay's issue
     [ ! -s "$SX/real" ] || { printf '\nProve it real: each check below shows only where the product'"'"'s people run it, so no test here can show it. Run each there, on their kind of machine or the hosted site, with the real outside services and a real sign-in, and answer it in staging.txt, one line each: `real: #<this issue>-<n> done — <what was run, where>`, or `real: #<this issue>-<n> not done — <why>`. On a hosted staging, deploy first, run the checks on it, then report again as this okay'"'"'s next attempt.\n'; awk '{ printf "- %d. %s\n", NR, $0 }' "$SX/real"; }
-    grep -q '^staged ' "$HAND" 2>/dev/null || grep -q '^setup-hold off ' "$HAND" 2>/dev/null || if [ "$((N + 1))" -le "$(finals)" ]; then printf '\nUntil this deploy passes, or the owner says continue, no ticket of stage %s is published.\n' "$((N + 1))"
-      else printf '\nStage %s is the last stage: no later stage waits on this deploy.\n' "$N"; fi; } > "$DK/body"   # v0.26.10.26.7 (R2); v0.26.10.28.8 (R9): no stage named that does not exist
+    manual || grep -q '^staged ' "$HAND" 2>/dev/null || grep -q '^setup-hold off ' "$HAND" 2>/dev/null || if [ "$((N + 1))" -le "$(finals)" ]; then printf '\nUntil this deploy passes, or the owner says continue, no ticket of stage %s is published.\n' "$((N + 1))"
+      else printf '\nStage %s is the last stage: no later stage waits on this deploy.\n' "$N"; fi; } > "$DK/body"   # v0.26.10.26.7 (R2); v0.26.10.28.8 (R9): no stage named that does not exist; GM-4 K5 (D4): no hold in GitHub manual
   n=$(gh_ deploy-ask --stage "$N" --commit "$X" --title "Deploy to staging: stage $N, candidate $c" --body-file "$DK/body") || die 'the okay could not be posted'
-  { printf 'issue\t%s\ncommit\t%s\nasked\t%s\nseed\t%s\nrows\t%s\n' "$n" "$X" "$(stamp)" "$SW" "$RW"; awk '{ printf "real\t%d\t%s\n", NR, $0 }' "$SX/real"; } > "$DK/ask"; ev "stage-okay stage=$N candidate=$c issue=$n commit=$X"; echo "asked $n okay stage-$N"
+  { printf 'issue\t%s\ncommit\t%s\nasked\t%s\nseed\t%s\nrows\t%s\n' "$n" "$X" "$(stamp)" "$SW" "$RW"; awk '{ printf "real\t%d\t%s\n", NR, $0 }' "$SX/real"; lwrec; } > "$DK/ask"; ev "stage-okay stage=$N candidate=$c issue=$n commit=$X"; echo "asked $n okay stage-$N"
   # an earlier okay still out with no D1 passed is withdrawn (V2 §5.7)
   for O in $(ls -d "$SD"/*/*/d1 2>/dev/null); do [ "$O" != "$DK" ] && [ -f "$O/ask" ] && [ ! -f "$O/passed" ] && [ ! -f "$O/closed" ] || continue; i=$(sed -n "s/^issue$TAB//p" "$O/ask")
     printf 'vid: withdrawn. A newer okay, #%s, takes staging; a later report for this one is not read.\n' "$n" > .vid/round/wc; gh_ comment "$i" --body-file .vid/round/wc > /dev/null 2>&1 || true; gh_ close "$i" > /dev/null 2>&1 || true
@@ -550,8 +619,8 @@ cs_green() { cs_paid; : > "$K/passed"; : > "$K/done"; [ "${CK:-cs}" = cs ] || gh
 # --- v0.26.10.26.5 (R1, R2, R5): the stage close, at the newest candidate, from 7.1 to 7.4's records ---
 # sclosed <N>: the commit12 and candidate of the stage's newest close, `<commit12> <c>`
 sclosed() { sed -n "s/^stage-closed $1 | stand-in: RM at \([0-9a-f]*\) candidate \([0-9]*\).*/\1 \2/p" "$HAND" 2>/dev/null | tail -n 1; }
-finals() { [ -f STAGES.md ] || { echo 1; return; }; sed -n '/^```vid-stages/,/^```$/p' STAGES.md | awk -F'|' '{ k = $1; gsub(/[ \t]/, "", k); if (k ~ /^STAGE-/) { sub(/^STAGE-0*/, "", k); if (k == "") k = 0; m = k } } END { print m + 0 }'; }
-title() { awk -F'|' -v r="$1" '{ a = $1; gsub(/[ \t]/, "", a) } a == r { t = $4; gsub(/^[ \t]+|[ \t]+$/, "", t); sub(/\. .*/, ".", t); print t; exit }' PRD.md 2>/dev/null; }
+finals() { [ -f "$(sf STAGES.md)" ] || { echo 1; return; }; sed -n '/^```vid-stages/,/^```$/p' "$(sf STAGES.md)" | awk -F'|' '{ k = $1; gsub(/[ \t]/, "", k); if (k ~ /^STAGE-/) { sub(/^STAGE-0*/, "", k); if (k == "") k = 0; m = k } } END { print m + 0 }'; }
+title() { awk -F'|' -v r="$1" '{ a = $1; gsub(/[ \t]/, "", a) } a == r { t = $4; gsub(/^[ \t]+|[ \t]+$/, "", t); sub(/\. .*/, ".", t); print t; exit }' "$(sf PRD.md)" 2>/dev/null; }
 rname() { q=$(printf '%s\n' "$1" > "$SX/r1"; rreqs "$SX/r1" | head -n 1); if [ -n "$q" ]; then n=$(title "$q"); [ -z "$n" ] || { echo "$n"; return; }; fi; plr; awk -F'\t' -v r="$1" '$1 == r { print $8; exit }' "$SX/plr"; }
 # srows <N>: the rows of the stage's steps (planner limits, later rows and records apart)
 srows() { psteps; plr; for s in $(stp "$1"); do awk -F'\t' -v s="$s" '$1 == s { print $2 }' "$SX/ps"; done | sort -u | awk -F'\t' 'FILENAME == ARGV[1] { if ($6 ~ /^(limit|later|record)$/) X[$1] = 1; next } !($1 in X)' "$SX/plr" -; }
@@ -563,7 +632,7 @@ cconds() { N=$1; c=$(snc "$N"); F=$SD/$N/$c; U=$SX/cc$N; : > "$U"; [ -n "$c" ] &
     case $w in paid|known-limit) ;; accepted|accepted-by-ruling) ! printf '%s\n' "$mk" | grep -qE '(^| )(seam|owed-staging)( |$)' || echo "1 $r $w, not paid at staging" ;; owed) printf '%s\n' "$mk" | grep -qE '(^| )owed-(rehearsal|production)( |$)' || echo "1 $r owed, not paid" ;; '') echo "1 $r not yet decided" ;; *) echo "1 $r $w" ;; esac; done < "$SX/sr$N" >> "$U"
   [ -f "$F/passed" ] || echo "2 C3 not passed" >> "$U"; [ -f "$F/d1/passed" ] || echo "2 D1 not passed" >> "$U"; [ -f "$F/cs/passed" ] || echo "2 CS not passed" >> "$U"
   sreqs "$N" > "$SX/rq.$N"; while read -r q; do g=$(awk -F'\t' -v q="$q" '$1 == q { c = $3 } END { print c }' "$SD/$N/s1" 2>/dev/null); [ -n "$g" ] || { echo "3 $q not graded" >> "$U"; continue; }
-    Xg=$(cat "$SD/$N/$g/commit" 2>/dev/null); sed -n '/^```vid-inventory/,/^```$/p' INVENTORY.md | awk -F'|' -v q="$q" '{ a = $1; gsub(/[ \t]/, "", a); if (index(" " $7 " ", " " q) || index($7, q ",") || index($7, q " ")) print a }' | grep . > "$SX/qr" || true
+    Xg=$(cat "$SD/$N/$g/commit" 2>/dev/null); sed -n '/^```vid-inventory/,/^```$/p' "$(sf INVENTORY.md)" | awk -F'|' -v q="$q" '{ a = $1; gsub(/[ \t]/, "", a); if (index(" " $7 " ", " " q) || index($7, q ",") || index($7, q " ")) print a }' | grep . > "$SX/qr" || true
     while IFS=$TAB read -r p t H M; do [ -n "$M" ] && [ "$M" != - ] || continue; trows "$t" | grep -qxF -f "$SX/qr" || continue; [ "$M" = "$Xg" ] || anc "$M" "$Xg" || { echo "3 $q graded before a merge that touched it" >> "$U"; break; }; done < "$D/merges"; done < "$SX/rq.$N"
   [ -f "$F/w1/done" ] || [ -f "$F/w1/none" ] || [ -f "$F/w1/limit" ] || echo "4 W1 not done" >> "$U"   # 0.26.10.28.6 (R1): no walk owed, or the owner's known limit
   stix "$N" "$X" > "$SX/tk$N"; sh "$HERE/queue.sh" blockers --stage "$N" --tickets "$SX/tk$N" --rows "$SX/sr$N" --steps "$(stp "$N" | tr '\n' ' ')" 2>/dev/null | sed 's/^5 /5 a finding without the owner'"'"'s ruling: /; s/^6 /6 an item for the owner: /' >> "$U"
@@ -580,7 +649,7 @@ endconds() { U=$SX/end; : > "$U"; F=$(finals); [ "$F" -ge 1 ] || F=1; c=$(snc "$
       case $w in accepted|accepted-by-ruling|paid|known-limit) ;; owed) printf '%s\n' "$mk" | grep -qE '(^| )owed-(rehearsal|production)( |$)' || echo "2 $r owed, not paid" ;; '') echo "2 $r not yet decided" ;; *) echo "2 $r $w" ;; esac; done >> "$U"
   lreqs > "$SX/lq"; for f in $(ls "$SD"/*/s1 2>/dev/null); do x=${f%/s1}; x=${x##*/}; awk -F'\t' -v x="$x" '{ print $1 "\t" x "\t" $3 }' "$f"; done | sort -t"$TAB" -k1,1 -k2,2n -k3,3n > "$SX/g3"
   while read -r q; do gl=$(awk -F'\t' -v q="$q" '$1 == q { l = $2 " " $3 } END { print l }' "$SX/g3"); [ -n "$gl" ] || { echo "3 $q not graded" >> "$U"; continue; }
-    Xg=$(cat "$SD/${gl% *}/${gl#* }/commit" 2>/dev/null); sed -n '/^```vid-inventory/,/^```$/p' INVENTORY.md | awk -F'|' -v q="$q" '{ a = $1; gsub(/[ \t]/, "", a); n = split($7, t, /[ ,]+/); for (i = 1; i <= n; i++) if (t[i] == q) { print a; break } }' | grep . > "$SX/qr" || true
+    Xg=$(cat "$SD/${gl% *}/${gl#* }/commit" 2>/dev/null); sed -n '/^```vid-inventory/,/^```$/p' "$(sf INVENTORY.md)" | awk -F'|' -v q="$q" '{ a = $1; gsub(/[ \t]/, "", a); n = split($7, t, /[ ,]+/); for (i = 1; i <= n; i++) if (t[i] == q) { print a; break } }' | grep . > "$SX/qr" || true
     while IFS=$TAB read -r p t H M; do [ -n "$M" ] && [ "$M" != - ] || continue; trows "$t" | grep -qxF -f "$SX/qr" || continue; [ "$M" = "$Xg" ] || anc "$M" "$Xg" || { echo "3 $q graded before a merge that touched it" >> "$U"; break; }; done < "$D/merges"; done < "$SX/lq"
   sh "$HERE/grade.sh" out 2>/dev/null | sed 's/^/3 a grade ask out: /' >> "$U"
   for f in $(ls "$SD"/*/*/s1ask 2>/dev/null); do x=${f%/s1ask}; [ -f "$x/s1done" ] || [ -f "$x/s1withdrawn" ] || echo "3 a stage grade out: ${x#$SD/}, #$(sed -n "s/^issue$TAB//p" "$f")"; done >> "$U"
@@ -588,7 +657,7 @@ endconds() { U=$SX/end; : > "$U"; F=$(finals); [ "$F" -ge 1 ] || F=1; c=$(snc "$
   sh "$HERE/queue.sh" keys 2>/dev/null > "$SX/qk" || : > "$SX/qk"
   awk -F'\t' '$1 !~ /^(production|production-lost|finding|findings|stage|grade):/ { print "5 " $2 " open: " substr($3, 1, 80) } $1 ~ /^(finding|findings|stage|grade):/ { print "6 " $2 " not ruled: " substr($3, 1, 80) }' "$SX/qk" >> "$U"
   awk -v I="$D/queue/ids" 'BEGIN { while ((getline l < I) > 0) { split(l, y, "\t"); O[y[2]] = 1 } } /^## Open product questions/ { on = 1; next } on && /^## / { exit } on && /^- Q[0-9]+ / && !($2 in O) { print "5 " $2 " open in RUN-STATE: " substr($0, 1, 80) }' .vid/RUN-STATE.md >> "$U"   # the session's own questions
-  grep -n '^VID-QUESTION: ' PRD.md 2>/dev/null | sed 's/^\([0-9]*\):.*VID-QUESTION:*[[:space:]]*/5 PRD.md:\1 VID-QUESTION /' | cut -c1-120 >> "$U"
+  grep -n '^VID-QUESTION: ' "$(sf PRD.md)" 2>/dev/null | sed 's/^\([0-9]*\):.*VID-QUESTION:*[[:space:]]*/5 PRD.md:\1 VID-QUESTION /' | cut -c1-120 >> "$U"
   awk -F'\t' '$3 == "row" || $3 == "fix" { print $2 }' "$D/queue/answers" 2>/dev/null | sort -u | while read -r k; do grep -qxF "$k" "$D/queue/doors" 2>/dev/null || continue; ok=''
     for f in $(grep -lxF "$k" "$D"/drafts/*/for 2>/dev/null); do X0=${f%/for}; { [ -f "$X0/landed" ] || [ -f "$X0/declined" ]; } && ok=1; done; [ -n "$ok" ] || echo "6 $k ruled, its draft not landed or declined"; done >> "$U"
   [ ! -s "$U" ]; }
@@ -609,7 +678,7 @@ cmd_summary() { N=${2:?}; c=$(snc "$N"); F=$SD/$N/$c; [ -n "$c" ] || die "no can
     notowner | awk -F'\t' -v p="$P" -v x="$PX" -v I=.vid/decide/queue/ids 'BEGIN { while ((getline l < I) > 0) { split(l, y, "\t"); Q[y[1]] = y[2] } } (x ? $1 > p : $1 >= p) { k = $2; if (k ~ /^held:/) k = (k in Q) ? Q[k] : substr(k, 6); print "decided\t" k "\t" ($4 == "" ? $3 : $4) " (by " $5 ")" }'   # strictly after a close
     git log --since="${P:-1970-01-01T00:00:00Z}" -p -- DECISIONS.md 2>/dev/null | sed -n 's/^+- \*\*\(D-[0-9][0-9]*\)\*\* \(.*\)/decided\t\1\t\2/p'
     # 0.26.10.29.5 (DP-1 R4): each PRD answer row marked model_proposed added since, read from PRD.md's history as DECISIONS.md's, its answer's words
-    git log --since="${P:-1970-01-01T00:00:00Z}" -p -- PRD.md 2>/dev/null | grep -E '^\+[[:space:]]*A-[0-9]+([[:space:]]+AMENDED)?[[:space:]]*\|[[:space:]]*model_proposed[[:space:]]*\|' | awk -F'|' '{ k = $1; sub(/^\+[ \t]*/, "", k); sub(/[ \t].*/, "", k); a = ""; for (i = 2; i <= NF; i++) { y = $i; gsub(/^[ \t]+|[ \t]+$/, "", y); if (y ~ /^A:/) { a = y; sub(/^A:[ \t]*/, "", a) } } print "decided\t" k "\t" a " (model_proposed, PRD.md)" }'
+    git log "$(lrev)" --since="${P:-1970-01-01T00:00:00Z}" -p -- PRD.md 2>/dev/null | grep -E '^\+[[:space:]]*A-[0-9]+([[:space:]]+AMENDED)?[[:space:]]*\|[[:space:]]*model_proposed[[:space:]]*\|' | awk -F'|' '{ k = $1; sub(/^\+[ \t]*/, "", k); sub(/[ \t].*/, "", k); a = ""; for (i = 2; i <= NF; i++) { y = $i; gsub(/^[ \t]+|[ \t]+$/, "", y); if (y ~ /^A:/) { a = y; sub(/^A:[ \t]*/, "", a) } } print "decided\t" k "\t" a " (model_proposed, PRD.md)" }'
     # 0.26.10.28.6 (R1): the walk, when no screen walk was owed or the owner closed without it; the summary carries the words as they stand
     wwords "$F/w1" | while IFS= read -r l; do printf 'walk\t%s\n' "$l"; done
   } | awk -F'\t' '!s[($1 == "decided") ? $0 : $1 FS $2 FS $4]++' > "$SX/facts"   # 0.26.10.29.5 (DP-1 R4): a decided fact by its whole line, so two rulings on one row are two facts and only one written alike is dropped
@@ -685,9 +754,12 @@ cmd_okay_p() { KN=$1; N=$2; set -- $(lastc); [ "${1:-}" = "$N" ] || die "stage $
 Before the migration, note every row of each table the product only ever adds to. After it, check each of those rows is still there, word for word, and report \`kept:\` lines. Report.txt holds one \`kept: <table> — <n> rows\` line a table, or the one line \`kept: none — <why>\`, and the step \`kept\` in deploy.xml, after migrate and before boot. A lost or changed row is \`outcome: failed kept\`."; T0=rehearsal
   else pdue || die "no production okay is owed for stage $N"
     B="Back up production first, and report it as the \`backup\` step. Deploy within the downtime tolerance the skeleton ticket's hosting states. Before any restore, ask here with the recovery point and the writes at risk. Report deploy-<this issue>-<k>, then \`vid: reported d2-<k>\`; \`vid: started\` when you start. For a passed deploy also duties.txt: for each duty below, one line \`<duty>: done — <what and where>\`, \`<duty>: not needed — <why>\` or \`<duty>: not done — <why>\`."; T0=production; fi
-  mkdir -p "$F/$KN"; { printf 'okay: %s\ncommit: %s\n\n%s\n' "$T0" "$X" "$B"; [ "$KN" = rh ] || { printf '\n'; hostq; printf '\n'; dutyq production; }; } > "$F/$KN/body"   # 0.26.11.1.1 (R3)
+  laterw "$N" "$X"   # GM-4 E9: the later work the candidate holds, in GitHub manual
+  mkdir -p "$F/$KN"; { printf 'okay: %s\ncommit: %s\n\n%s\n' "$T0" "$X" "$B"; [ "$KN" = rh ] || { printf '\n'; hostq; printf '\n'; dutyq production; }
+    # GM-4 E9: the rehearsal deploys to a copy no one uses: it names the list and the duty, which its production okay carries to answer
+    [ "$KN" != rh ] || [ ! -s "$SX/lw" ] || { printf '\nThis commit holds later work, listed below. Production'"'"'s okay will carry the duty later-work-off: the work listed below is off for the people using the product.\n'; cat "$SX/lw"; }; } > "$F/$KN/body"   # 0.26.11.1.1 (R3)
   i=$(gh_ deploy-ask --stage "$N" --commit "$X" --title "Deploy to $T0: stage $N, candidate $c" --body-file "$F/$KN/body") || die "the $T0 okay could not be posted"
-  printf 'issue\t%s\ncommit\t%s\nasked\t%s\n' "$i" "$X" "$(stamp)" > "$F/$KN/ask"; ev "stage-okay stage=$N candidate=$c issue=$i commit=$X kind=$KN"; echo "asked $i okay $T0-$N"; }
+  { printf 'issue\t%s\ncommit\t%s\nasked\t%s\n' "$i" "$X" "$(stamp)"; lwrec; } > "$F/$KN/ask"; ev "stage-okay stage=$N candidate=$c issue=$i commit=$X kind=$KN"; echo "asked $i okay $T0-$N"; }
 # recovered <issue>: the commit of its newest `vid: recovered <commit|none> — …` comment
 recovered() { awk -F'\t' -v n="$1" '$1 == "issue" && $2 == n { k = split($4, x, "\001"); for (j = 1; j <= k; j++) if (x[j] ~ /^vid: recovered /) { y = x[j]; sub(/^vid: recovered /, "", y); sub(/[ \t].*/, "", y); r = y } } END { print r }' "$RD" 2>/dev/null; }
 # paddr: production's address, from the newest D2 report that names one; cpwd <candidate folder> <why>: an open CP withdrawn
@@ -742,17 +814,103 @@ pgreen() { i0=$(sed -n "s/^issue$TAB//p" "$F/d2/ask"); X=$(cat "$F/commit"); cs_
 cmd_why() { for x in $(sstages); do c=$(snc "$x"); [ -z "$c" ] || [ ! -f "$SD/$x/$c/named" ] || continue; ! sdue "$x" || continue; [ -s "$SX/why$x" ] || continue
     awk -v n="$x" '/ not merged$/ { a++ } / owed a ticket$/ { b++ } / failing$/ { c++ } / held$/ { d++ } / not decided$/ { e++ } / out$/ { f++ }
       END { printf "%s: no candidate yet", n; if (a) printf " · steps not merged %d", a; if (b) printf " · steps owed a ticket %d", b; if (c) printf " · rows failing %d", c; if (d) printf " · rows held %d", d; if (e) printf " · rows not yet decided %d", e; if (f) printf " · closes out %d", f; print "" }' "$SX/why$x"; done; }
+# tclose <step> [<commit>] (GM-4 K3, GM M8: a step is decided on its ticket, so its tickets stay open until its close): in GitHub
+# manual, once the step is closed, each open published ticket of it closed on GitHub with one comment, `vid: closed — the step's
+# close passed at <commit12>`. Its record, <step>/tickets: `commit <c12>`, `commented <n>` once a ticket's comment posted, then
+# `closed <n>` for each one closed, or found closed in the read (the team's, after the acceptance), so each is told once;
+# `ticket-closed #<n>`, or `ticket-open #<n>` when the close failed, tried again at each owed and step. A ticket is open while the read shows it so (its `ticket` line, else an `issue` line),
+# or when no read is kept
+tclose() { manual || return 0; TF=$C/$1/tickets; mkdir -p "$C/$1"; [ -z "${2:-}" ] || [ -f "$TF" ] || printf 'commit %.12s\n' "$2" > "$TF"; [ -f "$TF" ] || return 0
+  c12=$(sed -n 's/^commit //p' "$TF" | head -n 1); printf "vid: closed — the step's close passed at %s\n" "$c12" > .vid/round/tc
+  for n in $(tix "$1" | cut -d' ' -f1 | sort -n); do grep -qx "closed $n" "$TF" && continue
+    if [ -f "$RD" ] && ! awk -F'\t' -v n="$n" '$1 == "ticket" && $2 == n { t = 1; o = ($3 == "OPEN") } $1 == "issue" && $2 == n { i = 1 } END { exit !(t ? o : i) }' "$RD"; then echo "closed $n" >> "$TF"; continue; fi
+    # the comment and the close recorded apart (`commented <n>`), so a close that failed after its comment posted is retried alone
+    if { grep -qx "commented $n" "$TF" || { gh_ comment "$n" --body-file .vid/round/tc > /dev/null 2>&1 && echo "commented $n" >> "$TF"; }; } && gh_ close "$n" > /dev/null 2>&1; then echo "closed $n" >> "$TF"; ev "close-ticket-closed step=$1 issue=$n"; echo "ticket-closed #$n"; else echo "ticket-open #$n"; fi; done; return 0; }
+# step <step> (GM-4 K3, /vid:vid-step-close): the step's close, its one entry in both modes. The step's withdrawn asks told first
+# (reclose); out: the reports fetched (github.sh results-fetch) and the one read (round.sh read), then read as decide reads it, its
+# lines as decide prints them; then, owed (owed1, its stage's candidate neither due nor named), asked as ask asks it. Neither:
+# `refused <step>: <what is missing>`, nothing posted, exit 1. A closed step: its tickets' close finished (tclose), then refused
+cmd_step() { reclose "$1"; s=$1; D0=''
+  if closed "$s"; then tclose "$s"; echo "refused $s: closed already"; exit 1; fi
+  if cmd_out | grep -qx "out $s"; then sh "$HERE/github.sh" results-fetch > /dev/null 2> .vid/round/se || { echo "refused $s: the reports could not be fetched: $(tail -n 1 .vid/round/se)"; exit 1; }
+    sh "$HERE/round.sh" read 2> .vid/round/se || { echo "refused $s: the read failed: $(grep -v '^[[:space:]]*$' .vid/round/se | head -n 1)"; exit 1; }
+    cmd_decide "$s"; D0=1; closed "$s" && return 0; fi
+  if owed1 "$s"; then x=$(stof "$s")
+    if [ -n "$x" ] && { sdue "$x" || grep -q "^candidate $x " "$HAND" 2>/dev/null; }; then WHY="stage $x's candidate is due or named: its close runs the step's rows"
+    elif [ -z "$(sed -n 's/^engines \(.*\) | stand-in.*/\1/p' "$HAND" | tail -n 1)" ]; then WHY='the handed record names no engines yet'
+    else cmd_ask "$1"; return 0; fi; fi   # $1: sdue sets s
+  [ -z "$D0" ] || { echo "out $1 #$(akey issue)"; return 0; }
+  echo "refused $1: ${WHY:-no close is owed}"; exit 1; }
+# GM-4 K4 (/vid:vid-stage-close): the stage's end, in both modes. stage <N>, whichever is next by this file's conditions: the full run
+# and the grade asked when due (sdue; ask --stage's lines); the walk started when due (walk.sh due; walk's lines), or read once its
+# walker ended (walk.sh ended; walk.sh read's line); every close condition met (cconds), the summary's facts written while the
+# candidate has no summary.md (summary's line, then `summary <N>`: its words are the skill's, from the facts), else the stage closed
+# (close-stage's lines). Otherwise `refused stage <N>: <what is missing>`, nothing posted or written, exit 1. Each action alone:
+# walk <N> (walk.sh brief, then walk.sh start, the walker a session of its own that no call waits for: `walk-brief <N> <folder>`,
+# `walk-started <N> <pid>`), read-walk <N>, summary <N>
+sref() { echo "refused stage $1: $2"; exit 1; }
+num() { case ${1:-} in ''|*[!0-9]*) die "usage — $2 <N>: the stage by its number" ;; esac; }
+sccw() { sed 's/^[0-9]* //' "$SX/cc$1" | paste -sd ';' - | sed 's/;/; /g'; }   # cconds's reasons, their numbers left out
+wwhy() { c=$(snc "$1"); F=$SD/$1/$c; if [ -z "$c" ] || [ ! -f "$F/named" ]; then echo 'no candidate'; elif [ ! -f "$F/cs/passed" ]; then echo "its candidate $c's staging run, CS, has not passed"
+  elif [ -f "$F/w1/none" ]; then echo "no walk is owed: $(head -n 1 "$F/w1/none")"; elif sh "$HERE/walk.sh" fin "$1" 2>/dev/null; then echo "candidate $c's walk has its outcome"; else rc=0; sh "$HERE/walk.sh" ended "$1" 2>/dev/null || rc=$?
+    case $rc in 0) echo "candidate $c's walker ended: its walk is read next (read-walk $1)" ;; 3) echo "candidate $c's walker still runs" ;; *) echo "candidate $c's walk waits on the owner's answer" ;; esac; fi; }
+cmd_walk() { num "$1" walk; N=$1; sh "$HERE/walk.sh" none "$N" > /dev/null 2>&1 || true; sh "$HERE/walk.sh" due "$N" 2>/dev/null || sref "$N" "no walk is due: $(wwhy "$N")"
+  sh "$HERE/walk.sh" brief --stage "$N" > "$SX/wb" 2>&1 || sref "$N" "the walk's brief was not made: $(tail -n 1 "$SX/wb")"
+  sh "$HERE/walk.sh" start --stage "$N" > "$SX/ws" 2>&1 || sref "$N" "the walker did not start: $(tail -n 1 "$SX/ws")"
+  echo "walk-brief $N $(tail -n 1 "$SX/wb")"; echo "walk-started $N $(sed -n 's/^started //p' "$SX/ws")"; }
+cmd_readwalk() { num "$1" read-walk; N=$1; sh "$HERE/walk.sh" ended "$N" 2>/dev/null || sref "$N" "no walk to read: $(wwhy "$N")"; sh "$HERE/walk.sh" read --stage "$N"; }
+cmd_sumfacts() { num "$1" summary; N=$1; cconds "$N" || sref "$N" "$(sccw "$N")"; cmd_summary x "$N"; echo "summary $N"; }
+cmd_stage() { num "$1" stage; N=$1
+  if sdue "$N"; then [ -n "$(sed -n 's/^engines \(.*\) | stand-in.*/\1/p' "$HAND" | tail -n 1)" ] || sref "$N" 'the handed record names no engines yet'; cmd_ask_stage "$N"; return 0; fi
+  WY=$(paste -sd ';' "$SX/why$N" | sed 's/;/; /g'); N=$1; c=$(snc "$N"); set -- $(sclosed "$N"); [ -z "$c" ] || [ "${2:-}" != "$c" ] || sref "$N" "closed already at $1"
+  [ -n "$c" ] && [ -f "$SD/$N/$c/named" ] || sref "$N" "no candidate is due: ${WY:-its steps have no ticket on record}"
+  if sh "$HERE/walk.sh" due "$N" 2>/dev/null; then sh "$HERE/walk.sh" none "$N" > /dev/null 2>&1 || true; ! sh "$HERE/walk.sh" due "$N" 2>/dev/null || { cmd_walk "$N"; return 0; }; fi   # the no-walk check first: no screens records W1 none
+  if sh "$HERE/walk.sh" ended "$N" 2>/dev/null; then sh "$HERE/walk.sh" read --stage "$N"; return 0; fi
+  if cconds "$N"; then if [ -s "$SD/$N/$c/summary.md" ]; then cmd_close_stage x "$N"; else cmd_summary x "$N"; echo "summary $N"; fi; return 0; fi
+  sref "$N" "$(sccw "$N")"; }
+# GM-4 K5 (/vid:vid-deploy, in both GitHub modes): deploy staging [<N>], the staging okay posted when one is due (okdue; the highest
+# stage's, or stage N's), its lines as okay --stage prints them; else `refused staging: <what is missing>`, nothing posted, exit 1.
+# deploy production "<words>": the owner's production yes, the one way to give it here: the open `production:<N>:<c>:<issue>` item of
+# the newest closed candidate (its rehearsal passed, `production-yes-asked`) answered yes in the owner's words (queue.sh answer, the
+# owner's alone), `yes production <N> <c>`; the next round's owed lines post the production okay (okay production <N>). Else
+# `refused production: <why>`, exit 1
+okwhy() { c=$(snc "$1"); F=$SD/$1/$c
+  if sed -n 's/^candidate \([0-9][0-9]*\) .*/\1/p' "$HAND" 2>/dev/null | awk -v n="$1" '$1 > n { f = 1 } END { exit !f }'; then echo "a later stage's candidate is named: its okay takes staging"
+  elif [ -z "$c" ] || [ ! -f "$F/named" ]; then echo "stage $1 has no candidate named"; elif [ -f "$F/withdrawn" ]; then echo "its candidate $c was withdrawn by a re-cut"
+  elif [ ! -f "$F/passed" ]; then echo "its candidate $c's full run, C3, has not passed"; elif [ -f "$F/d1/ask" ]; then echo "its candidate $c's staging okay, #$(sed -n "s/^issue$TAB//p" "$F/d1/ask"), is asked already"
+  elif ! afirst "$1"; then echo "rows of stage $1 landed since its previous candidate: the okay waits for candidate $c's grade read and each of its findings ruled"
+  else echo "staging is taken: another candidate's okay, staging run or walk is not done"; fi; }
+cmd_deploy() { case ${1:-} in
+  staging) shift; if [ -n "${1:-}" ]; then num "$1" 'deploy staging'; o=$1; okdue "$o" || { echo "refused staging: stage $o: $(okwhy "$o")"; exit 1; }
+    else o=''; for x in $(ls "$SD" 2>/dev/null | sort -n); do ! okdue "$x" || o=$x; done
+      if [ -z "$o" ]; then x=''; for y in $(ls "$SD" 2>/dev/null | sort -n); do [ -n "$(snc "$y")" ] && x=$y; done
+        [ -n "$x" ] || { echo 'refused staging: no stage has a candidate yet'; exit 1; }; echo "refused staging: stage $x: $(okwhy "$x")"; exit 1; fi; fi
+    cmd_okay "$o" ;;
+  production) shift; [ $# -eq 1 ] && [ -n "$(printf '%s' "$1" | tr -d '[:space:]')" ] || { echo "refused production: the production yes is given only with the owner's own words, as deploy production \"<words>\""; exit 1; }
+    set -- "$1" $(lastc); [ $# = 3 ] && [ "$2" != 0 ] || { echo 'refused production: no stage is closed: its candidate goes to production once closed and rehearsed'; exit 1; }
+    W0=$1; N=$2; c=$3; F=$SD/$N/$c; [ "$c" = "$(snc "$N")" ] || { echo "refused production: stage $N has a newer candidate than the closed one, $c"; exit 1; }
+    [ ! -f "$F/d2/ask" ] || { echo "refused production: stage $N's production okay, #$(sed -n "s/^issue$TAB//p" "$F/d2/ask"), is posted already"; exit 1; }
+    [ -f "$F/rh/ask" ] && [ -s "$F/yes" ] || { echo "refused production: no production yes is asked: stage $N's rehearsal has not passed"; exit 1; }
+    ! yesd || { echo "refused production: stage $N's production yes is given already: the next round posts the production okay"; exit 1; }
+    k=$(cut -f1 "$F/yes"); sh "$HERE/queue.sh" sync > /dev/null 2>&1 || true; sh "$HERE/queue.sh" answer "$k" yes "$W0" > "$SX/py" 2>&1 || { echo "refused production: $(grep -v '^[[:space:]]*$' "$SX/py" | tail -n 1 | sed 's/^ViD queue: //')"; exit 1; }
+    echo "yes production $N $c: in the owner's words; the next round's owed lines post the production okay" ;;
+  *) die 'usage — deploy staging [<N>] | deploy production "<words>"' ;; esac; }
 CMD=${1:-}; [ $# -eq 0 ] || shift
 case $CMD in owed) cmd_owed ;; out) cmd_out ;; owned) cmd_owned ;; why) cmd_why ;;
   ask) [ -n "${1:-}" ] || die 'usage — ask <step> | --stage <N> | --cs <N>'; case $1 in --stage) cmd_ask_stage "${2:?}" ;; --cs) cmd_ask_cs "${2:?}" ;; --cr) cmd_ask_cs "${2:?}" cr ;; --cp) cmd_ask_cs "${2:?}" cp ;; *) cmd_ask "$1" ;; esac ;;
   okay) case ${1:-} in --stage) cmd_okay "${2:?}" ;; --rehearsal) cmd_okay_p rh "${2:?}" ;; --production) cmd_okay_p d2 "${2:?}" ;; *) die 'usage — okay --stage|--rehearsal|--production <N>' ;; esac ;;
   close-stage) [ "${1:-}" = --stage ] || die 'usage — close-stage --stage <N>'; cmd_close_stage "$@" ;;
-  summary) [ "${1:-}" = --stage ] || die 'usage — summary --stage <N>'; cmd_summary "$@" ;;
+  summary) if [ "${1:-}" = --stage ]; then cmd_summary "$@"; else [ $# -eq 1 ] || die 'usage — summary --stage <N> | summary <N>'; cmd_sumfacts "$1"; fi ;;
+  stage) [ $# -eq 1 ] || die 'usage — stage <N>'; cmd_stage "$1" ;;   # GM-4 K4
+  deploy) cmd_deploy "$@" ;;   # GM-4 K5
+  walk) [ $# -eq 1 ] || die 'usage — walk <N>'; cmd_walk "$1" ;;
+  read-walk) [ $# -eq 1 ] || die 'usage — read-walk <N>'; cmd_readwalk "$1" ;;
   conds) cconds "${1:?}"; cat "$SX/cc$1" ;;
   endconds) endconds && rc=0 || rc=1; cat "$SX/end"; exit $rc ;;   # v0.26.10.27.4 (R2)
   nextplan) cmd_nextplan ;;
   step-stages) sst; cat "$SX/sst" ;;   # 0.26.10.29.2 (R9): `<step> TAB <stage>`, each step's stage by this file's rule (sst), for land.sh
   corrected) N0=${1:?}; set -- $(sclosed "$N0") ; [ -n "${1:-}" ] || exit 1; X=$(git --git-dir=.vid/code rev-parse "$1" 2>/dev/null); srows "$N0" > "$SX/crw"
     while IFS=$TAB read -r p t H M; do [ -n "$M" ] && [ "$M" != - ] || continue; [ "$M" = "$X" ] || anc "$M" "$X" && continue; trows "$t" | grep -qxF -f "$SX/crw" && exit 0; done < "$D/merges"; exit 1 ;;
+  step) [ $# -eq 1 ] || die 'usage — step <step>'; cmd_step "$1" ;;
   decide) [ -n "${1:-}" ] || die 'usage — decide <step> | --stage <N>'; case $1 in --stage) cmd_decide_stage "${2:?}" ;; stage-*) cmd_decide_stage "${1#stage-}" ;; *) cmd_decide "$1" ;; esac ;;
-  *) echo 'usage: sh checks/close.sh owed|out|owned|ask <step>|--stage <N>|--cs <N>|okay --stage <N>|decide <step>|--stage <N>' >&2; exit 2 ;; esac
+  *) echo 'usage: sh checks/close.sh owed|out|owned|step <step>|stage <N>|walk <N>|read-walk <N>|summary <N>|deploy staging [<N>]|deploy production "<words>"|ask <step>|--stage <N>|--cs <N>|okay --stage <N>|decide <step>|--stage <N>' >&2; exit 2 ;; esac

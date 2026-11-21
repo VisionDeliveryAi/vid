@@ -1,6 +1,6 @@
 ---
 name: vid-deploy
-description: Ship a ViD project — the only verb that touches anything real. Two targets — deploy to staging (fast and repeatable, the rows changed since the last full pass on a scoped run, gate 2's real action per provider seam) and deploy to production (staging's exact commit, the full run, the re-grade, gate 1's rehearsal on a restored production backup and the owner-confirmed cutover, gate 3); a bare deploy is staging. Greenfield first deploy splits along the same line; setting the test site up (where it runs, asked at init; the staging and production build-out; DEPLOYMENT.md) is the internal skill vid-staging-setup's. Never runs implicitly, except a staging deploy at a stage close, or at 'continue' while staging is being set up, under the owner's standing authorization. Use when the owner says "vid deploy", "deploy to staging", "deploy to production", "deploy this", "go live", or "ship it".
+description: Ship a ViD project — the only verb that touches anything real. Two targets — deploy to staging (fast and repeatable, the rows changed since the last full pass on a scoped run, gate 2's real action per provider seam) and deploy to production (staging's exact commit, the full run, the re-grade, gate 1's rehearsal on a restored production backup and the owner-confirmed cutover, gate 3); a bare deploy is staging. Greenfield first deploy splits along the same line; setting the test site up (where it runs, asked at init; the staging and production build-out; DEPLOYMENT.md) is the internal skill vid-staging-setup's. Never runs implicitly, except a staging deploy at a stage close, or at 'continue' while staging is being set up, under the owner's standing authorization. Use when the owner says "vid deploy", "deploy to staging", "deploy to production", "deploy this", "go live", or "ship it". In the GitHub modes ViD deploys nothing: `/vid:vid-deploy staging` posts the staging okay for DevAgent's deploy when one is due, and `/vid:vid-deploy production "<words>"` is the owner's production yes.
 ---
 
 # /vid deploy
@@ -15,7 +15,7 @@ deploys each closed stage to it at its close, and retries the setup
 when the owner says "continue". Nothing else may invoke it. Production
 always needs the owner's word, and the owner's yes at gate 3.
 
-**In the GitHub modes, this verb refuses (0.26.10.28.8).** First of all, read `.vid/RUN-STATE.md`: when it says `mode: tickets`, refuse in plain words and do nothing else — no event, no question, no run. In the GitHub modes (GitHub auto and GitHub team) deploys go through the run: the staging okay and the production okay, which `/vid:vid-run` gives when a stage is ready; tell the owner to answer those in the run. In local auto, this verb is as below.
+**In the GitHub modes (0.26.10.28.8; GM-4 K5).** First of all, read `.vid/RUN-STATE.md`: when it says `mode: tickets`, read **In the GitHub modes**, the last section, first: it replaces the rest of this file. There ViD deploys nothing: DevAgent deploys, on the staging okay and the production okay ViD posts when a stage is ready; `/vid:vid-deploy staging` posts a staging okay that is due now, and `/vid:vid-deploy production "<your words>"` is your production yes. In local auto, this verb is as below.
 
 **Stage events (v0.9.5 3.11, R11; RECORDS.md).** In the project, record `sh checks/event.sh "stage name=deploy state=start session=$CLAUDE_CODE_SESSION_ID records=28"` when this verb starts and `sh checks/event.sh "stage name=deploy state=end session=$CLAUDE_CODE_SESSION_ID"` when it hands back. Every event this skill names is written the same way, `sh checks/event.sh '<event>'`, which appends it to `.vid/metrics-events` with its time.
 
@@ -448,3 +448,65 @@ line>"`.
 "Blocked" is reserved for the genuinely impossible — CLI unauthenticated,
 platform down, no network. Everything else is yours to sort out; log the
 surprising choices to DECISIONS.md.
+
+## In the GitHub modes (GM-4 K5)
+
+When `.vid/RUN-STATE.md` says `mode: tickets`, this section replaces the rest of this file: the code is the dev side's, and ViD
+deploys nothing. DevAgent deploys, on ViD's okay on a ticket, and ViD reads its reports. This section holds the order of the okays
+and how each line is said, nothing more: when an okay is due, what it says, how a report is read and every refusal are
+`checks/close.sh`'s, and the owner's answers `checks/queue.sh`'s (each header says them).
+
+### The owner's commands
+
+- `/vid:vid-deploy staging [<stage>]`: `sh checks/close.sh deploy staging [<N>]` (GM-4 K5), the staging okay's one entry in both modes. It posts the
+  okay for DevAgent's deploy of the candidate whose okay is due (its C3 passed, staging holding no other candidate), and otherwise
+  posts and writes nothing and says what is missing, `refused staging: stage <N>: <why>` (or `refused staging: no stage has a
+  candidate yet`). Its due line is `asked <n> okay stage-<N>`.
+- `/vid:vid-deploy production "<words>"`: the owner's production yes, and nothing else gives it. It answers the open
+  `production-yes-asked` `Q<n>` line in the owner's words, `sh checks/close.sh deploy production "<their words>"` (it syncs the
+  owner's queue and answers that line, printing `yes production <N> <c>: …`); a refusal starts `refused production: …` (no words,
+  no stage closed, a newer candidate, the okay posted already, no yes asked yet, the yes given already), and nothing is recorded. The production okay is then posted by the next round (in GitHub manual, the next call's
+  `round.sh asks`).
+
+1. **The lock.** Inside /vid run's own conversation (this session holds the run's lock), and inside /vid next (the call's start
+   holds it), run the entry alone: the lock stays held. Anywhere else, the vid-connect skill's start first,
+   `sh "${CLAUDE_PLUGIN_ROOT}/checks/connect.sh" start`, and its end after, `sh checks/connect.sh end`, however the entry ends (GM-4 S0). While another
+   session holds the lock, the start says so, and nothing is posted.
+2. **The entry.** Say each line it prints, as below.
+
+### The okays' and the deploys' lines, in both modes
+
+In GitHub auto the entries are also `close.sh okay`, `ask --cs` and the rehearsal and production okays through /vid run's round
+(`round.sh step` and `next`), unchanged; in GitHub manual through /vid next's step 2 (`round.sh step` reads the reports,
+`round.sh asks` posts the okays and asks). /vid run loads this skill at its start and says these lines as it says them.
+
+| Line | What you do |
+|---|---|
+| `okay staging <N>`, `asked <n> okay stage-<N>` (v0.26.10.26.2) | Nothing by hand: once a candidate's C3 has passed, and staging holds no other candidate, the round posts the okay for D1, DevAgent's deploy of that commit to staging. ViD deploys nothing |
+| `d1 <N> passed`, `staged <N>`, `d1-failed <N> <step>`, `d1-refused <N> <k>`, `close-again staging-<N> d1`, `d1-again <N>`, `d1-item <N> …` | Say a passed D1 to the owner, once, in one line with the test site's address: the `test site:` line of `sh checks/queue.sh addresses <N>`, as it is (v0.26.10.28.8, R7), and each duty the `not-needed d1 <N>: <duty> — <words>` line names, with its words (0.26.11.1.1, R3). The test site is up until the walk ends, or for good when its deploy says it stays up. The round asks again a failed step DevAgent says needs no product change, and posts a refused report back; the second failure at the same step, a second refused report, or a D1 lost twice is a `Q<n>` line, answered `again`. A report refused for a duty (the okay names the dev side's duties; 0.26.11.1.1, R3) is posted back the same way, the duty named; when the second is for a duty not done, its line is also answered `known "<words>"`, the owner's alone: the duty a known limit of the project, recorded with who and when, and its `not done` read from then on. Never answer `known` yourself, `--by RM` or as a delegate |
+| `door d1-failed <N> #<i> at <step>` | The deploy needs a product change. Through the door (the vid-fix skill's ticket-mode branch), SP drafts one staging-owed row whose fail-if is that failure, placed in a step of stage N, `sh checks/land.sh draft --review <the review's file> --why "D1 #<i> failed: <step>"`, and asks it once. On the yes it lands, its ticket runs, and a new candidate follows; on a no the round makes it a `Q<n>` line, whose `again` okays the same commit again |
+| `door differs <N> #<i>: <what> (production: <value>); …` | Through the door: SP drafts one production-owed row a difference, "production has <what> as <value>", placed in a step of the next stage (or classed to it when there is none), all in one draft, `sh checks/land.sh draft --review <the review's file> --why "D1 #<i> differs: <the whats>"`, asked once. It blocks nothing at staging |
+| `cs <N>`, `asked <n> cs stage-<N>`, `paid <row>`, `stage-cs <N> passed` | Nothing by hand: once D1 passed, the round asks CS, the staging run of the golden path and the seam and staging-owed rows, against D1's address and sign-ins. A seam or staging-owed row it passes is paid, a seam row only when the passed D1 marked it `real` (0.26.11.1.1, R4); its red rows are a C3's: failing, one fix line, a `Q<n>` line when red again |
+| `stand-in <N> <row> — <why, or not answered>`, `staging-again <N>` (0.26.11.1.1, R4) | A `Q<n>` line: CS passed an outside-service row the passed D1 did not mark real, so it is not paid. Tell the owner the row and the dev side's words. Their answer is theirs alone, never `--by RM` or a delegate's: `limit "<words>"` pays it against the stand-in as a known limit; `again` asks D1 and CS afresh at the same candidate once the real service is on (the round prints `staging-again <N>` and moves the old ones aside; the walk and its findings stay) |
+| `hold <N> Q<m>` (v0.26.10.26.7), `setup hold: …` (the status) | GitHub auto (in GitHub manual no hold is written, below). The setup hold is the owner's question `Q<m>`. Tell the owner once, in these words: "Stage <N+1> waits until staging has passed once. Say continue to build on.", and go on. When there is no stage <N+1> (v0.26.10.28.8, R9: no STAGES.md, or <N> its last stage; the `Q<m>` line then gates nothing), say instead: "Staging has not passed once yet. Stage <N> is the last stage, so nothing waits on it." While `Q<m>` is open, an owner message that is "continue", or begins with it, is its answer: `sh checks/queue.sh answer Q<m> continue "<their words>"`. A recorded pause comes first: while `run:` says `stopped owner asked to pause`, their continue is `control continue`, which ends the pause, and the hold's line stays open |
+| The owner's "use production data on staging", or "made-up data on staging" (0.26.11.1.1, R6), wherever they say it | `sh checks/queue.sh control seed production\|synthetic "<their words>"`, on the owner's own words alone, never for them: each later staging okay says that seed until they say otherwise. Before any production deploy has passed, production is refused with "there is no production data yet": tell them so |
+| `okay rehearsal <N>`, `cr <N>`, `okay production <N>`, `cp <N>` (v0.26.10.27.1) | Nothing by hand: after a stage's close the round posts the rehearsal okay, asks CR against the rehearsal copy, and, once the owner's yes is recorded, posts the production okay and asks CP. ViD deploys nothing |
+| `production-yes-asked <N> <c>` | A `Q<n>` line for the owner: the rehearsal's changes, each piece of data dropped or rewritten named, and the records kept, table by table, or none (0.26.11.1.1, R5). **The production yes is the owner's alone: never answer it, never `--by RM`.** Their `no` keeps it open. Before the first go-live the line also offers a grade of the whole product (v0.26.10.27.4): the owner's `grade` is `sh checks/queue.sh answer Q<n> grade "<their words>"`, which asks it; every production yes waits until that grade is read and its findings ruled, or withdrawn. Their `yes` without it is their choice |
+| `logs <N>: …` | Tell the owner once where production's logs are read, and go on |
+| `production-duty <N> <duty>: <words, or not answered>`, `not-needed d2 <N>: …` (0.26.11.1.1, R3) | A passed production deploy is never sent back for its duties. Each duty it left missing or not done is a `Q<n>` line, `production duty <duty>: …`, the owner's alone: their `known "<words>"` settles it, as does a later production report saying it done; never answer it yourself. Keep the `not-needed d2` line for the `in production` line |
+| `cs-closed #<n>` (v0.26.10.27.3) | Nothing to tell: the staging run's issue closed once the walk ended, so DevAgent may take the staging down |
+| `recovery-asked <N> #<n>`, `recovered <N> #<n> at <commit>`, `production-lost <N> #<n>` | A failed or red production: DevAgent recovers and comments `vid: recovered`. A question on a production okay (any restore, with its recovery point and the writes at risk) is the owner's alone. A lost deploy is a `Q<n>` line, settled by the owner's `known <commit>|none "<words>"`, their words after it (GM-4 K6), before it started, or by DevAgent's `vid: recovered` |
+| `in production <N> at <commit>` | Say it to the owner, once, in one line with the live copy's address: the `live copy:` line of `sh checks/queue.sh addresses <N>`, as it is (v0.26.10.28.8, R7), and each duty its D2's `not-needed d2 <N>` line named, with its words (0.26.11.1.1, R3) |
+
+### GitHub manual (GM M14, D7, D4)
+
+- **The later work a candidate carries** (GM M14, D7; GM-4 E9). Each okay for a stage's candidate lists the later work that
+  commit holds: each published ticket of a later stage (its header's `- stage:`) accepted at a commit the candidate holds, and each
+  unit's pull request merged into it whose ticket is of a later stage, by ticket. A pull request tied to no ticket is not listed:
+  its `context no-ticket` line shows it to the owner once (the vid-accept-step skill's). The staging and production okays then
+  carry the duty `later-work-off: the work listed below is off for the people using the product`, the list under it, answered as
+  every duty is: a report that leaves it unanswered is refused and posted back, the duty named (`d1-refused <N> <k>`). The
+  rehearsal okay names the list and the duty in its body, for it deploys to a copy no one uses, and the production okay carries the
+  duty to answer. With nothing listed, there is no such duty. Say the list to the owner once, with the okay's line.
+- **No hold is written** (D4: no stage held). The staging okay holds no next stage's tickets, and no setup hold's `Q<n>` line comes:
+  nothing reaches the team in GitHub manual but what the owner publishes.

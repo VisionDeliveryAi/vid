@@ -10,8 +10,9 @@ unset CLAUDE_CODE_SESSION_ID 2>/dev/null || true
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 . "$CHECKS/selftest/fixtures/tw-toy.sh"
 fail() { echo "tw-limits-retired: $*" >&2; cat "$T/out" >&2 2>/dev/null; exit 1; }
-# the readers: no row-state pattern or log field names retired
-for s in writer plan queue; do ! grep -nE '[|(]retired[|)]|retired=|"retired"|retired\)' "$CHECKS/$s.sh" > "$T/out" || fail "$s.sh still reads retired as a row state"; done
+# the readers: no row-state pattern names retired (a state alternative, a quoted state, a case arm), comments aside. GM M5's mark on a
+# test the spec retired (GM-3 U4: the writer's `retired=` field and its notice line) is no row state and stays
+for s in writer plan queue; do ! grep -nE '[|(]retired[|)]|"retired"|^[[:space:]]*retired\)' "$CHECKS/$s.sh" | grep -vE '^[0-9]+:[[:space:]]*#' > "$T/out" || fail "$s.sh still reads retired as a row state"; done
 [ ! -d "$CHECKS/../skills" ] || ! grep -n 'a known limit or retired' "$CHECKS/../skills/vid-run/SKILL.md" > "$T/out" || fail "vid-run still names retired as a settled state"
 tw_toy "$T/toy"; GS=$CHECKS/github.sh; W=$CHECKS/writer.sh
 rd() { RC=0; sh "$CHECKS/round.sh" "$@" > "$T/out" 2>&1 || RC=$?; [ "$RC" = 0 ] || fail "round.sh $1 failed ($RC)"; }; ok() { grep -q -- "$1" "$T/out" || fail "no line: $1"; }; no() { ! grep -q -- "$1" "$T/out" || fail "a line: $1"; }

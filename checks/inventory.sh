@@ -114,6 +114,7 @@ case "${1:-}" in --strict) MODE=strict ;; --report) MODE=report ;; protected) MO
 # --tickets (v0.26.10.25.5, R2): every inventory line by its id: `impact reset= added= reached= records=`, then `reset|added|
 # reached|record <ids|->` and `state <id> <state>` (.vid/decide/state, else the handed record, else planned); with --detail
 # `reset|added<TAB><id>[<TAB>transition]`, `reached|record<TAB><id>[<TAB><the changed items it cites>]`.
+# GM-3 U1: on every path impact exits 0 when it has nothing to print, and non-zero only when it fails.
 if [ "${1:-}" = impact ]; then
   shift; IMB=HEAD; IMP=PRD.md; IMI=INVENTORY.md; IMD=no; IMK=no
   imusage() { echo 'ViD inventory impact: usage — sh checks/inventory.sh impact [--base <commit>] [--prd <file>] [--inventory <file>] [--detail] [--tickets]' >&2; exit 2; }
@@ -160,7 +161,8 @@ if [ "${1:-}" = impact ]; then
           if (it != "") { print (rec[k] ? "record" : "reached") "\t" k "\t" it > OUT } }
         for (k in S) if ((k in kind) || index(k, "-T")) print "state\t" k "\t" S[k] > OUT }' "$IMT/new"
     touch "$IMT/sets"
-    if [ "$IMD" = yes ]; then grep -v '^state	' "$IMT/sets"; exit 0; fi
+    # GM-3 U1: nothing to print is exit 0 (grep -v found no line and exited 1 under set -e); only a failure exits non-zero
+    if [ "$IMD" = yes ]; then awk '!/^state\t/' "$IMT/sets"; exit 0; fi
     cnt() { awk -F'\t' -v k="$1" '$1 == k && $3 != "transition"' "$IMT/sets" | grep -c . || true; }
     ids() { awk -F'\t' -v k="$1" '$1 == k && $3 != "transition" { o = o (o == "" ? "" : ",") $2 } END { print (o == "" ? "-" : o) }' "$IMT/sets"; }
     echo "impact reset=$(cnt reset) added=$(cnt added) reached=$(cnt reached) records=$(cnt record)"

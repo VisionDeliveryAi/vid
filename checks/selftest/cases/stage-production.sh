@@ -121,9 +121,9 @@ P4=$(nxi); gh issue create -R $R --title "d2 lost" --body 'okay: production' --l
 fetch; cs decide --stage 1; ok "^production-lost 1 #$P4\$"; cs owed; no '^okay production'; QL=$(qn "Production's deploy (#$P4"); [ -n "$QL" ] || fail 'no lost item'
 ! sh "$QS" answer "$QL" --by RM known none > "$T/out" 2>&1 || fail 'RM settled what production runs'
 printf 'vid: started\nby: DP\n' > "$T/c"; gh issue comment "$P4" -R $R --body-file "$T/c" > /dev/null; fetch   # it started after the item was raised
-! sh "$QS" answer "$QL" known none > "$T/out" 2>&1 || fail 'known settled a deploy that started'; rm -f "$T/gh/issues/$P4/comments/"*; fetch   # the plant taken back
-! sh "$QS" answer "$QL" known none > "$T/out" 2>&1 || fail 'known none accepted though a production exists'
-sh "$QS" answer "$QL" known "$X" > "$T/out" 2>&1 || fail "known was refused: $(cat "$T/out")"; grep -q '^known ' $K/d2/closed || fail 'the lost okay not closed'
+! sh "$QS" answer "$QL" known none 'nothing ran there yet' > "$T/out" 2>&1 || fail 'known settled a deploy that started'; grep -q 'started: only DevAgent' "$T/out" || fail "known for a deploy that started was refused for another reason: $(cat "$T/out")"; rm -f "$T/gh/issues/$P4/comments/"*; fetch   # the plant taken back
+! sh "$QS" answer "$QL" known none 'nothing ran there yet' > "$T/out" 2>&1 || fail 'known none accepted though a production exists'; grep -q 'known none is for a first deploy' "$T/out" || fail "known none was refused for another reason: $(cat "$T/out")"
+sh "$QS" answer "$QL" known "$X" 'the rehearsed commit runs there' > "$T/out" 2>&1 || fail "known was refused: $(cat "$T/out")"; grep -q '^known ' $K/d2/closed || fail 'the lost okay not closed'
 QK=$(qn 'reconciled at'); [ -n "$QK" ] || fail 'no again item after known, before any decide'; sh "$QS" answer "$QK" again 'deploy it again — the owner' > /dev/null 2>&1
 sh "$CS" out > "$T/out" 2>&1; ok '^out stage-1$'; cs decide --stage 1; ok '^d2-again 1$'; cs owed; ok '^okay rehearsal 1$'   # known the okay's own commit: rehearse again
 # a candidate not descending from production's commit gets no okay
@@ -145,7 +145,7 @@ fetch; cs decide --stage 1; touch -t 202601010000 $F/d2/started; cs decide --sta
 dp "$P6" 1 "$(printf 'by: DP\ncommit: %s\noutcome: failed deploy\nproduction: http://127.0.0.1:5201' "$S3")" '' 'backup deploy'; fetch; cs decide --stage 1; ok "^recovery-asked 1 #$P6\$"
 touch -t 202601010000 $F/d2/recovery-asked; cs decide --stage 1; ok "^production-lost 1 #$P6\$"; grep -q "^$P6	1	5	reported$" .vid/decide/production-lost || fail "no reported line: $(grep "^$P6	" .vid/decide/production-lost)"
 [ -n "$(qn "#$P6, stage 1) failed, and no recovery was reported")" ] || fail "the reported item's words"
-QR=$(qn "#$P6, stage 1) failed, and no recovery was reported"); ! sh "$QS" answer "$QR" known none > "$T/out" 2>&1 || fail 'known settled a failed deploy that had started'
+QR=$(qn "#$P6, stage 1) failed, and no recovery was reported"); ! sh "$QS" answer "$QR" known none 'nothing ran there yet' > "$T/out" 2>&1 || fail 'known settled a failed deploy that had started'; grep -q 'started: only DevAgent' "$T/out" || fail "known for a failed deploy that started was refused for another reason: $(cat "$T/out")"
 # candidate 6 at production's commit, closed, rehearsed, CR green, the owner's yes given (a plant), so later okays can be seen held or not
 X6=$(git --git-dir="$T/code.git" rev-parse main); F6=.vid/decide/stage/1/6; mkdir -p $F6/d1 $F6/cs $F6/rh $F6/cr; printf 'issue\t1\ncommit\t%s\nasked\t2026-11-09T11:00:00Z\n' "$X6" > $F6/ask; echo "$X6" > $F6/commit
 : > $F6/named; : > $F6/passed; : > $F6/d1/passed; : > $F6/cs/passed; tw_hand "stage-closed 1 | stand-in: RM at $(printf %.12s "$X6") candidate 6"; printf 'issue\t7\ncommit\t%s\nasked\t2099-01-05T00:00:00Z\n' "$X6" > $F6/rh/ask; : > $F6/rh/passed; : > $F6/cr/passed
@@ -181,5 +181,5 @@ printf 'vid: recovered %s — deployed by hand\nby: DP\n' "$(printf %.12s "$X6")
 P10=$(nxi); gh issue create -R $R --title "d2 quiet" --body 'okay: production' --label deploy > /dev/null; F9=.vid/decide/stage/1/9; mkdir -p $F9/d2; printf 'issue\t1\ncommit\t%s\nasked\t2026-11-09T11:00:00Z\n' "$X6" > $F9/ask; echo "$X6" > $F9/commit; : > $F9/named; : > $F9/passed
 printf 'issue\t%s\ncommit\t%s\nasked\t2026-11-09T11:00:00Z\n' "$P10" "$X6" > $F9/d2/ask; dp "$P10" 1 "$(printf 'by: DP\ncommit: %s\noutcome: failed deploy\nproduction: http://127.0.0.1:5201' "$X6")" '' 'backup deploy'; fetch; cs decide --stage 1; ok "^recovery-asked 1 #$P10\$"
 touch -t 202601010000 $F9/d2/recovery-asked; cs decide --stage 1; ok "^production-lost 1 #$P10\$"; QQ=$(qn "#$P10, stage 1) failed"); [ -n "$QQ" ] && [ -n "$(qn "#$P10, stage 1) failed.*answer known")" ] || fail 'the item for a deploy that never started'
-sh "$QS" answer "$QQ" known "$X6" > "$T/out" 2>&1 || fail "known refused for a deploy that never posted vid: started: $(cat "$T/out")"
+sh "$QS" answer "$QQ" known "$X6" 'that commit runs there' > "$T/out" 2>&1 || fail "known refused for a deploy that never posted vid: started: $(cat "$T/out")"
 exit 0

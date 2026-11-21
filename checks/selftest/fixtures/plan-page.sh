@@ -5,7 +5,7 @@
 #   version, .vid/tw/settings naming the code repository owner/code and the labels vid:, and $T/home as the viewer's home
 # pp_scene: the toy's call: #1 (S01) closed, #2 (S02) open, assigned and given two units (#7 open, #8 closed) with pull request
 #   #11 open for it, #3 (S03) open and not taken; S04 and S05 not issued, each with its publish move, S04 with a limit warning;
-#   .vid/next/read and the log written, the triggers file $T/trig made (pp_trig, then the §5 forms a call hands the page)
+#   .vid/round/read and the log written, the triggers file $T/trig made (pp_trig, then the §5 forms a call hands the page)
 # pp_trig <file>: the real next.sh triggers' count and counted lines (the counts, unchanged since phase 1) into the file
 # pp_write <triggers file>: sh checks/next-page.sh write with HOME=$T/home; PP_RC its exit, $T/pw its output; $PG the page
 # pp_in <section attribute> <value> <step>: true when the step's card is inside the section (data-team or data-stage) of that value
@@ -16,7 +16,7 @@ pp_toy() {
   pt_teams 'alpha | the pages | core | 3' 'beta | the feeds | core | 3'
   git init -q; printf '.vid/\n' > .gitignore; git -c user.email=vid@selftest -c user.name=vid add -A; git -c user.email=vid@selftest -c user.name=vid commit -qm 'the spec'
   printf 'setup-answered key=github-mode value="manual" words="the toy, manual" at=2026-11-19T09:00:00Z\n' >> .vid/plan/setup
-  mkdir -p .vid/next "$T/home"; git rev-parse HEAD > .vid/tw/applied
+  mkdir -p .vid/round "$T/home"; git rev-parse HEAD > .vid/tw/applied
   PG="$T/home/ViD Viewer/$(basename "$(pwd -P)")/plan.html"
 }
 pp_trig() { sh "$CHECKS/next.sh" triggers > "$T/trig.raw" 2>&1 || { cat "$T/trig.raw" >&2; fail 'next.sh triggers failed'; }
@@ -29,7 +29,7 @@ pp_scene() {
     printf 'open\t11\t2\tabc123\tfalse\t-\t0\t0\t2026-11-18T09:00:00Z\t-\n'
     printf 'ticket\t1\tCLOSED\t-\t2026-11-10T09:00:00Z\nticket\t2\tOPEN\tana\t2026-11-10T09:00:00Z\nticket\t3\tOPEN\t-\t2026-11-12T09:00:00Z\n'
     printf 'body\t2\t- ROW-001\nbody\t3\t- ROW-006\n'
-    printf 'sub\t2\t2\t7\tOPEN\tana\tUnit one\nsub\t2\t2\t8\tCLOSED\t-\tUnit two\n'; } > .vid/next/read
+    printf 'sub\t2\t2\t7\tOPEN\tana\tUnit one\nsub\t2\t2\t8\tCLOSED\t-\tUnit two\n'; } > .vid/round/read
   pp_trig "$T/trig"
   { printf 'trigger\timportant\tnot-taken\t#3\tcreated 2026-11-12T09:00:00Z, 7 days ago; no vid: claimed comment, assignee or sub-issue\n'
     printf 'tiers\tcritical=0\timportant=1\tunchanged=0\tminor=0\tdeclined=0\n'

@@ -20,16 +20,15 @@ name=stage state=start session=$CLAUDE_CODE_SESSION_ID records=28"` when
 this skill starts and `sh checks/event.sh "stage name=stage state=end
 session=$CLAUDE_CODE_SESSION_ID"` when it hands back.
 
-**GitHub manual (GM-1 S1).** When
+**GitHub manual (GM-3 U2).** When
 `sh "${CLAUDE_PLUGIN_ROOT}/checks/devagent-start.sh" mode` prints `manual`,
-a re-cut goes through no door: say in one line, "In GitHub manual the door
-does not change the spec: change it by hand, as today, and the change
-shows as pending at /vid next.", and draft, record and commit nothing;
-`checks/land.sh` refuses too.
+a re-cut drafts through the door as the ticket-mode branch below does, with
+GitHub manual's one difference as the door says it (no plan block: moving
+the rows into steps of their new stages is `/vid next planning-analysis`'s).
 
 **Ticket mode (0.26.10.29.2, R2).** While `.vid/RUN-STATE.md` says `mode:
-tickets`, a re-cut is a draft through the door, as /vid add's ticket-mode
-branch drafts (the vid-add skill): it records no stage event, so the run's
+tickets`, a re-cut is a draft through the door, the vid-fix skill's
+ticket-mode branch: it records no stage event, so the run's
 stage stays the newest and `plan.sh`'s gate stays on, and it commits
 nothing. The steps, the ladder and the sitting are as below, each rung
 tried in its scratch copy. Then, in the working tree, uncommitted: the
@@ -56,14 +55,13 @@ the record of the answer's append in the append, as "What it writes" says
 (0.26.10.29.3 R3: the landing commits through the hooks); then
 `sh checks/land.sh draft --review <that file> --why "/vid stage: <the
 re-cut, in a line>" --plan <the block file>` (the why's `/vid stage: `
-marks a re-cut; refused, it names the check and keeps the tree), and `sh
-checks/queue.sh ask draft <n>` asks the owner once. No staging question
-here: staging stays the dev team's. The owner's yes lands it in `/vid
-run`: the law commit cites the answer, the plan change is a
-`scope-change`, the landing re-ratifies in the owner's words and records
-the `stage-cut` event. The hand-back names `/vid run` on both its lines:
-"the re-cut is draft <n>, asked as Q<k>", and "say yes in /vid:vid-run to
-land it", then back to /vid run's loop at 2.
+marks a re-cut; refused, it names the check and keeps the tree); the
+door's ask and landing take it from there. No staging question here:
+staging stays the dev team's. On the owner's yes the law commit cites the
+answer, the plan change is a `scope-change`, the landing re-ratifies in
+the owner's words and records the `stage-cut` event. The hand-back is the
+door's: "the re-cut is draft <n>, asked as Q<k>", and that the owner's yes
+lands it, then back to /vid run's loop at 2, or the call.
 
 ## When
 

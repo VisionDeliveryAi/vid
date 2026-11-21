@@ -1,5 +1,5 @@
 #!/bin/sh
-# Purpose: selftest case — github.sh's allow-list and its login rule (v0.26.10.9 spec R19, R24; §5 github-allow-list).
+# Purpose: selftest case — github.sh's allow-list and its login rule (v0.26.10.9 spec R19, R24; §5 github-allow-list; GM-4 K13: spec-stamp's read of the stamp file).
 # Read: every gh call in checks/github.sh goes through ghc, each one's subcommand is on the list (0.26.10.28.1, the first
 # ticket mode's calls removed with it: gh auth status, repo view, label create, issue create|edit|view|list|comment|
 # close, pr view|list|comment, repo create (v0.26.10.12.3 R2), api for milestones and an issue comment's edit
@@ -17,13 +17,21 @@ fail() { echo "github-allow-list: $*" >&2; cat "$T/out" >&2 2>/dev/null; exit 1;
 GS=$CHECKS/github.sh
 OK='auth status|repo view|repo create|label create|issue create|issue edit|issue view|issue list|issue comment|issue close|pr view|pr list|pr comment|api -X|api "repos/\$REPO/milestones"'
 # 0.26.10.28.7 (R6): the share's own forms, exactly these (share-allow proves each is tied to its one target)
-# GM-1 S6: next-read's one new call, a GET of an issue's sub-issues (next-read checks it is refused with any method but GET or a field)
+# GM-1 S6: round-read --bodies's one new call (GM-4 F3), a GET of an issue's sub-issues (next-read checks it is refused with any method but GET or a field)
 OK="$OK"'|api "repos/\$REPO/issues/\$p/sub_issues"'
 # GM-2 T3: the read of an issue's id, for the links of a first post in the form (its POSTs are api -X, checked below)
 OK="$OK"'|api "repos/\$REPO/issues/\$b"|api "repos/\$REPO/issues/\$N"'
 # IR I1: record-read's three GETs of the linked repository (github-record-read checks each is a read, with no method or field)
 OK="$OK"'|api "repos/\$RR/pulls/\$N"|api "repos/\$RR/pulls/\$N/files"|api "repos/\$RR/contents/\$q\?ref=\$H"'
 OK="$OK"'|api user|api "users/\$WHO"|api "orgs/\$SOWN/memberships/\$LOGIN"|api "repos/\$SREPO/collaborators/\$WHO"|api "repos/\$SREPO/invitations"'
+# GM-4 K1: issue reopen, tw-reopen's; GM-4 K13: pr create, spec-publish's alone (its git data calls are api -X), under SPUB, which the file sets empty first
+OK="$OK"'|issue reopen|pr create'
+# GM-4 K13: spec-stamp's one read, a GET of the stamp file on the code repository's main, under STAMPREAD, which the file sets empty first
+OK="$OK"'|api "repos/\$REPO/contents/\$SPF\?ref=\$SMN"'
+grep -q "^STAMPREAD=''; SPF=''; SMN=''" "$GS" || fail 'STAMPREAD is not set empty before any call'
+grep -q '"repos/\$REPO/contents/"\*) \[ "\${STAMPREAD:-}" = yes \]' "$GS" || fail "the code repository's contents are not limited to spec-stamp's read"
+grep -q "^REPO=''; SHARE=''; .*SPUB=''" "$GS" || fail 'SPUB is not set empty before any call'
+grep -q "'pr create') \[ \"\${SPUB:-}\" = yes \] || gref" "$GS" || fail 'gh pr create is not limited to spec-publish'
 grep -v '^[[:space:]]*#' "$GS" | grep -oE 'ghc [a-z"-][^ ]* [^ ]*' | sed 's/^ghc //' | awk '{ print $1 " " $2 }' | sort -u > "$T/calls"
 [ -s "$T/calls" ] || fail 'no ghc call found — the case reads nothing'
 while IFS= read -r c; do printf '%s\n' "$c" | grep -qxE "$OK" || fail "a gh call off the list: ghc $c"; done < "$T/calls"

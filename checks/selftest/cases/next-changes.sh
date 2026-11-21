@@ -17,7 +17,7 @@ g() { git -c user.email=vid@selftest -c user.name=vid "$@"; }
 pt_toy "$T/toy"; L19=$(grep '^ROW-019 ' INVENTORY.md); pt_del ROW-019; pt_del ROW-014; [ -n "$L19" ] && ! grep -q -e '^ROW-019 ' -e '^ROW-014 ' INVENTORY.md || fail 'ROW-019 and ROW-014 were not removed'
 git init -q; printf '.vid/\n' > .gitignore; g add -A; g commit -qm 'the spec'
 printf 'setup-answered key=github-mode value="manual" words="the toy, manual" at=2026-11-19T09:00:00Z\n' >> .vid/plan/setup
-mkdir -p .vid/tw/out .vid/next; git rev-parse HEAD > .vid/tw/applied
+mkdir -p .vid/round .vid/tw/out .vid/next; git rev-parse HEAD > .vid/tw/applied
 q() { for r; do printf '> %s\n- %s marks: none\n' "$(grep "^$r " INVENTORY.md)" "$r"; done; }
 { printf 'published 2 kind=step step=S02 rows=ROW-001,ROW-005,ROW-008 plan=p1 base=b1 export=e1 parts=1 taken-over=comments at=2026-11-10T09:00:00Z\n'
   printf 'published 3 kind=step step=S03 rows=ROW-006,ROW-007 plan=p1 base=b1 export=e1 parts=1 taken-over=body at=2026-11-10T09:00:00Z\n'
@@ -34,7 +34,7 @@ grep -q '^Ticket #3, part 1 of 1, writing ' "$T/p3/part-1.md" || fail "#3's part
 { printf 'ticket\t2\tOPEN\t-\t2026-11-10T09:00:00Z\n'; printf 'body\t2\t%s\n' '## What to build' 'New jobs only, each listed once.' '## Tests' '- ROW-001' '- ROW-008' '- ROW-012, added by us'
   printf 'ticket\t3\tOPEN\t-\t2026-11-10T09:00:00Z\n'; while IFS= read -r l; do printf 'body\t3\t%s\n' "$l"; done < "$T/p3/part-1.md"
   printf 'ticket\t4\tOPEN\t-\t2026-11-10T09:00:00Z\n'; printf 'body\t4\t%s\n' '## Tests' '- ROW-002 and ROW-011'
-  printf 'ticket\t5\tOPEN\t-\t2026-11-10T09:00:00Z\n'; grep -v -e 'ROW-019' -e 'ROW-014' -e 'REQ-012' "$T/p5/part-1.md" | while IFS= read -r l; do printf 'body\t5\t%s\n' "$l"; done; } > .vid/next/read
+  printf 'ticket\t5\tOPEN\t-\t2026-11-10T09:00:00Z\n'; grep -v -e 'ROW-019' -e 'ROW-014' -e 'REQ-012' "$T/p5/part-1.md" | while IFS= read -r l; do printf 'body\t5\t%s\n' "$l"; done; } > .vid/round/read
 sh "$CHECKS/next.sh" changes > "$T/out" 2>&1 || fail 'next.sh changes failed'
 printf 'added\t2\tROW-012\tS02\ndropped\t2\tROW-005\tS02\ndropped\t5\tROW-014\tS03\ndropped\t5\tROW-019\tS03\n' > "$T/want"
 cut -f1-4 "$T/out" | sort | cmp -s - "$T/want" || fail "the changes are not exactly ROW-012 added to #2, ROW-005 dropped from it, and ROW-014 and ROW-019 dropped from #5"

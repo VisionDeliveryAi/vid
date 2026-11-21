@@ -33,7 +33,7 @@ sh "$CHECKS/next.sh" pending > "$T/out" 2>&1 || fail 'next.sh pending failed'
 printf 'spec\tARCHITECTURE.md\t1 lines\nspec\tDECISIONS.md\t3 lines\n' > "$T/want"
 cmp -s "$T/out" "$T/want" || fail 'pending does not print exactly the two spec lines, ARCHITECTURE.md 1 lines then DECISIONS.md 3 lines, and no row line'
 sh "$CHECKS/next.sh" triggers > "$T/out" 2>&1 || fail 'next.sh triggers failed'
-grep -q "^move${TB}apply${TB}-${TB}[0-9a-f]*${TB}the pending changes, 0 rows, 2 spec files; listed; done from phase 3\$" "$T/out" || fail 'triggers does not list the apply move with 0 rows and 2 spec files'
+grep -q "^move${TB}planning-analysis${TB}-${TB}[0-9a-f]*${TB}proposes how the plan takes in the pending changes, 0 rows, 2 spec files" "$T/out" || fail 'triggers does not list planning-analysis with 0 rows and 2 spec files'
 grep "^count${TB}" "$T/out" | cmp -s - "$T/count0" || fail 'the count of tests changed with spec files alone: a spec file counted as a test'
 # a later commit of no law file, the applied version unchanged: the counts are still from the applied commit, not HEAD~1
 printf 'notes on the toy\n' > NOTES.txt; g add NOTES.txt; g commit -qm 'a note'
@@ -41,7 +41,7 @@ printf 'notes on the toy\n' > NOTES.txt; g add NOTES.txt; g commit -qm 'a note'
 sh "$CHECKS/next.sh" pending > "$T/out" 2>&1 || fail 'next.sh pending failed after the later commit'
 cmp -s "$T/out" "$T/want" || fail 'after a later commit of no law file, pending does not print the same two spec lines'
 sh "$CHECKS/next.sh" triggers > "$T/out" 2>&1 || fail 'next.sh triggers failed after the later commit'
-grep -q "^move${TB}apply${TB}-${TB}[0-9a-f]*${TB}the pending changes, 0 rows, 2 spec files; listed; done from phase 3\$" "$T/out" || fail 'after a later commit of no law file, triggers does not list the apply move with 0 rows and 2 spec files'
+grep -q "^move${TB}planning-analysis${TB}-${TB}[0-9a-f]*${TB}proposes how the plan takes in the pending changes, 0 rows, 2 spec files" "$T/out" || fail 'after a later commit of no law file, triggers does not list planning-analysis with 0 rows and 2 spec files'
 # spaces and blank lines alone are no change
 sed 's/^| notify | telling/|  notify  |   telling/; s/$/  /' ARCHITECTURE.md > "$T/a" && printf '\n\n' >> "$T/a" && cat "$T/a" > ARCHITECTURE.md
 printf '\n' >> BASELINE.md; sed 's/^- A digest/-   A digest/' GRADING-CHECKLIST.md > "$T/c" && cat "$T/c" > GRADING-CHECKLIST.md

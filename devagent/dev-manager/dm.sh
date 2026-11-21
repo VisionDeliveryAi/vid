@@ -59,7 +59,7 @@ mdl() { m=$(key model | sed 's/[[:space:]]*$//'); echo "${m:-$MODEL0}"; }   # th
 now() { date -u '+%Y-%m-%dT%H:%M:%SZ'; }
 # alive <agent folder>: its pid lives and is the process that start recorded, never another that took the number
 alive() { p=$(cat "$1/pid" 2>/dev/null) || return 1; sh "$ROOT/devagent/test-manager/run.sh" is "$p" "$1/lstart"; }   # run.sh's stamp, the same on macOS, Linux, WSL and Git Bash (v0.26.10.25.2.1)
-agents() { ls -d "$W"/agents/*/ 2>/dev/null | sed 's|/$||' || true; }
+agents() { ls -d "$W"/agents/*/ 2>/dev/null | sed 's|/$||; s|.*/||' || true; }   # the ids (low-1, R6): a caller builds "$W/agents/$i", so a space in the work folder's path stays whole
 # runs <agent folder>: alive, by its pid; a conversation's agent (0.26.11.1.3, R5), until its done/
 runs() { if [ -f "$1/mode" ]; then [ ! -d "$1/done" ]; else alive "$1"; fi; }
 # cdone <agent folder> <seconds>: a conversation's agent written up once, as ended writes one up: done/, its line in agents.txt, the note's model, `-` for turns
@@ -93,7 +93,7 @@ silence() { z=$(wc -c < "$1/log"); t=$(date +%s); [ "$(sed -n 1p "$1/seen" 2>/de
 # 0.26.10.28.8 (R1): a grader's own copy of its job note names the plugin folder, which its frozen role file names by the folder the dev side was in
 cmd_start() { [ $# -eq 3 ] || die 'usage: dm.sh start <role> <job note> <clone>'; R=$1; [ -f "$2" ] || die "no job note at $2"; [ -d "$3" ] || die "no clone at $3"; C=$(cd "$3" && pwd -P); T='Bash Read Edit Write Grep Glob'; B=${DM_AGENT_CLAUDE:-claude}
   case $R in dev-manager) L=DM; B=claude ;; setup) L=TM; F=$ROOT/devagent/test-manager/setup.md ;; test-author) L=TA ;; test-analyst) L=AN; T='Bash Read Write Grep Glob' ;; builder) L=BU ;; deployer) L=DP ;; fixer) L=FX ;; grader) L=GR ;; stage-grader) L=GR; T='Bash Read Write Grep Glob' ;; second-reviewer) L=SR; T='Bash Read Write Grep Glob' ;; *) die "no role $R" ;; esac
-  F=${F:-$ROOT/devagent/agents/$R.md}; [ -f "$F" ] || die "no role file $F"; for a in $(agents); do [ "$(cat "$a/clone")" != "$C" ] || ! runs "$a" || die "the clone $C holds a live agent, ${a##*/}"; done
+  F=${F:-$ROOT/devagent/agents/$R.md}; [ -f "$F" ] || die "no role file $F"; for i in $(agents); do a=$W/agents/$i; [ "$(cat "$a/clone")" != "$C" ] || ! runs "$a" || die "the clone $C holds a live agent, ${a##*/}"; done
   m=$(oldkeys "$N") || die "$m"; TU=$(limit agent-turn-limit); limit agent-time-limit > /dev/null; MD=$(mdl)
   mkdir -p "$W/agents"; k=$(($(ls "$W/agents" | wc -l) + 1)); while ! mkdir "$W/agents/$R-$k" 2>/dev/null; do k=$((k + 1)); done; A=$W/agents/$R-$k; cp "$2" "$A/note"; case $R in grader|stage-grader) printf '\nThe plugin folder, the one your role file means by the folder that holds the dev side, and which holds skills/vid-verify/passes/grader.md and skills/vid-grade/GRADING.md: %s\n' "$ROOT" >> "$A/note" ;; esac; [ ! -d "$C/.git" ] || { git -C "$C" config user.name "DevAgent $L"; git -C "$C" config user.email dev@devagent.invalid; }; echo "$C" > "$A/clone"; echo "$L" > "$A/role"
   t=$(sed -n 's/^ticket: *#*//p' "$2" | head -n 1); echo "${t:--}" > "$A/ticket"; date +%s > "$A/start"; : > "$A/log"
@@ -112,8 +112,8 @@ cmd_wait() { A=$(folder "${1:-}"); n=0; [ ! -f "$A/mode" ] || [ -d "$A/done" ] |
 # `dev manager: <id>, alive, for <m> min`; then the agents, runs and `none` as before. Read only, no model turn, no GitHub call
 mins() { s0=$(sed -n 1p "$1" 2>/dev/null) || { echo '?'; return; }; case $s0 in ''|*[!0-9]*) echo '?' ;; *) echo $((($(date +%s) - s0) / 60)) ;; esac; }
 cmd_list() { if lalive; then echo "loop: alive, pid $LP, for $(mins "$W/dm-loop.start") min"; else echo 'loop: not running'; fi
-  for a in $(agents); do case ${a##*/} in dev-manager-*) ! alive "$a" || echo "dev manager: ${a##*/}, alive, for $(mins "$a/start") min" ;; esac; done
-  o=''; for a in $(agents); do i=${a##*/}; case $i in dev-manager-*) continue ;; esac; if runs "$a"; then echo "alive $i ticket $(cat "$a/ticket") clone $(cat "$a/clone")"; o=1
+  for i in $(agents); do a=$W/agents/$i; case ${a##*/} in dev-manager-*) ! alive "$a" || echo "dev manager: ${a##*/}, alive, for $(mins "$a/start") min" ;; esac; done
+  o=''; for i in $(agents); do a=$W/agents/$i; case $i in dev-manager-*) continue ;; esac; if runs "$a"; then echo "alive $i ticket $(cat "$a/ticket") clone $(cat "$a/clone")"; o=1
     else ended "$a" || true; [ -f "$a/taken" ] || { echo "ended $i ticket $(cat "$a/ticket") $([ -s "$a/handback" ] && echo "hand-back $a/handback" || echo 'no hand-back')"; o=1; }; fi; done
   for r in "$W"/runs/*/; do [ -f "$r/pid" ] && [ ! -f "$r/exit" ] && alive "${r%/}" || continue; echo "run ${r%/}"; o=1; done; [ -n "$o" ] || echo none; }
 # next: one line a ticket, from gh, the record, the agents. The newest of `vid: decide <head>` and `vid: decision <head>` for the pull request's head says what is due; anything for another head is no answer
@@ -151,12 +151,12 @@ cmd_next() { R=$(key repo); P=$(key labels-prefix); [ -n "$R" ] || die "no repo:
     elif [ "${d:-0}" -gt "${e:-0}" ]; then u=wait
     else b=$(printf '%s\n' "$L" | cut -f8 | awk '{ gsub(/\\n/, "\n") } 1'); if [ "$(printf '%s\n' "$b" | sed -n 2p)" = 'ticket: accepted' ]; then say merge; continue
       elif printf '%s\n' "$b" | sed -e '1,2d' -e 's/^[^ ]* //' | grep -qE '^(failing|evidence missing)' || printf '%s\n' "$b" | sed '1,2d' | grep -q '^decisions missing'; then say not-yet; continue; else u=wait; fi; fi   # 0.26.10.29.5 (DP-1 R1): a missing Decisions section is a same-head route too
-    [ -n "$d$e" ] || continue; for a in $(agents); do [ "$(cat "$a/ticket")" = "$n" ] && alive "$a" && u=work; done; say $u; done
+    [ -n "$d$e" ] || continue; for i in $(agents); do a=$W/agents/$i; [ "$(cat "$a/ticket")" = "$n" ] && alive "$a" && u=work; done; say $u; done
   rm -f "$F".?; [ -n "$o" ] || echo none; }
 calls() { printf '%s\n' "$1" | grep -E '^(claim|work|not-yet|merge) ' | head -n 1 || true; }
 # sig <line>: the line and the tickets' records. A line can come back with a new head or decision after a pass that moved it; a pass that moved nothing leaves this as it was
 sig() { { printf '%s\n' "$1"; cat "$W"/tickets/*.txt 2>/dev/null || true; } | cksum; }
-halt() { trap '' TERM INT; echo "$(now) the loop stopped: $1" >> "$W/dm-report.txt"; date +%s >> "$W/dm-loop.start"; for a in $(agents); do [ ! -f "$a/pid" ] || stop_ "$a"; done; for r in "$W"/runs/*/; do [ -f "$r/pid" ] && [ ! -f "$r/exit" ] || continue; sh "$ROOT/devagent/test-manager/run.sh" stop "${r%/}" 2>/dev/null || true; done; said "$1"; notes_save; exit 0; }
+halt() { trap '' TERM INT; echo "$(now) the loop stopped: $1" >> "$W/dm-report.txt"; date +%s >> "$W/dm-loop.start"; for i in $(agents); do a=$W/agents/$i; [ ! -f "$a/pid" ] || stop_ "$a"; done; for r in "$W"/runs/*/; do [ -f "$r/pid" ] && [ ! -f "$r/exit" ] || continue; sh "$ROOT/devagent/test-manager/run.sh" stop "${r%/}" 2>/dev/null || true; done; said "$1"; notes_save; exit 0; }
 # said <why> (v0.26.10.28.6, R3): a stop said where ViD reads it, open work or none. The stopped report, `stopped-<k>/results.txt` (by: DM, the stop's
 # words as dm-report.txt has them), on its own branch vid-results/stopped-<k>, made with no work tree; then `vid: stopped <why>` on each open issue
 # labelled for ViD's work that holds a claim or a start of this dev side. Each failure is a line of dm-report.txt, never a second halt
@@ -179,7 +179,7 @@ notes_back() { [ ! -f "$W/dev-setup.txt" ] && [ ! -d "$W/tickets" ] || return 0;
 cmd_loop() { T0=$(date +%s); echo "$T0" > "$W/dm-loop.start"; IDLE=$T0; DM=''; BEGAN=''; SAME=0; NR=''; C=$W/clones/dm; trap 'halt "stopped by a signal"' TERM INT
   notes_back
   [ -d "$C" ] || { mkdir -p "$W/clones"; git clone -q "$(gh repo view "$(key repo)" --json url --jq .url)" "$C" || die 'the repository could not be cloned'; }
-  while :; do [ ! -f "$W/dm-stop" ] || halt "the stop file: $(cat "$W/dm-stop")"; for a in $(agents); do overtime "$a" || true; done; L=$(key time-limit); [ -z "$L" ] || [ $(($(date +%s) - T0)) -lt "$L" ] || halt "the time limit: ${L}s"
+  while :; do [ ! -f "$W/dm-stop" ] || halt "the stop file: $(cat "$W/dm-stop")"; for i in $(agents); do overtime "$W/agents/$i" || true; done; L=$(key time-limit); [ -z "$L" ] || [ $(($(date +%s) - T0)) -lt "$L" ] || halt "the time limit: ${L}s"
     if [ -n "$DM" ] && alive "$W/agents/$DM"; then [ "$(silence "$W/agents/$DM")" -lt "${DM_QUIET:-1200}" ] || stop_ "$W/agents/$DM"; notes_save; sleep "${DM_TICK:-60}"; continue; fi
     # R3: idle, it stays and reads `next` at the longer tick; the stop file and the time limit are still read at every tick
     if [ -z "$DM" ] && [ -n "$NR" ] && [ "$(date +%s)" -lt "$NR" ]; then sleep "${DM_TICK:-60}"; continue; fi; NR=''
@@ -216,7 +216,7 @@ cmd_here() { [ -f "${1:-}" ] || die 'usage: dm.sh here <job note>'; conv "$1" ||
   W=$(workof "$1"); [ -d "$W" ] || die "no work folder '$W'"; W=$(cd "$W" && pwd -P); N=$W/dm-note.txt; v=$(invid "$W"); [ -z "$v" ] || die "the work folder is in $v, a folder of ViD's records"
   m=$(oldkeys "$1") || die "$m"; ! lalive || die "a loop runs in $W, pid $LP: dm.sh down first"; [ "$1" -ef "$N" ] || cp "$1" "$N"
   # no helper outlives its conversation: one not done when the last one closed is written up, ended with no hand-back (lane review)
-  for a in $(agents); do [ -f "$a/mode" ] && [ ! -d "$a/done" ] || continue; : > "$a/handback"; cdone "$a" $(($(date +%s) - $(cat "$a/start"))) || true; echo "${a##*/} was not done when the conversation closed: ended, no hand-back"; done
+  for i in $(agents); do a=$W/agents/$i; [ -f "$a/mode" ] && [ ! -d "$a/done" ] || continue; : > "$a/handback"; cdone "$a" $(($(date +%s) - $(cat "$a/start"))) || true; echo "${a##*/} was not done when the conversation closed: ended, no hand-back"; done
   echo "DM_WORK=$(sq "$W"); export DM_WORK"; echo "the work folder is set up: the line above goes before every later dm.sh call"; }
 # done <id> <seconds> (0.26.11.1.3, R5): a conversation's agent ended, its hand-back written
 cmd_done() { A=$(folder "${1:-}"); [ -f "$A/mode" ] || die "${1:-} runs through the claude command: its end is read from its process"; case ${2:-} in ''|*[!0-9]*) die 'usage: dm.sh done <id> <seconds>, a whole number' ;; esac
@@ -241,7 +241,7 @@ cmd_down() { echo "down at $(now)" > "$W/dm-stop"; lalive || { echo "the stop fi
   ! lalive || { echo "the loop, pid $LP, still runs after $n s; it stops at its next tick"; return 1; }; echo "the loop, pid $LP, ended"; }
 # used (R3): the loop's seconds since its start, or to its halt, of its time-limit; the agents' seconds and turns, the ended from agents.txt, the live so far
 cmd_used() { t=$(date +%s); a=$(sed -n 1p "$W/dm-loop.start" 2>/dev/null || true); b=$(sed -n 2p "$W/dm-loop.start" 2>/dev/null || true); echo "loop: $([ -n "$a" ] && echo $((${b:-$t} - a)) || echo -) s of $(key time-limit | grep . || echo -) s"
-  S=0; U=0; k=0; for x in $(agents); do [ ! -d "$x/done" ] && runs "$x" || continue; k=$((k + 1)); S=$((S + t - $(cat "$x/start"))); U=$((U + $(sumof num_turns "$x" | grep . || echo 0))); done
+  S=0; U=0; k=0; for i in $(agents); do x=$W/agents/$i; [ ! -d "$x/done" ] && runs "$x" || continue; k=$((k + 1)); S=$((S + t - $(cat "$x/start"))); U=$((U + $(sumof num_turns "$x" | grep . || echo 0))); done
   cat "$W/agents.txt" 2>/dev/null | awk -F'\t' -v S="$S" -v U="$U" -v k="$k" '{ S += $4; U += $5; n++ } END { printf "agents: %d s, %d turns; %d ended, %d running\n", S, U, n, k }'; }
 # follow [<mark>] (0.26.10.28.8, R12): the conversation's view of the loop, /vid:vid-devagent's. Read only: it writes nothing in the work folder,
 # starts and stops nothing, and runs no model; a signal ends it alone. A pass is one dev manager, ended once the loop marks it taken; a stop is

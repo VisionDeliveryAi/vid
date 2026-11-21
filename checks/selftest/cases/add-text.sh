@@ -43,12 +43,15 @@ done
 # v0.26.10.25.5 R1 (was R8): ticket mode — the add is a draft, counted and asked once, landed by the owner's yes in /vid run; no stage event
 has '`mode: tickets`, the add is a draft' || no 'vid-add does not say the add is a draft under mode: tickets'
 has 'it records no stage event' && has 'it commits nothing' || no 'vid-add under mode: tickets records a stage or commits'
-has 'sh checks/land.sh draft' && has 'sh checks/queue.sh ask draft <n>' || no 'vid-add under mode: tickets does not draft and ask'
-has 'names `/vid run` on both its lines' || no 'vid-add under mode: tickets does not hand back naming /vid run'
+# GM-4 F9: the ask, the landing and the hand-back are the door's, the vid-fix skill's ticket-mode branch, which vid-add names
+has 'sh checks/land.sh draft' && has "the vid-fix skill's ticket-mode branch" || no 'vid-add under mode: tickets does not draft through the door'
+! has 'queue.sh ask draft' || no 'vid-add still holds the door'"'"'s ask'
+has "The hand-back (§5) is the door's" && has "back to /vid run's loop at 2" || no 'vid-add under mode: tickets does not hand back as the door does, naming /vid run'
 # R9, moved to develop (v0.26.10.24 R2): without the standing authorization nothing deploys; the last line names "deploy to staging"
 printf '%s' "$G" | grep -qF "the completion report's last line is \"rule on the findings table, then say 'deploy to staging'\"" || no "develop's scoped grade does not end the report with rule on the findings table, then say 'deploy to staging'"
-# v0.26.10.24 R1, v0.26.10.25.5 R1, v0.26.10.26.7 R3, R5: the ticket-mode paragraph, byte for byte
-[ "$(awk '/^\*\*Ticket mode/ { on = 1 } on && !NF { exit } on' "$A" | cksum)" = '1030555895 1385' ] || no 'the ticket-mode paragraph is not the base'"'"'s, byte for byte'
+# v0.26.10.24 R1, v0.26.10.25.5 R1, v0.26.10.26.7 R3, R5: the ticket-mode paragraph, byte for byte (GM-4 F9: it names the door, the
+# vid-fix skill's ticket-mode branch, its copy of the ask and the landing cut)
+[ "$(awk '/^\*\*Ticket mode/ { on = 1 } on && !NF { exit } on' "$A" | cksum)" = '4098930613 1282' ] || no 'the ticket-mode paragraph is not the base'"'"'s, byte for byte'
 # (a) the start's floor and the takeover
 has 'read `checks/records-version` first: absent or below 32' || no "vid-add's start does not stop below records 32"
 has 'whenever a session takes the add over, record it again with its first `base=`' || no "vid-add does not record the add's start again at a takeover"

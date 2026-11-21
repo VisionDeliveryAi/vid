@@ -5,7 +5,8 @@
 # and checks/planner.sh calls none of them and writes no event; copies with each planted are convicted. Also the
 # review pass's checker (skills/vid-plan/selftest/pass-check.sh) acquits each calibration fixture's expected output
 # (the rows ViD appended) and convicts silence, an extra finding and an empty output. The skill parts are skipped where
-# skills/ is absent (a project). v0.26.10.12.3.2 (R1): the foreground sentence in the split step, the needs pass and the review. Env: CHECKS.
+# skills/ is absent (a project). v0.26.10.12.3.2 (R1): the foreground sentence in the split step, the needs pass and the review (GM-4 F12:
+# the review's in the vid-row-review skill). Env: CHECKS.
 set -eu
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 fail() { echo "planner-scope: $*" >&2; exit 1; }
@@ -27,8 +28,10 @@ for p in 'then gh issue create' 'sh checks/github.sh publish' 'sh checks/ticket.
   { cat "$T/sk"; echo "$p"; } > "$T/s.md"; [ -n "$(out "$T/s.md")" ] || fail "a planted \"$p\" is not convicted"
 done
 S='Run every helper in the foreground (`run_in_background: false` on the Agent call), wait for its result, and never end a turn, nor schedule a wake-up, while one, or a command you started in the background, is running.'
-for h in 'With `split: fine`' "Every row's needs" 'Spawn a fresh agent'; do awk -v RS= -v h="$h" 'index($0, h)' "$SK/SKILL.md" | tr '\n' ' ' | grep -qF "$S" || fail "the foreground sentence is not beside: $h"; done
-[ "$(tr '\n' ' ' < "$SK/SKILL.md" | grep -oF "$S" | grep -c .)" = 3 ] || fail 'the foreground sentence is not in exactly three places'
+# GM-4 F12: the row review's spawn is the vid-row-review skill's, which vid-plan invokes, so its sentence stands there
+for h in 'With `split: fine`' "Every row's needs"; do awk -v RS= -v h="$h" 'index($0, h)' "$SK/SKILL.md" | tr '\n' ' ' | grep -qF "$S" || fail "the foreground sentence is not beside: $h"; done
+[ "$(tr '\n' ' ' < "$SK/SKILL.md" | grep -oF "$S" | grep -c .)" = 2 ] || fail 'the foreground sentence is not in exactly two places of vid-plan'
+RV=$CHECKS/../skills/vid-row-review/SKILL.md; [ -f "$RV" ] && awk -v RS= 'index($0, "Spawn a fresh agent")' "$RV" | tr '\n' ' ' | grep -qF "$S" || fail 'the foreground sentence is not beside the row review'"'"'s spawn in vid-row-review'
 grep -q 'ScheduleWakeup' "$SK/SKILL.md" && fail 'vid-plan names ScheduleWakeup'
 C="$SK/selftest"
 printf 'none\n' > "$T/none"; printf 'finding ROW-021 | 1: vague\n' > "$T/hit"; printf 'finding ROW-021 | v\nfinding RULE-005 | x\n' > "$T/two"; : > "$T/empty"

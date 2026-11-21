@@ -14,16 +14,25 @@ skey() { sed -n "s/^$1:[[:space:]]*//p" .vid/tw/settings 2>/dev/null | head -n 1
 twkey() { skey "$1"; }
 # ghmode (GitHub manual, GM-1 S1): the GitHub mode, the owner's newest `setup-answered key=github-mode` line of .vid/plan/setup:
 # auto, team or manual; none with no answer (a `github-mode:` line written by hand is no answer). manual: in GitHub manual, or in
-# a call /vid mode marks as its own (VID_CALLER=mode), which reads under manual's rules before the mode is recorded. applied: the
-# applied version's commit, .vid/tw/applied, or nothing
+# a call /vid mode marks as its own switch to or re-take of GitHub manual (VID_CALLER=mode), which reads under manual's rules
+# before the mode is recorded; never in /vid mode's switch to GitHub auto (GM-4 F13, VID_CALLER=mode-auto), which reads under
+# auto's rules before the mode is recorded. Every script asks these, never the setup or the caller mark itself (GM-4 F10)
 ghmode() { _gm=$(sed -n 's/^setup-answered key=github-mode value="\([a-z]*\)".*/\1/p' .vid/plan/setup 2>/dev/null | tail -n 1); case $_gm in auto|team|manual) echo "$_gm" ;; *) echo none ;; esac; }
-manual() { [ "${VID_CALLER:-}" = mode ] || [ "$(ghmode)" = manual ]; }
-applied() { sed -n '1s/[[:space:]]*$//p' .vid/tw/applied 2>/dev/null; }
+manual() { case ${VID_CALLER:-} in mode) return 0 ;; mode-auto) return 1 ;; esac; [ "$(ghmode)" = manual ]; }
+# applied (GM-4 F8): the commit the team has, one line, the one reader of it: in GitHub manual the first line of .vid/tw/applied
+# (GM M3: every change reaches the team only through the apply), nothing when none is recorded; in every other mode HEAD, where every
+# commit of ViD's is exported as it is made, so no record is kept there. A reader that must know there is no recorded version in
+# GitHub manual checks manual and an empty applied
+applied() { if manual; then sed -n '1s/[[:space:]]*$//p' .vid/tw/applied 2>/dev/null; else git rev-parse -q --verify HEAD 2>/dev/null; fi; }
 # plan_block [<RUN-STATE>]: the vid-plan block's lines under "## The plan", strict fence, trailing space trimmed: plan.sh's `block`, whose hash is the plan's
 plan_block() { [ -f "${1:-.vid/RUN-STATE.md}" ] || return 0; awk '/^## The plan/ { s = 1; next } s && /^## / { exit } s && /^```vid-plan[ \t]*$/ { b = 1; next } b && /^```[ \t]*$/ { exit } b { print }' "${1:-.vid/RUN-STATE.md}" | sed 's/[[:space:]]*$//'; }
 # rkey: the round's refusal key: the plan block, the handed record and the newest tw-sync's main (0.26.10.28.2, R4), so a refusal is tried again once one
 # changes; round.sh's refusals and queue.sh's count of the steps waiting read the one key
 rkey() { { plan_block; cat .vid/tw/handed 2>/dev/null; sed -n 's/^sync main=\([^ ]*\) .*/\1/p' .vid/tw/log 2>/dev/null | tail -n 1; } | cksum | tr -d ' '; }
+# stkey (low-1, R3): the stage key, for a start refused for its stage, which waits for its stage and never for main: rkey's parts but main,
+# the six files of planner.sh's hash and RUN-STATE's stage: and held-after: lines, all the stage admission reads
+stkey() { { plan_block; cat .vid/tw/handed 2>/dev/null; for f in PRD.md INVENTORY.md STAGES.md GRADING-CHECKLIST.md ARCHITECTURE.md PLAN.md; do printf '== %s\n' "$f"; cat "$f" 2>/dev/null; done
+  grep -E '^(stage|held-after):' .vid/RUN-STATE.md 2>/dev/null; } | cksum | tr -d ' '; }
 # RNG: the awk function rng(<id or range>), its ids space-separated: <P>-<a>..<P>-<b> written out at a's width, as the plan reads it; prepended to an awk program
 RNG='function rng(y,   a, b, p, lo, hi, w, k, r) { if (y !~ /\.\./) return y; a = y; sub(/\.\..*/, "", a); b = y; sub(/.*\.\./, "", b); p = a; sub(/-[0-9]+$/, "", p)
   lo = a; sub(/^.*-/, "", lo); hi = b; sub(/^.*-/, "", hi); w = length(lo); r = ""; for (k = lo + 0; k <= hi + 0; k++) r = r (r == "" ? "" : " ") sprintf("%s-%0" w "d", p, k); return r }'

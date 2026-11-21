@@ -4,8 +4,9 @@
 # "<second>"; another chunk is answered after both. Candidate 2's C3 then loses p1c1: its Q line shows `answered before (<date>, <by>):`
 # with the newest answer for the same stage, kind and chunk, the second, never the first nor the other chunk's. So do its lost D1,
 # RH, D2, S1 and rest chunk p1cx lines, each answered on candidate 1: each shows its own earlier answer and no other's. The words are shown
-# only: a bare again on candidate 2 sends none of them. A step close's lost line shows none. Where skills/ stands beside checks/, vid-run's
-# close-lost row says the run manager gives no recommendation of its own. Env: CHECKS.
+# only: a bare again on candidate 2 sends none of them. A step close's lost line shows none. Where skills/ stands beside checks/, the
+# close-lost row says the run manager gives no recommendation of its own: vid-step-close's row since GM-4 K3 carved the close's lines
+# out of vid-run. Env: CHECKS.
 set -eu
 unset CLAUDE_CODE_SESSION_ID 2>/dev/null || true
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
@@ -42,14 +43,15 @@ for kk in d1/lost:d1:2001 rh/lost:rh:2001 d2/lost:d2:2001 cs/lost:s1:1 cs/lost:p
   echo "$L" | grep -q " · answered before (20[0-9-]*T[0-9:]*Z, owner): again \"$w words: earlier\"" || fail "candidate 2's lost $w line lacks its earlier answer: $L"
   [ "$(echo "$L" | grep -o 'words: earlier' | wc -l | tr -d ' ')" = 1 ] || fail "candidate 2's lost $w line shows another kind's answer: $L"; done
 # shown only: a bare again on candidate 2 sends no earlier words to DevAgent
-qa 'close:stage-0/2/cs:lost:p1c1:1' again
+qa 'close:stage-0/2/cs:lost:p1c1:1' again 'once more'   # GM-4 K6: the owner's answer carries the owner's words
 ! grep -q 'words' .vid/decide/stage/0/2/cs/againwhy 2>/dev/null || fail "an earlier answer's words would go out as why: $(cat .vid/decide/stage/0/2/cs/againwhy)"
 grep -qxF 'allow p1c1' .vid/decide/stage/0/2/cs/again || fail 'the bare again was not taken'
 # a step close's lost line: no earlier answer (none is the same stage)
 mkdir -p .vid/decide/close/S01/1; printf 'issue\t3\n' > .vid/decide/close/S01/1/ask; echo 'lost p1c1 ROW-003:alpha:error #1' > .vid/decide/close/S01/1/items
 q=$(qof 'close:S01/1:lost:p1c1:1'); [ -n "$q" ] || fail "no Q line for the step close: $(cat "$T/keys")"
 ! line "$q" | grep -q 'answered before' || fail "a step close's line shows a stage's answer: $(line "$q")"
-# vid-run's close-lost row: the run manager adds no recommendation of its own (read only where skills/ stands beside checks/)
-VR=$CHECKS/../skills/vid-run/SKILL.md
-[ ! -f "$VR" ] || grep '^| `close-again <step> <chunk>`, `close-lost …`' "$VR" | grep -q 'Where ViD.s line gives no recommendation, give none of your own: relay the line' || fail "vid-run's close-lost row lacks the no-advice sentence"
+# the close-lost row: the run manager adds no recommendation of its own (read only where skills/ stands beside checks/); GM-4 K3: the
+# close's lines are vid-step-close's
+VR=$CHECKS/../skills/vid-step-close/SKILL.md
+[ ! -d "$CHECKS/../skills" ] || grep '^| `close-again <step> <chunk>`, `close-lost …`' "$VR" 2>/dev/null | grep -q 'Where ViD.s line gives no recommendation, give none of your own: relay the line' || fail "vid-step-close's close-lost row lacks the no-advice sentence"
 echo 'close-lost-earlier: ok'

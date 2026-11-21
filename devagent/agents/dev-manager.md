@@ -274,6 +274,7 @@ more cases than `measured:` calls for none (v0.26.10.28.2, R5): between measures
 ## The ask, the merge and a "not yet"
 
 Read every report you need from origin: `git show origin/vid-results/<id>:<id>/<file>`. Every commit of yours ends `Role: <label>`.
+**Where the ask goes** (low-1, R7): `vid: decide` is a comment on the pull request alone, `gh pr comment <p> -R <repo> --body-file <f>`; never on the ticket's issue, where ViD does not read it.
 
 **The Decisions section** (0.26.10.29.5, DP-1 R1): at each head, as soon as its build or fix hand-back is in, rewrite the pull request's
 body's Decisions section, before the head graders' job notes (SKILL.md's step 4, at the first head) and before each `vid: decide <the head>`.

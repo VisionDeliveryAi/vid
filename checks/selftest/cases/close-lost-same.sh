@@ -1,7 +1,8 @@
 #!/bin/sh
 # Purpose: selftest case — a close chunk lost the same way twice at its commit (0.26.10.28.10, R2), checks/close.sh and checks/queue.sh
 # on the toy and the fake gh. A chunk whose rows could not run is asked again once, bare. Lost again with the same rows unrun in the
-# same engines (their messages may differ), the owner's item says it read the same; a bare again is refused, as it would read the same;
+# same engines (their messages may differ), the owner's item says it read the same; a bare again is refused (GM-4 K6: every owner's
+# answer carries the owner's words);
 # an again with words is posted with them, `why: <words>`, so the dev side knows what must change. A later loss that reads otherwise is
 # no longer the same, and the chunk reported whole closes the step. Env: CHECKS.
 set -eu
@@ -30,7 +31,7 @@ for c in $(sed -n 's/^- chunk \(p1c[0-9]*\), .*/\1/p' "$T/gh/issues/$N/body"); d
 rqx p2c2-1 beta ROW-003=pass ROW-004-T1=pass ROW-004-T2=pass ROW-001=pass; cm 'vid: lost p2c2 0'; rd; ok '^close-again S01 p2c2$'
 rqx p2c2-2 beta ROW-003=pass ROW-004-T1=pass ROW-004-T2=pass ROW-001=pass; cm 'vid: lost p2c2 1'; rd; ok '^close-lost S01 p2c2$'
 Q2=$(qn p2c2); [ -n "$Q2" ] || fail 'no Q line for p2c2'; ! grep "^- $Q2 · " .vid/RUN-STATE.md | grep -q 'the same as the attempt before' || fail 'two refused reports are called the same'
-sh "$QS" answer "$Q2" again > "$T/out" 2>&1 || fail "a bare again was refused after two refused reports: $(cat "$T/out")"
+sh "$QS" answer "$Q2" again 'run it again' > "$T/out" 2>&1 || fail "an again was refused after two refused reports: $(cat "$T/out")"
 rq p2c2-3 beta ROW-003=pass ROW-004-T1=pass ROW-004-T2=pass ROW-001=pass
 # attempt 1: ROW-003 and ROW-004's first transition could not run in beta: asked again once, bare
 rq p2c1-1 beta 'ROW-003=err:setup: only alpha maps board-1a2b.test' 'ROW-004-T1=err:setup: no mail fake' ROW-004-T2=pass ROW-001=pass; rd; ok '^close-again S01 p2c1$'
@@ -39,17 +40,17 @@ lastagain > "$T/a1"; ! grep -q '^why:' "$T/a1" || fail "the close's own again ca
 rq p2c1-2 beta 'ROW-003=err:setup: only alpha maps board-9f8e.test' 'ROW-004-T1=err:setup: no mail fake' ROW-004-T2=pass ROW-001=pass; rd; ok '^close-lost S01 p2c1$'
 QN=$(qn); [ -n "$QN" ] || fail "no Q line for the lost chunk: $(grep '^- Q' .vid/RUN-STATE.md)"
 grep "^- $QN · " .vid/RUN-STATE.md | grep -q 'the same as the attempt before' || fail "the Q line does not say it read the same: $(grep "^- $QN · " .vid/RUN-STATE.md)"
-# a bare again is refused; an again with words is posted with them
-RC=0; sh "$QS" answer "$QN" again > "$T/out" 2>&1 || RC=$?; [ "$RC" != 0 ] || fail 'a bare again was taken for a chunk that read the same'; ok 'reads the same'
+# a bare again is refused (GM-4 K6: every owner's answer carries the owner's words); an again with words is posted with them
+RC=0; sh "$QS" answer "$QN" again > "$T/out" 2>&1 || RC=$?; [ "$RC" != 0 ] || fail 'a bare again was taken for a chunk that read the same'; ok "needs the owner's words"
 sh "$QS" answer "$QN" again 'map the board domains in beta first' > "$T/out" 2>&1 || fail "the again with words was refused: $(cat "$T/out")"
 rd; ok '^close-again S01 p2c1$'; lastagain > "$T/a2"; grep -qx 'why: map the board domains in beta first' "$T/a2" || fail "the again carries no words: $(cat "$T/a2")"
 # lost again with no new attempt, said on the issue: the pair already answered is not the same again
 cm 'vid: lost p2c1 2'; rd; ok '^close-lost S01 p2c1$'; QN=$(qn); ! grep "^- $QN · " .vid/RUN-STATE.md | grep -q 'the same as the attempt before' || fail 'a loss with no new attempt is called the same again'
 sh "$QS" answer "$QN" again 'once more' > "$T/out" 2>&1 || fail "the again was refused: $(cat "$T/out")"; rd; ok '^close-again S01 p2c1$'
-# attempt 3 reads otherwise (fewer rows unrun, as attempts add up): its item is not the same, and a bare again goes
+# attempt 3 reads otherwise (fewer rows unrun, as attempts add up): its item is not the same, and an again goes
 rq p2c1-3 beta 'ROW-003=err:setup: only alpha maps board-77aa.test' ROW-004-T1=pass ROW-004-T2=pass ROW-001=pass; rd; ok '^close-lost S01 p2c1$'
 QN=$(qn); ! grep "^- $QN · " .vid/RUN-STATE.md | grep -q 'the same as the attempt before' || fail 'a loss that read otherwise is called the same'
-sh "$QS" answer "$QN" again > "$T/out" 2>&1 || fail "a bare again was refused for a loss that read otherwise: $(cat "$T/out")"; rd; ok '^close-again S01 p2c1$'
+sh "$QS" answer "$QN" again 'try it again' > "$T/out" 2>&1 || fail "an again was refused for a loss that read otherwise: $(cat "$T/out")"; rd; ok '^close-again S01 p2c1$'
 # reported whole: closed
 rq p2c1-4 beta ROW-003=pass ROW-004-T1=pass ROW-004-T2=pass ROW-001=pass; rd; ok '^closed S01$'
 echo 'close-lost-same: ok'

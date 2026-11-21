@@ -32,8 +32,23 @@
 # (a candidate's D1 passed, or a production line covering it) or leaves a stage with no row; its landing withdraws every candidate
 # of each stage it changes (.vid/decide/stage/<N>/<c>/withdrawn, with its C3, S1 and D1 okay still out), its plan change is a
 # scope-change, RUN-STATE's stage: moves to the new cut's current stage, and it records the stage-cut event.
-# In GitHub manual (GM-1 S1) draft and the landing refuse, exit 1, naming the hand path; count still reads a draft.
-# Usage: sh checks/land.sh draft --review <file> [--why "<…>"] [--plan <file>] [--for <keys>] [--replaces <n>] [--map <file>] | count <n> | <n> --words "<the owner's yes>"
+# GM-3 U2, in GitHub manual (lib.sh's manual): the door drafts and lands again, as a pending change. The draft takes no --plan and
+# no PLAN.md change (refused, naming the analysis, /vid next planning-analysis: placing rows and PLAN.md's lines are its); a saved
+# draft holding either (a plan block, files/PLAN.md, or PLAN.md in deleted) is refused at the landing too, exit 1. Around
+# the draft's dry run and the landing, land.sh opens a `stage name=replan` of its own, unless a stage holds plan.sh's gate on
+# already, and ends it on every path. In the dry run and the landing alike: no plan change, no planner.sh reratify, no move of
+# RUN-STATE's stage:, no dry-run planner.sh check (the plan stays the applied version's, for the apply); a re-cut's stage left with
+# no row is read by planner.sh rows --at <the landing's commit>; no publish-approved event (a landing in GitHub manual approves no
+# publish, and the writer's gate there reads none). Nothing is posted: each close ask or stage candidate's ask the landing
+# withdraws is recorded as today, its issue neither commented on nor closed, and a line of .vid/next/withdrawn
+# (`<issue><TAB><landing, 12><TAB><time><TAB><why>`) for next.sh triggers to list (`withdrawn #<n> <why>`) while the read shows
+# the issue open; the landing prints `withdrawn #<n>: <why>` for each. The records and the commits are GitHub auto's.
+#   step [--stages <commit>] [--block <file>] [--if-new] --why "<line>" --trigger <t> [--evidence <e>] --expect "<line>"
+#       (--reratify <base> <to> <held> | --review <file>) --words "<the owner's words>"   GM-4 F9: the one landing step, the stage
+#       move, the plan change and the ratification (landstep, below), as GitHub auto's landing makes them; GitHub manual's apply
+#       calls it (replan.sh apply), GM M3 holding it there until the apply. Prints `stage <k>`, `plan <hash>`, `answer <k> keep`
+#       and `ratified`, each as recorded; exit 1 naming the part refused, 2 on a usage error
+# Usage: sh checks/land.sh draft --review <file> [--why "<…>"] [--plan <file>] [--for <keys>] [--replaces <n>] [--map <file>] | count <n> | <n> --words "<the owner's yes>" | step …
 # serves: tickets (0.26.10.28.4, M9)
 set -u
 LC_ALL=C; export LC_ALL
@@ -52,6 +67,9 @@ for _o in .vid/.old.*.decide .vid/.old.*.plans .vid/.old.*.plan; do [ -d "$_o" ]
 SPEC='PRD.md GRADING-CHECKLIST.md DECISIONS.md INVENTORY.md STAGES.md ARCHITECTURE.md PLAN.md BASELINE.md'   # IR I5: BASELINE.md carried too
 HASHF='PRD.md INVENTORY.md STAGES.md GRADING-CHECKLIST.md ARCHITECTURE.md PLAN.md'
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
+# GM-3 U2: MAN, GitHub manual. GM-4 F2 (I4): the landing opens no stage of its own; the call's is vid-connect's (connect.sh start),
+# so with the gate off a landing is refused as GitHub auto's is, and a draft by plan.sh's refusal in its dry run
+MAN=''; ! manual || { MAN=1; trap 'exit 1' INT TERM; }
 # pblock <file>: the vid-plan block's body
 pblock() { sed -n '/^```vid-plan[[:space:]]*$/,/^```[[:space:]]*$/p' "$1" | sed '1d;$d'; }
 # stepsof <ids file> <block file>: `<id> <step>` for each id a step's rows hold, ranges expanded
@@ -83,17 +101,19 @@ deployed() { for c in $(ls "$SD/$1" 2>/dev/null | grep -E '^[0-9]+$'); do [ -f "
 sclosed_() { grep -q "^stage-closed $1 " "$HAND" 2>/dev/null; }
 # cutn <STAGES.md>: its stage numbers, lowest first; none, with no file (one stage: 1)
 cutn() { if [ -f "$1" ]; then sed -n '/^```vid-stages/,/^```$/p' "$1" | sed -n 's/^[[:space:]]*STAGE-0*\([0-9][0-9]*\)[[:space:]]*|.*/\1/p' | sort -n; else echo 1; fi; }
-# hollow <stages file>: each stage it names that the landed cut holds and that holds no row by its effective stage, planner.sh rows'
+# hollow <stages file> [<commit>]: each stage it names that the landed cut holds and that holds no row by its effective stage, planner.sh rows'
 # (a PLAN.md `moved:` counted), as close.sh's sstages and admission read it; run where the cut has landed (the dry run's copy)
-hollow() { lread "$T/hr0" planner rows || return 1; grep -v '^#' "$T/hr0" > "$T/hr"; cutn STAGES.md > "$T/hn"
+hollow() { if [ -n "${2:-}" ]; then lread "$T/hr0" planner rows --at "$2" || return 1; else lread "$T/hr0" planner rows || return 1; fi   # GM-3 U2: <commit>, in GitHub manual
+  grep -v '^#' "$T/hr0" > "$T/hr"; cutn STAGES.md > "$T/hn"
   for k in $(cat "$1"); do grep -qx "$k" "$T/hn" || continue; awk -F'\t' -v k="$k" '$5 ~ /^[0-9]+$/ && $5 + 0 == k + 0 { f = 1 } END { exit !f }' "$T/hr" || echo "$k"; done; }
-# curst: the new cut's current stage, as close.sh's stage close moves RUN-STATE's stage: on — its lowest stage with no stage-closed
-# line, the final one when each is closed
-curst() { k=''; for n in $(cutn STAGES.md); do k=$n; sclosed_ "$n" || break; done; echo "${k:-1}"; }
-# stmove: RUN-STATE's stage: moved to curst, printing `stage <k>` when it moved; run where the cut has landed, before its plan change,
-# so the re-cut's own change is judged at the stage it lands in
-stmove() { k=$(curst); grep -q '^stage:' .vid/RUN-STATE.md || return 0; ! grep -q "^stage:[[:space:]]*$k\$" .vid/RUN-STATE.md || return 0
-  rs_edit sed "s/^stage:[[:space:]]*[0-9][0-9]*/stage: $k/" && echo "stage $k"; }
+# curst <STAGES.md>: the cut's current stage, as close.sh's stage close moves RUN-STATE's stage: on — its lowest stage with no
+# stage-closed line, the final one when each is closed
+curst() { k=''; for n in $(cutn "$1"); do k=$n; sclosed_ "$n" || break; done; echo "${k:-1}"; }
+# stmove <commit>: the landing step's stage move (GM-4 F9): RUN-STATE's stage: moved to the current stage of the cut STAGES.md holds
+# at <commit> (none there: one stage), printing `stage <k>` when it moved; run before the step's plan change, so a re-cut's own
+# change is judged at the stage it lands in
+stmove() { git show "$1:STAGES.md" > "$T/stg" 2>/dev/null || rm -f "$T/stg"; k=$(curst "$T/stg"); grep -q '^stage:' .vid/RUN-STATE.md || return 0
+  ! grep -q "^stage:[[:space:]]*$k\$" .vid/RUN-STATE.md || return 0; rs_edit sed "s/^stage:[[:space:]]*[0-9][0-9]*/stage: $k/" && echo "stage $k"; }
 
 # v0.26.10.26.5: --for records the items a draft answers, in <draft>/for
 # v0.26.10.26.7 (R4, W-5): the landing's dry run runs at draft time, the re-ratifying in its check-only form (placeholder words, in
@@ -101,6 +121,8 @@ stmove() { k=$(curst); grep -q '^stage:' .vid/RUN-STATE.md || return 0; ! grep -
 # --replaces <n>: once the new draft is made, draft n is marked replaced (<n>/replaced, the new number), its Q line closed
 cmd_draft() { WHY=''; PL=''; FOR=''; RPL=''; RV=''; MP=''; while [ $# -ge 2 ]; do case $1 in --why) WHY=$2 ;; --plan) PL=$2 ;; --for) FOR=$2 ;; --replaces) RPL=$2 ;; --review) RV=$2 ;; --map) MP=$2 ;; *) die "unknown $1" ;; esac; shift 2; done
   [ -z "$PL" ] || [ -f "$PL" ] || die "no plan block file at $PL"
+  # GM-3 U2: in GitHub manual the draft places no row: the plan block and PLAN.md's lines are the analysis's
+  [ -z "$MAN" ] || [ -z "$PL" ] || ref 'GitHub manual: a draft takes no --plan block: placing its rows, and the PLAN.md lines they need, is the analysis'"'"'s (/vid next planning-analysis)'
   # IR I5: an incorporation's draft carries its map; no other draft does
   case $WHY in '/vid incorporate:'*) [ -n "$MP" ] || ref 'no --map: an incorporation drafts with its map, every place the record changes and every place left'; [ -s "$MP" ] || ref "--map $MP: no map there" ;;
     *) [ -z "$MP" ] || ref '--map is an incorporation'"'"'s, whose why begins /vid incorporate:' ;; esac
@@ -109,6 +131,7 @@ cmd_draft() { WHY=''; PL=''; FOR=''; RPL=''; RV=''; MP=''; while [ $# -ge 2 ]; d
   if [ -n "$RPL" ]; then O=$DR/$RPL; [ -f "$O/base" ] || die "--replaces $RPL: no draft $RPL"; for z in landed declined replaced; do [ ! -f "$O/$z" ] || ref "--replaces $RPL: draft $RPL is $z already"; done; fi
   CH=''; for f in $SPEC; do [ -z "$(git status --porcelain -- "$f" 2>/dev/null)" ] || CH="$CH $f"; done
   [ -n "$CH" ] || ref 'no spec file differs from HEAD: draft the change in the working tree first'
+  case " $CH " in *' PLAN.md '*) [ -z "$MAN" ] || ref 'GitHub manual: the draft changes PLAN.md, and a landed PLAN.md change would end the ratification: the standing and class lines the change needs come with the analysis (/vid next planning-analysis); put PLAN.md back as HEAD holds it and draft again' ;; esac
   mkdir -p "$DR"; n=$(( $(ls "$DR" 2>/dev/null | grep -E '^[0-9]+$' | sort -n | tail -n 1 | grep . || echo 0) + 1 )); X=$DR/$n; mkdir -p "$X/files"
   git rev-parse HEAD > "$X/base"; printf '%s\n' "${WHY:-a change to the spec}" > "$X/why"; [ -z "$MP" ] || cp "$MP" "$X/map"; [ -z "$FOR" ] || printf '%s\n' "$FOR" | tr ',' '\n' | grep . > "$X/for"; [ -z "$PL" ] || pblock "$PL" > "$X/plan" 2>/dev/null; [ -z "$PL" ] || [ -s "$X/plan" ] || cp "$PL" "$X/plan"
   # 0.26.10.29.2 (R2): a spec file the tree deletes (STAGES.md, a re-cut back to one stage) is carried as a line of <n>/deleted
@@ -128,7 +151,8 @@ cmd_draft() { WHY=''; PL=''; FOR=''; RPL=''; RV=''; MP=''; while [ $# -ge 2 ]; d
 # count <draft dir>: the count (inventory.sh impact --tickets), the sets, and the Q line's words
 count() { X=$1; P=PRD.md; I=INVENTORY.md; [ ! -f "$X/files/PRD.md" ] || P=$X/files/PRD.md; [ ! -f "$X/files/INVENTORY.md" ] || I=$X/files/INVENTORY.md; B=$(cat "$X/base")
   sh "$HERE/inventory.sh" impact --tickets --base "$B" --prd "$P" --inventory "$I" > "$T/cn" 2> "$T/ie" || ref "the count failed: $(tail -n 1 "$T/ie")"; put "$X/count" < "$T/cn" || ref "the count failed: $(tail -n 1 "$T/ie")"
-  sh "$HERE/inventory.sh" impact --tickets --detail --base "$B" --prd "$P" --inventory "$I" > "$T/se" 2> /dev/null || true; put "$X/sets" < "$T/se" || exit 1
+  # GM-3 U1: impact exits 0 with nothing to print, so a non-zero exit is a failure, refused as the call above is
+  sh "$HERE/inventory.sh" impact --tickets --detail --base "$B" --prd "$P" --inventory "$I" > "$T/se" 2> "$T/ie" || ref "the count failed: $(tail -n 1 "$T/ie")"; put "$X/sets" < "$T/se" || exit 1
   awk -F'\t' '$1 == "added" && $3 != "transition" { print $2 }' "$X/sets" > "$T/ad"; dblock "$X" > "$T/blk"; stepsof "$T/ad" "$T/blk" > "$T/sq" || exit 1; put "$X/steps" < "$T/sq" || exit 1
   r=$(awk -F'\t' '$1 == "reset" && $3 != "transition"' "$X/sets" | grep -c . || true); a=$(grep -c . "$T/ad" || true); m=$(awk -F'\t' '$1 == "reached"' "$X/sets" | grep -c . || true)
   st=$(cut -d' ' -f2 "$X/steps" | sort -u | paste -sd ',' - | sed 's/,/, /g'); ms=$(awk -F'\t' '$1 == "reached" { print $2 }' "$X/sets" | paste -sd ',' - | sed 's/,/, /g')
@@ -226,9 +250,56 @@ Answers: $AN}" "$DW" "$CL" "$WORDS" > "$T/msg"
 # PCX: the body of RUN-STATE's plan block, the first vid-plan fence under "## The plan", replaced by the file P's lines, every other line as it was
 # (9.3 R2: the landing's one change to the run record, and its roll-back's; a vid-plan fence in the prose is no plan)
 PCX='/^## / { t = ($0 ~ /^## The plan/) } t && !d && /^```vid-plan[ \t]*$/ { print; while ((getline l < P) > 0) print l; s = 1; d = 1; next } s && /^```[ \t]*$/ { s = 0 } !s { print }'
-plan_change() { X=$1; if [ -s "$X/plan" ]; then rs_edit awk -v P="$X/plan" "$PCX" || return 1; fi
+# dargs <draft dir> <landing>: the draft's plan change, as the landing step takes it: PB its block file (empty: RUN-STATE's stands),
+# PW its why, PT its trigger, PE its evidence, PX its expected effect
+dargs() { X=$1; PB=''; [ ! -s "$X/plan" ] || PB=$X/plan
   ids=$(awk -F'\t' '($1 == "reset" || $1 == "added") && $3 != "transition" { print $2 }' "$X/sets" | paste -sd ' ' -); st=$(dblock "$X" > "$T/blk"; awk -F'\t' '($1 == "reset" || $1 == "added") && $3 != "transition" { print $2 }' "$X/sets" > "$T/xb"; stepsof "$T/xb" "$T/blk" | cut -d' ' -f2 | sort -u | paste -sd ' ' -)
-  sh "$HERE/plan.sh" change rows "the owner's yes to draft $(basename "$X"): $(cat "$X/why")" --trigger "$(recut "$X" && echo scope-change || echo owner-answer)" --evidence "commit:$2" --expect "${ids:+a new ticket of ${st:-its step} for $ids}${ids:-no row changes: the spec export carries it}" > "$T/pc" 2>&1; }
+  PW="the owner's yes to draft $(basename "$X"): $(cat "$X/why")"; PT=$(recut "$X" && echo scope-change || echo owner-answer); PE=commit:$2
+  PX="${ids:+a new ticket of ${st:-its step} for $ids}${ids:-no row changes: the spec export carries it}"; }
+plan_change() { dargs "$1" "$2"; pchange "$PB" "$PW" "$PT" "$PE" "$PX"; }
+# pchange <block file or empty> <why> <trigger> <evidence or empty> <expect>: the landing step's plan change (GM-4 F9): the block's
+# lines as RUN-STATE's plan block (PCX), then plan.sh change rows, its output in $T/pc (made first, so a refusal always reads one;
+# a block that cannot be written leaves its one line there)
+pchange() { : > "$T/pc"; if [ -n "$1" ]; then rs_edit awk -v P="$1" "$PCX" || { echo "RUN-STATE's plan could not be written" > "$T/pc"; return 1; }; fi
+  if [ -n "$4" ]; then set -- "$2" --trigger "$3" --evidence "$4" --expect "$5"; else set -- "$2" --trigger "$3" --expect "$5"; fi
+  sh "$HERE/plan.sh" change rows "$@" > "$T/pc" 2>&1; }
+# pcwhy: the plan change's refusal, from $T/pc
+pcwhy() { awk '/refused/ { f = 1 } f { sub(/^[ \t]+/, ""); printf "%s%s", (n++ ? "; " : ""), $0 }' "$T/pc" | grep . || tail -n 1 "$T/pc"; }
+# rratify <words> reratify <base> <to> <held> | <words> review <file>: the landing step's ratification (GM-4 F9). reratify: a
+# counted change landed, with no sitting (planner.sh reratify, its output in $T/rr). review: a re-plan's sitting, planner.sh review
+# --in the file, each finding it adds answered keep in the words, planner.sh page, planner.sh ratify; prints `answer <k> keep` for
+# each and `ratified`. 1 on a refusal, LSWHY naming it (review's planner output on stderr, indented)
+rratify() { LSWHY=''; LS_w=$1; shift
+  if [ "$1" = reratify ]; then sh "$HERE/planner.sh" reratify --words "$LS_w" --base "$2" --to "$3" --held "$4" > "$T/rr" 2>&1 || { LSWHY="reratify refused ($(tail -n 1 "$T/rr"))"; return 1; }; return 0; fi
+  n0=$(grep -sc '^finding ' .vid/plan/review || :); n0=${n0:-0}
+  sh "$HERE/planner.sh" review --in "$2" > "$T/rv" 2>&1 || { sed 's/^/    /' "$T/rv" >&2; LSWHY='the review was refused'; return 1; }
+  n1=$(grep -sc '^finding ' .vid/plan/review || :); k=$n0; while [ "$k" -lt "${n1:-0}" ]; do k=$((k + 1))
+    sh "$HERE/planner.sh" answer "$k" keep --words "$LS_w" > "$T/an" 2>&1 || { sed 's/^/    /' "$T/an" >&2; LSWHY="finding $k could not be answered"; return 1; }; echo "answer $k keep"; done
+  sh "$HERE/planner.sh" page > "$T/pg" 2>&1 || { sed 's/^/    /' "$T/pg" >&2; LSWHY="the planner's page could not be written"; return 1; }
+  sh "$HERE/planner.sh" ratify --words "$LS_w" > "$T/ra" 2>&1 || { sed 's/^/    /' "$T/ra" >&2; LSWHY='the ratification was refused (the lines above)'; return 1; }
+  echo 'ratified'; }
+# landstep [--stages <commit>] [--block <file>] [--if-new] --why "<line>" --trigger <t> [--evidence <e>] --expect "<line>"
+#   (--reratify <base> <to> <held> | --review <file>) --words "<the owner's words>": the one landing step (GM-4 F9), its plan change,
+#   stage move and ratification, which both modes call: GitHub auto's landing (cmd_land) at once, GitHub manual's apply (replan.sh
+#   apply's steps 4 and 5, through `land.sh step`) once the owner's words apply it, since in GitHub manual nothing reaches the team
+#   before the apply (GM M3). In order: with --stages, a re-cut's stage move (stmove; OST the stage: it held); the plan change
+#   (pchange), with --if-new only when the block differs from the newest recorded plan (plan.sh canon), printing `plan <hash>`; the
+#   ratification (rratify). 1 on a refusal, LSWHY naming the part; 2 on a usage error
+landstep() { LSWHY=''; LS_st=''; LS_bk=''; LS_nw=''; LS_why=''; LS_tg=''; LS_ev=''; LS_ex=''; LS_wd=''; LS_ra=''; LS_rb=''; LS_rt=''; LS_rh=''; LS_rv=''
+  while [ $# -gt 0 ]; do case $1 in
+    --stages) [ $# -ge 2 ] || return 2; LS_st=$2; shift 2 ;; --block) [ $# -ge 2 ] || return 2; LS_bk=$2; shift 2 ;; --if-new) LS_nw=1; shift ;;
+    --why) [ $# -ge 2 ] || return 2; LS_why=$2; shift 2 ;; --trigger) [ $# -ge 2 ] || return 2; LS_tg=$2; shift 2 ;; --evidence) [ $# -ge 2 ] || return 2; LS_ev=$2; shift 2 ;;
+    --expect) [ $# -ge 2 ] || return 2; LS_ex=$2; shift 2 ;; --words) [ $# -ge 2 ] || return 2; LS_wd=$2; shift 2 ;;
+    --reratify) [ $# -ge 4 ] && [ -z "$LS_ra" ] || return 2; LS_ra=reratify; LS_rb=$2; LS_rt=$3; LS_rh=$4; shift 4 ;;
+    --review) [ $# -ge 2 ] && [ -z "$LS_ra" ] || return 2; LS_ra=review; LS_rv=$2; shift 2 ;; *) return 2 ;; esac; done
+  [ -n "$LS_why" ] && [ -n "$LS_tg" ] && [ -n "$LS_ex" ] && [ -n "$LS_wd" ] && [ -n "$LS_ra" ] || return 2
+  [ -z "$LS_bk" ] || [ -f "$LS_bk" ] || { LSWHY="no plan block at $LS_bk"; return 1; }
+  if [ -n "$LS_st" ]; then OST=$(sed -n 's/^stage:[[:space:]]*\([0-9][0-9]*\).*/\1/p' .vid/RUN-STATE.md | head -n 1); stmove "$LS_st" || { LSWHY="RUN-STATE's stage: could not be moved"; return 1; }; fi
+  LS_r=$(grep '^plan-change ' .vid/metrics-events 2>/dev/null | tail -n 1 | sed -n 's/^plan-change what=[^ ]* hash=\([0-9a-f]*\) .*/\1/p')
+  if [ -z "$LS_nw" ] || [ -z "$LS_bk" ] || [ -z "$LS_r" ] || [ ! -f ".vid/plans/$LS_r.plan" ] || [ "$(sh "$HERE/plan.sh" canon < "$LS_bk")" != "$(sh "$HERE/plan.sh" canon < ".vid/plans/$LS_r.plan")" ]; then
+    pchange "$LS_bk" "$LS_why" "$LS_tg" "$LS_ev" "$LS_ex" || { sed 's/^/    /' "$T/pc" >&2; LSWHY="the plan change was refused ($(pcwhy))"; return 1; }
+    echo "plan $(grep '^plan-change ' .vid/metrics-events | tail -n 1 | sed -n 's/.* hash=\([0-9a-f]*\) .*/\1/p')"; fi
+  if [ "$LS_ra" = reratify ]; then rratify "$LS_wd" reratify "$LS_rb" "$LS_rt" "$LS_rh"; else rratify "$LS_wd" review "$LS_rv"; fi; }
 
 # dryrun <draft dir> <base> <words>: the landing's checks on a scratch copy, nothing landed; sets LD, XA and HD
 dryrun() { X=$1; B=$2; WORDS=$3
@@ -252,20 +323,27 @@ dryrun() { X=$1; B=$2; WORDS=$3
   ( cd "$SC" && commits "$XA" ) > "$T/shas" || ref "the dry run's commits were refused (above): nothing landed"
   LD=$(tail -n 1 "$T/shas"); [ -n "$LD" ] || ref 'the draft holds no file to commit'
   # 0.26.10.29.2 (R2): a re-cut's stage: moved first, as the landing moves it, so its own plan change is judged at the stage it lands in
-  if recut "$X"; then ( cd "$SC" && stmove ) > /dev/null || ref "the dry run could not move RUN-STATE's stage: nothing landed"; fi
-  ( cd "$SC" && sed "s/ $(printf %.12s "$B") / $(printf %.12s "$LD") /" "$D/landed" > "$T/ld" && put "$D/landed" < "$T/ld" && plan_change "$XA" "$LD" ) || ref "the dry run's plan change was refused: $(grep -m 1 'refused' "$T/pc" || tail -n 1 "$T/pc"); nothing landed"
+  # GM-3 U2: in GitHub manual the stage: move, the plan change, the check and the re-ratification wait for the apply
+  # GM-4 F9: the landing step's own parts (stmove, pchange through plan_change, rratify), with the dry run's checks between them
+  if recut "$X" && [ -z "$MAN" ]; then ( cd "$SC" && stmove "$LD" ) > /dev/null || ref "the dry run could not move RUN-STATE's stage: nothing landed"; fi
+  : > "$T/pc"; ( cd "$SC" && sed "s/ $(printf %.12s "$B") / $(printf %.12s "$LD") /" "$D/landed" > "$T/ld" && put "$D/landed" < "$T/ld" && { [ -n "$MAN" ] || plan_change "$XA" "$LD"; } ) || ref "the dry run's plan change was refused: $(pcwhy); nothing landed"
   # 0.26.10.29.2 (R2): a stage the re-cut changes and leaves with no row, by each row's effective stage, would never get a candidate,
   # and the stages after it would wait for good; a stage it never touched is not its concern
-  if recut "$X"; then ( cd "$SC" && hollow "$T/cut" ) > "$T/hol" || ref "the re-cut's rows could not be read: nothing landed"; e=$(head -n 1 "$T/hol"); [ -z "$e" ] || ref "the re-cut leaves stage $e with no row (each row by its stage, a PLAN.md moved: line counted): a stage holds at least one row, or the cut drops it; nothing landed"; fi
-  ( cd "$SC" && sh "$HERE/planner.sh" check ) > "$T/pk" 2>&1 || ref "the dry run's planner.sh check flags the plan: $(head -n 1 "$T/pk"); nothing landed"
+  if recut "$X"; then ( cd "$SC" && hollow "$T/cut" ${MAN:+"$LD"} ) > "$T/hol" || ref "the re-cut's rows could not be read: nothing landed"; e=$(head -n 1 "$T/hol"); [ -z "$e" ] || ref "the re-cut leaves stage $e with no row (each row by its stage, a PLAN.md moved: line counted): a stage holds at least one row, or the cut drops it; nothing landed"; fi
   HD=$(for f in $HASHF; do { [ -f "$X/files/$f" ] || gone "$X" "$f"; } && printf '%s,' "$f"; done)   # 0.26.10.29.2 (R2): a deleted file is held too
-  ( cd "$SC" && sh "$HERE/planner.sh" reratify --words "$WORDS" --base "$B" --to "$LD" --held "${HD%,}" ) > "$T/rr" 2>&1 || ref "the dry run's reratify refuses: $(sed -n 's/^ViD planner: reratify refused — //p' "$T/rr" | head -n 1); nothing landed"
+  [ -z "$MAN" ] || return 0
+  ( cd "$SC" && sh "$HERE/planner.sh" check ) > "$T/pk" 2>&1 || ref "the dry run's planner.sh check flags the plan: $(head -n 1 "$T/pk"); nothing landed"
+  ( cd "$SC" && rratify "$WORDS" reratify "$B" "$LD" "${HD%,}" ) > /dev/null 2>&1 || ref "the dry run's reratify refuses: $(sed -n 's/^ViD planner: reratify refused — //p' "$T/rr" | head -n 1); nothing landed"
 }
 
 cmd_land() { n=${1:-}; shift; WORDS=''; [ "${1:-}" = --words ] && WORDS=${2:-}; [ -n "$WORDS" ] || die 'usage — sh checks/land.sh <n> --words "<the owner'"'"'s yes>"'
   X=$DR/$n; [ -f "$X/base" ] || die "no draft $n"; [ ! -f "$X/landed" ] || ref "draft $n landed already, at $(cat "$X/landed")"
   [ ! -f "$X/replaced" ] || ref "draft $n was replaced by draft $(cat "$X/replaced"): ask that one"
-  # 1. the refusals first
+  # GM-3 U2: in GitHub manual a saved draft that places rows or changes PLAN.md (one made in GitHub auto
+  # before the switch) is refused at the landing too, as at the draft, before anything is checked or landed
+  if [ -n "$MAN" ] && { [ -s "$X/plan" ] || [ -f "$X/files/PLAN.md" ] || gone "$X" PLAN.md; }; then
+    ref "GitHub manual: draft $n places rows or changes PLAN.md, and its landing would change the plan or end the ratification: the plan and PLAN.md's lines are the analysis's (/vid next planning-analysis); draft the change again without them"; fi
+  # 1. the refusals first (GM-4 F2: in both modes inside the stage the caller holds open)
   G=$(sh "$HERE/plan.sh" gate 2>/dev/null); run=$(sed -n 's/^run:[[:space:]]*//p' .vid/RUN-STATE.md | head -n 1)
   case "$G" in on*) ;; *) ref "the run's gate is off (${G#off }): draft $n waits for continue, and nothing lands" 3 ;; esac
   case "$run" in active*|waiting*|'stopped owner asked to hold after stage '*) ;; *) ref "run: $run — draft $n waits for continue, and nothing lands" 3 ;; esac   # v0.26.10.26.5 (R3): a hold is no stop for its stage's corrections
@@ -290,15 +368,23 @@ cmd_land() { n=${1:-}; shift; WORDS=''; [ "${1:-}" = --words ] && WORDS=${2:-}; 
   if [ "$L2" != "$L" ]; then for f in "$D/landed" "$HAND" $(ls "$D"/close/*/*/withdrawn "$D"/stage/*/*/withdrawn "$D"/stage/*/*/d1/closed 2>/dev/null); do sed "s/ $L / $L2 /; s/^$L /$L2 /" "$f" > "$T/f" || back 'a record could not be rewritten'; put "$f" < "$T/f" || back 'a record could not be rewritten'; done; sed "s/	landed at $L	/	landed at $L2	/" "$D/rulings" > "$T/f" || back 'a record could not be rewritten'; put "$D/rulings" < "$T/f" || back 'a record could not be rewritten'; L=$L2; fi
   # 0.26.10.29.2 (R2): a re-cut moves RUN-STATE's stage: to the new cut's current stage before its own plan change, so the change and
   # every admission after read the new cut; the roll-back puts the old stage: back
-  : > "$T/stm"; if recut "$X"; then OST=$(sed -n 's/^stage:[[:space:]]*\([0-9][0-9]*\).*/\1/p' .vid/RUN-STATE.md | head -n 1); stmove > "$T/stm" || back "RUN-STATE's stage: could not be moved"; fi
-  plan_change "$XA" "$LR" || back "the plan change was refused ($(grep -m 1 refused "$T/pc" || tail -n 1 "$T/pc"))"
-  sh "$HERE/planner.sh" reratify --words "$WORDS" --base "$B" --to "$LR" --held "${HD%,}" > "$T/rr" 2>&1 || back "reratify refused ($(tail -n 1 "$T/rr"))"
-  ev "publish-approved words=\"$WORDS\""   # the owner's go in the same words, so the writer's gate opens; through event.sh (9.3 R1)
+  # GM-4 F9: the one landing step, the re-cut's stage move, the plan change and the re-ratification; GM-3 U2 (GM M3): in GitHub
+  # manual it waits for the apply (replan.sh apply calls it), and so do the plan, the ratification and the writer's gate
+  : > "$T/stm"; if [ -z "$MAN" ]; then dargs "$XA" "$LR"; if recut "$X"; then set -- --stages "$LR"; else set --; fi; [ -z "$PB" ] || set -- "$@" --block "$PB"
+    landstep "$@" --why "$PW" --trigger "$PT" --evidence "$PE" --expect "$PX" --reratify "$B" "$LR" "${HD%,}" --words "$WORDS" > "$T/ls" 2> "$T/lse" || back "${LSWHY:-the landing step was refused}"
+    grep '^stage ' "$T/ls" > "$T/stm" || :
+    ev "publish-approved words=\"$WORDS\""; fi   # the owner's go in the same words, so the writer's gate opens; through event.sh (9.3 R1)
   echo "$LR" > "$X/landed"; ev "land-landed draft=$n at=$L"
   # 0.26.10.29.2 (R2): a re-cut's stage-cut event, as /vid stage records one outside ticket mode: the new cut's stages (1 with no
   # STAGES.md), the answer its law commit cites, STAGES.md's blob
   if recut "$X"; then ns=1; bl=''; if [ -f STAGES.md ]; then ns=$(sed -n '/^```vid-stages/,/^```$/p' STAGES.md | grep -cE '^[[:space:]]*STAGE-[0-9]+[[:space:]]*\|'); bl=" blob=$(git rev-parse "$LR:STAGES.md")"; fi
     ev "stage-cut n=$ns answer=$(answers "$X" | sed 's/,.*//')$bl"; fi
+  # GM-3 U2: in GitHub manual nothing is posted: each withdrawn ask's issue is a line of .vid/next/withdrawn, for the owner's hand
+  if [ -n "$MAN" ]; then mkdir -p .vid/next; W=$(now)
+    { while read -r s k i; do [ -n "$i" ] || continue; printf '%s\t%s\t%s\tthe landing %s changed rows of %s: its close ask is withdrawn, and asked again once its new tickets merge; close this issue by hand\n' "$i" "$L" "$W" "$L" "$s"; done < "$T/wd"
+      while read -r N c w i; do [ -n "$i" ] || continue; printf '%s\t%s\t%s\tthe landing %s re-cut the stages and changed stage %s: candidate %s'"'"'s %s ask is withdrawn; close this issue by hand\n' "$i" "$L" "$W" "$L" "$N" "$c" "$w"; done < "$T/ws"; } > "$T/wn"
+    cat "$T/wn" >> .vid/next/withdrawn || echo "ViD land: .vid/next/withdrawn could not be written: the withdrawn asks are $(cut -f1 "$T/wn" | paste -sd , -)" >&2
+    cat "$T/rec" "$T/stm" 2>/dev/null; awk -F'\t' '{ print "withdrawn #" $1 ": " $4 }' "$T/wn"; echo "landed $n at $L: $(sed -n 1p "$X/count")"; return 0; fi
   # 4. last, each withdrawn ask's issue closed on GitHub, with a comment naming the landing
   while read -r s k i; do [ -n "$i" ] || continue; printf 'vid: withdrawn. The landing %s changed rows of %s; this close is asked again once its new tickets merge. A later report for it is not read.\n' "$L" "$s" > "$T/wc"
     sh "$HERE/github.sh" comment "$i" --body-file "$T/wc" > /dev/null 2>&1 && sh "$HERE/github.sh" close "$i" > /dev/null 2>&1 && echo "issue $i" >> "$D/close/$s/$k/withdrawn" || echo "ask-open $s $i"; done < "$T/wd"
@@ -308,12 +394,12 @@ cmd_land() { n=${1:-}; shift; WORDS=''; [ "${1:-}" = --words ] && WORDS=${2:-}; 
   cat "$T/rec" "$T/stm" 2>/dev/null; echo "landed $n at $L: $(sed -n 1p "$X/count")"; }
 
 CMD=${1:-}; [ $# -eq 0 ] || shift
-# GM-1 S1: in GitHub manual the door neither drafts nor lands: a landing re-ratifies on its own, which the applied version
-# refuses while anything is pending. The owner changes the spec by hand, as today, and the change shows as pending
-case $CMD in draft|[0-9]*) if manual; then ref 'In GitHub manual the door does not change the spec: change it by hand, as today, and the change shows as pending at /vid next.'; fi ;; esac
+# GM-3 U2: in GitHub manual the door drafts and lands again (GM-1 S1's refusal gives way), as a pending change: see the header
 case $CMD in
   draft) cmd_draft "$@" ;;
   count) X=$DR/${1:-}; [ -f "$X/base" ] || die "no draft ${1:-}"; count "$X"; cat "$X/count" ;;
   [0-9]*) cmd_land "$CMD" "$@" ;;
-  *) echo 'usage: sh checks/land.sh draft --review <file> [--why "<…>"] [--plan <file>] [--for <keys>] [--replaces <n>] [--map <file>] | count <n> | <n> --words "<the owner'"'"'s yes>"' >&2; exit 2 ;;
+  step) RC=0; landstep "$@" || RC=$?; [ "$RC" != 2 ] || die 'usage — sh checks/land.sh step [--stages <commit>] [--block <file>] [--if-new] --why "<line>" --trigger <t> [--evidence <e>] --expect "<line>" (--reratify <base> <to> <held> | --review <file>) --words "<words>"'
+    [ "$RC" = 0 ] || { echo "ViD land: $LSWHY" >&2; exit 1; } ;;   # GM-4 F9
+  *) echo 'usage: sh checks/land.sh draft --review <file> [--why "<…>"] [--plan <file>] [--for <keys>] [--replaces <n>] [--map <file>] | count <n> | <n> --words "<the owner'"'"'s yes>" | step …' >&2; exit 2 ;;
 esac

@@ -49,7 +49,7 @@ grep -q 'data-tier="important">1 important<' "$PG" || fail "the tiers line's imp
 # a ticket of no step, a ticket not read, a step in no team's lane: each still on the page
 { printf 'published 4 kind=step step=S99 rows=ROW-017 plan=p1 base=b1 export=e1 parts=1 at=2026-11-12T09:00:00Z words="go"\n'
   printf 'published 5 kind=step step=S05 rows=ROW-017 plan=p1 base=b1 export=e1 parts=1 at=2026-11-12T09:00:00Z words="go"\n'; } >> .vid/tw/log
-printf 'ticket\t4\tOPEN\t-\t2026-11-12T09:00:00Z\n' >> .vid/next/read
+printf 'ticket\t4\tOPEN\t-\t2026-11-12T09:00:00Z\n' >> .vid/round/read
 pt_rs 's/^\(step S04 .*lane:\) beta-1/\1 gamma-1/'; grep -q '^step S04 .*lane: gamma-1' .vid/RUN-STATE.md || fail "S04's lane was not changed"
 pp_write "$T/trig"; [ "$PP_RC" = 0 ] || fail "the second write failed ($PP_RC)"
 grep -q 'data-ticket="4"' "$PG" && pp_in team no-step S99 || fail '#4, of a step the plan no longer holds, is not on the page under the tickets of no step'

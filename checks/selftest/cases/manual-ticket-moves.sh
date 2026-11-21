@@ -55,16 +55,18 @@ call amend "#$N2" "Yes, amend #$N2" -- withdraw "#$N4" "Yes, withdraw #$N4" -- t
 grep -q "^done amend #$N2" "$T/out" || fail "the amend move of #$N2 is not reported done"
 grep -q "^amended $N2 .* words=\"Yes, amend #$N2\"\$" .vid/tw/log || fail "#$N2's amended line does not end with the owner's words"
 awk '{ L[NR] = $0 } END { while (NR > 0 && L[NR] == "") NR--; for (i = 1; i <= NR; i++) print L[i] }' "$FAKEGH/issues/$N2/body" > "$T/want"
-awk -F'\t' -v n="$N2" '$1 == "body" && $2 == n { print substr($0, length("body") + length(n) + 3) }' .vid/next/read > "$T/got"
+awk -F'\t' -v n="$N2" '$1 == "body" && $2 == n { print substr($0, length("body") + length(n) + 3) }' .vid/round/read > "$T/got"
 cmp -s "$T/want" "$T/got" || { diff "$T/want" "$T/got" > "$T/out" || :; fail "the call's read does not hold #$N2's body as the amendment left it"; }
 grep -q "^done withdraw #$N4" "$T/out" || fail "the withdraw move of #$N4 is not reported done"
 grep -q "^withdrawn $N4 .* words=\"Yes, withdraw #$N4\"\$" .vid/tw/log && [ "$(cat "$FAKEGH/issues/$N4/state")" = CLOSED ] || fail "#$N4 was not withdrawn in the owner's words"
 grep -q "^done team-change #$N5 ROW-019" "$T/out" || fail "the team-change move on #$N5 is not reported done"
 grep -q "^$N5${TB}added${TB}ROW-019${TB}[0-9a-f]\{40\}${TB}no${TB}.*${TB}No, ROW-019 stays with S03\$" .vid/next/team-answers 2>/dev/null || fail "the team change's no is not recorded in the owner's words"
-# the withdrawn ticket read as closed; S03's part-1 body amended (its first line changed on GitHub), so the team's
+# the withdrawn ticket read as closed or left out; S03's part-1 body amended (its first line changed on GitHub), so the team's
 # drop of ROW-006, whose evidence is the whole body, changed within the call: shown again, not done, and done at the next call on
 # the evidence of the body GitHub holds
-grep -q "^ticket${TB}$N4${TB}CLOSED${TB}" .vid/next/read || fail "the call's read does not hold the withdrawn #$N4 as closed"
+# GM-4 F3: the one read, made afresh before each later move, lists the published tickets not withdrawn; so the withdrawn #N4 is
+# read as closed, or left out, never as open
+! grep -q "^ticket${TB}$N4${TB}OPEN${TB}" .vid/round/read || fail "the call's read holds the withdrawn #$N4 as open"
 grep -q "^done amend #$N3" "$T/out" || fail "the amend move of #$N3 is not reported done"
 grep -q "^again team-change #$N3 ROW-006" "$T/out" || fail "the team change on #$N3, its evidence changed by the amendment before it, is not shown again"
 ! grep -q "^$N3${TB}dropped${TB}ROW-006${TB}" .vid/next/team-answers 2>/dev/null || fail "the team change on #$N3 was answered on the body before its amendment"

@@ -1,16 +1,37 @@
 #!/bin/sh
-# Purpose: vid-connect's steps (GitHub manual, GM-1 S5; GM M16 steps 1 and 7, M17): the start and the end of a call, in every
-# ticket mode, written so /vid run can call it too (it does not yet, until phase 5). Run as the plugin's own copy,
-# sh "${CLAUDE_PLUGIN_ROOT}/checks/connect.sh", from the project's top level, as refresh.sh is: the refresh comes first, before
-# anything is restored or locked. Slack is the skill's (a connector's tools, not a script).
-#   start [--yes]   one line each, in order: the refresh (refresh.sh beside this file; --yes passes the owner's yes to the local
-#                   edits it lists); the records restored, the lock taken and github.sh access, each through the project's
-#                   checks/, now the plugin's. The refresh waiting on the owner (its exit 3) ends the call holding no lock,
-#                   exit 3; a no the owner gave (refresh-no) ends every start until a start with --yes, exit 3. A GitHub
-#                   line not ready ends the call, the lock freed, exit 1. Ready: `connect: ready`, exit 0, the lock held
-#   refresh-no "<the owner's words>"   the owner's no to the refresh, recorded in .vid/next/refresh-no
-#   end             the records saved and the lock freed, one line each; the lock is freed even when the save fails (exit 1)
-# Usage: sh connect.sh start [--yes] | refresh-no "<words>" | end
+# Purpose: vid-connect's steps (GitHub manual, GM-1 S5; GM M16 steps 1 and 7, M17; GM-4 F2): the start and the end of a call, for every
+# caller in every ticket mode (/vid run, /vid next, /vid mode and every direct call), and the run's start for /vid run alone. Run as
+# the plugin's own copy, sh "${CLAUDE_PLUGIN_ROOT}/checks/connect.sh", from the project's top level, as refresh.sh is: every step
+# before the refresh runs the plugin's own scripts, so nothing is committed before the lock is held (GM-4 F2's order: the mode, the
+# spec repository, the restore, the lock, the refresh). Slack is the skill's (a connector's tools, not a script).
+#   start [--yes] [--run] [--state <owner/name>]   the connect, one line each, in order: with --run in GitHub manual, refused
+#                   first, naming /vid next, nothing restored, refreshed or written (GM-1 S1); with --state (an empty folder), the
+#                   records restored from that state repository first (the plugin's github.sh state-restore <repo>); the mode: a
+#                   project not in ticket mode, or planned by the old ticket mode, refused, and in GitHub manual (GM M15) a project
+#                   whose .vid/tw/settings names no state-repo: refused, naming it, so the lock and the saved records never go to the
+#                   spec repository; with --run in GitHub manual refused, naming /vid next (GM-1 S1); the spec repository made when
+#                   the settings name one, in both layouts (GM-4 J5), and .vid/tw/log no `spec-repo` line (github.sh spec-setup
+#                   --make-only, GM-2 T10; access checks it is private at every call); the records restored; the lock taken; the read the call
+#                   before ended with, .vid/round/read, copied once to .vid/round/read.prev (GM-4 F3), before any read of the call;
+#                   the refresh (refresh.sh beside this file; --yes passes the owner's yes to the local edits it lists); the notices
+#                   (lib/wsl.sh notice, its line as it prints it); github.sh access; then the stage, once (GM-4 F2, I4):
+#                   without --run the call's, `stage name=replan state=start session=<s> records=29`, unless a stage holds plan.sh's
+#                   gate on already (its session kept in .vid/connect-stage, so the end ends it; one a call that died left is ended
+#                   first); with --run the run's start in its place (below). Each script the call runs finds the gate on, and opens
+#                   none of its own. The refresh waiting on the owner (its exit 3) ends the call, the lock freed, exit 3; a no the
+#                   owner gave (refresh-no) ends every start until a start with --yes, exit 3. A line not ready ends the call, the
+#                   lock freed, exit 1. Ready: `connect: ready`, exit 0, the lock held
+#     --run         the run's start, /vid run's alone, after access: the run's stage, `stage name=run state=start session=<s>
+#                   records=29`; the run state (RUN-STATE's run: active, unless a pause is recorded or a hold whose stage has closed,
+#                   its stage-closed line in .vid/tw/handed; session: <s>; plan: required; and `run state=active` recorded when
+#                   active); the watcher (checks/observe.sh start, then alive; not alive: `run: stopped the watcher is not running`,
+#                   the records saved and the lock freed, exit 1); the context line and the plugins (checks/brief.sh context,
+#                   plugins); the dev side's start (devagent-start.sh beside this file), each printed as it prints it. The skills the
+#                   run invokes are the skill's. <s> is $CLAUDE_CODE_SESSION_ID
+#   refresh-no "<the owner's words>"   the owner's no to the refresh, recorded in .vid/next/refresh-no: the one record of it
+#   end             the call's stage ended (when the start opened it), the records saved and the lock freed, one line each; the lock
+#                   is freed even when the save fails (exit 1)
+# Usage: sh connect.sh start [--yes] [--run] [--state <owner/name>] | refresh-no "<words>" | end
 # serves: tickets
 set -u
 HERE=$(cd "$(dirname "$0")" && pwd)
@@ -18,23 +39,75 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 W=$(mktemp -d); trap 'rm -rf "$W"' EXIT
 gh_() { sh checks/github.sh "$@"; }
 say() { echo "connect $1: $(tail -n 1 "$W/o")"; }
+SN=${CLAUDE_CODE_SESSION_ID:-connect-$$-$(date +%s)}; CS=.vid/connect-stage
+# stend: the call's stage, when a connect opened it, ended
+stend() { [ -s "$CS" ] || { rm -f "$CS"; return 0; }; _s=$(head -n 1 "$CS"); sh checks/event.sh "stage name=replan state=end session=$_s" > /dev/null 2>&1 || return 1; rm -f "$CS"; }
+# stop_ <line>: a start ended once the lock is held: the line, the records saved, the lock freed, exit 1
+stop_() { echo "$1"; trap 'rm -rf "$W"' EXIT; gh_ state-save > /dev/null 2>&1 || echo 'connect records: not saved'; gh_ lock-free > /dev/null 2>&1 || echo 'connect lock: could not be freed'; exit 1; }
 case ${1:-} in
-  start) Y=''; [ "${2:-}" != --yes ] || Y=--yes
-    if [ -z "$Y" ] && [ -f .vid/next/refresh-no ]; then echo "connect refresh: the owner said no to the refresh ($(cat .vid/next/refresh-no)): checks/ needs it, so every call ends here until the owner's yes"; exit 3; fi
-    rc=0; sh "$HERE/refresh.sh" $Y > "$W/o" 2>&1 || rc=$?
-    if [ "$rc" = 3 ]; then sed 's/^/    /' "$W/o"; echo "connect refresh: waits for the owner's yes to the local edits listed above; no lock is held"; exit 3; fi
-    [ "$rc" = 0 ] || { sed 's/^/    /' "$W/o" >&2; echo "connect refresh: failed (exit $rc); no lock is held"; exit 1; }
-    rm -f .vid/next/refresh-no; say refresh
-    gh_ state-restore > "$W/o" 2>&1 || { sed 's/^/    /' "$W/o" >&2; echo 'connect records: not restored; no lock is held'; exit 1; }; say records
+  start) shift; Y=''; RUN=''; SR=''
+    while [ $# -gt 0 ]; do case $1 in --yes) Y=--yes ;; --run) RUN=1 ;; --state) [ $# -ge 2 ] || { sed -n 's/^# Usage: /usage: /p' "$0" >&2; exit 2; }; SR=$2; shift ;; *) sed -n 's/^# Usage: /usage: /p' "$0" >&2; exit 2 ;; esac; shift; done
+    # GM-1 S1, GM-4 F2: the run's start in GitHub manual refused first, before anything is restored, refreshed or written (a --state
+    # folder, empty, has its mode only once restored: the mode step below refuses it there)
+    if [ -n "$RUN" ] && manual; then echo 'connect mode: this project is in GitHub manual: call /vid next; nothing refreshed or written, no lock is held'; exit 1; fi
+    if [ -n "$SR" ]; then sh "$HERE/github.sh" state-restore "$SR" > "$W/o" 2>&1 || { sed 's/^/    /' "$W/o" >&2; echo "connect records: not restored from $SR; no lock is held"; exit 1; }; say records; fi
+    # GM-4 F2's order: the mode, the spec repository, the restore and the lock, each through the plugin's own copy, and only then the
+    # refresh, so a start refused at any of them, or behind the saved records, or under another session's lock, commits nothing
+    # the mode: ticket mode only; GM M15 in GitHub manual; the run's start not in GitHub manual (GM-1 S1)
+    grep -q '^mode:[[:space:]]*tickets[[:space:]]*$' .vid/RUN-STATE.md 2>/dev/null || { echo 'connect mode: this project is not in ticket mode; no lock is held'; exit 1; }
+    if [ -d .vid/tickets ] && [ ! -f .vid/tw/settings ]; then echo 'connect mode: This project was planned by the old ticket mode; re-plan it with /vid plan. No lock is held'; exit 1; fi
+    if manual; then
+      [ -z "$RUN" ] || { echo 'connect mode: this project is in GitHub manual: call /vid next; no lock is held'; exit 1; }
+      [ -n "$(skey state-repo)" ] || { echo "connect mode: GitHub manual keeps ViD's lock and records in its own state repository (GM M15), and .vid/tw/settings names no state-repo: — answer it (sh checks/planner.sh setup state-repo <owner/name> --words \"<their words>\"); nothing restored, taken or saved"; exit 1; }
+    fi
+    # GM-2 T10, GM-4 F2: the spec repository, made when the settings name one and the log no spec-repo line; GM-4 J5: in both layouts
+    if [ -n "$(skey spec-repo)" ] && ! grep -q '^spec-repo ' .vid/tw/log 2>/dev/null; then
+      sh "$HERE/github.sh" spec-setup --make-only > "$W/o" 2>&1 || { sed 's/^/    /' "$W/o" >&2; echo 'connect spec-repo: not ready; no lock is held'; exit 1; }; say spec-repo; fi
+    sh "$HERE/github.sh" state-restore > "$W/o" 2>&1 || { sed 's/^/    /' "$W/o" >&2; echo 'connect records: not restored; no lock is held'; exit 1; }; say records
     # from before the take, any end but the ready one frees the lock (lock-free frees this session's lock alone)
-    trap 'gh_ lock-free > /dev/null 2>&1; rm -rf "$W"' EXIT; trap 'exit 1' INT TERM
-    gh_ lock-take > "$W/o" 2>&1 || { sed 's/^/    /' "$W/o" >&2; echo "connect lock: not taken ($(tail -n 1 "$W/o")); the call ends"; exit 1; }; say lock
+    trap 'sh "$HERE/github.sh" lock-free > /dev/null 2>&1; rm -rf "$W"' EXIT; trap 'exit 1' INT TERM
+    sh "$HERE/github.sh" lock-take > "$W/o" 2>&1 || { sed 's/^/    /' "$W/o" >&2; echo "connect lock: not taken ($(tail -n 1 "$W/o")); the call ends"; exit 1; }; say lock
+    # GM-4 F3 (I2): the read the call before ended with, once, before any read of this call
+    if [ -f .vid/round/read ]; then put .vid/round/read.prev < .vid/round/read || { echo 'connect read: .vid/round/read.prev could not be written; the lock freed'; exit 1; }; fi
+    # the refresh, under the lock: its no or its wait ends the call, the lock freed
+    if [ -z "$Y" ] && [ -f .vid/next/refresh-no ]; then echo "connect refresh: the owner said no to the refresh ($(cat .vid/next/refresh-no)): checks/ needs it, so every call ends here until the owner's yes; the lock freed"; exit 3; fi
+    rc=0; sh "$HERE/refresh.sh" $Y > "$W/o" 2>&1 || rc=$?
+    if [ "$rc" = 3 ]; then sed 's/^/    /' "$W/o"; echo "connect refresh: waits for the owner's yes to the local edits listed above; the lock freed"; exit 3; fi
+    [ "$rc" = 0 ] || { sed 's/^/    /' "$W/o" >&2; echo "connect refresh: failed (exit $rc); the lock freed"; exit 1; }
+    rm -f .vid/next/refresh-no; say refresh
+    [ ! -f "$HERE/lib/wsl.sh" ] || sh "$HERE/lib/wsl.sh" notice 2>&1 || :
     gh_ access > "$W/a" 2>&1; sed 's/^/connect /' "$W/a"
     if ! grep -qx 'access: ok' "$W/a"; then trap 'rm -rf "$W"' EXIT; gh_ lock-free > "$W/o" 2>&1 || { echo "connect lock: could not be freed: $(tail -n 1 "$W/o")"; exit 1; }; echo 'connect: GitHub is not ready; the lock freed, the call ends'; exit 1; fi
+    if [ -z "$RUN" ]; then
+      # GM-4 F2 (I4): the call's stage, once, unless a stage holds the gate on; one a call that died left open is ended first
+      stend || stop_ 'connect stage: the stage an earlier call left open could not be ended (checks/event.sh); the call ends'
+      if sh checks/plan.sh gate > /dev/null 2>&1; then echo 'connect stage: a stage holds the gate on already; none opened'
+      else sh checks/event.sh "stage name=replan state=start session=$SN records=29" > /dev/null 2>&1 || stop_ "connect stage: the call's stage could not be opened (checks/event.sh); the call ends"
+        printf '%s\n' "$SN" | put "$CS" || stop_ "connect stage: $CS could not be written; the call ends"; echo "connect stage: the call's stage opened (session $SN)"; fi
+    else
+      # the run's start, /vid run's alone
+      sh checks/event.sh "stage name=run state=start session=$SN records=29" > /dev/null 2>&1 || stop_ "connect run: the run's stage could not be opened (checks/event.sh); the run ends"
+      echo "connect stage: the run's stage opened (session $SN)"
+      HS=$(sed -n 's/^run:[[:space:]]*stopped owner asked to hold after stage \([0-9][0-9]*\).*/\1/p' .vid/RUN-STATE.md | head -n 1)
+      KEEP=''; grep -q '^run:[[:space:]]*stopped owner asked to pause' .vid/RUN-STATE.md && KEEP=1
+      [ -z "$HS" ] || ! grep -q "^stage-closed $HS " .vid/tw/handed 2>/dev/null || KEEP=1
+      rs_edit awk -v k="$KEEP" -v s="$SN" 'function put_(key, v) { if (!(key in d)) print key ": " v; d[key] = 1 }
+        /^run:/ { if (k) print; else print "run: active"; d["run"] = 1; next } /^session:/ { put_("session", s); next } /^plan:/ { put_("plan", "required"); next }
+        /^## / && !e { if (!("run" in d)) { print "run: active"; d["run"] = 1 } put_("session", s); put_("plan", "required"); e = 1 } { print }
+        END { if (!e) { if (!("run" in d)) print "run: active"; put_("session", s); put_("plan", "required") } }' || stop_ 'connect run: RUN-STATE.md could not be written; the run ends'
+      if [ -z "$KEEP" ]; then ev 'run state=active'; fi
+      echo "connect run: $(sed -n 's/^run:[[:space:]]*//p' .vid/RUN-STATE.md | head -n 1), session $SN"
+      sh checks/observe.sh start > "$W/o" 2>&1; sed 's/^/connect watcher: /' "$W/o"
+      if ! sh checks/observe.sh alive > "$W/o" 2>&1; then sed 's/^/connect watcher: /' "$W/o"
+        rs_edit sed 's/^run:.*/run: stopped the watcher is not running/' || :; stop_ 'connect watcher: not running: run: stopped the watcher is not running; the records saved, the lock freed'; fi
+      sh checks/brief.sh context 2>&1 || :; sh checks/brief.sh plugins 2>&1 || :
+      sh "$HERE/devagent-start.sh" 2>&1 || :
+    fi
     trap 'rm -rf "$W"' EXIT; trap - INT TERM; echo 'connect: ready'; exit 0 ;;
   refresh-no) [ -n "${2:-}" ] || { echo 'usage: sh connect.sh refresh-no "<the owner'"'"'s words>"' >&2; exit 2; }
     mkdir -p .vid/next; printf '%s at=%s\n' "$2" "$(now)" > "$W/n"; put .vid/next/refresh-no < "$W/n"; echo 'connect refresh: the owner said no; recorded'; exit 0 ;;
-  end) rc=0; gh_ state-save > "$W/o" 2>&1 || { sed 's/^/    /' "$W/o" >&2; rc=1; }; say records
+  end) rc=0; if [ -s "$CS" ]; then if stend; then echo "connect stage: the call's stage ended"; else echo "connect stage: the end of the call's stage was not recorded"; rc=1; fi; fi
+    gh_ state-save > "$W/o" 2>&1 || { sed 's/^/    /' "$W/o" >&2; rc=1; }; say records
     gh_ lock-free > "$W/o" 2>&1 || rc=1; say lock; exit "$rc" ;;
   *) sed -n 's/^# Usage: /usage: /p' "$0" >&2; exit 2 ;;
 esac

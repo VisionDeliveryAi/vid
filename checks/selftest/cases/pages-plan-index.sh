@@ -6,7 +6,7 @@
 # .vid/plan/ is the same throughout. Where skills/ is there: vid-plan's sentence on the page sends publishing through
 # `pages.sh plan`, the rest of the skill byte for byte as before; vid-view has the section "One document as a page",
 # which runs `pages.sh` by the plugin's path and does what its lines say, the rest byte for byte as before (0.26.11.1.3 lane B:
-# the pins moved three lines down, past R2's WSL notice in step 0). Env: CHECKS.
+# the pins moved three lines down, past R2's WSL notice in step 0; low-1 moved them again, R1's setup text and R5's review text; GM-4 J5 three lines down, the setup text offering layout one; GM-4 F12 four lines up, the review's spawn moved to vid-row-review). Env: CHECKS.
 set -eu
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 fail() { echo "pages-plan-index: $*" >&2; cat "$T/out" >&2 2>/dev/null; exit 1; }
@@ -35,8 +35,8 @@ grep -q '^plan	' .vid/pages/index 2>/dev/null && fail 'the index names a plan pa
 # the two skill sentences
 K=$CHECKS/../skills; [ -d "$K/vid-plan" ] && [ -d "$K/vid-view" ] || { echo 'needs skills/'; exit 77; }
 P=$K/vid-plan/SKILL.md
-[ "$(sed -n '1,259p' "$P" | cksum)" = '938262299 24000' ] && [ "$(sed -n '265,$p' "$P" | cksum)" = '2320923771 1199' ] || fail "vid-plan changed outside its sentence on the page"
-sed -n '260,264p' "$P" | tr '\n' ' ' > "$T/s"
+[ "$(sed -n '1,261p' "$P" | cksum)" = '3196677686 24289' ] && [ "$(sed -n '267,$p' "$P" | cksum)" = '2320923771 1199' ] || fail "vid-plan changed outside its sentence on the page"
+sed -n '262,266p' "$P" | tr '\n' ' ' > "$T/s"
 grep -qF 'sh "${CLAUDE_PLUGIN_ROOT}/checks/pages.sh" plan' "$T/s" && grep -qF 'do what its lines say' "$T/s" || fail "vid-plan's sentence does not send the page through pages.sh plan"
 grep -qiE 'publish it|private artifact' "$T/s" && fail 'vid-plan still tells the session to publish by itself'
 V=$K/vid-view/SKILL.md

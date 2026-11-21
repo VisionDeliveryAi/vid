@@ -13,6 +13,7 @@
 #   out   the asks out, one number a line: neither read, withdrawn nor lost (round.sh holds `nothing-left` back for them)
 #   lost  the asks lost, waiting on the owner: their issues stay open, and hold back no `nothing-left`
 #   again <n> | withdraw <n>   the owner's answer to a lost ask: asked again, or closed `vid: withdrawn`
+#   GM-4 E12: in GitHub manual the requirements, asked and deferred, are read at the applied commit, so no ask carries a pending one
 # Records: .vid/decide/grade/<n>/: ask (issue, commit, asked, reqs, deferred, vs, robustify, focus; tab), body, read (results.sh's),
 # grades (REQ, word, reason, vs word, vs reason; tab), findings, done, refused, again, allow, lost, withdrawn.
 # serves: tickets (0.26.10.28.4, M9)
@@ -31,18 +32,22 @@ cand() { for x in $(ls "$D/stage" 2>/dev/null | grep -E '^[1-9][0-9]*$' | sort -
     [ -z "$c" ] || echo "$x $(head -n 1 "$D/stage/$x/$c/commit")"; done | tail -n 1; }
 # mainc: main's newest merge: main at the newest sync (TW's, .vid/tw/log), else the merges record's last
 mainc() { m=$(sed -n 's/^sync main=\([0-9a-f]*\) .*/\1/p' .vid/tw/log 2>/dev/null | tail -n 1); [ -n "$m" ] || m=$(awk -F'\t' '$4 != "" && $4 != "-" { m = $4 } END { print m }' "$D/merges" 2>/dev/null); echo "$m"; }
+# GM-4 E12 (GM M3): the spec as the team has it, in GitHub manual PRD.md, INVENTORY.md and STAGES.md at the applied commit (lib.sh
+# applied), copied into $T/spec by spec_ (a file the commit lacks, absent), else the working tree: sf <file>, the path to read
+spec_() { if manual; then SPD=$T/spec; mkdir -p "$SPD"; _sa=$(applied); for _f in PRD.md INVENTORY.md STAGES.md; do { [ -n "$_sa" ] && git show "$_sa:./$_f" > "$SPD/$_f" 2>/dev/null; } || rm -f "$SPD/$_f"; done; else SPD=$PWD; fi; }
+sf() { printf '%s/%s\n' "${SPD:-$PWD}" "$1"; }
 # live: the effective requirements; with `pilot`, those not `phase: later`
-live() { sh "$HERE/prd.sh" --effective 2>/dev/null | awk -F'|' -v P="${1:-}" '{ k = $1; gsub(/[ \t]/, "", k); l = 0; for (i = 3; i <= NF; i++) { x = $i; gsub(/^[ \t]+|[ \t]+$/, "", x); if (x ~ /^phase:[ \t]*later$/) l = 1 } } k ~ /^REQ-[0-9]/ && !(P == "pilot" && l) { print k }' | sort -u; }
+live() { sh "$HERE/prd.sh" --effective "$(sf PRD.md)" 2>/dev/null | awk -F'|' -v P="${1:-}" '{ k = $1; gsub(/[ \t]/, "", k); l = 0; for (i = 3; i <= NF; i++) { x = $i; gsub(/^[ \t]+|[ \t]+$/, "", x); if (x ~ /^phase:[ \t]*later$/) l = 1 } } k ~ /^REQ-[0-9]/ && !(P == "pilot" && l) { print k }' | sort -u; }
 
 cmd_ask() { RQ=''; FO=''; VS=''; RB=''; AC=''; while [ $# -ge 2 ]; do case $1 in --reqs) RQ=$2 ;; --focus) FO=$2 ;; --vs) VS=$2 ;; --robustify) RB=$2 ;; --commit) AC=$2 ;; *) die "unknown $1" ;; esac; shift 2; done
   [ $# -eq 0 ] || die "unknown $1"
   set -- $(cand); N=${1:-}; C=${2:-}; [ -z "$AC" ] || C=$AC; [ -n "$C" ] || C=$(mainc); [ -n "$C" ] || die 'no candidate and no merge on main: nothing to grade yet'   # v0.26.10.27.4: --commit, the offered grade's item's candidate
-  T=$(mktemp -d "$PWD/$G/tmp.XXXXXX"); trap 'rm -rf "$T"' EXIT; live > "$T/live"
+  T=$(mktemp -d "$PWD/$G/tmp.XXXXXX"); trap 'rm -rf "$T"' EXIT; spec_; live > "$T/live"
   if [ -n "$RB" ]; then n=$(printf '%s\n' "$RB" | tr ';' '\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | grep -c .); [ "$n" -ge 3 ] && [ "$n" -le 5 ] || die "robustify takes 3 to 5 areas, ; between them: $n given"
     [ -z "$RQ$VS" ] || die 'a robustify ask asks no requirement and no second commit'; : > "$T/ask"
   elif [ -n "$RQ" ]; then printf '%s\n' "$RQ" | tr ' ,' '\n\n' | grep . | sort -u > "$T/ask"; bad=$(grep -v '^REQ-[0-9]' "$T/ask" | paste -sd ' ' -); [ -z "$bad" ] || die "not requirements: $bad (invariants are left out)"
     bad=$(comm -23 "$T/ask" "$T/live" | paste -sd ' ' -); [ -z "$bad" ] || die "no live requirement: $bad"
-  elif [ -f STAGES.md ]; then mustread "$T/sc" stages scope --upto "${N:-1}" --reqs; grep '^REQ-[0-9]' "$T/sc" | sort -u | comm -12 - "$T/live" > "$T/ask"
+  elif [ -f "$(sf STAGES.md)" ]; then ( cd "$SPD" && mustread "$T/sc" stages scope --upto "${N:-1}" --reqs ); grep '^REQ-[0-9]' "$T/sc" | sort -u | comm -12 - "$T/live" > "$T/ask"
   else live pilot > "$T/ask"; fi
   [ -n "$RB" ] || [ -s "$T/ask" ] || die 'no requirement to ask'
   VS0=$VS; [ -z "$VS" ] || [ -d .vid/code ] || die "vs $VS: no copy of the code repository to find it in (sh checks/github.sh results-fetch)"; [ -z "$VS" ] || VS=$(git --git-dir=.vid/code rev-parse -q --verify "$VS^{commit}" 2>/dev/null) || die "vs ${VS0:-?}: the code repository's copy has no such commit (sh checks/github.sh results-fetch)"   # a full id, as the runs need

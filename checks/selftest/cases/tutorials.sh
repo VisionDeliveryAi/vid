@@ -101,7 +101,7 @@ copy; printf 'Then say `vid init`.\n' >> "$T/c/jobdigest-lab/README.md"; expect 
 copy; printf 'Open `local-auto-lab/brief-zz.md` next.\n' >> "$T/c/TUTORIAL-LOCAL-AUTO.md"; expect 'a lab file named with its lab, missing' 'cites local-auto-lab/brief-zz.md, which does not ship' cites
 copy; printf 'See [the answers](local-auto-lab/README.md#how-to-use-the-answers).\n' >> "$T/c/START-HERE.md"; cites "$T/c" > "$T/out" || { cat "$T/out" >&2; fail 'a link to a lab file with a heading fragment was refused'; }
 copy; printf 'Type `/vid:vid-build`.\n' >> "$T/c/START-HERE.md"; [ ! -d "$R/skills" ] || expect 'an internal skill as a command' 'names /vid:vid-build, an internal skill' commands
-copy; printf 'Type `/vid:vid-replan`.\n' >> "$T/c/TUTORIAL-LOCAL-AUTO.md"; [ ! -d "$R/skills" ] || expect 'a command that is no skill' 'names /vid:vid-replan' commands
+copy; printf 'Type `/vid:vid-replot`.\n' >> "$T/c/TUTORIAL-LOCAL-AUTO.md"; [ ! -d "$R/skills" ] || expect 'a command that is no skill' 'names /vid:vid-replot' commands
 copy; printf 'Type `/vid init` here.\n' >> "$T/c/jobdigest-lab/spec/PRD.md"; commands "$T/c" > "$T/out" || { cat "$T/out" >&2; fail 'a lab fixture is checked for commands'; }
 copy; printf 'In ticket mode, too.\n' >> "$T/c/OVERVIEW-GITHUB-TEAM.md"; expect 'a fourth mode name' 'a mode the owner did not name: OVERVIEW-GITHUB-TEAM.md' modes
 echo 'tutorials: ok'

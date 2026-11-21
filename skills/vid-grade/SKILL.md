@@ -236,8 +236,15 @@ reads it automatically; the owner's adjudication is the only bridge to
 ## In ticket mode (v0.26.10.27.2)
 
 When `.vid/RUN-STATE.md` says `mode: tickets`, the code is the dev side's and ViD reads none of it: a grade is GR's, DevAgent's, and
-`/vid grade` is an **ask** for one. Everything else in this file is develop's branch and does not run. It runs inside `/vid run`'s
-session, as `/vid fix` does: the run manager posts the ask, the round reads its report, and its findings reach the owner as `Q` lines.
+`/vid grade` is an **ask** for one. Everything else in this file is develop's branch and does not run. In both GitHub modes (GM-4 K8)
+the ask is posted where the owner asks for it, its report is read by `grade.sh step` at the next read of ViD's own work, and its
+findings reach the owner as `Q` lines: in GitHub auto in /vid run's round (`round.sh step`), in GitHub manual at the next /vid next
+call's step 2, once the owner's own-work switch is on. /vid run loads this skill at its start and says its lines as it says them.
+
+**The lock.** Inside /vid run's own conversation (this session holds the run's lock), and inside /vid next (the call's start holds
+it), post the ask alone: the lock stays held. Anywhere else, the vid-connect skill's start first, `sh "${CLAUDE_PLUGIN_ROOT}/checks/connect.sh" start`, and
+its end after, `sh checks/connect.sh end`, however the ask ends (GM-4 S0). While another session holds the lock, the start says so,
+and nothing is asked.
 
 1. **Turn the owner's words into one ask,** `sh checks/grade.sh ask`, with:
    - `--reqs "<REQ ids>"` when the owner names requirements. Otherwise leave it out: the ask takes the requirements of the stages up to the
@@ -250,11 +257,18 @@ session, as `/vid fix` does: the run manager posts the ask, the round reads its 
    - `--visual` has no ticket-mode ask: the screens are the walk's, W1 (v0.26.10.26.4).
 
    It prints `asked <n> grade ask-<n>`. Tell the owner in one line: the ask's issue, the commit it grades and what it asks.
-2. **The round reads it** (`grade.sh step`, in `round.sh step`): a report refused for its form is posted back; one late is asked again
-   once, then a `Q` line asks the owner `again` or `no`.
+2. **The round reads it** (`grade.sh step`, in `round.sh step`: /vid run's round, or /vid next's step 2), saying its lines as the table
+   below says: a report refused for its form is posted back; one late is asked again once, then a `Q` line asks the owner `again` or
+   `no`.
 3. **Its findings are the owner's,** each grade but pass and each `finding:` line, ranked: high, absent, facade, medium, partial, low,
    then any with no severity. Each is answered `row` or `fix` (through the door), `no` or `known`; never `later`, for a grade ask belongs
    to no stage. A robustify `finding: rule` ruled `row` is drafted through `/vid fix`'s door as a rule row, its places counted by `covers:`,
    armed in every later ticket. A `vs` comparison is shown in its requirement's line and applies nothing.
+
+| Line | What you do |
+|---|---|
+| `grade-ask <n> read <k>: …`, `vs <n> <REQ> <word> — <reason>`, `grade-ask-refused <n> <k>`, `grade-again <n>`, `grade-lost <n>` | The owner's grade ask (v0.26.10.27.2): say it read, once, with its counts; a `vs` line is a passing requirement's grade at the second commit, said with it. A refusal is posted back by the round. Its findings, and a lost ask, are `Q` lines for the owner |
+
+An ask out keeps the session from ending at `nothing-left`; a lost one waits on the owner.
 
 Nothing is applied without the owner's ruling.

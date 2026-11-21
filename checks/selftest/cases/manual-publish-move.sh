@@ -7,7 +7,9 @@
 # listing warns S05's publish past the limit and ahead of the lowest active stage, and `publish S05 "<words>"` is not refused:
 # it goes out with the words on its log line, .vid/next/published holds both warnings as the listing showed them with the
 # words, the records are saved to the state repository after it, the call's read holds the new ticket's line and its body as
-# posted, each move's own replan stage is opened and ended, and its to-do is logged done by the move. Env: CHECKS.
+# posted, the moves open and end no stage of their own (GM-4 F2, I4: each call runs inside the call's stage, opened and ended
+# as vid-connect's start and end open and end it, and next-move.sh opens none of its own), and its to-do, a `Q<n>` line of the
+# owner's queue (GM-4 F4), is off the list once the move is done. Env: CHECKS.
 set -eu
 unset VID_CALLER 2>/dev/null || true
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
@@ -22,12 +24,20 @@ if sh "$CHECKS/plan.sh" gate > /dev/null 2>&1; then fail 'the gate is on with th
 sh "$CHECKS/github.sh" lock-take > "$T/out" 2>&1 || fail 'the lock could not be taken'
 # the page in the viewer's folder under a home of the case's own; a ticket the call posts made now on the fake, as GitHub makes it
 HOME=$T/home; export HOME; mkdir -p "$HOME"
+# each ticket the call posts given its creation time at its post, as GitHub gives it, so the call's own read-back reads it new
+FAKEGH_CREATED_NOW=1; export FAKEGH_CREATED_NOW
 made() { for n in $(awk '$1 == "published" { print $2 }' .vid/tw/log 2>/dev/null); do [ -f "$FAKEGH/issues/$n/created" ] || gh_attr "$n" created "$(date -u '+%Y-%m-%dT%H:%M:%SZ')"; done; }
-call() { sh "$CHECKS/next.sh" read > "$T/out" 2>&1 || fail 'next.sh read failed'; RC=0; sh "$CHECKS/next-move.sh" call "$@" > "$T/out" 2>&1 || RC=$?; made; }
+# each call inside the call's stage, as vid-connect's start opens it and its end ends it (GM-4 F2, I4); the moves open and end none
+stg() { printf 'stage name=replan state=%s session=%s%s at=%s\n' "$1" "$CLAUDE_CODE_SESSION_ID" "$2" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >> .vid/metrics-events; }
+call() { stg start ' records=29'; K=$(grep -c '^stage ' .vid/metrics-events)
+  sh "$CHECKS/next.sh" read > "$T/out" 2>&1 || fail 'next.sh read failed'; RC=0; sh "$CHECKS/next-move.sh" call "$@" > "$T/out" 2>&1 || RC=$?; made
+  [ "$(grep -c '^stage ' .vid/metrics-events)" = "$K" ] || fail 'the moves opened or ended a stage of their own'
+  sh "$CHECKS/plan.sh" gate > /dev/null 2>&1 || fail "the gate is off after the moves: they ended the call's stage"
+  stg end ''; }
 pub() { awk -v s="step=$1" '$1 == "published" { for (i = 3; i <= NF; i++) if ($i == s) print }' .vid/tw/log; }
 # call 1: the listing, kept
 call; [ "$RC" = 0 ] || fail "the call with no move exited $RC"
-grep -q "^publish${TB}S01${TB}[0-9a-f]\{40\}\$" .vid/next/moves 2>/dev/null || fail 'the listing kept no publish S01 move in .vid/next/moves'
+grep -q "^move:publish:[0-9a-f]\{12\}:S01${TB}" .vid/decide/queue/raised 2>/dev/null || fail 'the listing kept no publish S01 move in the owner'"'"'s queue (.vid/decide/queue/raised)'
 # call 2: the skeleton
 M1=$(git -C "$T/code.git" rev-parse main)
 call publish S01 'Yes, publish the skeleton'; [ "$RC" = 0 ] || fail "the call publishing S01 exited $RC"
@@ -60,15 +70,13 @@ U=$(gh repo view owner/vid-state --json url --jq .url); git init -q "$T/sr"; git
 git -C "$T/sr" show FETCH_HEAD:tw/log | grep -q "^published $N5 " || fail "the saved records do not hold S05's published line"
 git -C "$T/sr" show FETCH_HEAD:next/published | grep -q "^$N5$TB" || fail 'the saved records do not hold the kept warnings'
 # the call's read: the new ticket's line, and its body as posted
-grep -q "^ticket${TB}$N5${TB}OPEN${TB}-${TB}" .vid/next/read || fail "the call's read holds no ticket line for #$N5"
+grep -q "^ticket${TB}$N5${TB}OPEN${TB}-${TB}" .vid/round/read || fail "the call's read holds no ticket line for #$N5"
 awk '{ L[NR] = $0 } END { while (NR > 0 && L[NR] == "") NR--; for (i = 1; i <= NR; i++) print L[i] }' "$FAKEGH/issues/$N5/body" > "$T/want"
-awk -F'\t' -v n="$N5" '$1 == "body" && $2 == n { print substr($0, length("body") + length(n) + 3) }' .vid/next/read > "$T/got"
+awk -F'\t' -v n="$N5" '$1 == "body" && $2 == n { print substr($0, length("body") + length(n) + 3) }' .vid/round/read > "$T/got"
 cmp -s "$T/want" "$T/got" || { diff "$T/want" "$T/got" > "$T/out" || :; fail "the call's read does not hold #$N5's body as posted"; }
-# each move's own stage, opened and ended; none left open
-S=$(grep -c '^stage name=replan state=start session=publish-move-case ' .vid/metrics-events || true)
-E=$(grep -c '^stage name=replan state=end session=publish-move-case' .vid/metrics-events || true)
-[ "$S" = 3 ] && [ "$E" = 3 ] || fail "the three moves opened $S replan stages and ended $E, not 3 and 3"
-if sh "$CHECKS/plan.sh" gate > /dev/null 2>&1; then fail 'a stage is left open after the moves'; fi
+# none left open once the call's stage is ended (GM-4 I4: next-move.sh opens no stage of its own)
+if sh "$CHECKS/plan.sh" gate > /dev/null 2>&1; then fail 'a stage is left open after the calls'; fi
 # the to-do, done by its move
-awk -F'\t' '$2 == "done" && $3 == "publish S05" && $5 == "move" { f = 1 } END { exit !f }' .vid/next/todo 2>/dev/null || fail "S05's to-do is not logged done by its move"
+sh "$CHECKS/queue.sh" list > "$T/ql" 2> "$T/out" || fail 'queue.sh list failed'
+! grep -q "${TB}move:publish:[0-9a-f]*:S05@" "$T/ql" || fail "S05's to-do is still on the list after its move"
 exit 0

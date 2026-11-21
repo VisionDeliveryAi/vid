@@ -18,7 +18,8 @@ Every call below is the project's `checks/` copy, run at the top of ViD's reposi
 ## 0. The mode
 
 - **develop:** `.vid/RUN-STATE.md` does not say `mode: tickets`.
-- **GitHub manual:** `sh "${CLAUDE_PLUGIN_ROOT}/checks/devagent-start.sh" mode` prints `manual`.
+- **GitHub manual:** `sh "${CLAUDE_PLUGIN_ROOT}/checks/devagent-start.sh" mode` prints `manual`. GM-3 U2: it drafts as GitHub
+  auto does (one draft, one yes), so below, where a step names GitHub auto, GitHub manual takes it too.
 - **GitHub auto:** `mode: tickets` otherwise (GitHub team drafts the same way, as `/vid add` does in ticket mode).
 
 ## 1. The input, the owner's words, the read
@@ -35,7 +36,7 @@ a file: pass each to `check` with its own `--record`, and each new decision line
 read a file of the team's repositories: the record is the owner's copy, a path, nothing else.
 
 **The owner's words** say what the record is and what to take. Keep them verbatim: they go into the draft's `--why`
-(GitHub auto) or each commit's `Owner: "<words>"` trailer (develop, GitHub manual). The owner asked for the
+(GitHub auto, GitHub manual) or each commit's `Owner: "<words>"` trailer (develop). The owner asked for the
 incorporation, so every incorporation waits for their yes, technical or not.
 
 **The read.** Before writing anything, read the law in the order every door reads it: CLAUDE.md, PRD.md (base and
@@ -53,13 +54,13 @@ The map is a file kept with the amendment, one entry a line (blank lines and lin
   requirement, a row, a section) that the spec does not hold is an `open:` line.
 
 Its counts are `sh checks/incorporate.sh check`'s last line, `map: <c> changes, <l> left, <o> open`. Show the owner the
-map and its counts in one plain message. Where it is kept: in GitHub auto `land.sh draft --map` keeps it with the draft;
-in develop and GitHub manual it is `.vid/incorporate/<n>/map` (n the next free number), with the HEAD before the
+map and its counts in one plain message. Where it is kept: in GitHub auto and GitHub manual `land.sh draft --map` keeps it with the draft;
+in develop it is `.vid/incorporate/<n>/map` (n the next free number), with the HEAD before the
 amendment's first commit in `.vid/incorporate/<n>/base`.
 
-In develop and GitHub manual the map comes in **two parts**: the first holds the spec text (architecture, stack,
+In develop the map comes in **two parts**: the first holds the spec text (architecture, stack,
 decisions, PRD) and its counts; the rows' lines (their changes and their `left:` lines) join it at their ratification
-(§4). In GitHub auto it is shown **whole**, after the rows are ratified.
+(§4). In GitHub auto and GitHub manual it is shown **whole**, after the rows are ratified.
 
 ## 3. The amendment
 
@@ -90,7 +91,7 @@ decisions, PRD) and its counts; the rows' lines (their changes and their `left:`
   the other files file by file), an old decision line's words change or a line is removed, the map names a change the amendment lacks, a new decision line lacks the cite or
   is not `enforced: convention`, a new or changed row derives from a decision id, a new row of any kind lacks its
   origin, or a new decision line has
-  no row and no `left:` line. `--text` is the first part (develop, GitHub manual): the spec text alone, INVENTORY.md
+  no row and no `left:` line. `--text` is the first part (develop): the spec text alone, INVENTORY.md
   untouched. `--base` is the HEAD before the amendment's first commit (`.vid/incorporate/<n>/base`).
 
 ## 4. The rows
@@ -138,23 +139,23 @@ Outside a develop run, in /vid:vid-add's order, so no law file is left dirty und
 
 ### GitHub auto
 
-A draft, as /vid:vid-add's ticket-mode branch drafts: no stage event, nothing committed. In the working tree: the spec
+A draft through the door, the vid-fix skill's ticket-mode branch: no stage event, nothing committed. In the working tree: the spec
 text, the rows ratified (§4), the map whole, `check`, the plan block as it will stand in a file (the step each new row
 goes in, or a new step). Then the whole-set review in delta mode by a fresh agent, its output (`none`, or
 `finding <row id> | <why>` lines) in a file. Run every helper in the foreground (`run_in_background: false` on the Agent call), wait for its result, and never end a turn, nor schedule a wake-up, while one, or a command you started in the background, is running. Then
 `sh checks/land.sh draft --review <file> --why "/vid incorporate: <the owner's words>" --map <file> --plan <block>`
-(refused, it names the check and keeps the tree), and one `sh checks/queue.sh ask draft <n>`. The owner's yes lands it
-in /vid:vid-run, which publishes its tickets. The hand-back names /vid:vid-run on both its lines: "the incorporation is
-draft <n>, asked as Q<k>", and "say yes in /vid:vid-run to land it".
+(refused, it names the check and keeps the tree); the door's ask and landing take it from there. The hand-back is the
+door's: "the incorporation is draft <n>, asked as Q<k>", and that the owner's yes lands it.
 
 ### GitHub manual
 
-The owner's hand, in develop's order: commits in ViD's repository through the hooks, the spec text on the owner's yes on
-the map's first part, then the rows, ratified and written `owed: spec-only — ticket`. Nothing is materialised or run, no
-stage event, no hand-over to develop; nothing drafted, nothing posted to GitHub. The change shows as pending at
-/vid:vid-next, which brings it to the team with the apply move.
+GM-3 U2: a draft as GitHub auto's above, through the door, with GitHub manual's one difference as the vid-fix skill's
+ticket-mode branch says it (no plan block: no `--plan`, placing the rows is `/vid next planning-analysis`'s):
+`sh checks/land.sh draft --review <file> --why "/vid incorporate: <the owner's words>" --map <file>`. Nothing is
+posted to GitHub; the change's `spec` lines show with it. The hand-back names the draft, and /vid:vid-next, where the
+change waits as pending once landed.
 
 ## 6. Hand back
 
-The map's counts, the rows' counts (append mode's buckets), and where it landed: the commits (develop, GitHub manual),
-or the draft and its question (GitHub auto). Counts, never scores.
+The map's counts, the rows' counts (append mode's buckets), and where it landed: the commits (develop),
+or the draft and its question (GitHub auto, GitHub manual). Counts, never scores.

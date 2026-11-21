@@ -4,13 +4,14 @@
 # T10's spec repository; its case manual-form-refusals). The setup: planner.sh setup takes issue-form (a path in ViD's
 # repository, never one from the top, with .., or one of the export's own files), issue-parent (an issue number, or none) and
 # plan-page (artifact, a link, or none), and refuses anything else. On the form fixture's toy (fixtures/form.sh), S02's ticket
-# written in manual: tw-post with no issue-form:, with a form holding an unknown placeholder ({owner};
+# written in manual: tw-post with a form holding an unknown placeholder ({owner};
 # {owner_name} and {tests2}, whole lines outside the placeholders' letters), with a form lacking
 # {fakes}, and with no --words, each refuses, naming it, and writes nothing to GitHub and no published line; with the form
-# whole and the words given it goes out. Outside manual a post with --words is a usage error, and one without is today's:
-# ViD's part 1 as the body, no form= and no words= on its line, no form record. The switch (fixtures/manual.sh's toy, those
-# three keys unanswered) asks issue-form, issue-parent and plan-page; answered, it makes the missing spec repository private
-# (`spec-repo <name> created`) and pushes nothing to it. Env: CHECKS.
+# whole and the words given it goes out. Outside manual, with no issue-form: set, a post without words is today's: ViD's part 1
+# as the body, no form= and no words= on its line, no form record (GM-4 F6: the form comes from the setup alone, so a post with
+# no issue-form: is part 1 in either mode, never refused for it; GM-4 K1: --words is taken in either mode). The switch
+# (fixtures/manual.sh's toy, those three keys unanswered) asks issue-form, issue-parent and plan-page; answered, it makes the
+# missing spec repository private (`spec-repo <name> created`) and pushes nothing to it. Env: CHECKS.
 set -eu
 unset CLAUDE_CODE_SESSION_ID VID_CALLER 2>/dev/null || true
 T=$(mktemp -d); T0=$T; trap 'rm -rf "$T0"' EXIT
@@ -35,9 +36,6 @@ post() { gh_wclear; RC=0; sh "$CHECKS/github.sh" tw-post "$@" "$FM_F" > "$T/out"
 none() { [ "$RC" = 1 ] || fail "$1: tw-post exited $RC, not 1"; grep -q -- "$2" "$T/out" || fail "$1: the refusal does not name $2"
   [ ! -s "$FAKEGH/writes" ] || { cp "$FAKEGH/writes" "$T/out"; fail "$1: something was written to GitHub"; }
   ! grep -q '^published ' .vid/tw/log || fail "$1: a published line was written"; [ ! -d .vid/tw/form ] || fail "$1: a form record was written"; }
-grep -v '^issue-form:' .vid/tw/settings > "$T/s" && cat "$T/s" > .vid/tw/settings
-post --words 'Yes, publish S02'; none 'no issue-form:' 'issue-form:'
-printf 'issue-form: forms/issue.md\n' >> .vid/tw/settings
 cp forms/issue.md "$T/form"; printf '{owner}\n' >> forms/issue.md; g commit -qam 'the form, an unknown placeholder'
 fm_prep S02 || { cp "$T/post" "$T/out"; fail "S02's ticket could not be written again"; }
 post --words 'Yes, publish S02'; none 'an unknown placeholder' '{owner}'
@@ -54,10 +52,10 @@ post --words 'Yes, publish S02'; [ "$RC" = 0 ] || fail "with the form whole and 
 grep -q '^published .* words="Yes, publish S02"$' .vid/tw/log || fail 'the post in manual did not record the words'
 # outside manual, today's post
 printf 'setup-answered key=github-mode value="auto" words="back to auto" at=2026-11-19T10:00:00Z\n' >> .vid/plan/setup
+grep -v '^issue-form:' .vid/tw/settings > "$T/s" && cat "$T/s" > .vid/tw/settings   # today's setup: no form (GM-4 F6)
 tw_ratify 'Yes, publish it' || fail 'the plan could not be ratified again in auto'
 sh "$CHECKS/github.sh" spec-export > "$T/out" 2>&1 && sh "$CHECKS/github.sh" tw-sync >> "$T/out" 2>&1 && sh "$CHECKS/plan.sh" start S03 >> "$T/out" 2>&1 || fail 'S03 was not prepared in auto'
 FM_F=$(sh "$CHECKS/writer.sh" write step S03 2> "$T/out") || fail "S03's ticket was not written in auto"
-RC=0; sh "$CHECKS/github.sh" tw-post --words 'Yes' "$FM_F" > "$T/out" 2>&1 || RC=$?; [ "$RC" = 2 ] || fail "outside manual --words is not a usage error ($RC)"
 sh "$CHECKS/github.sh" tw-post "$FM_F" > "$T/out" 2>&1 || fail 'outside manual the post was refused'
 N=$(sed -n 's/^ViD github: published ticket #\([0-9]*\).*/\1/p' "$T/out"); [ -n "$N" ] || fail 'outside manual no ticket number was printed'
 head -n 1 "$FAKEGH/issues/$N/body" | grep -qE "^Ticket #$N, part 1 of [0-9]+, writing [0-9a-f]+\.\$" || fail "outside manual the body is not ViD's part 1"

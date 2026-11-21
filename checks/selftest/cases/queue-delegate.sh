@@ -4,7 +4,7 @@
 # the hold's own line by the delegate, and the status lists it among
 # the delegated answers, marked as given under the owner's delegation; the owner's own answer (no --by) records owner and is not
 # listed; an answerer that is none of owner, RM and delegate is refused; the production yes is refused to the delegate, nothing
-# recorded; vid-run's delegation path passes --by delegate. Env: CHECKS.
+# recorded; the delegation path passes --by delegate (vid-answer's, since GM-4 K6). Env: CHECKS.
 set -eu
 unset CLAUDE_CODE_SESSION_ID 2>/dev/null || true
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
@@ -47,7 +47,7 @@ VID_STATUS_KEEP=1 sh "$QS" status > "$T/out" 2>&1 || true; ! grep -q 'not yet, I
 # the owner's own control command, with a BY in the environment, is still the owner's
 sh "$QS" control pause 'a break' > /dev/null 2>&1; BY=delegate sh "$QS" control continue 'back, the owner' > /dev/null 2>&1 || fail 'the control continue was refused'
 awk -F'\t' '$4 == "back, the owner" { w = $5 } END { exit w != "owner" }' .vid/decide/queue/answers || fail "an exported BY was recorded as who said continue: $(grep 'back, the owner' .vid/decide/queue/answers | cut -f5)"
-# vid-run: the delegation path passes --by delegate
-S=$CHECKS/../skills/vid-run/SKILL.md
-[ ! -f "$S" ] || grep -q 'in their place.*queue.sh answer Q<n> --by delegate' "$S" || fail 'vid-run gives no --by delegate for an answer under delegation'
+# vid-answer (GM-4 K6 moves the run skill's delegation there): the delegation path passes --by delegate
+S=$CHECKS/../skills/vid-answer/SKILL.md
+[ ! -d "$CHECKS/../skills/vid-run" ] || grep -q 'in their place.*queue.sh answer Q<n> --by delegate' "$S" || fail 'vid-answer gives no --by delegate for an answer under delegation'
 echo 'queue-delegate: ok'

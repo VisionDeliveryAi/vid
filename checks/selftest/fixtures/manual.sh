@@ -70,3 +70,37 @@ mn_takeover() {
   _ia ROW-020 "$MN_R23"; git commit -qam 'ROW-023 added'; grep -v '^ROW-023 ' INVENTORY.md > I.x && mv I.x INVENTORY.md; git commit -qam 'ROW-023 retired'
   git checkout -q "$_b"; git merge -q --no-ff -m 'the side branch merged' mn-side; git branch -qD mn-side
   gh_wclear; }
+# mn_replan_toy <dir>: GM-3 U7, GM-2 T11's toy (fixtures/form.sh's fm_toy, sourced here when it is not yet) with phase 3's pending
+#   changes, entered there. Each change to the spec goes through the real door, a draft (land.sh draft, a review that finds nothing)
+#   and the owner's yes (land.sh <n> --words); the to-place row is then made as an apply leaves it, by records. In order:
+#   - ROW-022 drafted (1) and landed; the applied commit moved to the landing, ROW-022 on the to-place list as no-step in the
+#     owner's words, the plan ratified again: the to-place row;
+#   - S02 posted as #$MN_N2 and S03 as #$MN_N3 (form.sh's fm_post); stage 2's named candidate, its ask the open issue #$MN_NW;
+#   - draft 2, a /vid fix, landed: ROW-012 reworded (a pending reset, in #MN_N2), ROW-021 added ($MN_R21, a pending addition) and
+#     ROW-019 deleted (a pending retirement, in #MN_N3);
+#   - draft 3, a /vid stage re-cut, landed: ROW-002 to stage 2 (STAGES.md's row line, the owner's answer row in PRD.md), a landed
+#     re-cut (pending moved-stage ROW-002, spec STAGES.md), which withdraws stage 2's candidate (#MN_NW in .vid/next/withdrawn);
+#   then the call's read kept (next.sh read). MN_AP the applied commit, MN_H HEAD. Returns 1 on the first step that fails, its
+#   output in $T/mr
+mn_replan_toy() {
+  command -v fm_toy > /dev/null 2>&1 || . "$CHECKS/selftest/fixtures/form.sh"
+  fm_toy "$1" > "$T/mr" 2>&1 || return 1; printf 'none\n' > "$T/mrv"
+  _mi() { awk -v l="$2" -v a="$1" '{ print } index($0, a " ") == 1 && !d { print l; d = 1 }' INVENTORY.md > "$T/mi" && cat "$T/mi" > INVENTORY.md; }
+  _ml() { sh "$CHECKS/land.sh" draft --review "$T/mrv" --why "$1" > "$T/mr" 2>&1 || return 1; _d=$(sed -n 's/^draft \([0-9][0-9]*\)$/\1/p' "$T/mr")
+    [ -n "$_d" ] && sh "$CHECKS/land.sh" "$_d" --words "$2" > "$T/mr" 2>&1; }
+  _mi ROW-020 'ROW-022 | behavior | REQ-001 | anonymous | n/a | A saved search shows how many jobs its last digest held. Fails if the count is missing. | REQ-001 | owed: spec-only — first stage | origin: REQ-001'
+  _ml '/vid add: a saved search shows its last digest size, in the owner words' 'Yes, land the digest size' || return 1
+  MN_AP=$(git rev-parse HEAD); printf '%s\n' "$MN_AP" > .vid/tw/applied
+  printf 'ROW-022\tno-step\t2026-11-19T10:00:00Z\tleave ROW-022 to place for now\n' > .vid/tw/to-place
+  tw_ratify 'Yes, publish it' || return 1
+  fm_post S02 || { cp "$T/post" "$T/mr"; return 1; }; MN_N2=$FM_N
+  fm_post S03 || { cp "$T/post" "$T/mr"; return 1; }; MN_N3=$FM_N
+  MN_NW=$(gh_issue 'Stage 2, candidate 1'); mkdir -p .vid/decide/stage/2/1; printf 'issue\t%s\n' "$MN_NW" > .vid/decide/stage/2/1/ask; : > .vid/decide/stage/2/1/named
+  sed 's/at the stated size of 10,000 active jobs/at the stated size of 20,000 active jobs/' INVENTORY.md > "$T/mi" && cat "$T/mi" > INVENTORY.md
+  MN_R21='ROW-021 | behavior | REQ-001 | anonymous | n/a | A saved search shows the day its last digest went out. Fails if a saved search shows no day. | REQ-001 | owed: spec-only — first stage | origin: REQ-001'
+  _mi ROW-020 "$MN_R21"; grep -v '^ROW-019 ' INVENTORY.md > "$T/mi" && cat "$T/mi" > INVENTORY.md
+  _ml '/vid fix: the size, the digest day and the footer row, in the owner words' 'Yes, land the fix' || return 1
+  awk '{ print } /^row: ROW-004 -> STAGE-0$/ { print "row: ROW-002 -> STAGE-2" }' STAGES.md > "$T/mi" && cat "$T/mi" > STAGES.md
+  { cat PRD.md; printf '\n### 2026-11-20 (the self-test)\n\n```vid-prd-answers\nA-301 | human | 2026-11-20 | Q: how should the product be delivered — in which stages? | A: the digest limit waits for stage 2 | settles: contract\n```\n'; } > "$T/mi" && cat "$T/mi" > PRD.md
+  _ml '/vid stage: the digest limit moves to stage 2, in the owner words' 'Yes, move the limit to stage 2' || return 1
+  MN_H=$(git rev-parse HEAD); sh "$CHECKS/next.sh" read > "$T/mr" 2>&1 || return 1; gh_wclear; }

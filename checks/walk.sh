@@ -15,6 +15,8 @@
 #   read --stage <N>        reads the newest start's walk.txt, copied into <c>/w1/<s>/: `w1 done`, `w1 not-done <why>` (an item for
 #                           the owner, answered again), or `w1 refused <why>` (a missing walk.txt too; the second an item, again).
 #                           A differs screen and each finding: line go to <c>/w1/findings, `<s> TAB <line>`, a line once
+#   none <N>                (GM-4 K4) owed's no-walk check for one stage alone: W1 recorded none (no screens, no journey)
+#   ended <N>               (GM-4 K4) exit 0 when the newest start's walker ended and its return is unread; 3 while it runs; 1 else
 #   withdraw --stage <N> --below <c>   every older candidate's W1 of the stage withdrawn: due, out or not done (its walker stopped)
 # 0.26.10.28.6 (R1, R-8): two more outcomes, each a record every reader of W1 takes as it takes done and withdrawn (wfin):
 #   none    no screens, no walk: the design has no screens and no row of the stage is a journey, so no screen walk is owed
@@ -54,11 +56,15 @@ cmd_pending() { for F0 in $(ls -d "$SD"/*/* 2>/dev/null); do wfin "$F0/w1" || co
     s=$(ns "$W"); [ -n "$s" ] && [ -f "$W/$s/pid" ] && [ ! -f "$W/$s/read" ] || continue; alive "$W/$s" || echo "walk-read $x"; done; return 0; }
 # --- the brief's scope (R1) ---
 SX=$(mktemp -d "$PWD/.vid/round/walk.XXXXXX" 2>/dev/null || mktemp -d); trap 'rm -rf "$SX"' EXIT
+# GM-4 E12 (GM M3): in GitHub manual the brief reads INVENTORY.md and the stage scope (PRD.md, INVENTORY.md, STAGES.md) at the applied
+# commit (lib.sh applied), copied into $SX/spec, so no brief carries a pending change; else the working tree. sf <file>; SPD, where stages.sh runs, through mustread
+if manual; then SPD=$SX/spec; mkdir -p "$SPD"; _sa=$(applied); for _f in PRD.md INVENTORY.md STAGES.md ARCHITECTURE.md; do { [ -n "$_sa" ] && git show "$_sa:./$_f" > "$SPD/$_f" 2>/dev/null; } || rm -f "$SPD/$_f"; done; else SPD=$PWD; fi
+sf() { printf '%s/%s\n' "$SPD" "$1"; }
 plr() { [ -f "$SX/plr" ] || { mustread "$SX/plr0" planner rows; grep -v '^#' "$SX/plr0" > "$SX/plr"; }; }   # R6: an unreadable plan stops the walk
 # inv: `<id> TAB <kind> TAB <screen state or n/a> TAB <promise>` for each row of INVENTORY.md's block
-inv() { [ -f "$SX/inv" ] || sed -n '/^```vid-inventory/,/^```$/p' INVENTORY.md | awk -F'|' 'function t(x) { gsub(/^[ \t]+|[ \t]+$/, "", x); return x } t($1) ~ /^[A-Z]+-[0-9]+$/ { print t($1) "\t" t($2) "\t" t($5) "\t" t($6) }' > "$SX/inv"; }
+inv() { [ -f "$SX/inv" ] || sed -n '/^```vid-inventory/,/^```$/p' "$(sf INVENTORY.md)" | awk -F'|' 'function t(x) { gsub(/^[ \t]+|[ \t]+$/, "", x); return x } t($1) ~ /^[A-Z]+-[0-9]+$/ { print t($1) "\t" t($2) "\t" t($5) "\t" t($6) }' > "$SX/inv"; }
 # upto <N>: the rows of stages 1 to N, as the admission's join reads them
-upto() { [ -f "$SX/up$1" ] && return 0; plr; mustread "$SX/st0" stages scope --upto "$1"
+upto() { [ -f "$SX/up$1" ] && return 0; plr; ( cd "$SPD" && mustread "$SX/st0" stages scope --upto "$1" )
   awk -F'\t' -v c="$1" 'FILENAME == ARGV[1] { if ($5 ~ /^[0-9]+$/ || $5 == "later") P[$1] = ($5 != "later" && $5 + 0 <= c); next } !($1 in P) || P[$1] { print } END { for (r in P) if (P[r]) print r }' "$SX/plr" "$SX/st0" | sort -u > "$SX/up$1"; }
 golden() { plan_block | awk -F' [|] ' '{ for (i = 2; i <= NF; i++) if ($i == "kind: skeleton") for (j = 2; j <= NF; j++) if ($j ~ /^rows: /) { x = $j; sub(/^rows: /, "", x); print x } }' | tr ' ' '\n' | grep . |
   awk "$RNG"' { q = split(rng($0), e, " "); for (k = 1; k <= q; k++) print e[k] }' || true; }   # a range expanded, as the plan reads it
@@ -79,7 +85,7 @@ wnone() { N=$1; c=$(snc "$N"); [ -n "$c" ] || return 1; F=$SD/$N/$c; W=$F/w1; [ 
   csclose "$F" > /dev/null; ev "walk-none stage=$N candidate=$c"; return 0; }
 canvas() { id=${1%%/*}; for f in design/screens/*.dc.html design/screens/*.html; do [ -f "$f" ] || continue; b=$(basename "$f"); case $b in "$id "*|"$id.dc.html"|"$id.html") echo "$f"; return 0 ;; esac; done
   l=$(printf %s "$id" | sed 's/[0-9].*//'); for f in design/screens/*.dc.html; do [ -f "$f" ] || continue; case $(basename "$f") in "$l "*) echo "$f"; return 0 ;; esac; done; return 1; }
-cmd_brief() { [ "${1:-}" = --stage ] && [ -n "${2:-}" ] || die 'usage — brief --stage <N>'; wdue "$2" || die "no walk is due for stage $2"
+cmd_brief() { [ "${1:-}" = --stage ] && [ -n "${2:-}" ] || die 'usage — brief --stage <N>'; wnone "$2" || true; wdue "$2" || die "no walk is due for stage $2"   # GM-4 K4: the no-walk check first, for every caller
   A=$(sed -n "s/^staging$TAB//p" "$F/d1/read" | head -n 1); [ -n "$A" ] || die "stage $N's D1 names no staging address"; X=$(cat "$F/commit")
   s=$(( $(ns "$W" | grep . || echo 0) + 1 )); B=$(mktemp -d "${VID_WALK_TMP:-${TMPDIR:-/tmp}}/vid-walk.XXXXXX") || die 'no folder for the brief'; B=$(cd "$B" && pwd -P)
   case $B/ in "$(pwd -P)"/*) rmdir "$B"; die "the brief's folder would sit inside the project ($B): set VID_WALK_TMP outside it" ;; esac; mkdir -p "$W/$s"   # the walker never sits beside the records
@@ -145,5 +151,11 @@ cmd_withdraw() { [ "${1:-}" = --stage ] && [ "${3:-}" = --below ] || die 'usage 
 CMD=${1:-}; [ $# -eq 0 ] || shift
 case $CMD in owed) cmd_owed ;; pending) cmd_pending ;; brief) cmd_brief "$@" ;; start) cmd_start "$@" ;; read) cmd_read "$@" ;; withdraw) cmd_withdraw "$@" ;;
   due) wdue "${1:?}" ;;
+  # GM-4 K4: none <N>, the no-walk check for one stage (wnone, as owed runs it for every stage): W1 recorded none when the stage has
+  # no screens and no journey; exit 0 when it recorded it, 1 otherwise. Every path that starts a walk runs it first
+  none) wnone "${1:?}" ;;
+  # GM-4 K4: ended <N>, exit 0 when the newest candidate's newest start has a pid that is gone and its return is unread (pending's
+  # test for one stage, writing nothing); 3 while that walker runs; 1 with no such start
+  ended) c=$(snc "${1:?}"); [ -n "$c" ] || exit 1; W=$SD/$1/$c/w1; [ ! -f "$W/withdrawn" ] || exit 1; s=$(ns "$W"); [ -n "$s" ] && [ -f "$W/$s/pid" ] && [ ! -f "$W/$s/read" ] || exit 1; ! alive "$W/$s" || exit 3 ;;
   fin) c=$(snc "${1:?}"); [ -n "$c" ] && wfin "$SD/$1/$c/w1" ;;
-  *) echo 'usage: sh checks/walk.sh owed|pending|brief --stage <N>|start --stage <N>|read --stage <N>|withdraw --stage <N> --below <c>|due <N>|fin <N>' >&2; exit 2 ;; esac
+  *) echo 'usage: sh checks/walk.sh owed|pending|brief --stage <N>|start --stage <N>|read --stage <N>|withdraw --stage <N> --below <c>|due <N>|fin <N>|ended <N>|none <N>' >&2; exit 2 ;; esac

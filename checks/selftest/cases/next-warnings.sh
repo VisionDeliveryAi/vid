@@ -14,7 +14,7 @@ g() { git -c user.email=vid@selftest -c user.name=vid "$@"; }
 TB=$(printf '\t')
 pt_toy "$T/toy"; git init -q; printf '.vid/\n' > .gitignore; g add -A; g commit -qm 'the spec'
 printf 'setup-answered key=github-mode value="manual" words="the toy, manual" at=2026-11-19T09:00:00Z\n' >> .vid/plan/setup
-mkdir -p .vid/tw/out .vid/next; git rev-parse HEAD > .vid/tw/applied
+mkdir -p .vid/round .vid/tw/out .vid/next; git rev-parse HEAD > .vid/tw/applied
 printf 'open-tickets: 1\n' > .vid/tw/settings
 pt_rs 's/^\(step S04 .*rows:\) /\1 ROW-017 /'; grep -q '^step S04 .*rows: ROW-017 ROW-002 ' .vid/RUN-STATE.md || fail "S04's rows do not begin with ROW-017"
 { printf 'published 1 kind=skeleton step=S01 rows=ROW-003,ROW-004 plan=p1 base=b1 export=e1 parts=1 taken-over=comments at=2026-11-17T09:00:00Z\n'
@@ -26,7 +26,7 @@ awk -F'\t' '$2 == "row" && $5 == 1 && $6 ~ /^(planned|moved|owed)$/ && $1 != "RO
 [ "$(grep -c . .vid/tw/handed)" -ge 10 ] || fail 'the stage-1 rows were not accepted'
 printf 'row ROW-012 held | stand-in: the self-test\n' >> .vid/tw/handed
 { printf 'issue\t2\tticket\tvid: claimed by the team\t2026-11-18T09:00:00Z\n'
-  printf 'ticket\t1\tCLOSED\t-\t2026-11-17T09:00:00Z\nticket\t2\tOPEN\t-\t2026-11-17T09:00:00Z\n'; } > .vid/next/read
+  printf 'ticket\t1\tCLOSED\t-\t2026-11-17T09:00:00Z\nticket\t2\tOPEN\t-\t2026-11-17T09:00:00Z\n'; } > .vid/round/read
 sh "$CHECKS/next.sh" triggers > "$T/out" 2>&1 || fail 'next.sh triggers failed'
 for s in S03 S04 S05; do k=publish; grep -q "^move${TB}publish${TB}$s${TB}[0-9a-f]\{40\}${TB}" "$T/out" || fail "$s is not a publish move"
   grep -q "^warning${TB}$k${TB}$s${TB}limit${TB}1 open tickets, 2 with this one, over open-tickets: 1${TB}" "$T/out" || fail "$s is not warned past the open-ticket limit"

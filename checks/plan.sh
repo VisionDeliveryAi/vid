@@ -90,6 +90,11 @@
 #                      of whitespace one space); equal is unchanged and the
 #                      recorded hash is used. Step order still counts;
 #                      hashes stay raw.
+#   admit <step>       GM-4 K1 (J3), read only: whether the step may start, as `start` would judge it now — the gate, then
+#                      the admission's holds (in GitHub auto the stage scope, the graded gate, the open-ticket limit, rules A and
+#                      B; in GitHub manual none), recording nothing (no step-start, no refusal; git's index never refreshed):
+#                      `admit <step> ok|held <why>` tab-separated, the why the admission's own words, then the step's warning
+#                      lines (warnings, below). Exit 0 ok, 3 held, 1 the warnings unread, 2 usage
 #   admit --brief <f>  a builder or fixer brief's admission (checks/brief.sh
 #                      calls it): the brief's `step:` must name a step and its
 #                      `## 1` rows must all be that step's; judged at the tree
@@ -240,9 +245,11 @@
 #   `ticket:<n>` evidence resolves against a `published <n>` line of .vid/tw/log.
 #   GM-2 T2, in GitHub manual: `start` checks only that the plan is recorded and holds the step, and records the start as
 #   today; the stage scope, the graded gate, the open-ticket limit and rules A and B are skipped (the publish's warnings).
-#   `start` and `change` called with no stage open open a `stage name=replan` of their own and end it on every path; a
-#   caller holding a plan, replan or run stage open is left alone. A move's change passes --trigger owner-answer
-#   --evidence ticket:<n> and the owner's words as its why. GM-2 T7: `change` in GitHub manual skips rules A and B for rows added
+#   GM-4 F2 (I4): `start` and `change` open no stage of their own: called with the gate off they are refused (the call's stage
+#   is vid-connect's, connect.sh start). A move's change passes --trigger owner-answer
+#   --evidence ticket:<n> and the owner's words as its why. GM-3 U4: in GitHub manual a row the inventory at the applied commit no
+#   longer holds (retired, the apply having moved the applied commit) may leave a started step and the protected: line.
+#   GM-2 T7: `change` in GitHub manual skips rules A and B for rows added
 #   to a started step, and a row of a started step it leaves in no step is taken when .vid/tw/to-place holds it with the owner's
 #   words (its fourth field), in place of the evidence check; any other such row is refused.
 # v0.26.10.12.2.2 (R1) — ticket mode's plan block, only widened: under `mode: tickets` the
@@ -276,14 +283,26 @@
 #   closed only with its `closed` line and every row it holds in the plan now in a settled handed state (accepted,
 #   accepted-by-ruling, owed, paid, held, known-limit); rule B's other alternative (every row owed, paid, held
 #   or a known limit) is as it was.
+# GM-4 K9 (J2) — the publish warnings, one helper:
+#   warnings <step>…   read only, at the top of ViD's repository, in both GitHub modes: for each step named, in that order, the
+#                      lines GM M12 requires, `warning publish <step> <limit|stage-ahead|not-taken> <the numbers> <the risk>`
+#                      tab-separated, in next.sh's form and with its predicates, moved here: limit, the open tickets of the
+#                      read (.vid/round/read's `ticket` lines OPEN; with none, GitHub auto's read, the published tickets its
+#                      `issue` lines hold open) and this one over .vid/tw/settings' open-tickets:;
+#                      stage-ahead, the step's stage (planner.sh steps) above the lowest active stage (a stage with an open
+#                      published ticket: its stage its recorded writing's header in GitHub manual, else its step's), with that
+#                      stage's tests not accepted (accepted, accepted by ruling, owed or paid; held is not) counted;
+#                      not-taken, the published tickets open 7 days after their creation with no `vid: claimed` comment,
+#                      assignee or sub-issue, none of it unread. Exit 0, no line when none is due; 1 a step the plan lacks
+#                      or a read that failed, no line. It records and posts nothing. In GitHub auto `start` keeps its own holds
 #   canon              stdin's plan block in the admission's canonical form (runs of space one space, each step's rows a
 #                      sorted set): planner.sh's ratified compares the block to the newest recorded plan through it.
-# Usage: sh checks/plan.sh gate | home-of | home --brief <f> | check | change <what> "<why>" [--trigger … --expect … ] [--not-needed-by <ids> "<why>"] | strategy <s> --by owner --words "<…>" | start <id> | admit --brief <f> | map [--all] | charged | base <id> | parse [<file>] | redstamp --staged | skeleton | guard --paths - | run-start
+# Usage: sh checks/plan.sh gate | home-of | home --brief <f> | check | change <what> "<why>" [--trigger … --expect … ] [--not-needed-by <ids> "<why>"] | strategy <s> --by owner --words "<…>" | start <id> | admit --brief <f> | map [--all] | charged | base <id> | parse [<file>] | redstamp --staged | skeleton | guard --paths - | run-start | warnings <step>… | admit <step>
 # serves: both (0.26.10.28.4, M9)
 set -u
 IFS='
 '
-usage() { echo 'ViD plan: usage — sh checks/plan.sh gate | home-of | home --brief <f> | check | change <what> "<why>" --trigger <t>[,<t>…] [--evidence <ref>[,<ref>…]] --expect "<one line>" [--alternatives "<one line>"] [--not-needed-by <id>[,<id>…] "<why>"] | strategy <depth-first|breadth-first> --by owner --words "<the owner'"'"'s words>" | start <id> | admit --brief <f> | map [--all] | charged | base <id> | parse [<file>] | redstamp --staged | skeleton | guard --paths - | run-start | canon' >&2; exit 2; }
+usage() { echo 'ViD plan: usage — sh checks/plan.sh gate | home-of | home --brief <f> | check | change <what> "<why>" --trigger <t>[,<t>…] [--evidence <ref>[,<ref>…]] --expect "<one line>" [--alternatives "<one line>"] [--not-needed-by <id>[,<id>…] "<why>"] | strategy <depth-first|breadth-first> --by owner --words "<the owner'"'"'s words>" | start <id> | admit --brief <f> | map [--all] | charged | base <id> | parse [<file>] | redstamp --staged | skeleton | guard --paths - | run-start | canon | warnings <step>… | admit <step>' >&2; exit 2; }
 top() { git rev-parse --show-toplevel 2>/dev/null || pwd -P; }
 # bound_here <home>: this checkout's branch has a live agent or an unfinished Codex job of the run at <home> bound to it
 # (v0.26.10.3 R8, R10: checks/testenv.sh bound, the one liveness rule; without it, nothing is bound)
@@ -340,7 +359,7 @@ gate_at() {
 
 # --- v0.9.6 Phase D: the plan block ------------------------------------------------
 TMPD=''
-tmpd() { [ -n "$TMPD" ] || { TMPD=$(mktemp -d); trap 'rm -rf "$TMPD"; own_end' EXIT; }; }   # GM-2 T2: own_end, a no-op unless a stage of its own is open
+tmpd() { [ -n "$TMPD" ] || { TMPD=$(mktemp -d); trap 'rm -rf "$TMPD"' EXIT; }; }
 AWKAT='function lastat(  i) { for (i = NF; i >= 2; i--) if (index($i, "at=") == 1) { if ($i ~ /^at=[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]Z$/) return substr($i, 4); return "" } return "" }
 function kv(k,  i) { for (i = 2; i <= NF; i++) if (index($i, k "=") == 1) return substr($i, length(k) + 2); return "" }'
 # stage_order <events file>: the stage, step-start and step-resumed events in the gate's order (time, then file order),
@@ -365,10 +384,13 @@ canon() { awk '{ gsub(/[ \t]+/, " "); sub(/^ /, ""); sub(/ $/, "") }
 events() { [ -f "$H/.vid/metrics-events" ] || return 0; awk -v t="$1" "$AWKAT"' $1 == t { a = lastat(); if (a == "") a = "0000"; printf "%s\t%09d\t%s\n", a, NR, $0 }' "$H/.vid/metrics-events" | sort -t "$(printf '\t')" -k1,1 -k2,2n | cut -f3-; }
 evkv() { printf '%s\n' "$1" | awk "$AWKAT"' { print kv("'"$2"'") }'; }
 # tinvids (v0.26.10.12.2.2, R1): ticket mode's inventory ids — every id of every ```vid-inventory line
-# GM-1 S3: in GitHub manual (the newest github-mode answer manual, or a call /vid mode marks, VID_CALLER=mode) the inventory is the
-# applied commit's (.vid/tw/applied), as planner.sh reads it, so a plan of the version the team has is not refused for a row retired since
-tinv() { _ta=$(sed -n '1s/[[:space:]]*$//p' "$H/.vid/tw/applied" 2>/dev/null)
-  if [ -n "$_ta" ] && { [ "${VID_CALLER:-}" = mode ] || [ "$(sed -n 's/^setup-answered key=github-mode value="\([a-z]*\)".*/\1/p' "$H/.vid/plan/setup" 2>/dev/null | tail -n 1)" = manual ]; }; then
+# GM-1 S3: in GitHub manual the inventory is the applied commit's, as planner.sh reads it, so a plan of the version the team has is not
+# refused for a row retired since; GM-4 F8, F10: the mode and the applied commit are lib.sh's manual and applied, read at the home
+# (a GitHub manual project with no applied version recorded reads the working tree, as before)
+LIBF=$(cd "$(dirname "$0")" && pwd)/lib.sh
+lmode() { [ -f "$LIBF" ] || return 1; ( cd "$1" && . "$LIBF" && "$2" ); }   # lmode <home> manual|applied: lib.sh's, there
+tinv() { _ta=''; ! pman "$H" || _ta=$(lmode "$H" applied)
+  if [ -n "$_ta" ]; then
     git -C "$H" show "$_ta:./INVENTORY.md" 2>/dev/null; else [ -f "$H/INVENTORY.md" ] && cat "$H/INVENTORY.md"; fi; }
 tinvids() { tinv | awk '/^```vid-inventory/ { b = 1; next } /^```/ { b = 0 } b' | awk -F'|' '{ k = $1; gsub(/^[ \t]+|[ \t]+$/, "", k)
     if (k ~ /^(rule|difference|exception|suppression|hostility|seam)$/) { k = $2; gsub(/^[ \t]+|[ \t]+$/, "", k) } if (k ~ /^[A-Z]+-[0-9]+$/) print k }'; }
@@ -516,6 +538,7 @@ budget() {
 # v0.9.6.2 (3.4, R4): an admission refusal is recorded at the home —
 # `refused phase=admission by=<dirty-currency|rule-B|rule-A|unrecorded-plan|no-step|rows-not-of-step|stage> attempt=<UTC time plus 4 hex> step=<id>`
 refused_ev() {
+  [ -z "${DRY:-}" ] || return 0   # GM-4 K1 (J3): admit's dry admission records no refusal
   mkdir -p "$H/.vid" 2>/dev/null || return 0
   printf 'refused phase=admission by=%s attempt=%s step=%s at=%s\n' "$1" "$(date -u '+%Y%m%dT%H%M%SZ')-$(od -An -N2 -tx1 /dev/urandom 2>/dev/null | tr -d ' \n')" "$2" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >> "$H/.vid/metrics-events"
 }
@@ -740,9 +763,11 @@ admit_step() {
   # v0.9.7.2 (3.2): a hardening step's admission runs rule A with its parked rows counted as new rows
   if [ "$_bf" = breadth-first ] && [ "$(awk -F'\t' -v s="$_s" '$1 == "step" && $2 == s { print $7 }' "$TMPD/parsed")" = hardening ]; then cp "$TMPD/steprows" "$TMPD/newrows"; fi
   if [ -z "$_nh" ] && [ -s "$TMPD/newrows" ]; then rules "$_s" "$_at" "$TMPD/newrows" yes || return 1; fi
-  mkdir -p "$H/.vid"; printf 'step-start step=%s plan=%s base=%s at=%s\n' "$_s" "$PLANHASH" "$(git rev-parse --short=12 HEAD 2>/dev/null || echo nohead)" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >> "$H/.vid/metrics-events"
-  if [ -n "$_nh" ]; then echo "ViD plan: admitted $_s under plan $PLANHASH — GitHub manual: no hold (its stage, its builds-on, rules A and B, the graded gate and the open-ticket limit are the publish's warnings)"
-  elif [ -s "$TMPD/newrows" ]; then echo "ViD plan: admitted $_s under plan $PLANHASH"; else echo "ViD plan: admitted $_s under plan $PLANHASH — its rows all belonged to a started step, so neither rule applies"; fi
+  # GM-4 K1 (J3): admit's dry admission (DRY) judges as start does and records no start
+  [ -n "${DRY:-}" ] || { mkdir -p "$H/.vid"; printf 'step-start step=%s plan=%s base=%s at=%s\n' "$_s" "$PLANHASH" "$(git rev-parse --short=12 HEAD 2>/dev/null || echo nohead)" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >> "$H/.vid/metrics-events"; }
+  _av=admitted; [ -z "${DRY:-}" ] || _av='would be admitted'
+  if [ -n "$_nh" ]; then echo "ViD plan: $_av $_s under plan $PLANHASH — GitHub manual: no hold (its stage, its builds-on, rules A and B, the graded gate and the open-ticket limit are the publish's warnings)"
+  elif [ -s "$TMPD/newrows" ]; then echo "ViD plan: $_av $_s under plan $PLANHASH"; else echo "ViD plan: $_av $_s under plan $PLANHASH — its rows all belonged to a started step, so neither rule applies"; fi
   return 0
 }
 # step_base <step>: `base step=<id> commit=<sha> from=step-start|brief|step-start-time` (v0.9.6.1 3.5)
@@ -862,6 +887,11 @@ change_body() {
   awk -F'\t' 'NR == FNR { if ($1 == "row") P[$2] = 1; next } !($1 in P) { print $1 "\t" $2 "\t" $3 }' "$TMPD/parsed" "$TMPD/charged" > "$TMPD/orph"
   # GM-2 T7: in GitHub manual a row left in no step stands on .vid/tw/to-place with the owner's words, in place of the evidence
   # check, which ticket mode never fills; any other such row is refused
+  # GM-3 U4: and a row the spec at the applied commit no longer holds (retired: the apply moved the applied commit) leaves the
+  # started step freely, since no spec holds it
+  if [ -s "$TMPD/orph" ] && pman "$H"; then
+    tinvids | sort -u > "$TMPD/tids"; [ ! -s "$TMPD/tids" ] || awk -F'\t' 'FILENAME == ARGV[1] { I[$1] = 1; next } ($1 in I)' "$TMPD/tids" "$TMPD/orph" > "$TMPD/orph2" && cp "$TMPD/orph2" "$TMPD/orph"
+  fi
   if [ -s "$TMPD/orph" ] && pman "$H"; then
     BADO=$(awk -F'\t' 'FILENAME == ARGV[1] { if ($4 ~ /[^ \t]/) P[$1] = 1; next } !($1 in P) { printf "%s%s", (n++ ? " " : ""), $1 }' "$H/.vid/tw/to-place" "$TMPD/orph" 2>/dev/null || cut -f1 "$TMPD/orph" | paste -sd ' ' -)
     if [ -n "$BADO" ]; then echo "ViD plan: refused — this change leaves rows of started steps in no step: $BADO. In GitHub manual each such row stands on .vid/tw/to-place with the owner's words." >&2; exit 1; fi
@@ -877,7 +907,9 @@ change_body() {
   _pv=''; [ "${PREV:-none}" != none ] && [ -f "$H/.vid/plans/$PREV.plan" ] && { pplan "$PREV"; _pv="$TMPD/p.$PREV"; }
   # v0.9.7.2 (3.3, R4): the plan's protected: line only grows, under either strategy
   if [ -n "$_pv" ]; then
-    _rm=$(awk -F'\t' 'FILENAME == ARGV[1] { if ($1 == "prot") N[$2] = 1; next } $1 == "prot" && !($2 in N) { printf "%s%s", (n++ ? " " : ""), $2 }' "$TMPD/parsed" "$_pv")
+    # GM-3 U4: in GitHub manual a retired row (one the spec at the applied commit no longer holds) leaves the protected: line with it
+    _m=''; : > "$TMPD/tids"; if pman "$H"; then tinvids | sort -u > "$TMPD/tids"; [ ! -s "$TMPD/tids" ] || _m=1; fi; [ -s "$TMPD/tids" ] || echo '-' > "$TMPD/tids"
+    _rm=$(awk -F'\t' -v M="$_m" 'FILENAME == ARGV[1] { I[$1] = 1; next } FILENAME == ARGV[2] { if ($1 == "prot") N[$2] = 1; next } $1 == "prot" && !($2 in N) && !(M && !($2 in I)) { printf "%s%s", (n++ ? " " : ""), $2 }' "$TMPD/tids" "$TMPD/parsed" "$_pv")
     [ -z "$_rm" ] || { echo "ViD plan: refused — the plan's protected: line only grows; this change removes $_rm." >&2; exit 1; }
   fi
   # v0.9.7.2 (3.2–3.4; R3–R5): under breadth first — the placement checks, the rows newly in hardening (PREV; none at create), the safeguard
@@ -942,27 +974,86 @@ guard() {
   fi
   return 0
 }
-# GM-2 T2: pman <home>, GitHub manual there — its newest github-mode answer manual, or a call /vid mode marks (VID_CALLER=mode) — as
-# tinv reads it (plan.sh keeps its own helpers, not lib.sh's)
-pman() { [ "${VID_CALLER:-}" = mode ] || [ "$(sed -n 's/^setup-answered key=github-mode value="\([a-z]*\)".*/\1/p' "$1/.vid/plan/setup" 2>/dev/null | tail -n 1)" = manual ]; }
-# own_stage <what> (GM-2 T2): in GitHub manual, `start` or `change` called with no stage open (the gate off) opens a `stage
-# name=replan` of its own first, so each move that admits a step or records a plan change needs no sitting, as /vid mode opens
-# its plan sitting; own_end ends it on every path, a refusal too (the EXIT trap, tmpd's included, and INT and TERM). A caller that
-# holds a plan, replan or run stage open reads the gate on and is left alone: nothing is opened or ended. With its stage open
-# and the gate still off (RUN-STATE not planned, the run stopped), refused, the stage ended. Outside manual nothing is opened
-OWNSIT=''; OWNSN=''
-own_end() { [ -n "$OWNSIT" ] || return 0; OWNSIT=''; sh "$(dirname "$0")/event.sh" "stage name=replan state=end session=$OWNSN" > /dev/null || echo "ViD plan: the end of its own replan stage was not recorded (session $OWNSN)" >&2; }
-own_stage() {
-  _oh=$(home_of 2>/dev/null) || return 0; pman "$_oh" || return 0
-  ! sh "$0" gate > /dev/null 2>&1 || return 0
-  OWNSN=${CLAUDE_CODE_SESSION_ID:-plan-$$-$(date +%s)}
-  sh "$(dirname "$0")/event.sh" "stage name=replan state=start session=$OWNSN records=29" > /dev/null || { echo "ViD plan: refused — GitHub manual: $1 could not open its own replan stage (checks/event.sh)" >&2; exit 1; }
-  OWNSIT=1; trap 'own_end' EXIT; trap 'own_end; exit 1' INT TERM
-  _og=$(sh "$0" gate 2>/dev/null) || { echo "ViD plan: refused — GitHub manual: $1 opened its own replan stage, and the gate is still off: ${_og#off }" >&2; exit 1; }; }
+# GM-4 K9 (J2): warnings_ <step>…, read only: GM M12's publish warnings for each step named, in its order, next.sh's line form
+# and next.sh's predicates (moved here, not changed). Read at the top of ViD's repository, in a subshell holding lib.sh's helpers
+# (manual, epoch, lread); it writes nothing. A step the plan lacks, or a read that fails, refuses (exit 1), no line printed
+warnings_() { (
+  HERE=$(cd "$(dirname "$0")" && pwd); . "$LIBF"; cd "$(top)" || exit 1; tmpd; WD=$TMPD/warn; rm -rf "$WD"; mkdir -p "$WD"; TB=$(printf '\t')
+  lread "$WD/rows" planner rows --newest || exit 1; lread "$WD/steps" planner steps || exit 1
+  for _ws; do awk -F'\t' -v s="$_ws" '$1 == s { f = 1 } END { exit !f }' "$WD/steps" || { echo "ViD plan: refused — no step $_ws in the plan (sh checks/planner.sh steps)" >&2; exit 1; }; done
+  RDF=.vid/round/read; LOGF=.vid/tw/log
+  # the published tickets: each the log publishes and does not withdraw, its newest line's step (next.sh's pubs_)
+  { cat "$LOGF" 2> /dev/null || true; } | awk 'function kv(k,   i) { for (i = 3; i <= NF; i++) if (index($i, k "=") == 1) return substr($i, length(k) + 2); return "" }
+    $1 == "withdrawn" { W[$2] = 1 } ($1 == "published" || $1 == "amended") && $2 ~ /^[0-9]+$/ { if (!($2 in S)) O[++n] = $2; S[$2] = kv("step") }
+    END { for (i = 1; i <= n; i++) if (!(O[i] in W)) print O[i] "\t" (S[O[i]] == "" ? "-" : S[O[i]]) }' > "$WD/pub"
+  {
+    awk -F'\t' -v OFS='\t' '!/^#/ { print "R", $1, $2, $5, $6 }' "$WD/rows"
+    { awk -F'\t' '{ print $1 "\t" $2 }' .vid/decide/state 2> /dev/null || true; sed -n 's/^row \([^ ]*\) \([^ |]*\).*/\1	\2/p' .vid/tw/handed 2> /dev/null || true; } | sed 's/^/S	/'
+    awk -F'\t' '{ print "PST\t" $1 "\t" $3 }' "$WD/steps"; sed 's/^/PUB	/' "$WD/pub"
+    # GM-3 S2: in GitHub manual a published ticket of kind step or skeleton is of the stage its recorded writing's header names
+    if manual; then cut -f1 "$WD/pub" | while read -r n; do F=.vid/tw/out/issue-$n.md; [ -f "$F" ] || continue
+      awk -v n="$n" '/^## / { h = ($0 ~ /^## Header[ \t]*$/); next } h && index($0, "- kind: ") == 1 { k = substr($0, 9) } h && index($0, "- stage: ") == 1 { v = substr($0, 10); sub(/,.*/, "", v); gsub(/[ \t]/, "", v) }
+        END { if (k ~ /^(step|skeleton)[ \t]*$/ && v ~ /^[0-9]+$/) print "HS\t" n "\t" v }' "$F"; done; fi
+    printf 'LIM\t%s\nNOW\t%s\n' "$(sed -n 's/^open-tickets:[[:space:]]*\([0-9][0-9]*\)[[:space:]]*$/\1/p' .vid/tw/settings 2> /dev/null | head -n 1)" "$(date -u +%s)"
+    if [ -f "$RDF" ]; then awk -F'\t' -v OFS='\t' '$1 == "unread" { print "U", $2, $3 } $1 == "issue" { print "ISS", $2, $3, $4 } $1 == "sub" { print "SUB", $2 }' "$RDF"
+      awk -F'\t' '$1 == "ticket" { print $2 "\t" $3 "\t" $4 "\t" $5 }' "$RDF" | while IFS="$TB" read -r n s a c; do printf 'TK\t%s\t%s\t%s\t%s\n' "$n" "$s" "$a" "$(epoch "$c")"; done; fi
+    for _ws; do printf 'WANT\t%s\n' "$_ws"; done
+  } > "$WD/f"
+  awk -F'\t' -v OFS='\t' '
+    function num(s) { return s ~ /^[0-9]+$/ }
+    function add(a, x) { return a == "" ? x : a "," x }
+    # acc: accepted, for the stage-ahead warning: accepted, accepted by ruling, owed or paid (held is not accepted)
+    function acc(x) { return x ~ /^(accepted|accepted-by-ruling|owed|paid)$/ }
+    $1 == "R" { if (!($2 in RK)) RO[++nr] = $2; RK[$2] = $3; RG[$2] = $4; RC[$2] = $5; next }
+    $1 == "S" { ST[$2] = $3; next }
+    $1 == "PST" { PSTG[$2] = $3; next } $1 == "HS" { HS[$2] = $3; next }
+    $1 == "PUB" { TO[++nt] = $2; TS[$2] = $3; next }
+    $1 == "LIM" { LIM = $2; next } $1 == "NOW" { NOW = $2; next }
+    $1 == "U" { UN[$2, $3] = 1; UP[$2] = 1; next }
+    $1 == "ISS" { IH[$2] = $4; ISO[$2] = 1; next } $1 == "SUB" { HASSUB[$2] = 1; next }
+    $1 == "TK" { TKS[$2] = $3; TKA[$2] = $4; TKE[$2] = $5; HTK = 1; if ($3 == "OPEN") OPEN++; next }
+    $1 == "WANT" { WO[++nw] = $2; next }
+    END {
+      # the tests: rows of kind row, class planned, moved or owed, not a known limit by its handed state
+      for (i = 1; i <= nr; i++) { r = RO[i]; if (RK[r] == "row" && RC[r] ~ /^(planned|moved|owed)$/ && ST[r] != "known-limit") TEST[r] = 1 }
+      # GM-4 K9: GitHub auto'"'"'s read (no --bodies) holds no ticket lines: a published ticket is open while the read holds its open issue
+      if (!HTK) for (i = 1; i <= nt; i++) { n = TO[i]; if (n in ISO) { TKS[n] = "OPEN"; OPEN++ } }
+      # each ticket: its stage (GM-3 S2: its header, in GitHub manual; else its step'"'"'s), taken or not; a stage is active while it has an open one
+      for (i = 1; i <= nt; i++) { n = TO[i]; TST[n] = ((n in HS) ? HS[n] : PSTG[TS[n]])
+        h = ""; if (index("\001" IH[n] "\001", "\001vid: claimed")) h = add(h, "c"); if (TKA[n] != "" && TKA[n] != "-") h = add(h, "a"); if (n in HASSUB) h = add(h, "s")
+        TK_[n] = h; if (TKS[n] == "OPEN" && num(TST[n])) ACT[TST[n]] = 1 }
+      lo = ""; for (s in ACT) if (lo == "" || s + 0 < lo + 0) lo = s
+      # the tickets not taken 7 days after their creation: open, no vid: claimed comment, assignee or sub-issue, all read
+      st = ""; nst = 0; for (i = 1; i <= nt; i++) { n = TO[i]; if (TKS[n] != "OPEN" || TK_[n] != "" || TKE[n] + 0 == 0 || (("ticket", n) in UN) || (("sub", n) in UN) || ("round" in UP)) continue
+        if (NOW - TKE[n] > 7 * 86400) { st = add(st, "#" n); nst++ } }
+      for (i = 1; i <= nw; i++) { s = WO[i]
+        if (LIM != "" && OPEN + 1 > LIM + 0) print "warning", "publish", s, "limit", (OPEN + 0) " open tickets, " (OPEN + 1) " with this one, over open-tickets: " LIM, "work spread, the plan fixed early"
+        g = PSTG[s]
+        if (lo != "" && g != "" && g + 0 > lo + 0) { c = 0; for (r in TEST) if (RG[r] == lo && !acc(ST[r])) c++; print "warning", "publish", s, "stage-ahead", "stage " g ", ahead of stage " lo ", the lowest active stage, whose " c " tests are not yet accepted", "half-built work in a release, lost learning" }
+        if (nst) print "warning", "publish", s, "not-taken", nst " published tickets not taken 7 days after their creation: " st, "a stale ticket" } }' "$WD/f"
+) }
+# GM-4 K1 (J3): admit_dry <step>, read only — whether the step may start, as `start` would judge it now (the gate, then the
+# admission, DRY: no start, no refusal, nothing else recorded; git's index never refreshed), one line `admit <step> ok|held
+# <why>`, tab-separated, the why the admission's own words on one line; then the step's publish warnings (warnings_). Exit 0 ok,
+# 3 held, 1 when the warnings cannot be read
+admit_dry() {
+  tmpd; GIT_OPTIONAL_LOCKS=0; export GIT_OPTIONAL_LOCKS
+  _ar=0; ( DRY=yes; need_gate 'admission'; admit_step "$1" HEAD ) > "$TMPD/ad.o" 2> "$TMPD/ad.e" || _ar=$?
+  if [ "$_ar" = 0 ]; then _ak=ok; _aw=$(sed 's/^ViD plan: //' "$TMPD/ad.o" | grep -v '^[[:space:]]*$' | paste -sd ' ' -)
+  else _ak=held; _aw=$(sed 's/^ViD plan: refused — //; s/^ViD plan: //; s/^[[:space:]]*//' "$TMPD/ad.e" | grep -v '^[[:space:]]*$' | paste -sd ' ' -); fi
+  printf 'admit\t%s\t%s\t%s\n' "$1" "$_ak" "$(printf '%s' "${_aw:-no reason given}" | tr '\t' ' ')"
+  warnings_ "$1" || { [ "$_ak" = ok ] || return 3; return 1; }
+  [ "$_ak" = ok ] || return 3; return 0
+}
+# GM-2 T2: pman <home>, GitHub manual there: lib.sh's manual (GM-4 F10), its newest github-mode answer manual, or /vid mode's mark
+pman() { lmode "$1" manual; }
 need_gate() { # $1=what: inside the gate H is set; ambiguous, refused; outside, a note and exit 0
   G=$(sh "$0" gate 2>/dev/null); _grc=$?
   case "$G" in 'on '*) H=${G#on }; return 0 ;; esac
   [ "$_grc" -eq 3 ] && { echo "ViD plan: refused — ${G#off } — $1 cannot tell which run this checkout belongs to." >&2; exit 1; }
+  # GM-4 F2 (I4), GM M16: in GitHub manual no script opens a stage of its own; the call's stage is the connect's
+  # (sh checks/connect.sh start), so a call with the gate off is refused there, never passed by as a run that is not develop's
+  _nh=$(home_of 2>/dev/null) && pman "$_nh" && { echo "ViD plan: refused — GitHub manual: ${G#off } — $1 needs the call's stage, which vid-connect's start opens (sh checks/connect.sh start)" >&2; exit 1; }
   echo "ViD plan: note — ${G#off } — $1 is off (a 0.9.5 run, or not develop)."; exit 0
 }
 
@@ -1043,6 +1134,7 @@ case "${1:-}" in
     printf 'strategy set=%s by=owner decision=%s at=%s\n' "$SS" "$DID" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >> "$H/.vid/metrics-events"
     echo "ViD plan: strategy $SS, set by the owner — decision $DID (.vid/plans/decisions/$DID.why)"
     exit 0 ;;
+  warnings) shift; [ $# -ge 1 ] || usage; warnings_ "$@"; exit $? ;;   # GM-4 K9 (J2): read only, GM M12's publish warnings
   canon) canon; exit 0 ;;   # 0.26.10.29.2 (R1): stdin's plan block in the admission's canonical form, for planner.sh's ratified, shared not copied
   parse)
     if [ -n "${2:-}" ]; then parse_block "$2" ''; exit $?; fi
@@ -1134,7 +1226,7 @@ case "${1:-}" in
     done
     case "$NNW" in *'
 '*) echo 'ViD plan: refused — the --not-needed-by why is one line.' >&2; exit 2 ;; esac
-    own_stage 'the plan change'; need_gate 'plan change'   # GM-2 T2
+    need_gate 'plan change'
     tmpd
     block "$H/.vid/RUN-STATE.md" > "$TMPD/block"
     CAND=$(h256 < "$TMPD/block")
@@ -1156,9 +1248,11 @@ case "${1:-}" in
     exit 0 ;;
   start)
     [ -n "${2:-}" ] || usage
-    own_stage 'the admission'; need_gate 'admission'   # GM-2 T2
+    need_gate 'admission'
     RESUMING=yes; admit_step "$2" HEAD; exit $? ;;
   admit)
+    # GM-4 K1 (J3): admit <step>, read only — the dry admission and the step's publish warnings
+    if [ "${2:-}" != --brief ]; then [ $# -eq 2 ] && [ -n "$2" ] || usage; admit_dry "$2"; exit $?; fi
     [ "${2:-}" = --brief ] && [ -f "${3:-}" ] || usage
     need_gate 'admission'
     BF=$3

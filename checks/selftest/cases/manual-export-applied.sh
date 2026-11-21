@@ -13,7 +13,8 @@
 # posted; after the next export both files are still there, byte for byte, beside the new form and the applied design note;
 # once issue-form: names another file, the export puts it there and takes out the form an earlier export put there, the two
 # files kept. A commit under ViD's own author that is no export (design/SHARED.md, as a share pushes) is kept the same way.
-# Outside manual the export is today's: HEAD's text, its own paths alone. Env: CHECKS.
+# Outside manual the export is today's: HEAD's text, its own paths alone, the form issue-form: names among them (GM-4 F6: the
+# export carries the form whenever the setup names it). Env: CHECKS.
 set -eu
 unset CLAUDE_CODE_SESSION_ID VID_CALLER 2>/dev/null || true
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
@@ -110,12 +111,12 @@ E4=$(git --git-dir="$SG" rev-parse refs/heads/main); git --git-dir="$SG" ls-tree
 grep -qx 'forms/issue-2.md' "$T/xl" || fail 'the export does not carry the form issue-form: now names'
 ! grep -qx 'forms/issue.md' "$T/xl" || fail 'the export kept the form an earlier export put there'
 [ "$(git --git-dir="$SG" rev-parse "$E4:REGISTER.md" 2>/dev/null)" = "$RB" ] && [ "$(git --git-dir="$SG" rev-parse "$E4:design/NOTES.md" 2>/dev/null)" = "$NB" ] || fail 'the export with the moved form removed a file no export put there'
-# outside manual, today's export: HEAD's text, its own paths alone
+# outside manual, today's export: HEAD's text, its own paths alone, the form issue-form: names among them (GM-4 F6)
 printf 'setup-answered key=github-mode value="auto" words="back to auto" at=2026-11-19T10:00:00Z\n' >> .vid/plan/setup
 sh "$CHECKS/github.sh" spec-export > "$T/out" 2>&1 || fail 'the export failed in auto'
 E3=$(git --git-dir="$SG" rev-parse refs/heads/main)
 [ "$(git --git-dir="$SG" rev-parse "$E3:PRD.md")" = "$(git rev-parse HEAD:PRD.md)" ] || fail "in auto the export's PRD.md is not HEAD's"
 git --git-dir="$SG" show "$E3:TEST-DIFFERENCES.md" | grep -q 'DIF-004' || fail "in auto TEST-DIFFERENCES.md is not HEAD's"
 git --git-dir="$SG" ls-tree -r --name-only "$E3" > "$T/xl"
-! grep -qx 'REGISTER.md' "$T/xl" && ! grep -q '^forms/' "$T/xl" || fail "in auto the export's tree is not its own paths alone: $(paste -sd ' ' "$T/xl")"
+! grep -qx 'REGISTER.md' "$T/xl" && [ "$(grep '^forms/' "$T/xl")" = forms/issue-2.md ] || fail "in auto the export's tree is not its own paths alone: $(paste -sd ' ' "$T/xl")"
 exit 0

@@ -1,7 +1,8 @@
 #!/bin/sh
-# Purpose: selftest case — github.sh next-read, vid-read's GitHub reads (GM-1 S6, its case next-read). On the fake gh: two published
+# Purpose: selftest case — github.sh round-read --bodies, vid-read's GitHub reads (GM-1 S6, its case next-read; GM-4 F3 moved phase 1's
+# next-read into the one read, round-read with --bodies). On the fake gh: two published
 # tickets, #1 with three phase sub-issues, one of which holds two units of its own (one closed); two open issues assigned to the
-# owner. next-read prints every part in its line form (the round read, each ticket and its body, each sub-issue at both depths with
+# owner. round-read --bodies prints every part in its line form (the round read, each ticket and its body, each sub-issue at both depths with
 # its parent, each assigned issue with its body), writes nothing to GitHub, and the allow-list refuses a POST, or a field, on an
 # issue's sub-issues. Env: CHECKS.
 set -eu
@@ -16,7 +17,7 @@ printf 'Which address should the footer show?\n' > "$T/q"; Q1=$(gh_issue 'A ques
 gh_attr "$Q1" assignees toy; gh_attr "$Q2" assignees toy; gh issue comment "$Q2" -R owner/code --body 'Question: may the limit be twenty?' > /dev/null
 printf 'published %s kind=skeleton step=S01 rows=ROW-003 at=2026-11-01T09:00:00Z\npublished %s kind=step step=S02 rows=ROW-001 at=2026-11-01T09:00:00Z\n' "$A" "$B" > .vid/tw/log
 gh_wclear
-sh "$CHECKS/github.sh" next-read > "$T/out" 2> "$T/err" || { cat "$T/err" >&2; fail 'next-read failed'; }
+sh "$CHECKS/github.sh" round-read --bodies > "$T/out" 2> "$T/err" || { cat "$T/err" >&2; fail 'round-read --bodies failed'; }
 has() { grep -qxF "$(printf "$1")" "$T/out" || fail "no line: $(printf "$1" | tr '\t' ' ')"; }
 grep -q "^issue	$A	" "$T/out" || fail 'the round read is not in the output'
 has "ticket\t$A\tOPEN\t-\t2026-11-01T09:00:00Z"; has "ticket\t$B\tOPEN\tana\t2026-11-02T10:00:00Z"
@@ -26,9 +27,9 @@ has "sub\t$A\t$P2\t$U1\tOPEN\tbo\tUnit 1"; has "sub\t$A\t$P2\t$U2\tCLOSED\t-\tUn
 has "assigned\t$Q1\t-\t-\tA question for the owner"; has "abody\t$Q1\tWhich address should the footer show?"
 has "assigned\t$Q2\t-\tQuestion: may the limit be twenty?\tA choice for the owner"
 ! grep -q '^unread' "$T/out" || fail "a read failed: $(grep '^unread' "$T/out" | head -n 1)"
-[ ! -s "$FAKEGH/writes" ] || { cat "$FAKEGH/writes" >&2; fail 'next-read wrote to GitHub'; }
+[ ! -s "$FAKEGH/writes" ] || { cat "$FAKEGH/writes" >&2; fail 'round-read --bodies wrote to GitHub'; }
 # a list of assigned issues as long as the limit may be cut, and says so
-VID_ASSIGNED_LIMIT=2 sh "$CHECKS/github.sh" next-read > "$T/out" 2> "$T/err" || fail 'next-read failed at a limit of 2'
+VID_ASSIGNED_LIMIT=2 sh "$CHECKS/github.sh" round-read --bodies > "$T/out" 2> "$T/err" || fail 'round-read --bodies failed at a limit of 2'
 grep -q '^unread	assigned	-	2 or more open issues are assigned to the owner' "$T/out" || fail 'a list cut at the limit is not said'
 # the allow-list: github.sh's own ghc, run alone
 { sed -n '/^gref() {/p' "$CHECKS/github.sh"; sed -n '/^ghc() {/,/^}/p' "$CHECKS/github.sh"; } > "$T/ghc.sh"

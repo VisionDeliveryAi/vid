@@ -1,8 +1,9 @@
 #!/bin/sh
 # Purpose: selftest case — an amendment in GitHub manual changes only the first line of a body that is ViD's own part 1, and nothing
 # of one whose first line the team changed (GM-2 T5; its case manual-amend-part-body). On the form fixture's toy (fixtures/form.sh),
-# S02 and S03 posted in GitHub auto, as /vid run posts them (the body ViD's part 1, its first line `Ticket #<n>, part 1 of <m>,
-# writing <h>.`), then the project back in GitHub manual. The team edits S03's body's first line. ROW-002 moves from S04 into S02
+# S02 and S03 posted in GitHub auto, as /vid run posts them with no issue-form: set (the body ViD's part 1, its first line
+# `Ticket #<n>, part 1 of <m>, writing <h>.`; GM-4 F6: with the form set they would go out in it), then the project back in
+# GitHub manual, the form set again. The team edits S03's body's first line. ROW-002 moves from S04 into S02
 # and ROW-011 into S03, by one recorded plan change. Both amended on the owner's words; each title stands; S02's body is its body
 # with its first line alone changed, now saying it is replaced and naming the current writing; S03's body stands byte for byte, and
 # its notice names its first line as left as the team changed it. The team then changes S02's first line
@@ -18,11 +19,13 @@ fail() { echo "manual-amend-part-body: $*" >&2; cat "$T/out" >&2 2>/dev/null; ex
 fm_toy "$T/toy" || fail 'the toy could not be made'
 # S02 and S03 posted in GitHub auto, then GitHub manual again
 printf 'setup-answered key=github-mode value="auto" words="auto, for the toy" at=2026-11-19T09:10:00Z\n' >> .vid/plan/setup
+grep '^issue-form:' .vid/tw/settings > "$T/form-key"; grep -v '^issue-form:' .vid/tw/settings > "$T/s" && cat "$T/s" > .vid/tw/settings   # GM-4 F6
 tw_ratify 'Yes, publish it' || fail 'the plan could not be ratified in auto'
 for s in S02 S03; do fm_prep "$s" || { cp "$T/post" "$T/out"; fail "$s's ticket could not be written in auto"; }
   sh "$CHECKS/github.sh" tw-post "$FM_F" > "$T/post" 2>&1 || { cp "$T/post" "$T/out"; fail "$s was not posted in auto"; }; done
 N2=$(awk '$1 == "published" && / step=S02 / { print $2 }' .vid/tw/log); N3=$(awk '$1 == "published" && / step=S03 / { print $2 }' .vid/tw/log)
 printf 'setup-answered key=github-mode value="manual" words="by hand again" at=2026-11-19T09:20:00Z\n' >> .vid/plan/setup
+cat "$T/form-key" >> .vid/tw/settings
 I=$FAKEGH/issues
 for n in $N2 $N3; do head -n 1 "$I/$n/body" | grep -qE "^Ticket #$n, part 1 of [0-9]+, writing [0-9a-f]+\.\$" || fail "#$n's body is not ViD's part 1"; cp "$I/$n/title" "$T/title.$n"; done
 fm_team_edit "$N3" '1s/$/ (the team keeps its own notes below)/'

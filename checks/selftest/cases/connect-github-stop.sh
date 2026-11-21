@@ -1,7 +1,9 @@
 #!/bin/sh
 # Purpose: selftest case — vid-connect stops a call when GitHub is not ready (GM-1 S5, its case connect-github-stop). In a project in
-# GitHub manual, not signed in on the fake gh: connect.sh start ends the call (exit 1) before the lock, and the lock is free; signed
-# in, but with the spec repository gone public, it ends after access, the lock it took freed. Env: CHECKS.
+# GitHub manual, not signed in on the fake gh: connect.sh start ends the call (exit 1) before the lock and before the refresh, which
+# comes after the lock (GM-4 F2's order), and the lock is free; signed
+# in, but with the spec repository gone public: before the lock when the log names no spec repository yet, since the connect makes
+# or checks it first (GM-4 F2); after access, the lock it took freed, once the log names it. Env: CHECKS.
 set -eu
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 . "$CHECKS/selftest/fixtures/planner-toy.sh"; . "$CHECKS/selftest/fixtures/tickets.sh"; . "$CHECKS/selftest/fixtures/manual.sh"
@@ -11,10 +13,15 @@ printf 'setup-answered key=github-mode value="manual" words="the toy" at=2026-11
 gh repo create owner/vid-state --private > /dev/null
 touch "$FAKEGH/auth-fail"; rc=0; sh "$CHECKS/connect.sh" start > "$T/out" 2>&1 || rc=$?
 [ "$rc" = 1 ] || fail "not signed in, connect.sh start exited $rc, not 1"
-grep -q '^connect refresh: ' "$T/out" || fail 'the refresh did not come first'
+! grep -q '^connect refresh: ' "$T/out" || fail 'not signed in, the call refreshed checks/ before the lock (GM-4 F2: the refresh comes after it)'
 grep -q '^connect lock: ' "$T/out" && fail 'not signed in, the call went on to the lock'
 rm -f "$FAKEGH/auth-fail"; [ -z "$(mn_lock)" ] || fail 'the lock is held after the call ended'
 echo false > "$FAKEGH/repos/owner%code-spec/private"; rc=0; sh "$CHECKS/connect.sh" start > "$T/out" 2>&1 || rc=$?
+[ "$rc" = 1 ] || fail "with the spec repository public and not yet in the log, connect.sh start exited $rc, not 1"
+grep -q '^connect spec-repo: not ready' "$T/out" || fail 'the public spec repository is not stopped at the spec repository step'
+grep -q '^connect lock: ' "$T/out" && fail 'with the spec repository public the call went on to the lock'
+printf 'spec-repo owner/code-spec exists at=2026-11-03T09:00:00Z\n' >> .vid/tw/log
+rc=0; sh "$CHECKS/connect.sh" start > "$T/out" 2>&1 || rc=$?
 [ "$rc" = 1 ] || fail "with a GitHub line not ready, connect.sh start exited $rc, not 1"
 grep -q '^connect access: 1 of 3 not ready' "$T/out" || fail 'the access line not ready is not said'
 grep -q '^connect: ready' "$T/out" && fail 'the call went on past a GitHub line not ready'

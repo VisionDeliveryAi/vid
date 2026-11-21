@@ -1373,6 +1373,7 @@ field. A writer that builds keys or a type at run time names them in a
 | `close-fix` | *(v0.26.10.25.4)* `step=<step> issue=<n> rows=<ids>` | `checks/close.sh` | a close's red rows written as one fix line |
 | `close-item` | *(v0.26.10.25.3)* `step=<step> what=<kind-chunk>` | `checks/close.sh` | a close's item for the owner: red, lost twice, or red again after its fix |
 | `close-numbers` | *(v0.26.10.25.4)* `step=<step> ask=<k> regressions=<n> open=<n> fixed=<n>` | `checks/close.sh` | the three numbers of a close after the first |
+| `close-ticket-closed` | *(GM-4 K3)* `step=<step> issue=<n>` | `checks/close.sh` | in GitHub manual, a closed step's open ticket closed on GitHub, its one comment posted once (`commented <n>`, then `closed <n>` in `.vid/decide/close/<step>/tickets`) |
 | `draft` | *(v0.26.10.25.5)* `n=<k> files=<the spec files>` | `checks/land.sh` | a counted change to the spec drafted, committing nothing |
 | `engine-split` | *(v0.26.10.25.3)* `row=<id> from=<close or a decision> [step=<step>]` | `checks/decide.sh`, `checks/close.sh` | a row passing in one engine and failing in another: every engine is asked from then on |
 | `flag` | *(v0.26.10.25.1)* `word=<alarm> on=<what>` | `checks/round.sh` | a round alarm raised, once until it clears |
@@ -1438,6 +1439,7 @@ field. A writer that builds keys or a type at run time names them in a
 | `walk-withdrawn` | *(v0.26.10.26.4)* `stage=<N> candidate=<c>` | `checks/walk.sh` | an older candidate's walk withdrawn by a newer candidate |
 | `walk-none` | *(34; 0.26.10.28.6)* `stage=<N> candidate=<c>` | `checks/walk.sh` | no walk owed: the product has no screens; the walk's step closes |
 | `walk-limit` | *(34; 0.26.10.28.6)* `stage=<N> candidate=<c> by=owner` | `checks/queue.sh` | the owner closed without the walk (screens, no browser), a known limit in the end report |
+| `stage-move` | *(GM-4 K4)* `kind=walk-stage\|read-walk\|write-summary stage=<N> words="<the owner's words>"` | `checks/next-move.sh` | in GitHub manual, the owner's move on a stage's walk or summary done, its line taken out of `.vid/next/stage-moves` |
 | `ticket` … `state=closed-outside` | *(v0.26.10.27.3, 8.1b R1)* `issue=<n> state=closed-outside` | `checks/github.sh` (`tw-outside`) | a published ticket closed on GitHub with no merged pull request naming it, read as withdrawn: `.vid/tw/log` gains `withdrawn <n> decision=closed-outside at=<UTC>` |
 | `close-reopened` | *(v0.26.10.27.3, 8.1b R3)* `step=<s> ticket=<n>` | `checks/round.sh` | a closed step whose ticket was closed outside ViD opens again: its `closed <s>` line dropped, its newest close ask withdrawn |
 | `setup-hold` | *(v0.26.10.26.2)* `state=off by=owner` | `checks/queue.sh` | the owner's continue ended the setup hold |

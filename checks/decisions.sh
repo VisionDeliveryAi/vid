@@ -80,6 +80,15 @@
 #                     `decisions unread pr=<p>: <why>` for a description it could not read, or a commit it could not
 #                     make clean (other changes staged, DECISIONS.md changed), with no event, so the next round tries
 #                     again; `decisions export failed: <why>`. Exit 0 but for a usage error (2) or a refusal (1).
+#                     GM-4 E4, in both modes: it reads .vid/decide/unit-merges too (GitHub manual's merges, `<p> <ticket line's
+#                     number or -> <head> <merge>`), and skips merges' `step-` lines, a ticket's acceptance, which names no pull
+#                     request. A unit's ticket is the published ticket its ticket line names, or the one whose sub-issue tree, in
+#                     the read's sub lines (.vid/round/read), holds the issue it names; with none found nothing is recorded, no
+#                     event, and it is tried again at each later call, listed once, `context no-ticket #<p>`. A unit with no
+#                     Decisions section records nothing and no `n=missing` event: it is read again at each later call, so a
+#                     section added after the merge is recorded. In GitHub manual no export (GM-2 T1: only inside a move the
+#                     owner names). It also waits while an analysis's proposal is fresh (.vid/next/proposal, its target HEAD), as
+#                     it waits on a draft, so its commit never stales the proposal (GM-3 U4): `decisions wait proposal`.
 # Reads the working tree; writes only DECISIONS.md, the record (apply), the brief
 # (propose), the reservations (next) and the event. Usage: sh checks/decisions.sh propose [--all] | apply [<file>] [--no-commit] | next [--try <try>] | section <file> | record
 # serves: both (0.26.10.28.4, M9)
@@ -209,6 +218,8 @@ case "$CMD" in
     # holds whole files, DECISIONS.md among them, so its landing would drop the lines; the next round after it is settled records them
     for _d in $(ls .vid/decide/drafts 2>/dev/null | grep -E '^[0-9]+$' | sort -n); do _x=.vid/decide/drafts/$_d
       [ -f "$_x/base" ] && [ ! -f "$_x/landed" ] && [ ! -f "$_x/declined" ] && [ ! -f "$_x/replaced" ] || continue; echo "decisions wait draft=$_d"; exit 0; done
+    # GM-4 E4 (GM-3 U4): nor while an analysis's proposal is fresh, its target this HEAD: a commit here would stale it
+    if [ -f .vid/next/proposal/target ] && [ "$(head -n 1 .vid/next/proposal/target)" = "$(git rev-parse -q --verify HEAD 2>/dev/null)" ]; then echo 'decisions wait proposal'; exit 0; fi
     # the label hook's join set at HEAD, as labels.sh reads it for the hook (the commit stages DECISIONS.md alone, so the index is HEAD's)
     git show HEAD:INVENTORY.md > "$TMPD/hi" 2>/dev/null || : > "$TMPD/hi"; git show HEAD:ARCHITECTURE.md > "$TMPD/ha" 2>/dev/null || : > "$TMPD/ha"
     label_items "$TMPD/hi" "$TMPD/ha" > "$TMPD/hj"
@@ -241,13 +252,21 @@ case "$CMD" in
         echo "decisions refused $1 $(grep -m 1 '^ViD ' "$TMPD/co" || head -n 1 "$TMPD/co")"; fi; }
     CM=''
     # each merged pull request ViD decided, its description read once
-    if [ -f .vid/decide/merges ]; then while IFS="$TAB" read -r _p _t _h _m <&3; do [ -n "$_p" ] && ! rdone "pr=$_p" || continue
+    # GM-4 E4: unit-merges' lines, each with its ticket (the ticket line's, or its sub-issue tree's in the read), then merges' own
+    : > "$TMPD/um"; if [ -s .vid/decide/unit-merges ]; then _rd=.vid/round/read; [ -f "$_rd" ] || _rd=/dev/null
+      awk -F'\t' -v L=.vid/tw/log 'BEGIN { while ((getline l < L) > 0) { split(l, x, " "); if (x[1] == "published") P[x[2]] = 1; else if (x[1] == "withdrawn") delete P[x[2]] } }
+        FILENAME == ARGV[1] { if ($1 == "sub") S[$4] = $2; next } { t = $2; if (!(t in P)) t = (t in S) ? S[t] : "-"; print $1 "\t" t "\t" $3 "\t" $4 "\tu" }' "$_rd" .vid/decide/unit-merges > "$TMPD/um"; fi
+    [ ! -f .vid/decide/merges ] || awk -F'\t' '$1 !~ /^step-/ { print $0 "\tm" }' .vid/decide/merges >> "$TMPD/um"   # a ticket's acceptance names no pull request
+    touch .vid/decide/no-ticket 2>/dev/null || true
+    if [ -s "$TMPD/um" ]; then while IFS="$TAB" read -r _p _t _h _m _u <&3; do [ -n "$_p" ] && ! rdone "pr=$_p" || continue
+        if [ "$_u" = u ]; then case $_t in ''|*[!0-9]*) grep -qx "$_p" .vid/decide/no-ticket || { echo "$_p" >> .vid/decide/no-ticket; echo "context no-ticket #$_p"; }; continue ;; esac; fi   # GM-4 E4: tried again at each call
         case $_t in ''|*[!0-9]*) ev "decisions-recorded pr=$_p n=missing"; continue ;; esac   # no ticket, no ref to enforce it by
         sh "$HERE/github.sh" pr-body "$_p" > "$TMPD/body" 2> "$TMPD/e" || { echo "decisions unread pr=$_p: $(tail -n 1 "$TMPD/e")"; continue; }
-        sect "$TMPD/body" > "$TMPD/sec"; case $(head -n 1 "$TMPD/sec") in missing|none) ev "decisions-recorded pr=$_p n=$(head -n 1 "$TMPD/sec")"; continue ;; esac
+        sect "$TMPD/body" > "$TMPD/sec"; if [ "$_u" = u ] && [ "$(head -n 1 "$TMPD/sec")" = missing ]; then continue; fi   # GM-4 E4: read again at each call
+        case $(head -n 1 "$TMPD/sec") in missing|none) ev "decisions-recorded pr=$_p n=$(head -n 1 "$TMPD/sec")"; continue ;; esac
         _it=$(items "$_t" | paste -sd , - | sed 's/,/, /g'); lines "ticket $_t" "$( [ -n "$_it" ] && echo "applies-to: $_it" || echo 'scope: project')" < "$TMPD/sec" > "$TMPD/ln"
         if [ -s "$TMPD/ln" ]; then one "pr=$_p" "$TMPD/ln" "pull request #$_p (ticket #$_t)"; else ev "decisions-recorded pr=$_p n=none"; fi
-      done 3< .vid/decide/merges; fi
+      done 3< "$TMPD/um"; fi
     # each deploy report the reader read and did not refuse, whatever its outcome, its report.txt read once: decision: lines, or
     # decisions: none. DevAgent's deployer copies its standing record's lines into every report, so a line whose words (what and
     # why, as recorded) an origin: dev-side deploy line of DECISIONS.md holds already is left out: in neither n nor the commit
@@ -263,7 +282,7 @@ case "$CMD" in
         { w = $0; sub(/ \| enforced: deploy .*$/, "", w); if (!(w in H)) { H[w] = 1; print } }' "$TMPD/hd" - > "$TMPD/ln"
       if [ -s "$TMPD/ln" ]; then one "deploy=$_id" "$TMPD/ln" "deploy report $_id"; else ev "decisions-recorded deploy=$_id n=0"; fi; done
     # the export at once, so a grade asked after this round reads these lines
-    if [ -n "$CM" ]; then sh "$HERE/github.sh" spec-export > "$TMPD/x" 2>&1 || { echo "decisions export failed: $(tail -n 1 "$TMPD/x")"; }; fi
+    if [ -n "$CM" ] && ! manual; then sh "$HERE/github.sh" spec-export > "$TMPD/x" 2>&1 || { echo "decisions export failed: $(tail -n 1 "$TMPD/x")"; }; fi
     exit 0 ;;
   apply) ;;
   *) usage ;;

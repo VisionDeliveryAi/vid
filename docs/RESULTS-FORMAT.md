@@ -39,9 +39,12 @@ nothing but that folder. `<id>` names the ask the report answers; `<k>` is the a
 | S1, the stage grade, and a grade ask | `grade-<ask issue>-<k>`, then the comment `vid: reported s1-<k>` | GR |
 | D1, RH, D2 | `deploy-<okay issue>-<k>`, then the comment `vid: reported d1-<k>` for D1 | DP |
 | The dev side stopped | `stopped-<k>`, answering no ask | DM |
+| GitHub manual alone: the head report at a commit of main a ticket's ask names | `step-<ticket>-<commit12>-<k>` | TM |
+| GitHub manual alone: its head grade | `grade-step-<ticket>-<commit12>-<k>` | GR |
+| GitHub manual alone: its sort | `sort-step-<ticket>-<commit12>-<k>` | SR |
 
 `<ticket>`, `<pull request>`, `<ask issue>` and `<okay issue>` are GitHub numbers; `<head12>` is the first 12
-characters of the head's commit id; `<chunk>` is a close chunk's name, `p<phase>c<n>`. Only the newest attempt of a report counts, except for T2: each T2 report lists
+characters of the head's commit id, `<commit12>` the same of a commit of the code repository's main; `<chunk>` is a close chunk's name, `p<phase>c<n>`. Only the newest attempt of a report counts, except for T2: each T2 report lists
 the rows it covers, and for each row the newest T2 report that lists it counts; and a close chunk's row that could not run in its
 newest attempt and passed in an earlier one at the same commit reads passed. A new attempt may carry the earlier
 attempt's unchanged files.
@@ -314,6 +317,12 @@ The sort leaves out known-limit rows, and a `breached test` line on a row that i
 
 ## The decision
 
+In GitHub manual a ticket is decided, never a pull request: the comment goes on the ticket's issue, for the commit of main its ask
+names, in the same form, the ticket's reports named by their `step-` ids; a pull request of a unit merged under the ticket at or
+before that commit with no Decisions section makes it `not yet` with one line `no Decisions section — #<pull request>` each. A
+commit not on main's own line (its first parent line; a pull request's head a merge brought in is not on it) is answered `ticket:
+not yet` with the one line `not on main — <commit>`.
+
 ViD posts one comment on the pull request for a head, again only if it changes, naming reports, not their words:
 ```
 vid: decision <the head's full commit>
@@ -400,4 +409,10 @@ zero `covers:` makes its rule row fail unless its test could not run, and a rete
   until main exists.
 - **Asking for ViD's decision** is a comment on the pull request whose first line is `vid: decide <the head's full
   commit>`, and nothing more. ViD finds the reports by their ids.
+- **In GitHub manual alone, asking for ViD's decision** is a comment on the published ticket's issue, of any kind, whose first line
+  is `vid: decide <a full commit of the code repository's main>`, and nothing more, once that commit's head report is pushed
+  (`step-<ticket>-<commit12>-<k>`, its grade at the ticket's first asked commit, its sort when a grade line is open). It is
+  unanswered while no `vid: decision <that commit>` comment follows it. A unit's pull request asking `vid: decide` is never
+  answered there: the ask belongs on the ticket. A test the newest amendment of the ticket adds or restates counts the ticket's
+  evidence only from reports made after that amendment, so its red run comes again after it.
 - **A started run or grade:** on a run or grade ask's issue, the role the ask names comments `vid: started` when it starts.
