@@ -3,7 +3,8 @@
 # of the connect's lane (plan.sh, land.sh, replan.sh, mode.sh) opens a stage of its own or makes the spec repository itself; no
 # script runs the run's start (connect.sh start --run, /vid run's alone); one record of the refresh no. On the GitHub manual toy
 # (fixtures/manual.sh): in GitHub manual with no state-repo: line the start refuses, naming the setting, with nothing restored
-# or taken (GM M15); with it, connect.sh start makes the spec repository the log does not name, restores, copies the read the
+# or taken (GM M15); with it, connect.sh start makes the spec repository the log does not name (FB-2 A1: and the code and state
+# repositories, each made once, so steps() leaves the three out), restores, copies the read the
 # call before ended with to .vid/round/read.prev, takes the lock, checks access, opens the call's stage once (plan.sh gate on)
 # and is ready; its end ends that stage, saves and frees the lock. In GitHub auto the start prints the same steps in the same
 # order. The run's start (--run) is refused in GitHub manual before anything else, with nothing refreshed, written or changed in
@@ -17,7 +18,7 @@ T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 . "$CHECKS/selftest/fixtures/planner-toy.sh"; . "$CHECKS/selftest/fixtures/tickets.sh"; . "$CHECKS/selftest/fixtures/manual.sh"
 fail() { echo "connect-shared: $*" >&2; cat "$T/out" >&2 2>/dev/null; exit 1; }
 C() { RC=0; sh "$CHECKS/connect.sh" "$@" > "$T/out" 2>&1 || RC=$?; }
-steps() { sed -n 's/^connect \([a-z-]*\)[: ].*/\1/p; s/^connect: ready$/ready/p' "$T/out" | uniq | grep -vx spec-repo; }   # the spec repository is made once, by the first start
+steps() { sed -n 's/^connect \([a-z-]*\)[: ].*/\1/p; s/^connect: ready$/ready/p' "$T/out" | uniq | grep -vx -e repo -e spec-repo -e state-repo; }   # the repositories are made once, by the first start (FB-2 A1)
 opens() { grep -c '^stage name=replan state=start ' .vid/metrics-events 2>/dev/null || true; }
 # read: one opener, one maker of the spec repository, one caller of the run's start, one record of the refresh no
 for s in plan land replan mode; do grep -n 'state=start' "$CHECKS/$s.sh" | grep -v '^[0-9]*:[[:space:]]*#' | grep 'stage name=' > "$T/out" && fail "$s.sh opens a stage of its own (above)"; done

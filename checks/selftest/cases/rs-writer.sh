@@ -26,6 +26,9 @@ rs_edit sed 's/^run:.*/run: stopped owner asked to pause/' || fail "another writ
 rs_edit awk -v P="$T/bk-planblk" "$PCX" || fail 'the roll-back failed'
 ! grep -q 'ROW-021' .vid/RUN-STATE.md && grep -qx 'run: stopped owner asked to pause' .vid/RUN-STATE.md && grep -q '^step S9 ' .vid/RUN-STATE.md && grep -q '^step S1 ' .vid/RUN-STATE.md || fail "the roll-back lost another writer's update, or kept the landing's: $(grep -E '^run:|ROW-021' .vid/RUN-STATE.md | tr '\n' ' ')"
 grep -qF 'for f in "$HAND" "$LOG" .vid/metrics-events; do put "$f" < "$T/bk-$(basename "$f")"' "$CHECKS/land.sh" && grep -qF 'rs_edit awk -v P="$T/bk-planblk" "$PCX"' "$CHECKS/land.sh" || fail 'land.sh still restores the whole record'
-# the ticket side's writers go through rs_edit, none writes RUN-STATE.md itself
-for s in round queue close end land; do ! grep -nE 'put (\.vid/RUN-STATE\.md|"\$RS")|> (\.vid/RUN-STATE\.md|"\$RS")( |$)' "$CHECKS/$s.sh" | grep -v '^[0-9]*: *#' > "$T/out" || fail "$s.sh writes RUN-STATE.md itself"; grep -q 'rs_edit ' "$CHECKS/$s.sh" || fail "$s.sh does not use rs_edit"; done
+# the ticket side's writers go through rs_edit, none writes RUN-STATE.md itself; FB-2 C3: close.sh's writes are checked across it and
+# its parts, its rs_edit in close-end.sh, the part that holds the stage close
+CP=$(for f in "$CHECKS"/close-*.sh; do b=${f##*/}; printf '%s ' "${b%.sh}"; done)
+for s in round queue close $CP end land; do ! grep -nE 'put (\.vid/RUN-STATE\.md|"\$RS")|> (\.vid/RUN-STATE\.md|"\$RS")( |$)' "$CHECKS/$s.sh" | grep -v '^[0-9]*: *#' > "$T/out" || fail "$s.sh writes RUN-STATE.md itself"; done
+for s in round queue close-end end land; do grep -q 'rs_edit ' "$CHECKS/$s.sh" || fail "$s.sh does not use rs_edit"; done
 echo 'rs-writer: ok'

@@ -3,7 +3,8 @@
 # and keeps each pass's container states (v0.9.7.0.11 spec 3.3, 3.4; R3,
 # R4). A docker stub answers for the run's compose project from $T/watch
 # (the watcher's lines) and $T/svc (the states' lines); the watcher polls
-# every second (VID_SERVICE_POLL=1). A gated request whose datastore exits
+# every second (VID_SERVICE_POLL, 1 by default), and each scenario holds its stack until the watcher has looked at it
+# twice, never on a timer (FB-2 C2). A gated request whose datastore exits
 # 1 while the tests container runs stops at once: the result's first line
 # is `stopped: service db exited code 1 at <UTC> — see
 # services.inline.txt`, the exit is non-zero, the state `stopped`, the
@@ -24,19 +25,22 @@ SD=$(dirname "$STUB_LOG")
 ls "$SD"/up.* > /dev/null 2>&1 || exit 0
 case "$1" in
   ps) awk -F'|' '{ print "id-" NR }' "$SD/watch" ;;
-  inspect) case "$*" in *Health.Log*) cat "$SD/svc" ;; *) cat "$SD/watch" ;; esac ;;
+  inspect) case "$*" in *Health.Log*) cat "$SD/svc" ;; *) echo look >> "$SD/polls"; cat "$SD/watch" ;; esac ;;
 esac
 exit 0
 STUB
-chmod +x "$T/docker.sh"; export VID_DOCKER="$T/docker.sh" VID_SERVICE_POLL=1
+chmod +x "$T/docker.sh"; export VID_DOCKER="$T/docker.sh" VID_SERVICE_POLL=${VID_SERVICE_POLL:-1}   # FB-2 C2: a slower poll from outside is kept
 gated_repo "$T/repo"; gate_on
 Z=0001-01-01T00:00:00Z
 printf '/vid-s1-repo-db-1|exited|1|false|healthy|0|2026-01-01T00:00:01.5Z|2026-01-01T00:00:20Z|\"2026-01-01T00:00:03.25Z\" \"2026-01-01T00:00:04Z\" \n/vid-s1-repo-tests-1|running|0|false|-|0|2026-01-01T00:00:10Z|%s|\n' "$Z" > "$T/svc"
 tk() { sed -n 's/^next: sh checks\/test.sh wait //p' "$T/out"; }
-# go <watch lines> <why>: a request held about 4 s, the watcher's view while it runs; its ticket in $TK, its result in $T/out, the wait's exit in $WX
-go() { printf '%s\n' "$1" > "$T/watch"; : > "$T/hold"; ( sleep 4; rm -f "$T/hold" ) &
+# go <watch lines> <why>: a request held until the watcher has looked at its running stack twice (FB-2 C2: a death's first
+# look stops the run, so it is held to the run's own down), the watcher's view while it runs; its ticket in $TK, its result
+# in $T/out, the wait's exit in $WX
+go() { printf '%s\n' "$1" > "$T/watch"; : > "$T/polls"; : > "$T/hold"
+  ( while [ -f "$T/hold" ] && [ "$(grep -c . "$T/polls")" -lt 2 ]; do sleep 1; done; rm -f "$T/hold" ) & RL=$!
   STUB_HOLD="$T/hold" STUB_DOWN_ENDS=1 sh checks/test.sh request --type iterate --role builder --try t1 --rows ROW-001 --why "$2" -- tests/x > "$T/out" 2>&1 || fail "the request '$2' was refused"
-  TK=$(tk); WX=0; VID_WAIT_MAX=40 sh checks/test.sh wait "$TK" > "$T/out" 2>&1 || WX=$?; }
+  TK=$(tk); WX=0; VID_WAIT_MAX=40 sh checks/test.sh wait "$TK" > "$T/out" 2>&1 || WX=$?; rm -f "$T/hold"; wait "$RL" || true; }
 ev() { grep "^ledger-run .* request=$TK " .vid/metrics-events; }
 # a datastore exits 1 while the tests run
 go "tests|running|0|false|2026-01-01T00:00:10Z|$Z

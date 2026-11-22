@@ -59,12 +59,19 @@
 #                    the labelled plant, for a test alone: a failed step reported, nothing deployed, the live instance untouched (production's backup taken first)
 #   deploy.sh stop [--setup <record>] --ask deploy-<issue>   stops the live local staging, or destroys the live rehearsal, when it is that okay's
 #   deploy.sh stop [--setup <record>] --target production    takes DevAgent's local production down, its store kept: the end of a test alone
+#   deploy.sh stop [--setup <record>] --target staging|production --report deploy-<issue> --commit <full id>   (FB-2 A4) a take-down okay's:
+#                    what of that target is live goes, its store kept: a local staging or the local live copy by its recorded groups; a
+#                    hosted staging by the record's host-down: (TARGET=staging, BASE_URL its address), then its address giving no web answer
+#                    within ready-seconds:; with no host-down:, nothing stopped. A hosted production is refused, as above. The report pushed
+#                    alone on vid-results/deploy-<issue>-<k>: report.txt, by: DP, commit:, decisions: none, outcome: down or outcome: failed
+#                    down — <why>, and down: <target> <address>; a report whose push failed is kept, and the same command pushes it, nothing
+#                    repeated. After the live copy's, production takes no deploy until it is recovered
 #   deploy.sh rollback|restore [--setup <record>] --ask deploy-<issue> [--lose-writes]   prints recovered <the commit production runs now, or none> — <what it did>
 #   deploy.sh live [--setup <record>]         live <id> <address>, or live none; and rehearsal <id> <address> while one is up
 #   deploy.sh production [--setup <record>]   production <commit> <address>, production down — …, production stopped — …, or production none
 # The record defaults to $DM_WORK/dev-setup.txt, or the current folder's. Optional keys: seed:, signin:, mail:, clock:, differs:, seam:, real:, duty:, migrate:, sealed-start:, decision:,
 # change-migrates:, change-drops:, change-rewrites:, change-services:, ready-seconds: (120), startup-seconds: (3600), and the hosted ones: host:, staging-address:,
-# production-address:, host-login:, deploy:, production-logs:. A production or a rehearsal needs backup: and restore:, a rehearsal kept:; a local first
+# production-address:, host-login:, deploy:, host-down: (FB-2 A4), production-logs:. A production or a rehearsal needs backup: and restore:, a rehearsal kept:; a local first
 # production deploy production-seed:, a hosted one production-logs:. The first staging port tried is DP_PORT (47100). Exit: 0 pushed, stopped, recovered or
 # listed; 1 refused, not run or not pushed; 4 a failed step not pushed; 5 a restore without --lose-writes.
 # serves: dev side (0.26.10.28.4, M9)
@@ -73,11 +80,12 @@ die() { echo "deploy.sh: $*" >&2; exit 1; }
 CMD=${1:-}; [ $# -eq 0 ] || shift
 case $CMD in deploy|stop|live|production|rollback|restore) ;; *) die 'usage: deploy.sh deploy|stop|live|production|rollback|restore …, see its head' ;; esac
 HERE=$(cd "$(dirname "$0")" && pwd -P); RUN=$(dirname "$HERE")/test-manager/run.sh
-SETUP=''; ASK=''; COMMIT=''; SEED=synthetic; PC=''; FS=''; TG=''; LW=''
+SETUP=''; ASK=''; COMMIT=''; SEED=synthetic; PC=''; FS=''; TG=''; LW=''; REP=''
 while [ $# -gt 0 ]; do [ "$1" != --lose-writes ] || { LW=1; shift; continue; }; [ $# -ge 2 ] || die "$1 needs a value"
-  case $1 in --setup) SETUP=$2 ;; --ask) ASK=$2 ;; --commit) COMMIT=$2 ;; --seed) SEED=$2 ;; --product-change) PC=$2 ;; --fail-step) FS=$2 ;; --target) TG=$2 ;; *) die "unknown $1" ;; esac; shift 2; done
+  case $1 in --setup) SETUP=$2 ;; --ask) ASK=$2 ;; --commit) COMMIT=$2 ;; --seed) SEED=$2 ;; --product-change) PC=$2 ;; --fail-step) FS=$2 ;; --target) TG=$2 ;; --report) REP=$2 ;; *) die "unknown $1" ;; esac; shift 2; done
 case $TG in ''|staging|rehearsal|production) ;; *) die "--target is staging, rehearsal or production, not '$TG'" ;; esac
-[ -z "$TG" ] || [ "$CMD" = deploy ] || [ "$CMD:$TG" = stop:production ] || die '--target goes with deploy, or with stop as --target production'
+[ -z "$REP" ] || { [ "$CMD" = stop ] && [ -z "$ASK" ] && { [ "$TG" = staging ] || [ "$TG" = production ]; } && printf '%s\n' "$REP" | grep -Eqx 'deploy-[0-9]+'; } || die 'a take-down is stop --target staging|production --report deploy-<issue> --commit <the commit>'   # FB-2 A4
+[ -z "$TG" ] || [ "$CMD" = deploy ] || [ "$CMD:$TG" = stop:production ] || [ -n "$REP" ] || die '--target goes with deploy, or with stop as --target production'
 [ -z "$LW" ] || [ "$CMD" = restore ] || die "--lose-writes is a restore's alone"
 TG=${TG:-staging}
 [ -n "$SETUP" ] || SETUP=${DM_WORK:-$PWD}/dev-setup.txt; [ -f "$SETUP" ] || die "no dev setup record at '$SETUP': run the setup first"
@@ -85,7 +93,7 @@ W=$(cd "$(dirname "$SETUP")" && pwd -P); SETUP=$W/$(basename "$SETUP"); SF=$W/st
 d=$W; while :; do [ ! -e "$d/.vid" ] || die "the work folder is in $d, a folder of ViD's records"; [ "$d" != / ] || break; d=$(dirname "$d"); done
 key() { sed -n "s/^$1: *//p" "$SETUP" | head -n 1; }
 now() { date +%s; }
-case $CMD:$TG in live:*|production:*|stop:production) [ -z "$ASK" ] || die "$CMD $([ "$CMD" != stop ] || echo '--target production ')takes no --ask" ;;
+case $CMD:$TG${REP:+:r} in live:*|production:*|stop:production|stop:*:r) [ -z "$ASK" ] || die "$CMD $([ "$CMD" != stop ] || echo '--target production ')takes no --ask" ;;
   *) printf '%s\n' "$ASK" | grep -Eqx 'deploy-[0-9]+' || die "the ask is deploy-<issue>, not '$ASK'" ;; esac
 SUL=$(key startup-seconds | grep . || echo 3600)
 # 0.26.11.1.1 (R1): hosted mode, by the record's host: line; SA and PA the hosted addresses
@@ -145,7 +153,7 @@ if [ "$CMD" = production ]; then case $(pstate) in
     live) if [ -n "$PL" ]; then echo "production $(cat "$PF/$PL/commit") $(addr "$PF/$PL")"; else echo "production ? $PA"; fi ;;
     down) echo "production down — $(cat "$PF/down") failed and took it down: roll it back or restore it" ;;
     stopped) echo 'production stopped — its store kept, nothing running' ;; none) echo 'production none' ;; esac; exit 0; fi
-if [ "$CMD" = stop ]; then lock; state
+if [ "$CMD" = stop ] && [ -z "$REP" ]; then lock; state
   if [ "$TG" = production ]; then [ -z "$HO" ] || die "a hosted production is not taken down by deploy.sh: it is the host's; ask the owner on the okay"
     [ -n "$PL" ] || die 'no live production'; down "$PF/$PL"; rm -f "$PF/live"; echo "stopped production $PL; its store kept"; exit 0; fi
   if [ -n "$LIVE" ] && [ "${LIVE%-*}" = "$ASK" ] && [ -f "$SF/$LIVE/addr" ]; then echo "the hosted staging $LIVE stays up between deploys, as develop's does: nothing taken down"; exit 0; fi
@@ -207,6 +215,24 @@ REPO=$(key repo); [ -n "$REPO" ] || die 'the record has no repo: line'
 if [ -n "$HO" ]; then command -v curl > /dev/null 2>&1 || die 'a hosted deploy needs curl, to see the address answer'
   [ -n "$(key host-login)" ] || die "the record has host: $HO and no host-login: line, the command that exits 0 while the host's tool is logged in"; fi
 hk() { for k in "$@"; do [ -n "$(key "$k")" ] || die "the record has host: $HO and no $k: line"; done; }
+# FB-2 A4: a take-down okay's, stop --target staging|production --report deploy-<issue> --commit <c> (the head says what it does)
+if [ -n "$REP" ]; then case $COMMIT in *[!0-9a-f]*|'') die 'the commit must be a full id' ;; esac; [ "${#COMMIT}" -eq 40 ] || die 'the commit must be a full id'
+  [ "$TG" = staging ] || [ -z "$HO" ] || die "a hosted production is not taken down by deploy.sh: it is the host's; ask the owner on the okay"
+  lock; state; login; ASK=$REP; o=$(git ls-remote --heads "$REPO" "vid-results/$ASK-*" 2>&1) || die "the results branches of $REPO could not be read: $(printf '%s' "$o" | tr '\n' ' ')"
+  K=$(printf '%s\n' "$o" | sed -n "s|.*refs/heads/vid-results/$ASK-\([0-9][0-9]*\)\$|\1|p" | sort -n | tail -n 1); ID=$ASK-$((${K:-0} + 1)); D=$W/down/$ID
+  # FB-2 A4: a report of this attempt kept here, its push failed: pushed again, as it is, and nothing repeated
+  [ ! -f "$D/report/$ID/report.txt" ] || { push || die "not pushed: vid-results/$ID"; echo "pushed vid-results/$ID"; exit 0; }
+  rm -rf "$D"; mkdir -p "$D/report/$ID"; : > "$D/log"; : > "$D/groups"; WHY=''; A=''
+  if [ "$TG" = production ]; then if [ -n "$PL" ]; then A=http://127.0.0.1:$(cat "$PF/$PL/port"); down "$PF/$PL"; rm -f "$PF/live"; ! up "${A##*:}" || WHY="$A still answers"; else WHY='no live copy runs here'; fi
+  elif [ -n "$HO" ]; then A=$SA; if [ -z "$(key host-down)" ]; then WHY='the record names no host-down:'
+    else RUN_ID=$ID; TARGET=staging; BASE_URL=$SA; PORT=''; DATA_DIR=''; STAGING=1; export RUN_ID TARGET BASE_URL PORT DATA_DIR STAGING; bounded "$SUL" "$D" "$(key host-down)" "$W"
+      if [ "$RC" != 0 ]; then WHY="host-down: exited $RC (its log: $D/log)"
+      else L=$(key ready-seconds | grep . || echo 120); t=$(now); while answers "$SA" && [ $(($(now) - t)) -lt "$L" ]; do sleep 1; done
+        if answers "$SA"; then WHY="$SA still answers after host-down:"; else [ -z "$LIVE" ] || { rm -rf "$SF/$LIVE/checkout"; rm -f "$SF/live"; }; fi; fi; fi
+  elif [ -n "$LIVE" ]; then A=http://127.0.0.1:$(cat "$SF/$LIVE/port"); down "$SF/$LIVE"; rm -f "$SF/live"; ! up "${A##*:}" || WHY="$A still answers"
+  else WHY='no staging runs here'; fi
+  { echo 'by: DP'; echo "commit: $COMMIT"; echo 'decisions: none'; if [ -z "$WHY" ]; then echo 'outcome: down'; else echo "outcome: failed down — $WHY"; fi; [ -z "$A" ] || echo "down: $TG $A"; } > "$D/report/$ID/report.txt"
+  push || die "not pushed: vid-results/$ID"; echo "pushed vid-results/$ID"; exit 0; fi
 if [ "$CMD" = rollback ] || [ "$CMD" = restore ]; then TG=production; lock; state; login; [ ! -f "$PF/unpushed" ] || die "the failed deploy $(cat "$PF/unpushed") is not pushed yet: push its report first, with --product-change"
   A=$(ls -d "$PF/$ASK"-[0-9]* 2>/dev/null | sed 's|.*-||' | sort -n | tail -n 1); [ -n "$A" ] || die "no production deploy of $ASK here"
   DA=$PF/$ASK-$A; PREV=$(cat "$DA/prev" 2>/dev/null || true); BK=$(cat "$DA/backup" 2>/dev/null || echo none); [ -n "$PREV" ] || die "$ASK-$A recorded no previous commit"

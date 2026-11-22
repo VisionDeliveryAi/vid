@@ -27,6 +27,10 @@ for s in close decide end github grade land planner queue refresh results round 
   grep -qxF '. "$HERE/lib.sh"   # 0.26.10.28.4 (9.3 R3): the shared helpers, lib.sh beside this file' "$F" || fail "$s.sh does not load lib.sh"
   for h in put skey twkey plan_block rkey epoch stamp now ev pstamp palive lage lheld lclear lock_take lock_free rs_edit; do ! grep -qE "(^|[;{ ]) *$h\\(\\) *\\{" "$F" || fail "$s.sh defines $h again"; done
   ! grep -qE '^RNG=' "$F" || fail "$s.sh defines RNG again"; done
+# FB-2 C3: close.sh's parts share its shell: none loads lib.sh again (its trap would be set again over close.sh's), none defines a helper
+for F in "$CHECKS"/close-*.sh; do s=${F##*/}; ! grep -qF '. "$HERE/lib.sh"' "$F" || fail "$s loads lib.sh again"
+  for h in put skey twkey plan_block rkey epoch stamp now ev pstamp palive lage lheld lclear lock_take lock_free rs_edit; do ! grep -qE "(^|[;{ ]) *$h\\(\\) *\\{" "$F" || fail "$s defines $h again"; done
+  ! grep -qE '^RNG=' "$F" || fail "$s defines RNG again"; done
 grep -q 'cp "$CHECKS/github.sh" "$CHECKS/lib.sh"' "$CHECKS/selftest/fixtures/tickets.sh" || fail "gh_vid's copy of github.sh has no lib.sh beside it"
 # land.sh draft --plan: a fenced file with no heading, its plan whole and fence-free
 printf '```vid-plan\nstep S1 | name: first | modules: app/s1 | builds-on: - | rows: ROW-001 ROW-002\n```\n' > "$T/fenced"

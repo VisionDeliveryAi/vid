@@ -109,6 +109,8 @@ staging-address: <address>                 the hosted staging's, http:// or http
 production-address: <address>
 host-login: <command>                      exits 0 while the host's tool is logged in, printing nothing secret; run before any hosted step
 deploy: <command>                          deploys the checkout it runs in to TARGET (staging or production) on the host
+host-down: <command>                       (FB-2 A4) optional: stops the hosted staging (TARGET=staging, BASE_URL its address), deleting no data;
+                                           a take-down okay runs it, and with none a hosted staging is not taken down
 production-logs: <words>                   where production's logs are read on the host
 duty: <duty> — done|not needed|not done — <words>   (R3) one a duty of the okay, as the set-up stands when the deploy starts
 seam: <row> real                           (R4) or seam: <row> stand-in — <why>, one a row of the staging okay's outside-service rows: line

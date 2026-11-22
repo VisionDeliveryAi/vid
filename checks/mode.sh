@@ -57,8 +57,9 @@
 #   is taken out of the block, `dropped <row> <step>` (a step left with none taken out too, `dropped-step <step>`), kept in
 #   .vid/tw/dropped for the page.
 #   In order: (1) the run state, made when missing, `run: waiting`; (2) the setup keys not answered, each an `ask <key>` line,
-#   exit 3 (GM-2 §5: issue-form, issue-parent and plan-page among them), then state-setup; (3) vid-connect's start (connect.sh start:
-#   the refresh, the spec repository made when the log names none (GM-2 T10, the connect's since GM-4 F2), the records restored, the
+#   exit 3 (GM-2 §5: issue-form, issue-parent and plan-page among them); (3) vid-connect's start (connect.sh start:
+#   the refresh, each repository the setup names and the log does not made, the state repository among them (GM-2 T10, the connect's
+#   since GM-4 F2; FB-2 A1: the switch's own state-setup cut), the records restored, the
 #   lock taken, github.sh access, the call's stage opened, so plan.sh's gate is on for the sitting; the refresh waiting on the owner
 #   exit 4, a line not ready a refusal); (4) the inputs not given, found (GM-3 S1), then the
 #   applied version; (5) the register's tickets: one the record lacks taken over at its newest writing (github.sh
@@ -129,7 +130,6 @@ else grep -q '^mode:[[:space:]]*tickets[[:space:]]*$' .vid/RUN-STATE.md || ref "
   grep -q "^setup-answered key=$k " .vid/plan/setup 2>/dev/null || echo "ask $k" >> "$W/ask"; done
 if [ -s "$W/ask" ]; then cat "$W/ask"; echo "ViD mode: the setup keys above have no answer of the owner's: ask each, record it (sh checks/planner.sh setup <key> <answer> --words \"<their words>\"), then run this again" >&2; trap - EXIT; rm -rf "$W"; exit 3; fi
 [ "$TG" = auto ] || [ "$FROM" != auto ] || [ -n "$DW" ] || ref "a switch from GitHub auto needs the owner's words that DevAgent is stopped (--devagent \"<their words>\")"
-gh_ state-setup > "$W/ss" 2>&1 || { sed 's/^/    /' "$W/ss" >&2; ref 'the state repository is not ready'; }
 # 3. vid-connect's start (connect.sh): the refresh, the records restored, the lock and GitHub's access check
 LS0=$(cat .vid/lock-session 2>/dev/null || true); rc=0; sh "$HERE/connect.sh" start $RY > "$W/cn" 2>&1 || rc=$?
 case $rc in 0) LK=1; cat "$W/cn" ;; 3) cat "$W/cn"; echo "ViD mode: the refresh of checks/ waits for the owner: on a yes run this again with --refresh-yes; on a no, sh checks/connect.sh refresh-no \"<their words>\"" >&2; trap - EXIT; rm -rf "$W"; exit 4 ;;

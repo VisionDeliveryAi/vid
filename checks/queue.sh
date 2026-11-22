@@ -51,7 +51,8 @@
 #                                              `decisions refused: #<p>, …`, each `none` when there is none
 #   addresses <N>                              (v0.26.10.28.8, R7) stage N's newest candidate's addresses, read only: `test site: <a>, up`,
 #                                              `…, taken down after its run` or `test site: not known yet`; `rehearsal copy:` the same;
-#                                              `live copy: <a>` once D2 passed. The status's stage line ends with the same
+#                                              `live copy: <a>` once D2 passed. The status's stage line ends with the same. FB-2 A4: `…, taken
+#                                              down at the owner's word` once a take-down of it was read down, and no live copy line then
 #   cost [<step>]                              (v0.26.10.26.3, R2) a line a published ticket under its step: published to accepted, heads,
 #                                              accepted at the first decision, held, accepted to closed; then ViD's rounds
 #   defect <step> "<words>"                    ViD's own defect, an entry in .vid/VID-FINDINGS.md, counted
@@ -584,11 +585,15 @@ cmd_status() { E=$(sed -n 's/^run-start //p' .vid/decide/queue/started 2>/dev/nu
 # stays <candidate folder> (0.26.11.1.1, R1): its passed D1 says its staging stays up between deploys
 stays() { [ -f "$1/d1/passed" ] && grep -q "^stays${TAB}up\$" "$1/d1/read" 2>/dev/null; }
 aread() { [ -f "$1/passed" ] && sed -n "s/^$2$TAB//p" "$1/read" 2>/dev/null | head -n 1; }
-addrs() { a=$(aread "$1/d1" staging); if [ -z "$a" ]; then echo 'test site: not known yet'; elif stays "$1"; then echo "test site: $a, up"; elif [ -f "$1/cs/issue-closed" ] || [ -f "$1/cs/withdrawn" ]; then echo "test site: $a, taken down after its run"; else echo "test site: $a, up"; fi
+# FB-2 A4: dndn <candidate folder> <target> <since>, a take-down of that target there read down (close.sh's dn-<target>/down), asked at or
+# after since; ldown, the live copy taken down since production's commit was last recorded: then no live copy line
+dndn() { for O in "$1/dn-$2" "$1/dn-$2"-*; do [ -f "$O/down" ] && ! [ "$(sed -n "s/^asked$TAB//p" "$O/ask")" \< "$3" ] && return 0; done; return 1; }
+ldown() { t=$(awk -F'\t' 'NF { t = $3 } END { print t }' "$D/production" 2>/dev/null); [ -n "$t" ] || return 1; for O in "$D"/stage/*/*; do ! dndn "$O" production "$t" || return 0; done; return 1; }
+addrs() { a=$(aread "$1/d1" staging); if [ -z "$a" ]; then echo 'test site: not known yet'; elif dndn "$1" staging "$(sed -n "s/^asked$TAB//p" "$1/d1/ask" 2>/dev/null)"; then echo "test site: $a, taken down at the owner's word"; elif stays "$1"; then echo "test site: $a, up"; elif [ -f "$1/cs/issue-closed" ] || [ -f "$1/cs/withdrawn" ]; then echo "test site: $a, taken down after its run"; else echo "test site: $a, up"; fi
   a=$(aread "$1/rh" copy); [ -z "$a" ] || { if [ -f "$1/cr/passed" ] || [ -f "$1/cr/withdrawn" ]; then echo "rehearsal copy: $a, taken down after its run"; else echo "rehearsal copy: $a, up"; fi; }
   # the live copy: while production runs this candidate's commit (close.sh records it at a passed D2 and at a recovery, before CP reads
   # it), its own D2 read's address; else, the stage in production (a later stage's go-live included), production's newest address
-  X0=$(cat "$1/commit" 2>/dev/null); if [ -n "$X0" ] && [ "$(pnow)" = "$X0" ]; then a=$(sed -n "s/^production$TAB//p" "$1/d2/read" 2>/dev/null | head -n 1); [ -n "$a" ] || a=$(liveaddr); echo "live copy: ${a:-not known yet}"; return 0; fi
+  ! ldown || return 0; X0=$(cat "$1/commit" 2>/dev/null); if [ -n "$X0" ] && [ "$(pnow)" = "$X0" ]; then a=$(sed -n "s/^production$TAB//p" "$1/d2/read" 2>/dev/null | head -n 1); [ -n "$a" ] || a=$(liveaddr); echo "live copy: ${a:-not known yet}"; return 0; fi
   awk -v x="$2" '$1 == "production" && $2 >= x { f = 1 } END { exit !f }' "$HAND" 2>/dev/null && [ "$(pnow)" != none ] || return 0; a=$(liveaddr); echo "live copy: ${a:-not known yet}"; }
 # pnow: what production runs now, as .vid/decide/production's newest line gives it: a commit, none (a recovery found it running nothing), or empty
 pnow() { awk -F'\t' 'NF { c = $1 } END { print c }' "$D/production" 2>/dev/null; }

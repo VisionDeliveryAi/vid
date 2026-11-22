@@ -5,8 +5,10 @@
 # export; the next step prints `retry spec-publish <12>`, not `idle`; the next next publishes it (its `spec-published` line with no
 # `words=` field, FB-1 B6) and the marker goes, the step after printing no retry. Then a newer export, the older pull request's
 # close failing once: next prints `failed spec-publish`, the step `retry spec-publish`, and the next next closes it, logs
-# `spec-replaced` and clears the marker. With nothing left (no ticket open, each step started or refused), the step says
-# `nothing-left`; the marker standing, it says `retry spec-publish <12>` in its place. Env: CHECKS.
+# `spec-replaced` and clears the marker. FB-2 B1: then a third export, its publish ticket's create failing once (a GitHub call, not a
+# rule): next prints `failed spec-publish <12>: …` and records no refusal, the step `retry spec-publish <12>`, not `idle`, and the next
+# next makes the ticket alone (its `spec-ticket` line) and clears the marker. With nothing left (no ticket open, each step started or
+# refused), the step says `nothing-left`; the marker standing, it says `retry spec-publish <12>` in its place. Env: CHECKS.
 set -eu
 unset CLAUDE_CODE_SESSION_ID 2>/dev/null || true
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
@@ -47,6 +49,19 @@ rd step; ok "^retry spec-publish $Y\$"; no '^idle'
 rd next; [ "$RC" = 0 ] || fail "the next after the failed close exited $RC"; no '^failed spec-publish'
 grep -q "^spec-replaced pr=$P1 " .vid/tw/log || fail "the older pull request #$P1 was not closed by the next call"
 [ ! -f .vid/tw/spec-owed ] || fail 'the marker stayed after the close finished'
+rd step; no '^retry spec-publish'
+# FB-2 B1: a third export, the publish ticket's create failing once: tried again, never refused
+echo 'Another line for the spec.' >> PRD.md; g commit -qam 'the spec changed again'
+touch "$T/fail-issue-create"; rd next; [ "$RC" = 0 ] || fail "next with a failed publish ticket exited $RC"; Z=$(x12); [ "$Z" != "$Y" ] || fail 'the scene is wrong: no third export'
+[ ! -f "$T/fail-issue-create" ] || fail 'the scene is wrong: no publish ticket was asked for'
+ok "^failed spec-publish $Z: "; no '^refused spec-publish'
+! grep -q '^round-refused what=spec-publish' .vid/metrics-events && ! grep -q '^spec-publish ' .vid/decide/refused || fail 'the failed publish ticket was recorded as a refusal'
+P3=$(sed -n "s/^spec-published pr=\([0-9]*\) export=$Z .*/\1/p" .vid/tw/log | tail -n 1); [ -n "$P3" ] || fail 'the third export was not published before its ticket failed'
+[ "$(cat .vid/tw/spec-owed 2>/dev/null)" = "$Z" ] || fail '.vid/tw/spec-owed does not hold the export after the failed publish ticket'
+rd step; ok "^retry spec-publish $Z\$"; no '^idle'
+rd next; [ "$RC" = 0 ] || fail "the next after the failed publish ticket exited $RC"; no '^failed spec-publish'
+grep -q "^spec-ticket pr=$P3 issue=[0-9]* at=" .vid/tw/log || fail 'the next call did not make the publish ticket'
+[ ! -f .vid/tw/spec-owed ] || fail 'the marker stayed after the publish ticket was made'
 rd step; no '^retry spec-publish'
 # nothing left (no ticket open, each step started or refused): the marker standing, retry in place of nothing-left
 for x in $(sed -n 's/^published \([0-9]*\) .*/\1/p' .vid/tw/log); do printf 'withdrawn %s decision=self-test at=2026-11-10T00:00:00Z\n' "$x" >> .vid/tw/log; gh issue close "$x" -R owner/code; done

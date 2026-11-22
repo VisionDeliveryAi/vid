@@ -1114,3 +1114,10 @@ prd-apply-sitting.sh
 prd-apply-refuses.sh
 prd-apply-append.sh
 prd-apply-skills.sh
+close-entries.sh
+repo-setup-make.sh
+round-left.sh
+deploy-down-verb.sh
+deploy-down-read.sh
+devagent-down.sh
+slot-unmade.sh

@@ -10,9 +10,9 @@
 <rect x="370" y="34" width="260" height="816" rx="3" style="fill:#e2eff4;stroke:#e2eff4" stroke-width="1"/>
 <rect x="664" y="44" width="320" height="52" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
 <text x="674" y="63" text-anchor="start" style="fill:#0b5c7a;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">1</text>
-<text x="698" y="63" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">Two private repositories; a code folder</text>
-<text x="698" y="80" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">and a spec folder</text>
-<text x="500.0" y="74" text-anchor="middle" style="fill:#16202a;font-size:12px;font-weight:400;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">the code&#x27;s first commit</text>
+<text x="698" y="63" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">The spec folder. ViD makes the</text>
+<text x="698" y="80" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">repositories at stop 4</text>
+<text x="500.0" y="74" text-anchor="middle" style="fill:#16202a;font-size:12px;font-weight:400;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">nothing yet</text>
 <line x1="662" y1="58" x2="612" y2="58" style="stroke:#0b5c7a" stroke-width="1.5" marker-end="url(#ah)"/>
 <rect x="16" y="106" width="320" height="52" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
 <text x="26" y="125" text-anchor="start" style="fill:#0b5c7a;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">2</text>
@@ -20,14 +20,14 @@
 <text x="50" y="142" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">and commit</text>
 <rect x="16" y="168" width="320" height="52" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
 <text x="26" y="187" text-anchor="start" style="fill:#0b5c7a;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">3</text>
-<text x="50" y="187" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">Plan, and ask for one change.</text>
-<text x="50" y="204" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">No approval yet</text>
+<text x="50" y="187" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">/vid:vid-next plans first; ask for one</text>
+<text x="50" y="204" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">change. No approval yet</text>
 <text x="500.0" y="198" text-anchor="middle" style="fill:#16202a;font-size:12px;font-weight:400;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">nothing yet</text>
 <line x1="338" y1="182" x2="388" y2="182" style="stroke:#0b5c7a" stroke-width="1.5" marker-end="url(#ah)"/>
 <rect x="16" y="230" width="320" height="52" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
 <text x="26" y="249" text-anchor="start" style="fill:#0b5c7a;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">4</text>
-<text x="50" y="249" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">Switch to GitHub manual, approve, and</text>
-<text x="50" y="266" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">publish the skeleton</text>
+<text x="50" y="249" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">Approve: the switch makes the repositories;</text>
+<text x="50" y="266" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">the first commit; publish the skeleton</text>
 <text x="500.0" y="260" text-anchor="middle" style="fill:#16202a;font-size:12px;font-weight:400;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">the spec; ticket: the skeleton</text>
 <line x1="338" y1="244" x2="388" y2="244" style="stroke:#0b5c7a" stroke-width="1.5" marker-end="url(#ah)"/>
 <rect x="664" y="292" width="320" height="52" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>

@@ -94,11 +94,11 @@ Product questions are yours, always. The fixed points, in order:
 
 **1. The spec.** In an empty folder you type `/vid:vid-init` and answer ViD's interview. This part is the same as in local auto, and the local auto overview's sections 2 and 3 describe every sitting. It ends with a spec and no product. In the local auto run, the practice product's spec took 59 minutes and came to 3 requirements and 59 test conditions (*rows*).
 
-**2. One empty repository.** You create a private code repository on GitHub and leave it empty. ViD makes the second repository, for the spec, by itself.
+**2. Two repositories, made by ViD.** You create nothing on GitHub. You name a code repository and a spec repository at the plan's setup, and ViD makes both, private and empty, when the run starts.
 
-**3. The plan.** You type `/vid:vid-plan`. ViD asks where the code lives, whether ViD's own DevAgent or an outside team works the tickets (here: ViD's own), who is on the team (here: the default, one team named `devagent`), and how fine the steps should be. It writes the plan as *steps*, each a handful of rows that belong together, and shows you one page. The first step is always the *skeleton*: the thinnest working product, with its test setup. Your yes approves the plan and allows ViD to publish from it.
+**3. The plan.** You type `/vid:vid-run`. No plan is approved yet, so the run plans first. ViD asks where the code lives, whether ViD's own DevAgent or an outside team works the tickets (here: ViD's own), who is on the team (here: the default, one team named `devagent`), and how fine the steps should be. It writes the plan as *steps*, each a handful of rows that belong together, and shows you one page. The first step is always the *skeleton*: the thinnest working product, with its test setup. Your yes approves the plan and allows ViD to publish from it.
 
-**4. The run.** You type `/vid:vid-run`. This session stays open until the end. It makes the private spec repository, publishes the spec there, and publishes the first ticket on the code repository. In both recorded runs the first ticket was on GitHub three minutes after the run started. While nothing is new, the session waits inside a quiet command and uses no model.
+**4. The run.** On your yes the same session goes on into the run. It stays open until the end. It makes the two private repositories, publishes the spec in the spec repository, and publishes the first ticket on the code repository. In both recorded runs the first ticket was on GitHub three minutes after the run started. While nothing is new, the session waits inside a quiet command and uses no model.
 
 **5. The dev side.** When the run starts, ViD prints what you need to start ViD's DevAgent: a short *job note* (which repository, which work folder, three limits, the model), filled in; where to save it; and the start, in two ways. ViD writes and starts nothing itself.
 

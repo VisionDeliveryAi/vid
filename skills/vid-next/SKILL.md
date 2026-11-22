@@ -7,9 +7,14 @@ description: GitHub manual — one call, which the owner makes by hand: connect,
 
 The call's order, nothing more: every tier, warning, count, check and every move's rule is in a script or a called skill.
 
-0. **The mode.** `sh "${CLAUDE_PLUGIN_ROOT}/checks/devagent-start.sh" mode`, the one mode command (GM-4 F15). Unless it prints
-   `manual`, say in one line that this project is not in GitHub manual and the verb that fits, and end: `auto`,
-   /vid:vid-run works its tickets; `team`, an old answer of the retired team mode, /vid:vid-mode manual moves it over (FB-1 C1); `none`, /vid:vid-plan plans it. Nothing is written.
+0. **The mode.** `sh "${CLAUDE_PLUGIN_ROOT}/checks/devagent-start.sh" mode`, the one mode command (GM-4 F15). `none`,
+   with no `ratified` line in `.vid/plan/ratified` (FB-2 A2: no plan was ever approved): invoke the `vid-plan` skill (the Skill
+   tool) and do its sitting, the setup questions first. At its page end the turn, asking for the owner's words; nothing is written to GitHub.
+   The owner's yes is the sitting's GitHub manual route, `/vid mode manual … --words "<the owner's yes>"` (the `vid-mode` skill);
+   then go on at step 1. If the owner answers that ViD's own DevAgent works the tickets, the sitting ends as in GitHub auto: say in
+   one line that /vid:vid-run works this project, and end. Otherwise, unless it prints `manual`, say in one line that this project
+   is not in GitHub manual and the verb that fits, and end: `auto`, /vid:vid-run works its tickets; `team`, an old answer of the
+   retired team mode, /vid:vid-mode manual moves it over (FB-1 C1). Nothing is written.
 1. **Connect.** Invoke the `vid-connect` skill (the Skill tool) and do its connect, for every caller. Where it ends the call,
    end. Its start opens the call's stage: every move below runs in it.
 2. **ViD's own work by its rules,** behind the owner's switch: `sh "${CLAUDE_PLUGIN_ROOT}/checks/next.sh" own-work`.

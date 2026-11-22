@@ -1,6 +1,7 @@
 #!/bin/sh
 # Purpose: selftest case — DevAgent's dev manager script (v0.26.10.24.7 R2, R3), on the fake gh and a fake claude of its own, on shortened times. next prints each
-# of its lines from the right state, lowest first: a ticket labelled blocked prints blocked and nothing else, left from the record, claim, work, wait while a decide is
+# of its lines from the right state, lowest first: a ticket labelled blocked prints blocked and nothing else, left from the record (FB-2 A3: until a reopen
+# follows its newest `DM: left:` comment, or any reopen with none), claim, work, wait while a decide is
 # newer than any decision for that head, not-yet, merge, a decision for an old head no answer, a merged ticket nothing, none with no line. loop starts one dev manager,
 # never a second while one runs, none for a blocked ticket, and stops on the stop file, on the same line twice, and not behind a lower wait or blocked while a higher ticket
 # moves. start: another model stops that agent; a clone with a live agent is refused; quiet comes after the silence; stop stops only that pid; agents.txt gets its line,
@@ -42,6 +43,27 @@ g issue edit 2 -R owner/code --add-label blocked; echo 'left: a stopped agent, t
 is 'work 1
 blocked 2
 left 3
+work 4'
+# FB-2 A3: the way back. With no `DM: left:` comment any `vid: reopened at the owner's word` takes the ticket up again; a `DM: left:` newer
+# than the reopen leaves it again; a reopen after that newest `DM: left:` takes it up again; dev-manager.md has the leave comment begun `DM: left: `
+DMA=$CHECKS/../devagent/agents/dev-manager.md
+grep -qF 'begun `DM: left: `' "$DMA" || fail 'dev-manager.md does not tell the leave comment begun `DM: left: `'
+grep -qF "\`vid: reopened at the owner's word\` comment newer than" "$DMA" && grep -qF '`back: reopened`' "$DMA" || fail 'dev-manager.md does not say a reopen takes a left ticket up again'
+cm3() { printf '%s\n' "$1" > "$T/c3"; g issue comment 3 -R owner/code --body-file "$T/c3"; }   # each comment a whole line, as GitHub keeps it
+cm3 "vid: reopened at the owner's word"
+is 'work 1
+blocked 2
+claim 3
+work 4'
+cm3 'vid: claimed'; cm3 'DM: left: x'
+is 'work 1
+blocked 2
+left 3
+work 4'
+cm3 "vid: reopened at the owner's word"
+is 'work 1
+blocked 2
+work 3
 work 4'
 : > "$W/tickets/3.txt"; g issue comment 3 -R owner/code --body 'vid: claimed'
 br() { git -C "$T/s" checkout -q -B "$1" "${2:-main}" 2>/dev/null || true; git -C "$T/s" -c user.email=a@b -c user.name=a commit -q --allow-empty -m "$1"; git -C "$T/s" push -q -f "$T/code.git" "HEAD:refs/heads/$1"; git -C "$T/s" rev-parse HEAD; }

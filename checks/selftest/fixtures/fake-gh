@@ -43,6 +43,9 @@
 # the state and how many comments open "vid: replaced by", tab-separated.
 # GM-3 S1: `issue list --label <l> --state <open|closed|all> --limit <k> --json number,state --jq '.[] | [.number, .state] | @tsv'`, each
 # issue's number and OPEN or CLOSED, in number order, cut at the limit.
+# FB-2 A1: $FAKEGH/no-code stands for a code repository not made yet: `repo view` of it fails as GitHub's does, and one `repo create` of it
+# makes it (the file removed; its remote, a bare repository at $FAKEGH/remote's path, made empty when not there; `--private` kept in
+# $FAKEGH/code-private, which `repo view --json isPrivate` then reads).
 set -u
 IFS='
 '   # a path with a space stays one word
@@ -98,11 +101,13 @@ case "$CMD" in
     _rd=$F/repos/$(printf '%s' "${3:-}" | tr '/' '%')
     if [ "${3:-}" != "$REPO" ] && [ -d "$_rd" ]; then
       case "$(opt --json "$@")" in url) cat "$_rd/remote" ;; isPrivate) cat "$_rd/private" ;; viewerPermission) cat "$_rd/perm" 2>/dev/null || echo ADMIN ;; *) printf '%s\n' "${3#*/}" ;; esac; exit 0; fi
-    [ "${3:-}" = "$REPO" ] || die "Could not resolve to a Repository with the name '${3:-}'." 1
+    [ "${3:-}" = "$REPO" ] && [ ! -f "$F/no-code" ] || die "Could not resolve to a Repository with the name '${3:-}'." 1
     # its code repository honours a filter, as GitHub does, unless $FAKEGH/no-filter (0.26.10.28.4, M5)
-    case "$(opt --json "$@")" in url) git -C "$REMOTE" config uploadpack.allowFilter "$([ -f "$F/no-filter" ] && echo false || echo true)" 2>/dev/null || true; printf '%s\n' "$REMOTE" ;; isPrivate) echo true ;; viewerPermission) cat "$F/perm" 2>/dev/null || echo ADMIN ;; *) printf '%s\n' "${REPO#*/}" ;; esac; exit 0 ;;
+    case "$(opt --json "$@")" in url) git -C "$REMOTE" config uploadpack.allowFilter "$([ -f "$F/no-filter" ] && echo false || echo true)" 2>/dev/null || true; printf '%s\n' "$REMOTE" ;; isPrivate) cat "$F/code-private" 2>/dev/null || echo true ;; viewerPermission) cat "$F/perm" 2>/dev/null || echo ADMIN ;; *) printf '%s\n' "${REPO#*/}" ;; esac; exit 0 ;;
   'repo create')
     _n=${3:-}; case "$_n" in */*) ;; *) die "repo create: give owner/name" 1 ;; esac
+    if [ "$_n" = "$REPO" ] && [ -f "$F/no-code" ]; then rm -f "$F/no-code"; [ -d "$REMOTE" ] || { git init -q --bare "$REMOTE" && git -C "$REMOTE" symbolic-ref HEAD refs/heads/main; }   # FB-2 A1
+      wlog "$_n" 'repo create'; if has --private "$@"; then echo true; else echo false; fi > "$F/code-private"; echo "https://github.com/$_n"; exit 0; fi
     _rd=$F/repos/$(printf '%s' "$_n" | tr '/' '%'); { [ "$_n" = "$REPO" ] || [ -d "$_rd" ]; } && die "Name already exists on this account" 1
     mkdir -p "$_rd"; git init -q --bare "$_rd/remote.git"; git -C "$_rd/remote.git" symbolic-ref HEAD refs/heads/main
     hook "$_rd/remote.git" "$_n"; wlog "$_n" 'repo create'; printf '%s\n' "$_rd/remote.git" > "$_rd/remote"; if has --private "$@"; then echo true; else echo false; fi > "$_rd/private"

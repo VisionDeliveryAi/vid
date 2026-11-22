@@ -41,7 +41,7 @@ d=$(dirname "$WK"); while :; do [ ! -e "$d/.vid" ] || fail "work: $WK lies in $d
 for k in time-limit agent-time-limit agent-turn-limit; do case $(key $k) in ''|*[!0-9]*) fail "$k: not a whole number: $(key $k)" ;; esac; done
 [ "$(key agent-time-limit)" -ge 7200 ] || fail "agent-time-limit: $(key agent-time-limit), below 7200"
 [ "$(grep -c . "$T/note")" = 7 ] || fail "the note holds $(grep -c . "$T/note") lines, not 7"
-grep -q 'stopped twice at its limit leaves its ticket for good' "$T/print" || fail 'no line on an agent stopped twice'
+grep -q 'stopped twice at its limit leaves its ticket until the owner reopens it' "$T/print" || fail 'no line on an agent stopped twice'   # FB-2 A3: no longer for good
 for k in time-limit agent-time-limit agent-turn-limit; do grep -q "^- $k: [0-9]* is a default you may change" "$T/print" || fail "no default line for $k"; done
 grep -q '^- model: must be written in exactly this form' "$T/print" || fail 'no line on the model'"'"'s form'
 NT=$(sed -n 's/^2\. Save this job note, exactly as it is, to \(.*\) (a folder that already exists, .*/\1/p' "$T/print"); [ -n "$NT" ] && [ -d "$(dirname "$NT")" ] || fail "no folder said for the note: $NT"

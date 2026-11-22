@@ -4,7 +4,8 @@
 # gh. GitHub auto, on TW's toy after the skeleton's round: `tw-hand publish S02` posts S02's ticket and saves it, no words needed;
 # `--words` is kept on the log line when given; a step the admission refuses is held (exit 3), its lines printed, nothing posted; a
 # closed ticket `tw-hand reopen <n> --words` reopens, with one comment `vid: reopened at the owner's word`, logged; an open one is
-# refused; with no words (optional in GitHub auto) it reopens too, logged with none. GitHub manual, on the form fixture's toy: a
+# refused; with no words (optional in GitHub auto) it reopens too, logged with none; FB-2 A3: an open ticket whose newest `DM: left:` comment has no
+# reopen after it is reopened with the one comment and no issue reopen, logged `open=left`, and refused once reopened. GitHub manual, on the form fixture's toy: a
 # publish with no words is refused (exit 1), nothing posted and no lock taken;
 # with the owner's words it posts the skeleton's ticket, the words on its log line, saved to the state repository, the lock it took
 # freed; a reopen with no words is refused, through tw-hand and through a direct tw-reopen with the lock held (no words, or
@@ -76,6 +77,16 @@ RC=0; CLAUDE_CODE_SESSION_ID=owner-a sh "$GS" tw-hand reopen "$N2" --words 'Agai
 tw_close "$N2"; RC=0; CLAUDE_CODE_SESSION_ID=owner-a sh "$GS" tw-hand reopen "$N2" > "$T/out" 2>&1 || RC=$?; [ "$RC" = 0 ] || fail "GitHub auto: a reopen with no words was refused (exit $RC): $(tail -n 1 "$T/out")"
 [ "$(cat "$T/gh/issues/$N2/state")" = OPEN ] || fail "GitHub auto: #$N2 is not open after a reopen with no words"
 [ "$(grep -c "^reopened $N2 " .vid/tw/log)" = 2 ] && grep "^reopened $N2 " .vid/tw/log | tail -n 1 | grep -q "^reopened $N2 at=[^ ]*\$" || fail "GitHub auto: the reopen with no words is not logged without words: $(grep "^reopened $N2 " .vid/tw/log | tail -n 1)"
+# FB-2 A3: an open ticket its dev side left (its newest `DM: left: <why>` comment with no reopen after it) is reopened with the one
+# comment and no issue reopen call, logged `open=left`; once reopened, open and no `DM: left:` after it, it is refused again
+printf 'DM: left: two stops\nby: DM\n' > "$T0/lc"; gh issue comment "$N2" -R owner/code --body-file "$T0/lc" > /dev/null
+W0=$(grep -c "issue reopen $N2\$" "$T/gh/writes" || true); C0=$(ls "$T/gh/issues/$N2/comments" | grep -c .)
+RC=0; CLAUDE_CODE_SESSION_ID=owner-a sh "$GS" tw-hand reopen "$N2" --words 'Take it up again' > "$T/out" 2>&1 || RC=$?; [ "$RC" = 0 ] || fail "GitHub auto: an open ticket its dev side left was refused (exit $RC)"
+[ "$(ls "$T/gh/issues/$N2/comments" | grep -c .)" = $((C0 + 1)) ] || fail 'GitHub auto: the reopen of a left ticket did not post one comment'
+K=$(ls "$T/gh/issues/$N2/comments" | sort -n | tail -n 1); [ "$(head -n 1 "$T/gh/issues/$N2/comments/$K")" = "vid: reopened at the owner's word" ] || fail "GitHub auto: the left ticket's reopen comment is not ViD's one line"
+[ "$(grep -c "issue reopen $N2\$" "$T/gh/writes" || true)" = "$W0" ] || fail 'GitHub auto: the reopen of an open, left ticket made an issue reopen call'
+grep -q "^reopened $N2 at=[^ ]* open=left words=\"Take it up again\"\$" .vid/tw/log || fail "GitHub auto: the left ticket's reopen is not logged open=left: $(grep "^reopened $N2 " .vid/tw/log | tail -n 1)"
+RC=0; CLAUDE_CODE_SESSION_ID=owner-a sh "$GS" tw-hand reopen "$N2" --words 'Again' > "$T/out" 2>&1 || RC=$?; [ "$RC" = 1 ] || fail 'GitHub auto: an open ticket reopened after its leave was reopened again'
 sed -n '/^ghc() {/,/^}/p' "$GS" | grep -q "'issue reopen'" || fail 'gh issue reopen is not on the allow-list'
 
 # GitHub manual: the form fixture's toy, in a folder of its own (its own fake gh and code repository)

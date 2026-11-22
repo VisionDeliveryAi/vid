@@ -5,7 +5,8 @@
 # #P2, closes both and logs `spec-replaced pr=<P1> by=<P2> issue=<I1> at=`; a repeat call posts nothing. A merged earlier pull
 # request is left untouched, its ticket too. With the older pull request's comment posted and its close failing once, the call exits
 # 5 and the next closes it with no second comment; with the older ticket's close failing once after its pull request closed, the
-# call exits 5, logs no `spec-replaced` for it, and the next closes it. Env: CHECKS.
+# call exits 5, logs no `spec-replaced` for it, and the next closes it. Each of those two exits 5 says what GitHub replied (the fake's
+# `a 502`) on its line and on its `spec-failed` line in .vid/tw/log (FB-2 B2). Env: CHECKS.
 set -eu
 unset CLAUDE_CODE_SESSION_ID VID_CALLER 2>/dev/null || true
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
@@ -24,6 +25,9 @@ st() { cat "$FAKEGH/$1/$2/state"; }
 nc() { ls "$FAKEGH/$1/$2/comments" 2>/dev/null | grep -c . || true; }
 says() { cat "$FAKEGH/$1/$2/comments/"* 2>/dev/null | grep -q -- "$3"; }
 repl() { grep -q "^spec-replaced pr=$1 " .vid/tw/log; }
+# FB-2 B2: why <old pr> <scene>: the call's last line and its spec-failed line name the older pull request and carry GitHub's reply
+why() { tail -n 1 "$T/out" | grep -q "#$1.*a 502" || fail "after $2, the line does not carry GitHub's reply: $(tail -n 1 "$T/out")"
+  grep '^spec-failed ' .vid/tw/log | tail -n 1 | grep -q "why=\".*#$1.*a 502.*\"\$" || fail "after $2, the spec-failed line does not carry GitHub's reply: $(grep '^spec-failed ' .vid/tw/log | tail -n 1)"; }
 sh "$GS" spec-export > "$T/out" 2>&1 || fail 'the export failed'
 sp; [ "$RC" = 0 ] || fail "the first publish exited $RC"; P1=$(lastp); I1=$(tick "$P1"); [ -n "$P1" ] && [ -n "$I1" ] || fail 'the first publish made no pull request or ticket'
 # the same export into a changed folder: its own pull request reused, nothing closed or commented on
@@ -48,6 +52,7 @@ sx 'A third line for the spec.'; sp; [ "$RC" = 0 ] || fail "the publish after a 
 # the older pull request's comment posted, its close failing once: the call unfinished (5), the next closes it, no second comment
 sx 'A fourth line for the spec.'; touch "$T/fail-pr-close"; sp; [ "$RC" = 5 ] || fail "a failed close of the older pull request exited $RC, not 5"
 tail -n 1 "$T/out" | grep -q "the older #$P3 or its ticket could not be closed" || fail "the failed close's line does not name #$P3"
+why "$P3" 'a failed close of the older pull request'
 P4=$(lastp); I4=$(tick "$P4"); [ "$P4" != "$P3" ] && [ -n "$I4" ] || fail 'the publish whose cleanup failed made no pull request or ticket'
 [ "$(st prs "$P3")" = OPEN ] && [ "$(nc prs "$P3")" = 1 ] && ! repl "$P3" || fail "the scene is wrong: #$P3 is not open with its one comment, or was logged replaced"
 sp; [ "$RC" = 0 ] || fail "the call after the failed close exited $RC"
@@ -57,6 +62,7 @@ sp; [ "$RC" = 0 ] || fail "the call after the failed close exited $RC"
 sx 'A fifth line for the spec.'; touch "$T/fail-issue-close"; sp; [ "$RC" = 5 ] || fail "a failed close of the older ticket exited $RC, not 5"
 [ "$(st prs "$P4")" = CLOSED ] || fail "#$P4 was not closed"; [ "$(st issues "$I4")" = OPEN ] || fail 'the scene is wrong: the ticket was closed'
 ! repl "$P4" || fail "spec-replaced was logged for #$P4 before its ticket #$I4 was closed"
+why "$P4" 'a failed close of the older ticket'
 sp; [ "$RC" = 0 ] || fail "the call after the failed ticket close exited $RC"
 [ "$(st issues "$I4")" = CLOSED ] || fail "the next call left the older ticket #$I4 open"; [ "$(nc issues "$I4")" = 1 ] && [ "$(nc prs "$P4")" = 1 ] || fail 'the next call posted a second comment'
 repl "$P4" || fail "the replacement of #$P4 was not logged once its ticket closed"

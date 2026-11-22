@@ -23,6 +23,8 @@
 # vid-step-close and `round.sh asks`, which posts the owed asks, okays and stage close; step 6 names the walk-stage, read-walk and
 # write-summary moves one line each as vid-stage-close's, their forms and their done lines there alone, none of the stage's, the okays'
 # or the grade ask's lines in vid-next. Reads skills/: skipped in a project's layout. Env: CHECKS.
+# FB-2 A2: step 0's none, with no ratified line in .vid/plan/ratified, invokes the vid-plan skill and does its sitting, the owner's yes its
+# GitHub manual route through the vid-mode skill, then step 1; it no longer ends naming /vid:vid-plan.
 set -eu
 S=$CHECKS/../skills; [ -d "$S/vid-run" ] || { echo 'next-skill-text: no skills/ beside checks/ (a project layout)'; exit 77; }
 fail() { echo "next-skill-text: $*" >&2; exit 1; }
@@ -31,6 +33,11 @@ N=$S/vid-next/SKILL.md; C=$S/vid-connect/SKILL.md; R=$S/vid-read/SKILL.md; M=$S/
 T0=$(mktemp); trap 'rm -f "$T0"' EXIT
 awk '/^[0-9]\. \*\*/ { print $1 }' "$N" | paste -sd' ' - | grep -qx '0. 1. 2. 3. 4. 5. 6. 7.' || fail 'vid-next does not name its steps 0 to 7 in order'
 for k in 'devagent-start.sh" mode' vid-connect vid-read vid-triggers; do grep -q "$k" "$N" || fail "vid-next does not call $k"; done
+# FB-2 A2: step 0's none, with no ratified line, plans first through the vid-plan skill, its yes the GitHub manual route through the
+# vid-mode skill, then step 1; DevAgent's answer names /vid:vid-run; no "/vid:vid-plan plans it" ending
+awk '/^0\. \*\*The mode/ { on = 1 } on && /^1\. \*\*/ { exit } on' "$N" | tr '\n' ' ' > "$T0"
+for p in 'invoke the `vid-plan` skill' 'no `ratified` line' '`.vid/plan/ratified`' 'the `vid-mode` skill' '--words' 'go on at step 1' '/vid:vid-run'; do grep -qiF -- "$p" "$T0" || fail "vid-next's step 0 does not say: $p"; done
+! grep -qF '/vid:vid-plan plans it' "$T0" || fail "vid-next's step 0 still ends naming /vid:vid-plan"
 a=$(grep -n 'Invoke the `vid-connect`' "$N" | cut -d: -f1); b=$(grep -n 'Invoke the `vid-read`' "$N" | cut -d: -f1); c=$(grep -n 'Invoke the `vid-triggers`' "$N" | cut -d: -f1)
 [ -n "$a" ] && [ -n "$b" ] && [ -n "$c" ] && [ "$a" -lt "$b" ] && [ "$b" -lt "$c" ] || fail 'vid-next does not invoke vid-connect, vid-read and vid-triggers in that order'
 grep -q 'connect.sh" start' "$C" && grep -q 'the records. restore and the lock first, then the refresh of' "$C" || fail 'vid-connect does not run the restore and the lock before the refresh (GM-4 F2)'

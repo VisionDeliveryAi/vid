@@ -34,7 +34,7 @@ free memory now against the `measured:` line; `sh dm.sh list`, the leftovers.
 ## A ticket's work
 
 **The ticket's record,** `tickets/<n>.txt` in the work folder: a line for each step of the order done, with its commit, report or agent, written before you go on. Read it before
-you start anything: a fresh dev manager goes on from the next line. A takeover or an incident is a line too, with its cause. `left: <why>` leaves the ticket.
+you start anything: a fresh dev manager goes on from the next line. A takeover or an incident is a line too, with its cause. `left: <why>` leaves the ticket; `back: reopened` takes it up again (FB-2 A3, A stopped agent below).
 
 **The ticket:** read it afresh each pass (`gh issue view <n> -R <repo> --json comments --jq '.comments[].body'` for its comments), its body and the comments that begin `Ticket #<n>, part`, joined, into `tickets/<n>-plain.md`: that is the plain ticket. If a row changed since
 the last reading, the ticket was amended: a changed row is new work.
@@ -147,7 +147,7 @@ the okay asks a real run for (0.26.11.1.3, R3), do its check first, where the li
 and a `host:` line in the dev setup record, deploy nothing: `deploy.sh` would deploy to the host on that line alone. Write a line in `dm-report.txt` and a `Question:` comment on the okay,
 with `by: DM` on its second line, naming both, then the blocked label; leave the record as it is.
 1. Read it afresh each pass: its lines, the instruction, and its comments.
-2. Another target than `okay: staging`, `okay: rehearsal` or `okay: production` (below), or another seed than `seed: synthetic` on a local deploy: DevAgent cannot. That is an owner-only step: a `Question:` comment naming it, then the blocked label. A hosted staging takes `seed: production`: the deployer's `--seed production`.
+2. Another target than `okay: staging`, `okay: rehearsal`, `okay: production` or `okay: down …` (below), or another seed than `seed: synthetic` on a local deploy: DevAgent cannot. That is an owner-only step: a `Question:` comment naming it, then the blocked label. A hosted staging takes `seed: production`: the deployer's `--seed production`.
 3. When you start, once: a comment `vid: started`, with `by: DP` on its second line.
 4. `sh deploy.sh deploy --setup <record> --ask deploy-<n> --commit <the commit>`: a clean checkout, the record's `start:` on a free local port, its `seed:`, the port answering. It
    replaces the staging that was up, and keeps the new one up when it ends. Before you deploy, write in the dev setup record a `decision: <what> | why: <why>` line for each choice of this deploy a competent newcomer would not expect, which `deploy.sh` puts in the report (with none, the report says `decisions: none`); ViD records each one once.
@@ -199,9 +199,23 @@ and production is DevAgent's, a second local instance with its own store; for a 
    - Any other refusal, or no report: a line `lost d2 <k>` in the record. Never deploy again of your own.
 4. Again only on ViD's `vid: again d2` or a `vid: refused d2-<k>` newer than the newest report: step 3 afresh. Never after a comment begun `Production's deploy of`:
    that okay is answered by a recovery alone.
-5. **Production stays up:** `sh deploy.sh production --setup <record>` names what it runs. Nothing takes it down but the next deploy or a recovery;
-   `deploy.sh stop --target production` only at a test's end, when your job note says so.
+5. **Production stays up:** `sh deploy.sh production --setup <record>` names what it runs. Nothing takes it down but the next deploy, a recovery
+   or a take-down okay (below); `deploy.sh stop --target production` only at a test's end, when your job note says so.
 6. **The plant:** as D1's; production's backup is taken first, then nothing is deployed, production untouched.
+
+## A take-down okay
+
+An issue labelled `<prefix>deploy` whose body begins `okay: down staging` or `okay: down production`, ViD's okay, at the owner's word, to take the test
+site down, or the live copy where it is a copy on this machine (FB-2 A4): its `commit:` and `address:` lines, then its instruction. `next` reads it as one
+chunk, dn, worked as D1's. Its record is `tickets/<n>.txt`; with `deploy: local` you are DP, by `../deployer/deploy.sh` alone.
+1. Read it afresh each pass: its lines, the instruction, and its comments. When you start, once: a comment `vid: started`, with `by: DP` on its second line.
+2. `sh deploy.sh stop --setup <record> --target staging|production --report deploy-<n> --commit <the commit>`: what of that target is live goes, its
+   data store, its backups and every report kept; a hosted staging by the record's `host-down:` line, and with none it reports `outcome: failed down`
+   and stops nothing. A hosted production it refuses: that is the owner's, on its platform.
+   - `pushed vid-results/deploy-<n>-<k>`: a comment `vid: reported dn-<k>`, with `by: DP` on its second line, and a line `reported dn-<k>` in the record.
+   - Any refusal, or no report: a line `lost dn <k>` in the record. Never take anything down of your own.
+3. Again only on ViD's `vid: again dn` or a `vid: refused dn-<k>` newer than the newest report: step 2 afresh. A closed okay gets nothing more.
+4. After the live copy is taken down, production takes no deploy until it is recovered, as for any stopped production.
 
 ## A recovery
 
@@ -305,6 +319,7 @@ A row reading `held` or `question open` is left alone: no agent is started for i
 ## A stopped agent
 
 `quiet`, or `ended: no hand-back`: `sh dm.sh stop <id>`, which also takes it, a line in the record, and a fresh one in that same clone, once its pid is gone, its job note saying it takes over a stopped agent's clone as it stands.
-That is once. A second time, or a run with no report (`run.sh wait`, exit 2), leave the ticket: `left: <why>` in its record, the reason on the ticket, begun `DM:`, and in `dm-report.txt`. Then go on to the next.
+That is once. A second time, or a run with no report (`run.sh wait`, exit 2), leave the ticket: `left: <why>` in its record, the reason on the ticket in a comment begun `DM: left: `, and in `dm-report.txt`. Then go on to the next.
+A `vid: reopened at the owner's word` comment newer than your last `DM: left:` takes the ticket up again (`next` reads it so): write `back: reopened` in its record, and go on from its next line with a fresh agent; the count of stopped agents starts again.
 
 **Cleaning up.** Nothing you started outlives its need. A run nobody will read: `run.sh stop`. An agent nobody will read: `dm.sh stop`. Each pass ends with `list` reading `none`, or naming what still runs.

@@ -135,27 +135,23 @@ In the local auto run this part took 59 minutes, ten typed messages, and gave 3 
 
 ## Part 2. Two repositories, a plan, a run
 
-### Stop 3. The code repository
+### Stop 3. Start the run
 
-*Terminal.* Create one private repository, and leave it empty:
+*Session.* Use the session of Part 1, or start Claude Code again in the project folder:
 
-```bash
-gh repo create $REPO --private
+```
+/vid:vid-run
 ```
 
-That is all. You do not clone it and you do not push to it. The dev side makes its first commit. ViD makes the second repository, for the spec, at stop 5.
+This is the one command of this part. No plan is approved yet, so the run plans first: stop 4 is that plan, and stop 5 the run going on after your approval. Nothing reaches GitHub before your approval.
 
-**How to tell it worked.** `gh repo view $REPO` shows the repository, with nothing in it.
+You make no repository. ViD makes both itself, private and empty, at stop 5: the code repository and the spec repository, under the names you give at stop 4. You do not clone the code repository and you do not push to it. The dev side makes its first commit.
 
-In the larger recorded run the code repository started empty in this way, and the dev side's first commit on it held. In the small recorded run the first commit was made by hand.
+In the larger recorded run the code repository started empty in this way, and the dev side's first commit on it held. In the small recorded run the first commit was made by hand. *Not seen in a recorded run:* ViD making the code repository, and the plan as the run's first step; in both recorded runs the repository was made by hand, and the plan was a command of its own before the run.
 
 ### Stop 4. The plan
 
-*Session.* Use the session of Part 1, or start Claude Code again in the project folder.
-
-```
-/vid:vid-plan
-```
+*Session,* the same: the run is planning.
 
 **The setup questions.** Before it plans, ViD asks four things, once. Answer in one message, with your account's name:
 
@@ -165,12 +161,12 @@ The code repository is <your account>/jobdigest-search, and the spec repository 
 
 | It asks | What your answer means |
 |---|---|
-| Where the code lives and the specs go | Two repositories. The spec repository does not exist yet; ViD makes it, private, at stop 5 |
+| Where the code lives and the specs go | Two repositories. Neither exists yet; naming them is your yes for ViD to make them, private and empty, at stop 5 |
 | The teams | One team named `devagent` |
 | Who works the tickets | ViD's own DevAgent, which is GitHub auto, or an outside team's, which is GitHub manual. Your answer is what makes ViD print the dev side's start at stop 5 |
 | The step size | Steps by journey, the default. The other choice is finer steps |
 
-ViD then checks, read only, what it can reach on GitHub, and tells you what is not ready. It may say that the spec repository cannot be reached. That is expected at this stop.
+ViD then checks, read only, what it can reach on GitHub, and tells you what is not ready. It may say that the two repositories cannot be reached. That is expected at this stop.
 
 **The page.** ViD writes the plan and shows it as one page, or gives you the path of a file to open in your browser. It tells you in plain words what the plan holds: the stages, the steps, the rows in each, and anything it has flagged.
 
@@ -189,19 +185,15 @@ If you want a change, say it in words, and ViD plans again.
 Yes, I approve this plan as it stands on the page. Publish from it.
 ```
 
-**How to tell it worked.** ViD answers in one line: the stages, steps and rows counted, that the plan is approved, and that `/vid:vid-run` publishes from it. The plan itself publishes nothing. GitHub is still empty.
+**How to tell it worked.** ViD answers in one line: the stages, steps and rows counted, and that the plan is approved. Then the same session goes on into the run, with nothing more typed.
 
-### Stop 5. Start the run
+### Stop 5. The run goes on
 
-*Session,* in the project folder:
-
-```
-/vid:vid-run
-```
+*Session,* the same, after your approval.
 
 **This session stays open until the end.** It publishes tickets, reads what the dev side sends, decides, and brings you whatever only you can answer. At its start it does four things you will notice:
 
-1. **It makes the spec repository,** private, and publishes the spec there.
+1. **It makes the two repositories,** private and empty, and publishes the spec in the spec repository.
 2. **It may ask a numbered question,** `Q1`: may ViD set this project's compaction point, so that the long session summarises itself before it grows large. If you said yes to this at the housekeeping sitting of Part 1, it is not asked again. If it is asked, either answer is fine:
 
 ```
@@ -233,7 +225,7 @@ gh issue view 1 -R $REPO
 
 `base: none` means the code repository is empty. The ticket says so in words: *The code repository is empty: start main with your first commit, then work from it.* `export` is the version of the spec the ticket quotes. The rows are the ones your plan gave the skeleton.
 
-In both recorded runs the first ticket was on GitHub three minutes after the run started. *Not seen in a recorded run:* the spec repository being made from nothing (in the small recorded run it already existed), and the print of the job note and the lines, which is quoted here from the script that prints it.
+In both recorded runs the first ticket was on GitHub three minutes after the run started. *Not seen in a recorded run:* the repositories being made from nothing (in the small recorded run the spec repository already existed), and the print of the job note and the lines, which is quoted here from the script that prints it.
 
 **Nothing happens to this ticket yet.** Nobody is there to work it. That is the next part. The run does not wait for the dev side: it goes on reading GitHub.
 
@@ -275,7 +267,7 @@ model: claude-opus-5-5
 | `agent-turn-limit:` | One agent ends after this many turns |
 | `model:` | The model every agent of the dev side runs on, written exactly as an agent's first message shows it. A short name such as `opus` is refused |
 
-**About the three numbers.** Each is a default you may change, and ViD says so under the note. The agent limit is generous on purpose, in ViD's own words: *an agent stopped twice at its limit leaves its ticket for good, so a low limit costs a ticket, not a restart.* Leave the numbers as printed for this product.
+**About the three numbers.** Each is a default you may change, and ViD says so under the note. The agent limit is generous on purpose, in ViD's own words: *an agent stopped twice at its limit leaves its ticket until the owner reopens it, so a low limit costs a ticket's wait, not a restart.* Leave the numbers as printed for this product.
 
 A job note with a comment on each line also ships with ViD, as an example: `devagent/job-note.example`. Its numbers are smaller examples. The lab's `README.md` reads the note line by line.
 
@@ -658,7 +650,7 @@ Each side picks up from its records. Neither restarts by itself.
 
 **What is left on your machine and on GitHub:**
 
-- **The live copy,** still running, at the address ViD told you. The dev side's guide gives no command for you to take it down. If it runs in Docker, `docker ps` shows it, and stopping its containers stops it.
+- **The live copy,** still running, at the address ViD told you. `/vid:vid-deploy down production "<your words>"` has the dev side take it down, its data kept; `/vid:vid-deploy down staging "<your words>"` does the same for the test site while it is still up. ViD tells you once each is down.
 - **Docker images** the dev side built for the tests.
 - **On the code repository:** the closed issues, the merged pull requests, and many branches named `vid-results/…`, one for each report. They are the record. Leave them.
 - **On the spec repository:** the spec on `main`, and ViD's own records on other branches.
@@ -679,7 +671,7 @@ You have also seen the contract a team would work to. If you later hand the buil
 
 | What you see | What it is | What to do |
 |---|---|---|
-| `/vid plan` is not a command | The commands are `/vid:vid-init`, `/vid:vid-plan`, `/vid:vid-run` | Type `/vid` and pick from the list |
+| `/vid plan` is not a command | The commands are `/vid:vid-init` and `/vid:vid-run`; the run plans first | Type `/vid` and pick from the list |
 | The plan refuses and names a build | The folder was used for local auto | A new, empty folder, and Part 1 again |
 | The plan asks its setup questions and plans nothing | It could not ask you directly | Answer the questions in your next message, as at stop 4 |
 | The run stops at its start and names a missing setting | A setting from the plan's setup is not recorded | Give the answer it names, then `/vid:vid-run` again |
@@ -697,7 +689,7 @@ You have also seen the contract a team would work to. If you later hand the buil
 | The session is idle at its prompt | It ended its turn, or everything waits on you | Answer what is open, or `/vid:vid-run` |
 | A question sits unanswered on a ticket | It is a `Q` line in your session | Ask ViD which questions are open. The status gives only their count; ViD's records hold each line with its number. Answer by the number |
 | The walk comes back "not done" | The walker could drive no browser, or could not reach the test site | Stop 13: `again`, or, with no browser, `close without the walk` |
-| A comment `DM: …` on a ticket says it was left | An agent stopped twice on it. The dev side does not touch that ticket again by itself | Read the reason. ViD's instructions give no way to hand the ticket back; report it as ViD's guide to reporting issues asks |
+| A comment `DM: left: …` on a ticket says it was left | An agent stopped twice on it, or a run ended with no report. The dev side does not touch that ticket again by itself, and ViD tells you once | Read the reason. When what it needs is in place, `/vid:vid-tickets reopen #<n> "<your words>"` has it taken up again. A ticket left before this release carries `DM: <why>` alone: close it on GitHub first, then reopen it the same way |
 | The stage will not close | A finding is unruled, or a question is open | Ask ViD what the close waits on, and which `Q` lines are open |
 | The test site's address does not open | It was taken down after the walk, or it is not up yet | Use the live copy after stop 15. ViD tells you its address, and the status shows it |
 
@@ -729,8 +721,8 @@ The practice product was chosen to be small. For your own, two habits carry over
 | You type | When |
 |---|---|
 | `/vid:vid-init` | Once, in an empty folder: the spec |
-| `/vid:vid-plan` | Once the spec is approved: the plan |
-| `/vid:vid-run` | To start the run, and to start it again after any stop |
+| `/vid:vid-run` | Once the spec is approved: the plan first, then the run; and to start the run again after any stop |
+| `/vid:vid-plan` | To plan again by hand, after the first plan |
 | `Q<n>: <your answer>` | To answer a numbered line |
 | `Where do things stand?` | At any time |
 | `pause`, `continue` | To hold back new tickets, and to release them |
@@ -747,7 +739,6 @@ The practice product was chosen to be small. For your own, two habits carry over
 
 | You type | What it does |
 |---|---|
-| `gh repo create $REPO --private` | The code repository, once |
 | `claude`, in the work folder | Opens the DevAgent conversation |
 | The start line ViD printed, the background way | Starts the dev side with nothing to watch |
 | The check line ViD printed | Says what the dev side lacks; ends `ready` |

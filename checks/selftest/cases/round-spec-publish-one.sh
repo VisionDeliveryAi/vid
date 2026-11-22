@@ -4,7 +4,8 @@
 # and `spec-path: upstream/vid`, the code repository empty (a branch, no main: the normal start). `github.sh spec-publish` exits 0
 # with one line, posting nothing, when the code repository has no main yet; next goes on past it to the skeleton (refused under
 # main=absent, as round-main has it), with no `error spec-publish`. Main made: next publishes the folder (a `spec-published` line)
-# and the skeleton. A publish refused (its pull request not made) is one `refused spec-publish` line, the round going on past it,
+# and the skeleton. A publish refused by a rule (FB-2 B1: GitHub answering a tree that is not the export's, after a call that
+# succeeded; a failed call is tried again, round-spec-publish-retry) is one `refused spec-publish` line, the round going on past it,
 # and is not tried again while nothing changes; a new export is tried at once, and, published, logged. Env: CHECKS.
 set -eu
 unset CLAUDE_CODE_SESSION_ID 2>/dev/null || true
@@ -27,10 +28,11 @@ rd next; [ "$RC" = 0 ] || fail "next on an empty code repository exited $RC"; no
 git -C "$T/d" checkout -q -b main; git -C "$T/d" -c user.name=a -c user.email=a@b commit -q --allow-empty -m 'the first commit'; git -C "$T/d" push -q origin main 2>/dev/null
 rd step; rd next; [ "$RC" = 0 ] || fail "next with main exited $RC"; no '^error'; ok '^published '
 grep -q '^spec-published pr=[0-9]* export=[0-9a-f]\{12\} path=upstream/vid ' .vid/tw/log || fail 'with main the round did not publish the folder'
-# a refused publish: one refused line, the tickets still going out; not tried again while nothing changes
-mv "$T/bin/gh" "$T/bin/gh-fake"; printf '#!/bin/sh\n[ "$1 $2" != "pr create" ] || { echo "a 502" >&2; exit 1; }\nexec "%s" "$@"\n' "$T/bin/gh-fake" > "$T/bin/gh"; chmod +x "$T/bin/gh"
+# a refused publish (the folder's tree GitHub answers is not the export's, a rule): one refused line, the tickets still going out;
+# not tried again while nothing changes
+mv "$T/bin/gh" "$T/bin/gh-fake"; printf '#!/bin/sh\nfor a; do case $a in */git/trees) echo 4b825dc642cb6eb9a060e54bf8d69288fbee4904; exit 0 ;; esac; done\nexec "%s" "$@"\n' "$T/bin/gh-fake" > "$T/bin/gh"; chmod +x "$T/bin/gh"
 echo 'A new line for the spec.' >> PRD.md; g commit -qam 'the spec changed'
-rd next; [ "$RC" = 0 ] || fail "next with a refused publish exited $RC"; no '^error spec-publish'; ok '^refused spec-publish'
+rd next; [ "$RC" = 0 ] || fail "next with a refused publish exited $RC"; no '^error spec-publish'; ok '^refused spec-publish'; no '^failed spec-publish'
 grep -q '^round-refused what=spec-publish' .vid/metrics-events || fail 'the refusal is not recorded'
 rd next; [ "$RC" = 0 ] || fail "the next next exited $RC"; no '^refused spec-publish'; no '^error'
 # a new export: tried at once, the refusal keyed on the export

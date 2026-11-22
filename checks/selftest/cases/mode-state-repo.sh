@@ -1,7 +1,8 @@
 #!/bin/sh
 # Purpose: selftest case — ViD's own state repository (GM-1 S2 step 2, M15; its case mode-state-repo). With no state-repo: answered
 # the switch asks it (exit 3, `ask state-repo`) and writes nothing; once the owner's answer is recorded, the switch makes it private
-# and completes, the lock and the records in it alone. A state-repo: naming the spec repository is refused at the setup, and a
+# and completes, the lock and the records in it alone; FB-2 A1: it is made through vid-connect's start (its `connect state-repo:`
+# step on the switch's output, the switch making none itself first). A state-repo: naming the spec repository is refused at the setup, and a
 # settings file that names it anyway is refused by the switch, nothing written. Env: CHECKS.
 set -eu
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
@@ -18,6 +19,7 @@ if sh "$CHECKS/planner.sh" setup state-repo Owner/Code-Spec --words 'the same, o
 sh "$CHECKS/planner.sh" setup state-repo owner/vid-state --words 'a private one of its own, yes, make it' > "$T/out" 2>&1 || { cat "$T/out" >&2; fail 'the state-repo answer was refused'; }
 mn_switch --applied "$AP" --words 'yes, ratify'
 [ "$MN_RC" = 0 ] || fail "with state-repo answered the switch exited $MN_RC"
+grep -q '^connect state-repo: ' "$T/mo" || fail 'the state repository was not made through the connect (no connect state-repo: step)'
 [ "$(gh repo view owner/vid-state --json isPrivate --jq .isPrivate)" = true ] || fail 'the state repository was not made private'
 grep -v '^owner/vid-state ' "$FAKEGH/writes" > "$T/w" && { cat "$T/w" >&2; fail 'a write went to a repository but state-repo:'; }
 mn_project "$T/q"; grep -v '^state-repo:' .vid/tw/settings > "$T/s"; echo 'state-repo: Owner/Code-Spec' >> "$T/s"; mv "$T/s" .vid/tw/settings

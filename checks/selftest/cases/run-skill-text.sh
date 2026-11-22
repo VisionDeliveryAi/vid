@@ -24,7 +24,11 @@
 # section giving `/vid:vid-deploy staging`, `/vid:vid-deploy production "<words>"`, the later work's duty (E9) and no hold (D4); vid-grade's
 # ticket-mode branch runs outside /vid run too, its report read at the next /vid next call in GitHub manual; vid-help lists vid-deploy and
 # vid-grade as the GitHub modes'. Every row of the run's line table names one skill at most, and a row naming none is one K10 keeps as
-# the run's order; the stage's, the okays' and the grade ask's lines are each in one skill alone, none in the run skill.
+# the run's order; the stage's, the okays' and the grade ask's lines are each in one skill alone, none in the run skill. FB-2 A3: the
+# table's `flag ticket-left <n>: <why>` row tells the owner the left ticket and /vid:vid-tickets reopen, the way back.
+# FB-2 A2: "Before any work" holds the plan first, before the run's start: without --state, when .vid/plan/ratified holds no
+# ratified line, the vid-plan skill's sitting, its turn ended at the page for the owner's words, nothing published and no lock held,
+# a team of people sent to /vid:vid-next through the vid-mode skill; vid-plan's hand back sends either caller on at its own start.
 # Reads skills/: skipped in a project's layout. Env: CHECKS.
 set -eu
 S=$CHECKS/../skills; [ -d "$S/vid-run" ] || { echo 'run-skill-text: no skills/ beside checks/ (a project layout)'; exit 77; }
@@ -41,6 +45,17 @@ grep -v -i 'invoke the' "$R" | grep -F 'vid-read' > "$T0" || fail 'the run skill
 [ "$(grep -c . "$T0")" = 1 ] && grep -q 'round\.sh' "$T0" || fail "the round's read is not one line naming vid-read: $(cat "$T0")"
 [ "$(printf '%s\n' "$B" | grep -c 'connect.sh" start --run')" = 1 ] || fail 'the run skill does not run the run'"'"'s start once, through connect.sh start --run'
 printf '%s\n' "$B" | grep 'connect.sh" start --run' | grep -q 'vid-connect' || fail 'the run skill'"'"'s start line does not name vid-connect'
+# FB-2 A2: the plan, first — before the run's start, not with --state, when .vid/plan/ratified holds no ratified line (never
+# ratified), the vid-plan skill's sitting, its turn ended at the page for the owner's words, nothing published and no lock held;
+# a team of people is the sitting's GitHub manual route (the vid-mode skill), then /vid:vid-next drives the project
+P=$(printf '%s\n' "$B" | grep '^\*\*The plan, first' || true); [ "$(printf '%s\n' "$P" | grep -c .)" = 1 ] || fail 'the run skill has no one plan-first step in "Before any work"'
+pl=$(printf '%s\n' "$B" | grep -n '^\*\*The plan, first' | cut -d: -f1); sl=$(printf '%s\n' "$B" | grep -n 'connect.sh" start --run' | cut -d: -f1)
+[ "$pl" -lt "$sl" ] || fail "the plan-first step does not come before the run's start"
+for p in 'invoke the `vid-plan` skill' '`.vid/plan/ratified`' 'no `ratified` line' 'without `--state`' 'end the turn' "the owner's words" 'nothing is published' 'no lock is held' 'the `vid-mode` skill' '`/vid:vid-next`' 'never'; do
+  printf '%s\n' "$P" | grep -qiF -- "$p" || fail "the plan-first step does not say: $p"; done
+# and vid-plan's hand back: called from /vid run or /vid next, the caller goes on at its own start
+HB=$S/vid-plan/SKILL.md; if [ -f "$HB" ]; then awk '/^## Hand back/ { on = 1; next } on && /^## / { exit } on' "$HB" | tr '\n' ' ' > "$T0"
+  grep -qF '/vid run' "$T0" && grep -qF '/vid next' "$T0" && grep -qF 'goes on at its own start' "$T0" || fail "vid-plan's hand back does not send /vid run and /vid next on at their own start"; fi
 # the answers: one line each naming vid-answer
 for p in '| `question <n> <k>` |' '| `finding <ticket> <severity> <words>` |' '| `context-window Q<m>`'; do
   [ "$(grep -cF -- "$p" "$R")" = 1 ] || fail "the run skill has no one row $p"
@@ -197,8 +212,10 @@ awk '/^\| Line \| What you do \|/ { on = 1; next } on && !/^\|/ { exit } on && !
 while IFS= read -r l; do w=${l#| }; c1=${w%% | *}; c2=${w#* | }
   n=$(printf '%s\n' "$c2" | grep -oE '(^|[^:/])vid-[a-z-]+ skill' | sed 's/^[^v]*//' | sort -u | grep -c . || true)
   [ "$n" -le 1 ] || fail "a row of the run's table names two skills: $c1"
-  if [ "$n" = 0 ]; then case $c1 in '`main-changed`'*|'`update`'|'`flag devagent-quiet <n>`'*|'`flag devagent-stopped <id>: <why>`'*|'`flag <word> <what>`'|'`error <step> …`'|'`lock-lost`'|'`stop <why>`'|'`idle`') ;;
+  if [ "$n" = 0 ]; then case $c1 in '`main-changed`'*|'`update`'|'`flag devagent-quiet <n>`'*|'`flag devagent-stopped <id>: <why>`'*|'`flag ticket-left <n>: <why>`'*|'`flag <word> <what>`'|'`error <step> …`'|'`lock-lost`'|'`stop <why>`'|'`idle`') ;;
     *) fail "a row of the run's table names no skill and is not one the run keeps: $c1" ;; esac; fi; done < "$T0"
+# FB-2 A3: the row that tells the owner a ticket DevAgent left, and its way back
+grep -q '^| `flag ticket-left <n>: <why>` (FB-2 A3) | Tell the owner once, in one line: `DevAgent left ticket #<n>: <why>\. When what it needs is in place, /vid:vid-tickets reopen #<n> "<your words>" has it taken up again\.` It stops nothing |' "$R" || fail "the run skill's table has no ticket-left row"
 # review fixes (4d): a nothing-left before the final close is the waiting stop, never the genuine block (the setup hold's bare
 # continue reads run: waiting); the summary is written in GitHub manual only through the owner's write-summary move
 grep -F -- '- **Everything left waits on the owner' "$R" | grep -qF 'a `nothing-left` before the final close' || fail "the run skill's waiting stop does not take a nothing-left before the final close"

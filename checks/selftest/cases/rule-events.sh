@@ -12,6 +12,8 @@ R=$CHECKS/..; ap() { grep -n '>>' "$1" | grep 'metrics-events' | grep -v '^[0-9]
   r=checks/${f#"$CHECKS"/}; case $f in "$R"/hooks/*|"$R"/viewer/*) r=${f#"$R"/} ;; esac; [ "$r" != checks/event.sh ] || continue
   case $OK in *" $r "*) continue ;; esac; ap "$f" | sed "s|^|$r:|" >> "$T/out"; done
 [ ! -s "$T/out" ] || fail 'an append to .vid/metrics-events outside event.sh and the named files:'
-for s in close decide end github grade land lib planner queue refresh results round walk writer; do case $OK in *" checks/$s.sh "*) fail "the ticket script $s.sh is named an exception" ;; esac; done
+# FB-2 C3: close.sh's parts, by glob, with it
+CP=$(for f in "$CHECKS"/close-*.sh; do b=${f##*/}; printf '%s ' "${b%.sh}"; done)
+for s in close $CP decide end github grade land lib planner queue refresh results round walk writer; do case $OK in *" checks/$s.sh "*) fail "the ticket script $s.sh is named an exception" ;; esac; done
 printf 'printf "x at=y\\n" >> .vid/metrics-events\n' > "$T/plant.sh"; [ -n "$(ap "$T/plant.sh")" ] || fail 'the search does not find a planted append'
 echo 'rule-events: ok'

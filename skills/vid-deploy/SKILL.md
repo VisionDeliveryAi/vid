@@ -1,6 +1,6 @@
 ---
 name: vid-deploy
-description: Ship a ViD project — the only verb that touches anything real. Two targets — deploy to staging (fast and repeatable, the rows changed since the last full pass on a scoped run, gate 2's real action per provider seam) and deploy to production (staging's exact commit, the full run, the re-grade, gate 1's rehearsal on a restored production backup and the owner-confirmed cutover, gate 3); a bare deploy is staging. Greenfield first deploy splits along the same line; setting the test site up (where it runs, asked at init; the staging and production build-out; DEPLOYMENT.md) is the internal skill vid-staging-setup's. Never runs implicitly, except a staging deploy at a stage close, or at 'continue' while staging is being set up, under the owner's standing authorization. Use when the owner says "vid deploy", "deploy to staging", "deploy to production", "deploy this", "go live", or "ship it". In the GitHub modes ViD deploys nothing: `/vid:vid-deploy staging` posts the staging okay for DevAgent's deploy when one is due, and `/vid:vid-deploy production "<words>"` is the owner's production yes.
+description: Ship a ViD project — the only verb that touches anything real. Two targets — deploy to staging (fast and repeatable, the rows changed since the last full pass on a scoped run, gate 2's real action per provider seam) and deploy to production (staging's exact commit, the full run, the re-grade, gate 1's rehearsal on a restored production backup and the owner-confirmed cutover, gate 3); a bare deploy is staging. Greenfield first deploy splits along the same line; setting the test site up (where it runs, asked at init; the staging and production build-out; DEPLOYMENT.md) is the internal skill vid-staging-setup's. Never runs implicitly, except a staging deploy at a stage close, or at 'continue' while staging is being set up, under the owner's standing authorization. Use when the owner says "vid deploy", "deploy to staging", "deploy to production", "deploy this", "go live", or "ship it". In the GitHub modes ViD deploys nothing: `/vid:vid-deploy staging` posts the staging okay for DevAgent's deploy when one is due, and `/vid:vid-deploy production "<words>"` is the owner's production yes. A third command takes a site down (FB-2 A4), each at the owner's own words alone: `/vid:vid-deploy down staging "<words>"` the test site, and `/vid:vid-deploy down production "<words>"` the practice live copy on this machine (in the GitHub modes, a take-down okay for the dev side); a real live product on a host is never taken down by it.
 ---
 
 # /vid deploy
@@ -78,6 +78,10 @@ the owner holds the next stage (v0.26.10.7 R13).
   passes becomes the new last full pass.
 - **A bare `/vid deploy`** means staging. Its report ends with one line:
   say "deploy to production" when staging looks good.
+- **Taking a site down** (FB-2 A4) is neither target: `/vid deploy down
+  staging "<words>"` takes the test site down, below, and nothing else. It
+  is never run but at the owner's explicit word, their own words given in
+  the command; nothing else ever takes a site down.
 - **Deploy to production** is started only by the owner's word. **Deploy
   to staging** is too, except at a stage close, or at "continue" while
   staging is being set up, under the standing staging authorization
@@ -372,6 +376,24 @@ monitoring) are done here and recorded in DEPLOYMENT.md; an owner
 attestation (a provider's certification) is a DEPLOYMENT.md line, never a
 row (v0.9.1 3.6).
 
+## Taking the test site down (FB-2 A4)
+
+`/vid deploy down staging "<words>"`, at the owner's word alone, their own
+words given in the command; with none, or blank ones, refuse it and do
+nothing: the take-down is asked only with the owner's own words. Stop the staging
+service through the platform's logged-in tool, as the deploy operates it,
+and delete no data: the hosted staging's data store stays, as do every
+record and report (`.vid/`, DEPLOYMENT.md). Confirm with one bounded
+request to the recorded staging address that the product no longer
+answers; while it still answers, say so and record nothing. Then record
+`sh checks/event.sh 'deploy-down target=staging at=<commit> words="<their words>"'`,
+the commit staging ran and the owner's words (a double quote in them made a single one), and tell the owner in one line that the test site is down.
+The next `/vid deploy staging` brings it back. Production's own gates are
+unchanged: they read gate 2's pass, which stays true of the commit that
+passed it. `/vid deploy down production` is refused in develop: a real
+live product on a host is switched off by the owner, on its platform,
+never by this verb.
+
 ## Staging anti-rot
 
 Staging runs the same config-as-code as prod and holds the latest
@@ -467,6 +489,16 @@ and how each line is said, nothing more: when an okay is due, what it says, how 
   owner's queue and answers that line, printing `yes production <N> <c>: …`); a refusal starts `refused production: …` (no words,
   no stage closed, a newer candidate, the okay posted already, no yes asked yet, the yes given already), and nothing is recorded. The production okay is then posted by the next round (in GitHub manual, the next call's
   `round.sh asks`).
+- `/vid:vid-deploy down staging "<words>"` and `/vid:vid-deploy down production "<words>"` (FB-2 A4): `sh checks/close.sh deploy down
+  staging "<their words>"`, or `deploy down production "<their words>"`, the take-down's one entry in both modes, at the owner's own
+  words alone: the take-down okay keeps them in its ask and its events, never in the body the dev side reads. It posts a take-down okay,
+  labelled deploy, for the dev side to take down the test site, or the live copy where it is a copy on this machine, keeping
+  every data store, backup and report; its line is `asked <n> down <target>`. A refusal starts `refused down <target>: …`
+  and posts nothing: no words, or blank ones; nothing is up; staging is taken (a candidate's okay, staging run or walk not done,
+  or a take-down in hand), so an unfinished stage never loses its site; a production okay in hand; or a live copy
+  that is not on this machine, which only the owner switches off, on its platform. While a take-down waits for its report it
+  holds its target: no staging or production okay is posted. The next staging okay, which needs a newer candidate, brings a
+  test site back. After the live copy is taken down the dev side takes no production deploy until it is recovered.
 
 1. **The lock.** Inside /vid run's own conversation (this session holds the run's lock), and inside /vid next (the call's start
    holds it), run the entry alone: the lock stays held. Anywhere else, the vid-connect skill's start first,
@@ -494,6 +526,9 @@ In GitHub auto the entries are also `close.sh okay`, `ask --cs` and the rehearsa
 | `production-yes-asked <N> <c>` | A `Q<n>` line for the owner: the rehearsal's changes, each piece of data dropped or rewritten named, and the records kept, table by table, or none (0.26.11.1.1, R5). **The production yes is the owner's alone: never answer it, never `--by RM`.** Their `no` keeps it open. Before the first go-live the line also offers a grade of the whole product (v0.26.10.27.4): the owner's `grade` is `sh checks/queue.sh answer Q<n> grade "<their words>"`, which asks it; every production yes waits until that grade is read and its findings ruled, or withdrawn. Their `yes` without it is their choice |
 | `logs <N>: …` | Tell the owner once where production's logs are read, and go on |
 | `production-duty <N> <duty>: <words, or not answered>`, `not-needed d2 <N>: …` (0.26.11.1.1, R3) | A passed production deploy is never sent back for its duties. Each duty it left missing or not done is a `Q<n>` line, `production duty <duty>: …`, the owner's alone: their `known "<words>"` settles it, as does a later production report saying it done; never answer it yourself. Keep the `not-needed d2` line for the `in production` line |
+| `asked <n> down <target>` (FB-2 A4) | Nothing by hand: the take-down okay is posted for the dev side, which reports it. Say it to the owner in one line |
+| `down <target> <N>`, `down-failed <target>: <why>`, `dn-refused <target> <k>`, `close-again down-<target> dn` (FB-2 A4) | Say a `down` line to the owner once, with the `test site:` line of `sh checks/queue.sh addresses <N>` (or that the live copy is down), as it is; a `down-failed` line once, with its words: the site is still up. A refused report is posted back, and a quiet one asked again once, by the round |
+| `down-lost <target>` (FB-2 A4) | Say it to the owner once: the take-down was asked again (after no report, or after a refused one posted back) and never reported after it, so nothing is known to be taken down and the site may still be up. Its issue is closed and the target is free: the owner can ask the take-down again |
 | `cs-closed #<n>` (v0.26.10.27.3) | Nothing to tell: the staging run's issue closed once the walk ended, so DevAgent may take the staging down |
 | `recovery-asked <N> #<n>`, `recovered <N> #<n> at <commit>`, `production-lost <N> #<n>` | A failed or red production: DevAgent recovers and comments `vid: recovered`. A question on a production okay (any restore, with its recovery point and the writes at risk) is the owner's alone. A lost deploy is a `Q<n>` line, settled by the owner's `known <commit>|none "<words>"`, their words after it (GM-4 K6), before it started, or by DevAgent's `vid: recovered` |
 | `in production <N> at <commit>` | Say it to the owner, once, in one line with the live copy's address: the `live copy:` line of `sh checks/queue.sh addresses <N>`, as it is (v0.26.10.28.8, R7), and each duty its D2's `not-needed d2 <N>` line named, with its words (0.26.11.1.1, R3) |

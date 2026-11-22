@@ -15,7 +15,9 @@ mkdir -p "$T/f/checks" "$T/f/.vid"; cd "$T/f"; printf '#!/bin/sh\nexit 1\n' > ch
 ( HERE=$T/f/checks; . "$HERE/lib.sh"; ev 'round-error step=y count=1' ) 2> "$T/out" || fail 'ev stopped its caller'
 grep -q 'the event was not recorded, event.sh failed: round-error step=y count=1' "$T/out" || fail 'a failing event.sh was not said'; [ ! -s .vid/metrics-events ] || fail 'ev wrote past a failing event.sh'
 # no ticket script appends to the events itself; land's and end's lines go through ev
-for s in close decide end github grade land lib planner queue refresh results round walk writer; do ! grep -n 'metrics-events' "$CHECKS/$s.sh" | grep -v '^[0-9]*: *#' | grep -q '>>' || fail "$s.sh appends to .vid/metrics-events itself"; done
+# FB-2 C3: close.sh's parts, by glob, with it
+CP=$(for f in "$CHECKS"/close-*.sh; do b=${f##*/}; printf '%s ' "${b%.sh}"; done)
+for s in close $CP decide end github grade land lib planner queue refresh results round walk writer; do ! grep -n 'metrics-events' "$CHECKS/$s.sh" | grep -v '^[0-9]*: *#' | grep -q '>>' || fail "$s.sh appends to .vid/metrics-events itself"; done
 grep -qF 'ev "publish-approved words=\"$WORDS\""' "$CHECKS/land.sh" && grep -qF "ev 'run state=complete'" "$CHECKS/end.sh" || fail "land.sh's or end.sh's line does not go through ev"
 # beside themselves: github.sh through lib.sh's ev; job.sh by its own path, its fallback kept
 ! grep -q 'sh checks/event.sh' "$CHECKS/github.sh" "$CHECKS/job.sh" || fail 'github.sh or job.sh still calls checks/event.sh from the working folder'

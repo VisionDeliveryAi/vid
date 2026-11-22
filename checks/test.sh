@@ -1599,12 +1599,15 @@ take_slot() {
   [ "$k" -le "$LIMIT" ] || return 1   # every slot held: no admission to make
   admit_lock || return 1
   mem_ok || { admit_unlock; return 1; }
-  k=1
-  while [ "$k" -le "$LIMIT" ]; do
+  # FB-2 C2: under the lock, the first free slot is chosen, and only then does a chunk ask whether it gives way, so a
+  # request queued before that slot freed is always seen; a slot taken meanwhile (mkdir fails) means look again, and ask again
+  while :; do
+    k=1; while [ "$k" -le "$LIMIT" ] && [ -d "$HOSTD/stack.$k" ]; do k=$((k + 1)); done
+    [ "$k" -le "$LIMIT" ] || { admit_unlock; return 1; }
+    if [ "$CHUNK" = yes ] && chunk_yield; then admit_unlock; return 1; fi
     if mkdir "$HOSTD/stack.$k" 2>/dev/null; then LEASE="$HOSTD/stack.$k"; K=$k; printf '%s\n' "$$" > "$LEASE/holder"; admit_unlock; return 0; fi
-    k=$((k + 1))
+    [ -d "$HOSTD/stack.$k" ] || { admit_unlock; return 1; }   # not taken, yet not made: no admission to make
   done
-  admit_unlock; return 1
 }
 # slot_read <slot dir>: its holder's pid, repository, compose project and start → LP LR LC LT
 slot_read() {
@@ -1816,11 +1819,10 @@ while :; do
     DW0=''
   fi
   # v0.9.7.0.12 (3.2, R2; found in rehearsal R-1): a chunk launched before another request came gives way at the slot —
-  # while a request at the home waits and its batch already holds stacks − 1 slots, it takes none
-  if [ "$CHUNK" = yes ] && chunk_yield; then :; else
-    take_slot && break
-    reclaim_stale && continue   # v0.9.7.0.8 (T2.2): a stale slot freed when safe — try again at once
-  fi
+  # while a request at the home waits and its batch already holds stacks − 1 slots, it takes none (FB-2 C2: asked inside
+  # take_slot, after the free slot is chosen)
+  take_slot && break
+  reclaim_stale && continue   # v0.9.7.0.8 (T2.2): a stale slot freed when safe — try again at once
   # v0.9.7.0.8 (T2.1): a request says why it waits — the holders as of this try, in its ticket folder
   if [ -n "$TD" ]; then { holders; [ -z "$MEMWAIT" ] || echo "    $MEMWAIT"; } > "$TD/holders.tmp" && mv "$TD/holders.tmp" "$TD/holders"; fi
   if [ -n "$WAIT" ] && [ $(( $(date +%s) - W0 )) -lt "$WAIT" ]; then

@@ -12,21 +12,19 @@
 <text x="26" y="112" text-anchor="start" style="fill:#0b5c7a;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">2</text>
 <text x="52" y="112" text-anchor="start" style="fill:#16202a;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">The spec, sitting by sitting: three</text>
 <text x="52" y="128" text-anchor="start" style="fill:#16202a;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">requirements, approved</text>
-<rect x="664" y="144" width="320" height="42" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
-<text x="674" y="162" text-anchor="start" style="fill:#0b5c7a;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">3</text>
-<text x="700" y="162" text-anchor="start" style="fill:#16202a;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">Create the code repository, and leave it</text>
-<text x="700" y="178" text-anchor="start" style="fill:#16202a;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">empty</text>
-<text x="500" y="168" text-anchor="middle" style="fill:#16202a;font-size:12px;font-weight:400;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">an empty repository</text>
-<line x1="662" y1="176" x2="616" y2="176" style="stroke:#0b5c7a" stroke-width="1.5" marker-end="url(#ah)"/>
+<rect x="16" y="144" width="320" height="42" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
+<text x="26" y="162" text-anchor="start" style="fill:#0b5c7a;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">3</text>
+<text x="52" y="162" text-anchor="start" style="fill:#16202a;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">Start the run. No plan is approved yet,</text>
+<text x="52" y="178" text-anchor="start" style="fill:#16202a;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">so it plans first</text>
 <rect x="16" y="194" width="320" height="42" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
 <text x="26" y="212" text-anchor="start" style="fill:#0b5c7a;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">4</text>
 <text x="52" y="212" text-anchor="start" style="fill:#16202a;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">The plan: answer the setup, read the page,</text>
 <text x="52" y="228" text-anchor="start" style="fill:#16202a;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">approve</text>
 <rect x="16" y="244" width="320" height="42" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
 <text x="26" y="262" text-anchor="start" style="fill:#0b5c7a;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">5</text>
-<text x="52" y="262" text-anchor="start" style="fill:#16202a;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">Start the run. ViD prints the job note and</text>
-<text x="52" y="278" text-anchor="start" style="fill:#16202a;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">the start</text>
-<text x="500" y="268" text-anchor="middle" style="fill:#16202a;font-size:12px;font-weight:400;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">the spec repository; ticket 1</text>
+<text x="52" y="262" text-anchor="start" style="fill:#16202a;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">The run goes on: the repositories, the job</text>
+<text x="52" y="278" text-anchor="start" style="fill:#16202a;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">note and the start</text>
+<text x="500" y="268" text-anchor="middle" style="fill:#16202a;font-size:12px;font-weight:400;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">two repositories; ticket 1</text>
 <line x1="338" y1="276" x2="384" y2="276" style="stroke:#0b5c7a" stroke-width="1.5" marker-end="url(#ah)"/>
 <rect x="664" y="294" width="320" height="42" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
 <text x="674" y="312" text-anchor="start" style="fill:#0b5c7a;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">6</text>

@@ -8,6 +8,7 @@ cases/batch-request.sh follows its requests through test.sh serve
 cases/cancel-sandboxed.sh follows its requests through test.sh serve
 cases/request-dirty.sh follows its requests through test.sh serve
 cases/selection-refused.sh follows its requests through test.sh serve
+cases/batch-builder-slot.sh runs the Docker stub's held environments
 cases/batch-retry.sh runs the Docker stub's held environments
 cases/host-lease.sh runs the Docker stub's held environments
 cases/leftovers-agent-worktree.sh runs the Docker stub's held environments

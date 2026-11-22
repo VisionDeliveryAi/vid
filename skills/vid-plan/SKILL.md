@@ -57,6 +57,7 @@ spec). `sh checks/planner.sh` judges it all (its header names each subcommand).
      layouts (default `<repo>-spec`), ViD's own export; with `one`, `spec-path: <folder>` (default `docs/specs`) and
      `spec-stamp: <a file in the folder>` (the file the publish sets to the export it holds, or `none`); an empty
      `labels-prefix:` when none is there. "Not yet" is offered for the repositories alone: their keys stay out, and a later `/vid:vid-plan` asks again.
+     A repository named here that does not exist yet is made by ViD, private and empty, at the next connect (FB-2 A1): naming it is the owner's yes to make it, and the read-only access check saying it is not reached is expected until then.
    - **The teams.** One line each, `team: <name> | <area in words> | strict|core | <people>`: a name of lower-case
      letters and digits, starting with a letter; *strict* when the team does only its area, *core* when the area is
      its main one but it may help elsewhere. The default is offered, `devagent | the whole product | core | 1`, and
@@ -293,6 +294,6 @@ and page again. After the ratification, `planner.sh ratified` holds through reco
 `sh checks/event.sh "stage name=plan state=end
 session=$CLAUDE_CODE_SESSION_ID"`; one line to the owner: the stages, steps
 and rows counted, the waves, the ratification or what is open, and that
-`/vid run` publishes from the ratified plan: it makes the spec repository at
-its start and exports the spec at its first round (v0.26.10.26.7, R12). The
-plan publishes nothing.
+`/vid run` publishes from the ratified plan: it makes the repositories at
+its start (FB-2 A1) and exports the spec at its first round (v0.26.10.26.7, R12). The
+plan publishes nothing. Called from `/vid run` or `/vid next` (their plan-first step, FB-2 A2), the caller goes on at its own start.

@@ -25,7 +25,7 @@ TW turns the plan RM admitted into tickets DevAgent builds from. Its words are t
 | `publish <step> "<words>"` | `sh checks/github.sh tw-hand publish <step> --words "<words>"` [`--title "<title>"`]: the admission, the write, its check and the post |
 | `amend #<n> "<words>"` | `sh checks/github.sh tw-hand amend <n> --words "<words>"` |
 | `withdraw #<n> "<words>"` | `sh checks/github.sh tw-hand withdraw <n> --words "<words>"` |
-| `reopen #<n> "<words>"` | `sh checks/github.sh tw-hand reopen <n> --words "<words>"`: a closed ticket reopened, with one comment `vid: reopened at the owner's word` (GM-4 E6) |
+| `reopen #<n> "<words>"` | `sh checks/github.sh tw-hand reopen <n> --words "<words>"`: a closed ticket, or an open one its dev side left (FB-2 A3: its newest `DM: left:` comment with no reopen after it), reopened, with one comment `vid: reopened at the owner's word` (GM-4 E6); the open one gets the comment alone |
 | `fix <key> "<words>"` | `sh checks/github.sh tw-hand fix <key> --words "<words>"` |
 | `reached "<words>"` | `sh checks/github.sh tw-hand reached --words "<words>"` |
 
@@ -41,7 +41,7 @@ Say what it printed, in plain words. Exit 0: posted (`published`, `amended`, `wi
 
 ## Set-up, once
 
-`/vid run` makes the spec repository at its start (v0.26.10.26.7, R12): when `.vid/tw/log` has no `spec-repo` line, it runs `sh checks/github.sh spec-setup --make-only`, which makes the private spec repository, or checks that the one named is private, and exports nothing. Then it tells the owner, in one line, to give DevAgent read access to it and to the code repository. That is the owner's to grant. With `layout: one`, the spec also reaches the folder of the code repository by the vid-spec-publish skill, and each ticket names the place it quotes (GM-4 K13).
+`/vid run` makes the repositories at its start (v0.26.10.26.7, R12; FB-2 A1, the connect's, in both GitHub modes): each one the setup names that `.vid/tw/log` has no line for, the spec repository through `sh checks/github.sh spec-setup --make-only`, which makes the private spec repository, or checks that the one named is private, and exports nothing. Then it tells the owner, in one line, to give DevAgent read access to it and to the code repository. That is the owner's to grant. With `layout: one`, the spec also reaches the folder of the code repository by the vid-spec-publish skill, and each ticket names the place it quotes (GM-4 K13).
 
 ## The round, GitHub auto's
 

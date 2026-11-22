@@ -59,7 +59,7 @@ if [ -n "$REPO" ]; then echo "- repo: and labels-prefix: are this project's, as 
 cat <<EOF
 - work: is the dev side's work folder, outside this project and outside ViD's records. Step 1 makes it.
 - time-limit: $TL is a default you may change: the loop's seconds, one day. At it the loop stops and says so; up again picks up where it stopped.
-- agent-time-limit: $AT is a default you may change: one agent's seconds, three hours. Keep it generous: an agent stopped twice at its limit leaves its ticket for good, so a low limit costs a ticket, not a restart.
+- agent-time-limit: $AT is a default you may change: one agent's seconds, three hours. Keep it generous: an agent stopped twice at its limit leaves its ticket until the owner reopens it, so a low limit costs a ticket's wait, not a restart.
 - agent-turn-limit: $AU is a default you may change: one agent's turns, in the same spirit.
 - model: must be written in exactly this form, the full name an agent's first message shows. Every agent runs on it.
 - agents: is left out: /vid:vid-devagent asks once whether DevAgent's agents run in that conversation (agents: conversation, no sign-in needed, the conversation kept open) or through the claude command (agents: command, signed in, running on its own), and writes your answer in the note. Without that line, dm.sh reads the note as agents: command.

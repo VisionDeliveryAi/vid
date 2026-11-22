@@ -14,6 +14,7 @@
 # closed ticket is never amended. Fix 3: with decisions enough for parts, #2 amended twice in parts — every part
 # comment of an earlier writing says it is replaced, naming the current writing and each of its part comments (gh api
 # -X PATCH on the issue comment), and the current parts join to the ticket. Env: CHECKS.
+# selftest-limit: 1140 s — 320 to 376 s alone under load, past 900 s in the suite (FB-2 C1, the runner's rule, ×3)
 set -eu
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 . "$CHECKS/selftest/fixtures/tw-toy.sh"

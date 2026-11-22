@@ -3,16 +3,18 @@
 # caller in every ticket mode (/vid run, /vid next, /vid mode and every direct call), and the run's start for /vid run alone. Run as
 # the plugin's own copy, sh "${CLAUDE_PLUGIN_ROOT}/checks/connect.sh", from the project's top level, as refresh.sh is: every step
 # before the refresh runs the plugin's own scripts, so nothing is committed before the lock is held (GM-4 F2's order: the mode, the
-# spec repository, the restore, the lock, the refresh). Slack is the skill's (a connector's tools, not a script).
+# repositories, the restore, the lock, the refresh). Slack is the skill's (a connector's tools, not a script).
 #   start [--yes] [--run] [--state <owner/name>]   the connect, one line each, in order: with --run in GitHub manual, refused
 #                   first, naming /vid next, nothing restored, refreshed or written (GM-1 S1); with --state (an empty folder), the
 #                   records restored from that state repository first (the plugin's github.sh state-restore <repo>); the mode: a
 #                   project not in ticket mode, or planned by the old ticket mode, or recorded in the retired GitHub team (FB-1 C1) but
 #                   in /vid mode's own call, refused, and in GitHub manual (GM M15) a project
 #                   whose .vid/tw/settings names no state-repo: refused, naming it, so the lock and the saved records never go to the
-#                   spec repository; with --run in GitHub manual refused, naming /vid next (GM-1 S1); the spec repository made when
-#                   the settings name one, in both layouts (GM-4 J5), and .vid/tw/log no `spec-repo` line (github.sh spec-setup
-#                   --make-only, GM-2 T10; access checks it is private at every call); the records restored; the lock taken; the read the call
+#                   spec repository; with --run in GitHub manual refused, naming /vid next (GM-1 S1); the repositories (FB-2 A1): each
+#                   of repo:, spec-repo: (both layouts, GM-4 J5) and state-repo: the settings name, with no `<key> <name> ` line in
+#                   .vid/tw/log for the name they hold now, made private and empty or checked (github.sh code-setup, spec-setup
+#                   --make-only, GM-2 T10, and state-setup), one `connect <key>:` line each; access checks the spec repository is
+#                   private at every call; the records restored; the lock taken; the read the call
 #                   before ended with, .vid/round/read, copied once to .vid/round/read.prev (GM-4 F3), before any read of the call;
 #                   the refresh (refresh.sh beside this file; --yes passes the owner's yes to the local edits it lists); the notices
 #                   (lib/wsl.sh notice, its line as it prints it); the commit checks (hooks, below, FB-1 A1); github.sh access; then the stage, once (GM-4 F2, I4):
@@ -85,7 +87,7 @@ case ${1:-} in
     # folder, empty, has its mode only once restored: the mode step below refuses it there)
     if [ -n "$RUN" ] && manual; then echo 'connect mode: this project is in GitHub manual: call /vid next; nothing refreshed or written, no lock is held'; exit 1; fi
     if [ -n "$SR" ]; then sh "$HERE/github.sh" state-restore "$SR" > "$W/o" 2>&1 || { sed 's/^/    /' "$W/o" >&2; echo "connect records: not restored from $SR; no lock is held"; exit 1; }; say records; fi
-    # GM-4 F2's order: the mode, the spec repository, the restore and the lock, each through the plugin's own copy, and only then the
+    # GM-4 F2's order: the mode, the repositories, the restore and the lock, each through the plugin's own copy, and only then the
     # refresh, so a start refused at any of them, or behind the saved records, or under another session's lock, commits nothing
     # the mode: ticket mode only; GM M15 in GitHub manual; the run's start not in GitHub manual (GM-1 S1)
     grep -q '^mode:[[:space:]]*tickets[[:space:]]*$' .vid/RUN-STATE.md 2>/dev/null || { echo 'connect mode: this project is not in ticket mode; no lock is held'; exit 1; }
@@ -96,9 +98,12 @@ case ${1:-} in
       [ -z "$RUN" ] || { echo 'connect mode: this project is in GitHub manual: call /vid next; no lock is held'; exit 1; }
       [ -n "$(skey state-repo)" ] || { echo "connect mode: GitHub manual keeps ViD's lock and records in its own state repository (GM M15), and .vid/tw/settings names no state-repo: — answer it (sh checks/planner.sh setup state-repo <owner/name> --words \"<their words>\"); nothing restored, taken or saved"; exit 1; }
     fi
-    # GM-2 T10, GM-4 F2: the spec repository, made when the settings name one and the log no spec-repo line; GM-4 J5: in both layouts
-    if [ -n "$(skey spec-repo)" ] && ! grep -q '^spec-repo ' .vid/tw/log 2>/dev/null; then
-      sh "$HERE/github.sh" spec-setup --make-only > "$W/o" 2>&1 || { sed 's/^/    /' "$W/o" >&2; echo 'connect spec-repo: not ready; no lock is held'; exit 1; }; say spec-repo; fi
+    # GM-2 T10, GM-4 F2; FB-2 A1: each repository the settings name and the log has no line for under the name they hold now (a renamed
+    # one made too), made private and empty or checked: the code repository, the spec repository (both layouts, GM-4 J5), the state repository
+    for k in repo spec-repo state-repo; do n=$(skey "$k"); [ -n "$n" ] || continue
+      ! awk -v k="$k" -v n="$n" '$1 == k && $2 == n { f = 1 } END { exit !f }' .vid/tw/log 2>/dev/null || continue
+      case $k in repo) a=code-setup ;; spec-repo) a='spec-setup --make-only' ;; *) a=state-setup ;; esac
+      sh "$HERE/github.sh" $a > "$W/o" 2>&1 || { sed 's/^/    /' "$W/o" >&2; echo "connect $k: not ready; no lock is held"; exit 1; }; say "$k"; done
     sh "$HERE/github.sh" state-restore > "$W/o" 2>&1 || { sed 's/^/    /' "$W/o" >&2; echo 'connect records: not restored; no lock is held'; exit 1; }; say records
     # from before the take, any end but the ready one frees the lock (lock-free frees this session's lock alone)
     trap 'sh "$HERE/github.sh" lock-free > /dev/null 2>&1; rm -rf "$W"' EXIT; trap 'exit 1' INT TERM

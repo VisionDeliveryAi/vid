@@ -2,6 +2,7 @@
 # Purpose: selftest case — ViD's round (v0.26.10.25.1 R4, R5, R8, R10), checks/round.sh on the toy and the fake gh. next publishes, a refusal once; a stray ticket stops; an ask is decided, saved before it is posted; a
 # merge recorded once, its issue closed, the interim closed written; a merge with no decision, one line; a question beside a ticket that goes on; a held row waits, nothing answered; the switch, labelled, and a held product
 # failure answered by nothing; the alarms, once; a lost lock; a pause; wait; nothing-left, held back by a grade ask out and not by a lost one; the read's calls; vid-run's stops and never-list. Env: CHECKS.
+# selftest-limit: 1440 s — 318 to 476 s alone under load, past 900 s in the suite (FB-2 C1, the runner's rule, ×3)
 set -eu
 unset CLAUDE_CODE_SESSION_ID 2>/dev/null || true
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT

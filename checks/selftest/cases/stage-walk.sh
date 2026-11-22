@@ -10,6 +10,7 @@
 # ticket's regression rows, `covers: 0` failing it there and no `covers:` line evidence missing (R5). The status line. v0.26.10.26.5:
 # the close's six conditions, each unmet then all met; the hold mid-stage, at the close, and continue's count; the summary refused three
 # ways, then the close's records and `stage: 2`; corrected since the close. Env: CHECKS.
+# selftest-limit: 1440 s — 364 to 472 s alone under load, past 900 s in the suite (FB-2 C1, the runner's rule, ×3)
 set -eu
 unset CLAUDE_CODE_SESSION_ID 2>/dev/null || true
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
@@ -105,7 +106,7 @@ mkdir -p .vid/decide/stage/2/1/cs .vid/decide/stage/2/1/w1/1; : > .vid/decide/st
 printf '1\tW1 finding: bug — the home page errors before any sign-in\n' > .vid/decide/stage/2/1/w1/findings   # read before the withdrawal
 mkdir -p .vid/decide/stage/2/2; cp $K/ask .vid/decide/stage/2/2/; wk withdraw --stage 2 --below 2; ok '^walk-withdrawn 2 1$'; [ -f .vid/decide/stage/2/1/w1/withdrawn ] || fail 'no withdrawn'; ok "^cs-closed #$CS2\$"; [ "$(cat "$T/gh/issues/$CS2/state")" = CLOSED ] || fail "the old green CS's issue open after its walk's withdrawal"
 [ -n "$(qn 'the home page errors before any sign-in')" ] || fail 'a withdrawn walk lost a finding already read'
-grep -q 'sh "$HERE/walk.sh" withdraw --stage "$N" --below "$c"' "$CS" || fail 'naming a candidate does not withdraw the older W1'
+grep -q 'sh "$HERE/walk.sh" withdraw --stage "$N" --below "$c"' "$CHECKS/close-candidate.sh" || fail 'naming a candidate does not withdraw the older W1'   # FB-2 C3: the line sits in close.sh's part
 # R5: an accepted rule row among a later ticket's regression rows; covers 0 fails it, none is evidence missing
 rm -rf design; printf 'step-start step=S05 at=2026-11-09T09:00:00Z\n' >> .vid/metrics-events; sh "$GS" spec-export > /dev/null 2>&1; F=$(sh "$CHECKS/writer.sh" write step S05 2> "$T/out") || fail 'S05 was refused'
 awk '/^## Regression rows/ { on = 1; next } /^## / { on = 0 } on' "$F" | grep -qx -- '- RULE-001' || fail "RULE-001 is no regression row of S05: $(awk '/^## Regression rows/,0' "$F" | head -n 12)"

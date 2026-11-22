@@ -6,7 +6,8 @@
 # the summary reads `<c>/<c> courts convict, 1 skipped`, still matching metrics.sh's pattern; `slowest:` follows it;
 # VID_SELFTEST_TIMES gets a line a case; a flaky case whose retry hangs is stopped at its limit and its output shown;
 # with setsid and perl hidden from the PATH the suite still runs and says so once; a runner interrupted as a terminal
-# interrupts it leaves no case group behind; a case's own `# selftest-limit: <n> s` line replaces the default for it alone. Env: CHECKS.
+# interrupts it leaves no case group behind; a case's own `# selftest-limit: <n> s` line replaces the default for it alone;
+# round-step, stage-walk and tw-change each name theirs, at least 1440, 1440 and 1140 s (FB-2 C1). Env: CHECKS.
 set -eu
 T=$(mktemp -d)
 # the cleanup stops a planted child only while its pid is still that child, a `sleep`: a pid is never killed by number alone
@@ -57,6 +58,9 @@ suite "$T/o" ownlong ownhang; run "$T/o" && fail 'a suite with a case past its o
 grep -qx 'selftest: ownlong convicts' "$T/out" || fail 'a case under its own longer limit was not let run past the default'
 grep -qx 'selftest: ownhang TIMED OUT after 3 s' "$T/out" || fail "a case was not stopped at its own limit: $(grep 'ownhang' "$T/out" | head -n 1)"
 sleep 1; ! alive "$(cat "$T/kid.ownhang")" || fail "the case stopped at its own limit left its child"
+# FB-2 C1: the three long shipped cases name their own limit, at least the runner's rule (the slowest time alone, ×3)
+for p in round-step:1440 stage-walk:1440 tw-change:1140; do c=${p%%:*}; n=$(sed -n 's/^# selftest-limit: *\([0-9][0-9]*\) s\( .*\)\{0,1\}$/\1/p' "$CHECKS/selftest/cases/$c.sh" | head -n 1)
+  [ -n "$n" ] && [ "$n" -ge "${p#*:}" ] || fail "$c.sh names no limit of its own of ${p#*:} s or more (found: ${n:-none})"; done
 # a flaky case whose retry hangs: stopped at its limit, its output shown
 suite "$T/f" good flakyhang; printf 'cases/flakyhang.sh 2026-11-11 planted: it hangs\n' > "$T/f/checks/selftest/flaky"
 run "$T/f" && fail 'a hanging flaky case passed'

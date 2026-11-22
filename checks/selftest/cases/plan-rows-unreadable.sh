@@ -92,7 +92,7 @@ echo '* scope --upto -*' > "$T/stfail"; rd sh checks/metrics.sh stage-close --st
 
 # 4. the text check: no read of planner.sh rows or stages.sh scope under checks/ swallows its failure
 # each `;`-part of a line that reads either (raw, run by `sh`, or through lib.sh's lread or mustread): no `|| true` or `|| :`, no pipe of its
-# output, and a raw read or an lread has a branch for its failure (16 lines at the base: close.sh 4, end, grade, land 2, metrics 3, plan,
+# output, and a raw read or an lread has a branch for its failure (16 lines at the base: close-candidate.sh 4 (FB-2 C3: close.sh's part), end, grade, land 2, metrics 3, plan,
 # planner, queue, walk 2). A raw read is a command, `sh` running the script: a message that names the command in its words reads nothing
 for f in "$CHECKS"/*.sh; do case ${f##*/} in test.sh) continue ;; esac   # test.sh's read sits in an if whose other branch keeps every case
   awk -v F="${f##*/}" '/^[ \t]*#/ { next } { n = split($0, sg, ";"); for (i = 1; i <= n; i++) { s = sg[i]
@@ -100,7 +100,7 @@ for f in "$CHECKS"/*.sh; do case ${f##*/} in test.sh) continue ;; esac   # test.
       if (!raw && !lib) continue
       if (s ~ /[|][|] *(true|:)/ || s ~ /(rows|scope)[^|]*[^|][|][^|]/ || (raw && s !~ /(rows|scope)[^|&]*([|][|]|&&)/) || (s ~ /lread / && s !~ /[|][|]/)) print F ":" FNR ":" s } }' "$f"; done > "$T/sw"
 [ ! -s "$T/sw" ] || { cp "$T/sw" "$T/out"; fail "$(grep -c . "$T/sw") reads swallow a failure"; }
-for x in 'close 4' 'end 1' 'grade 1' 'land 2' 'planner 1' 'queue 1' 'walk 2'; do n=$(grep -cE '(lread|mustread) [^ ]+ (planner rows|stages scope)' "$CHECKS/${x% *}.sh" || true)
+for x in 'close-candidate 4' 'end 1' 'grade 1' 'land 2' 'planner 1' 'queue 1' 'walk 2'; do n=$(grep -cE '(lread|mustread) [^ ]+ (planner rows|stages scope)' "$CHECKS/${x% *}.sh" || true)
   [ "$n" = "${x#* }" ] || fail "${x% *}.sh reads the plan's rows or the scope $n times through lib.sh's reader, not ${x#* }"; done
 [ "$(grep -c 'cannot be read (checks/' "$CHECKS/plan.sh")" -ge 3 ] && [ "$(grep -c 'scope93 [a-z-]* ' "$CHECKS/metrics.sh")" -ge 3 ] || fail 'plan.sh or metrics.sh lost an inline check'
 exit 0

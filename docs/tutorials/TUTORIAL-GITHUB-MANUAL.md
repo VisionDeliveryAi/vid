@@ -34,7 +34,7 @@ This is ViD's *GitHub manual* mode: your own developers build through GitHub tic
 - **Claude Code,** signed in, with ViD installed (the two lines below this list, typed inside Claude Code).
 - **git,** and the **GitHub command line,** `gh`, signed in (`gh auth login`; with HTTPS also `gh auth setup-git`).
 - **Docker,** running (Docker Desktop on macOS, or Docker Engine with the compose plugin on Linux), with about 1.6 GB of disk free. The practice product's tests run in it, in a real browser. The first test run fetches one base image and builds two; nothing is fetched after that.
-- **A GitHub account** where you may create three private repositories: two you make in stop 1, and one ViD makes for its own records in stop 4.
+- **A GitHub account** where ViD may create three private repositories for you, the code repository, the spec repository and one for its own records: it makes them in stop 4.
 
 ```
 /plugin marketplace add VisionDeliveryAi/vid
@@ -83,21 +83,9 @@ Three more change with each ticket, and each stop sets them: `T`, the ticket's i
 
 ## Part 1. The practice product, from nothing to three closed steps
 
-### Stop 1. Two repositories and two folders
+### Stop 1. The spec folder
 
-*Dev seat.* Create the two repositories, both private. The code repository gets a first commit on `main`, because the first ticket names the commit it starts from.
-
-```bash
-gh repo create $ACCOUNT/jobdigest --private
-gh repo create $ACCOUNT/jobdigest-spec --private
-
-cd $WORK
-gh repo clone $ACCOUNT/jobdigest code
-cd code
-cp -R $LAB/code/0-start/. .
-git add -A && git commit -m "Initial commit"
-git push -u origin main
-```
+*Dev seat.* You make no repository on GitHub: ViD makes them, private, at the switch of stop 4, under the names you give in stop 3. The code repository gets its first commit right after that switch.
 
 The spec folder is a git repository of its own, on your machine, with everything committed. ViD refuses to plan from files that are not committed.
 
@@ -135,23 +123,23 @@ If you skip this stop, the plan refuses in its first minute and tells you the pr
 
 ### Stop 3. The plan
 
-*Lead's seat.* Start Claude Code in the spec folder and start the planner:
+*Lead's seat.* Start Claude Code in the spec folder and make ViD's first call:
 
 ```bash
 cd $HOME/jobdigest-work/spec && claude
 ```
 
 ```
-/vid:vid-plan
+/vid:vid-next
 ```
 
-Every ViD command is a slash command of this form. Type `/vid` to see the list.
+Every ViD command is a slash command of this form. Type `/vid` to see the list. No plan is approved yet, so this first call plans before anything else: it is the planner's sitting, and nothing reaches GitHub before your approval in stop 4.
 
 **The setup questions.** *Typed session:* before it plans, ViD asks where the code lives and where the specs go, who is on the team, who works the tickets, and how fine the steps should be. Answer:
 
 | It asks | You answer |
 |---|---|
-| Where the code lives and the specs go | Two separate repositories: the code in `<your account>/jobdigest`, the spec in `<your account>/jobdigest-spec` |
+| Where the code lives and the specs go | Two separate repositories: the code in `<your account>/jobdigest`, the spec in `<your account>/jobdigest-spec`. Neither exists yet: naming them is your yes for ViD to make them, private, at the switch of stop 4 |
 | The teams | One team of one person, for the whole product |
 | Who works the tickets | Your own developers. ViD leaves this one open: the switch of stop 4 answers it |
 | The step size | Steps by journey, the default |
@@ -193,23 +181,14 @@ ViD answers with the new plan. In the checked run:
 
 **Check three things before you approve:** the first step is the skeleton with ROW-003 and ROW-004; the next is ROW-006 alone; the one after is ROW-019 alone. The step names are the planner's and yours may differ (the new steps were numbered on, as S5 and S6). From here on this tutorial names a step by its row.
 
-**Do not approve here.** In the checked run the lead approved at this point and the spec was published at once. In GitHub manual the approval is made by the switch, in stop 4, in your words, and the spec reaches the spec repository with the first ticket you publish.
-
-You can close this Claude Code session, or keep it for the next stop.
+**Do not approve yet.** In the checked run the lead approved at this point and the spec was published at once. In GitHub manual the approval is made by the switch, in stop 4, in your words, and the spec reaches the spec repository with the first ticket you publish.
 
 ### Stop 4. Switch to GitHub manual, and publish the first ticket
 
-*Lead's seat,* in the spec folder:
-
-```
-/vid:vid-mode manual
-```
-
-The switch finds the plan you just wrote by itself, and asks only what it cannot find. Answer each in words:
+*Lead's seat,* the same session: the call is still planning. You type no other command for the switch. Once the plan is as you want it, the call switches the project to GitHub manual itself, from the plan you just wrote, and asks only what it cannot find. Answer each in words:
 
 | It asks | You answer |
 |---|---|
-| The commit of the spec your developers start from | The commit that holds the plan: the newest commit of the spec folder (`git log -1` there shows it) |
 | ViD's own state repository | `<your account>/jobdigest-state`. Your answer is also your yes for ViD to make it, private. It holds ViD's lock and saved records, and is neither of your two repositories |
 | Any other setup question | As in stop 3 |
 
@@ -219,13 +198,20 @@ Then it shows the plan page again. **Approve.** Your words are recorded as the a
 Yes, I approve this plan as it stands on the page, for GitHub manual.
 ```
 
-ViD says what it recorded, the mode last: GitHub manual, recorded. From here on, every turn of ViD's is a call you make:
+ViD says what it recorded, the mode last: GitHub manual, recorded. The switch has made the three repositories, private; the code repository is empty. The call then goes on as every call does, reads GitHub and shows its lines.
 
-```
-/vid:vid-next
+**The code repository's first commit.** *Dev seat.* Give it the lab's starter code on `main`, because the first ticket names the commit it starts from:
+
+```bash
+cd $WORK
+gh repo clone $ACCOUNT/jobdigest code
+cd code
+cp -R $LAB/code/0-start/. .
+git add -A && git commit -m "Initial commit"
+git push -u origin main
 ```
 
-ViD reads GitHub and shows its lines: what is not yet with your team, the moves you may name, and that its own work is off. Name two moves, each with your own words:
+*Lead's seat.* From here on, every turn of ViD's is a call you make, `/vid:vid-next`. Its lines say what is not yet with your team, the moves you may name, and that its own work is off. Name two moves, each with your own words:
 
 ```
 /vid:vid-next own-work on "ViD decides, asks and closes at each of my calls from now on." publish S1 "Publish the skeleton ticket."
@@ -863,7 +849,7 @@ Part 1 used a spec that was already written. With your own product you write it 
 
 **1. An empty folder, and the interview.** In a new, empty folder, start Claude Code and say `/vid:vid-init`. ViD asks about the product, writes the PRD in three passes with your approval after each, asks the technical questions, derives the test inventory, and proposes the stage cut. A project started this way has its `checks/` folder from the start, so stop 2 does not apply. Give it a small product, something you could describe in ten sentences: the first spec is where you learn to read fail-ifs, and a large one teaches less.
 
-**2. From here it is Part 1.** Create the code repository with a first commit and the spec repository, both private (stop 1). Plan (stop 3). Switch to GitHub manual, approve, and publish the skeleton (stop 4). From then on, call `/vid:vid-next` whenever your team has sent something.
+**2. From here it is Part 1.** Name the code and spec repositories at the plan's setup; ViD makes them, private, at the switch, and you push the code repository's first commit after it (stops 3 and 4). Call `/vid:vid-next`: it plans first (stop 3); approve, its switch to GitHub manual made in the same call, and publish the skeleton (stop 4). From then on, call `/vid:vid-next` whenever your team has sent something.
 
 **3. Your test setup replaces the lab's.** `env/` is this lab's, not ViD's. For your own product your team owns the same two things, in whatever tools it uses:
 
@@ -885,9 +871,9 @@ Part 1 used a spec that was already written. With your own product you write it 
 
 | What you see | What it is | What to do |
 |---|---|---|
-| The plan refuses and names the `checks/` folder | Stop 2 was skipped | Do stop 2, then `/vid:vid-plan` again |
-| `/vid plan` is not a command | The commands are `/vid:vid-plan`, `/vid:vid-mode`, `/vid:vid-next`, `/vid:vid-fix` | Type `/vid` and pick from the list |
-| The plan says the repositories are not named, or that 2 of 3 access checks are not ready | The setup was not answered | Give the two repositories in words, as in stop 3 |
+| The plan refuses and names the `checks/` folder | Stop 2 was skipped | Do stop 2, then `/vid:vid-next` again |
+| `/vid plan` is not a command | The commands are `/vid:vid-next` and `/vid:vid-fix`; the first call plans | Type `/vid` and pick from the list |
+| The plan says the repositories are not named | The setup was not answered | Give the two repositories in words, as in stop 3 |
 | The draft plan has no small step for ROW-006 | The planner cut it differently | Ask for the change in stop 3. Check the result by its rows, not its step names |
 | The plan page does not open | The session could not publish it as a page | It gives a file's path instead; open that file in a browser |
 | A move is shown again and not done | The call checks each move against what the last call listed | Call `/vid:vid-next` once, then name the move as it now shows it |
@@ -942,4 +928,4 @@ The lab's `reports/README.md` names the head report, the grade and the sort in t
 | An issue labelled `run` | A run asked in chunks: a step's close, or a stage's full run |
 | An issue labelled `deploy` | The okay to deploy a commit |
 
-**What the lead types,** in a Claude Code session in the spec folder: `/vid:vid-plan`; `/vid:vid-mode manual`; `/vid:vid-next`, alone or with its moves, each in the lead's own words (`own-work on`, `publish <step>`, `answer <its place or Q<n>> …`, `planning-analysis`, `implement-replan`); and `/vid:vid-fix <the change, in words>`.
+**What the lead types,** in a Claude Code session in the spec folder: `/vid:vid-next`, the first call planning and switching to GitHub manual, then alone or with its moves, each in the lead's own words (`own-work on`, `publish <step>`, `answer <its place or Q<n>> …`, `planning-analysis`, `implement-replan`); and `/vid:vid-fix <the change, in words>`.

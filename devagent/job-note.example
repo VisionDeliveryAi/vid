@@ -14,7 +14,7 @@ labels-prefix:
 work: /full/path/to/your-product-devagent
 
 # time-limit: the loop's seconds in all (here 8 hours). agent-time-limit: one agent's seconds, generous on purpose: an agent stopped
-# twice at its limit leaves its ticket for good, so a low limit costs a ticket, not a restart. agent-turn-limit: one agent's turns.
+# twice at its limit leaves its ticket until the owner reopens it, so a low limit costs a ticket's wait, not a restart. agent-turn-limit: one agent's turns.
 time-limit: 28800
 agent-time-limit: 7200
 agent-turn-limit: 400

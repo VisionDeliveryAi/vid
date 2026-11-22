@@ -11,7 +11,7 @@
 #   dm.sh up <job note>     check, then the loop detached: nohup, its own process group, its output in the work folder's dm-loop.log, its pid and start
 #                           stamp in dm-loop.pid; refused while that loop lives; a dm-stop left from before is removed; it returns at once
 #   dm.sh down [<job note>] writes dm-stop, which the loop obeys at its next tick, and waits at most 120 seconds for the recorded loop to end; it stops nothing else
-#   dm.sh next              one line a ticket, close run (an issue labelled <prefix>run), stage grade (<prefix>grade, v0.26.10.26.1 R7) or deploy okay (<prefix>deploy: staging, v0.26.10.26.2 R8; rehearsal or production, v0.26.10.27.1 R8), lowest first: blocked, left, claim, work, not-yet, merge or wait, then its number; `none` when no line
+#   dm.sh next              one line a ticket, close run (an issue labelled <prefix>run), stage grade (<prefix>grade, v0.26.10.26.1 R7) or deploy okay (<prefix>deploy: staging, v0.26.10.26.2 R8; rehearsal or production, v0.26.10.27.1 R8), lowest first: blocked, left (FB-2 A3: until a reopen after its newest `DM: left:`), claim, work, not-yet, merge or wait, then its number; `none` when no line
 #   dm.sh start <role> <job note> <clone>   a fresh claude -p on the role's file and a kept copy of the note, nothing else; prints the agent's id. 0.26.11.1.1 (R2): the role deployer, DP, a builder's tools.
 #                           0.26.11.1.3 (R5): with agents: conversation in dm-note.txt it starts nothing: the folder and its note, `mode`, then the id, the prompt, the
 #                           model, the limits and the hand-back path, for the conversation to run as a fresh helper in its foreground
@@ -126,11 +126,11 @@ DMIQ='.[] | [.number, ([.labels[].name] | join(",")), ([.comments[].body | split
 # a `vid: refused d1-<k>` or a ViD comment begun `vid: failed at` newer than its newest report calls for its next attempt as a refusal does (v0.26.10.26.2 R8).
 # v0.26.10.27.1 R8: a deploy okay's body begins `okay: rehearsal`, one chunk rh, worked as d1 is, or `okay: production`, one chunk d2, whose next attempt only a
 # `vid: again d2` or `vid: refused d2-<k>` calls for; and RM's `Production failed at …` or `Production's deploy of … has not reported` newer than the newest
-# `vid: recovered` calls for work, the recovery, whatever its reports. v0.26.10.28.2 (R2): a close run's chunk whose record holds a `lost <chunk> <k>` with no
+# `vid: recovered` calls for work, the recovery, whatever its reports. FB-2 A4: a body begun `okay: down` is a take-down, one chunk dn, worked as d1 is. v0.26.10.28.2 (R2): a close run's chunk whose record holds a `lost <chunk> <k>` with no
 # `said lost <chunk> <k>` calls for work, the comment that says it, even when every chunk else waits
 runl() { case ",$(printf '%s' "$I" | cut -f2)," in *",${P}blocked,"*) echo blocked; return ;; esac
   printf '%s\n' "$I" | cut -f3 | tr '\001' '\n' | awk -v ch="$(printf '%s' "$I" | cut -f5)" -v rec="$W/tickets/$n.txt" 'BEGIN { m = split(ch, c, " ") }
-    { for (i = 1; i <= m; i++) { if ($0 ~ ("^vid: reported " c[i] "-[0-9]+$")) r[i] = NR; if ($0 == "vid: again " c[i]) { a[i] = NR; A[i]++ } if (c[i] == "s1" && $0 ~ /^vid: refused( |$)/ || (c[i] == "d1" || c[i] == "rh") && $0 ~ ("^vid: (refused " c[i] "-[0-9]+|failed at )") || c[i] == "d2" && $0 ~ /^vid: refused d2-[0-9]+/) a[i] = NR }
+    { for (i = 1; i <= m; i++) { if ($0 ~ ("^vid: reported " c[i] "-[0-9]+$")) r[i] = NR; if ($0 == "vid: again " c[i]) { a[i] = NR; A[i]++ } if (c[i] == "s1" && $0 ~ /^vid: refused( |$)/ || (c[i] == "d1" || c[i] == "rh" || c[i] == "dn") && $0 ~ ("^vid: (refused " c[i] "-[0-9]+|failed at )") || c[i] == "d2" && $0 ~ /^vid: refused d2-[0-9]+/) a[i] = NR }
       if ($0 ~ /^Production failed at |^Production.s deploy of /) q = NR; if ($0 ~ /^vid: recovered /) v = NR }
     END { if (c[1] == "d2" && q > v) { print "work"; exit } while ((getline l < rec) > 0) { split(l, x, " "); if (x[1] == "lost") { L[x[2]] = x[3]; U[x[2] " " x[3]] = 1 } if (x[1] == "said" && x[2] == "lost") delete U[x[3] " " x[4]] }
       for (u in U) { split(u, y, " "); if (y[1] ~ /^p[0-9]+c([0-9]+|x)$/) { print "work"; exit } }
@@ -139,11 +139,12 @@ cmd_next() { R=$(key repo); P=$(key labels-prefix); [ -n "$R" ] || die "no repo:
   for n in $(awk -F'\t' -v l=",${P}ticket," -v r=",${P}run," -v g=",${P}grade," -v y=",${P}deploy," 'index("," $2 ",", l) || index("," $2 ",", r) || index("," $2 ",", g) || index("," $2 ",", y) { print $1 }' "$F.i" | sort -n); do I=$(awk -F'\t' -v n="$n" '$1 == n' "$F.i")
     case ",$(printf '%s' "$I" | cut -f2)," in *",${P}run,"*) say "$(runl)"; continue ;; *",${P}grade,"*) I=$(printf '%s\n' "$I" | awk -F'\t' -v OFS='\t' '{ $5 = "s1"; print }'); say "$(runl)"; continue ;;
       *",${P}deploy,"*) b=$(gh issue view "$n" -R "$R" --json body --jq .body) || { rm -f "$F".?; die "the okay #$n could not be read"; }
-        case $(printf '%s\n' "$b" | head -n 1) in 'okay: rehearsal') ck=rh ;; 'okay: production') ck=d2 ;; *) ck=d1 ;; esac
+        case $(printf '%s\n' "$b" | head -n 1) in 'okay: rehearsal') ck=rh ;; 'okay: production') ck=d2 ;; 'okay: down '*) ck=dn ;; *) ck=d1 ;; esac   # FB-2 A4: a take-down, dn
         I=$(printf '%s\n' "$I" | awk -F'\t' -v OFS='\t' -v k="$ck" '{ $5 = k; print }'); say "$(runl)"; continue ;; esac
     awk -F'\t' -v n="$n" '$4 ~ ("^ticket: #" n "([^0-9]|$)") { f = 1 } END { exit !f }' "$F.m" && continue; L=$(awk -F'\t' -v n="$n" '$6 ~ ("^ticket: #" n "([^0-9]|$)")' "$F.o" | head -n 1); PN=$(printf '%s' "$L" | cut -f1); H=$(printf '%s' "$L" | cut -f4)
     case ",$(printf '%s' "$I" | cut -f2)," in *",${P}blocked,"*) say blocked; continue ;; esac
-    ! grep -q '^left:' "$W/tickets/$n.txt" 2>/dev/null || { say left; continue; }
+    # FB-2 A3: left while the record holds `left:` and no `vid: reopened at the owner's word` comes after the newest `DM: left:` comment (with none, after none)
+    ! grep -q '^left:' "$W/tickets/$n.txt" 2>/dev/null || printf '%s\n' "$I" | cut -f3 | tr '\001' '\n' | awk '/^DM: left: / { r = 0 } $0 == "vid: reopened at the owner'"'"'s word" { r = 1 } END { exit !r }' || { say left; continue; }
     printf '%s\n' "$I" | cut -f3 | tr '\001' '\n' | grep -qx 'vid: claimed' || { say claim; continue; }
     [ -n "$PN" ] || { say work; continue; }
     printf '%s\n' "$L" | cut -f7 | tr '\001' '\n' > "$F.c"; d=$(grep -nx "vid: decide $H" "$F.c" | tail -n 1 | cut -d: -f1); e=$(grep -nx "vid: decision $H" "$F.c" | tail -n 1 | cut -d: -f1)

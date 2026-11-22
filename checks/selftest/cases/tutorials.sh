@@ -10,7 +10,8 @@
 # comment`, no `vid: decide` or `vid: decision` beside a pull request, no decision said to be on one); no acceptance before the
 # merge (a `gh pr merge` after a `vid: decide` in one stop, or an accepted ticket the team then merges); and the overview's 4.6
 # has SR's sort before the one ask, a single numbered step holding `vid: decide`, and, beside the excerpt's `breached test` on
-# ROW-003, a sentence naming the lab's `kept`. Every lab file a tutorial cites
+# ROW-003, a sentence naming the lab's `kept`. FB-2 A1: neither GitHub tutorial has the person run `gh repo create`; A2: nor type
+# `/vid:vid-plan` or `/vid:vid-mode` (a line that opens with it), and GitHub manual's first typed ViD command is `/vid:vid-next`. Every lab file a tutorial cites
 # ships, and nothing ships that is not cited: a document cites a path by naming it in backticks or as a link, relative to its own folder; a
 # tutorial cites a lab folder beside it and the paths inside it; a lab's README.md and any README.md inside it that names its folder's own
 # entries are that folder's index, every entry of an indexed folder must be cited, a path an index's table lists first or a path inside a
@@ -114,6 +115,13 @@ for my $f ('OVERVIEW-GITHUB-MANUAL.md', 'TUTORIAL-GITHUB-MANUAL.md') { my $s = s
     fault("$f:$n an acceptance before the merge") if $l =~ /\baccepted\b[^.|]*\b(?:team|you|MR)\b[^.|]*\bmerges?\b/i;
     $ask = 1 if $l =~ /vid: decide/;
     fault("$f:$n an acceptance before the merge: gh pr merge after vid: decide in $sec") if $ask && $l =~ /\bgh pr merge\b/ } }
+# FB-2 A1: ViD makes every repository the setup names, so neither GitHub tutorial has the person run gh repo create
+for my $f ('TUTORIAL-GITHUB-AUTO.md', 'TUTORIAL-GITHUB-MANUAL.md') { my $s = slurp("$top/$f"); defined $s or next; my $n = 0;
+  my $first = '';
+  for my $l (split /\n/, $s) { $n++; fault("$f:$n has the person make a repository: gh repo create") if $l =~ /\bgh repo create\b/;
+    # FB-2 A2: the run or the call plans first, so neither tutorial types /vid:vid-plan or /vid:vid-mode to begin
+    fault("$f:$n types $1 to begin") if $l =~ m{^(/vid:vid-(?:plan|mode))\b}; $first ||= $1 if $l =~ m{^(/vid:vid-[a-z-]+)} }
+  fault("$f: its first typed ViD command is $first, not /vid:vid-next") if $f =~ /MANUAL/ && $first ne '/vid:vid-next' }
 my $o = slurp("$top/OVERVIEW-GITHUB-MANUAL.md");
 if (defined $o) { my ($s46) = $o =~ /^### 4\.6 [^\n]*\n(.*?)(?=^### |\z)/ms;
   if (!defined $s46) { fault('OVERVIEW-GITHUB-MANUAL.md has no section 4.6') }
@@ -131,7 +139,7 @@ flow() { perl "$T/flow.pl" "$1"; }
 commands "$TU" > "$T/out" || { cat "$T/out" >&2; fail 'a document names a command that is not /vid:vid-<verb>'; }
 modes "$TU" > "$T/out" || { cat "$T/out" >&2; fail 'the mode names are not the three'; }
 cites "$TU" > "$T/out" || { cat "$T/out" >&2; fail 'a cited lab file does not ship, or a shipped one is not cited'; }
-flow "$TU" > "$T/out" || { cat "$T/out" >&2; fail 'the GitHub manual documents do not tell GitHub manual'"'"'s flow'; }
+flow "$TU" > "$T/out" || { cat "$T/out" >&2; fail 'the GitHub documents do not tell their flow (above)'; }
 # the reading proved on copies: each change below must fail its check, naming what it found
 copy() { rm -rf "$T/c"; cp -R "$TU" "$T/c"; }
 expect() { what=$1; pat=$2; shift 2; if "$@" "$T/c" > "$T/out" 2>&1; then fail "$what passed"; fi; grep -qF "$pat" "$T/out" || { cat "$T/out" >&2; fail "$what failed for another reason"; }; }
@@ -156,6 +164,9 @@ copy; printf 'See `../TUTORIAL-GITHUB-TEAM.md`.\n' >> "$T/c/jobdigest-lab/README
 copy; printf 'See `../TUTORIAL-GITHUB-GONE.md`.\n' >> "$T/c/jobdigest-lab/README.md"; expect 'a lab README link to no file' 'links ../TUTORIAL-GITHUB-GONE.md, which is not there' flow
 copy; printf 'Then type `/vid:vid-run`.\n' >> "$T/c/TUTORIAL-GITHUB-MANUAL.md"; expect 'the run in the manual tutorial' 'TUTORIAL-GITHUB-MANUAL.md:' flow
 grep -q 'names /vid:vid-run' "$T/out" || { cat "$T/out" >&2; fail 'the run in the manual tutorial failed for another reason'; }
+copy; printf '```bash\ngh repo create $REPO --private\n```\n' >> "$T/c/TUTORIAL-GITHUB-AUTO.md"; expect 'a repository made by hand in the auto tutorial' 'TUTORIAL-GITHUB-AUTO.md:' flow
+grep -q 'gh repo create' "$T/out" || { cat "$T/out" >&2; fail 'the repository made by hand failed for another reason'; }
+copy; printf '```\n/vid:vid-mode manual\n```\n' >> "$T/c/TUTORIAL-GITHUB-MANUAL.md"; expect 'the switch typed in the manual tutorial' 'types /vid:vid-mode to begin' flow
 copy; printf '```bash\ngh pr comment $P --body "vid: decide $SHA"\n```\n' >> "$T/c/TUTORIAL-GITHUB-MANUAL.md"; expect 'an ask on a pull request' 'a comment on a pull request: gh pr comment' flow
 copy; printf 'ViD reads the reports and answers on the pull request.\n' >> "$T/c/OVERVIEW-GITHUB-MANUAL.md"; expect 'a decision on a pull request' 'a decision on a pull request' flow
 copy; printf 'The head report is `pr-<pull request>-<head12>-<k>`.\n' >> "$T/c/OVERVIEW-GITHUB-MANUAL.md"; expect 'a pull request report id' 'a report id of the pull request form' flow

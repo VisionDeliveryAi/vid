@@ -49,8 +49,8 @@
 # unit-ask #<p> <its ticket line's number or -> <head12>`; each merge not recorded goes to .vid/decide/unit-merges (`<p> <ticket line's
 # number or -> <head> <merge>`), deciding and closing nothing, `unit-merged <p> <ticket or ->`; a published ticket closed on GitHub, not
 # withdrawn and not accepted, is told at every call, `closed #<n> not accepted — …` naming K1's two commands (E6), never withdrawn, no
-# step reopened; no stray stop (it guards the round's own publishing); the alarms ticket-hours, ticket-quiet, devagent-quiet and
-# devagent-stopped not raised; no `update`. GM-4 K4: `summary <N>` writes no facts (the move write-summary does), and the step's walk,
+# step reopened; no stray stop (it guards the round's own publishing); the alarms ticket-hours, ticket-quiet, devagent-quiet,
+# devagent-stopped and ticket-left (FB-2 A3) not raised; no `update`. GM-4 K4: `summary <N>` writes no facts (the move write-summary does), and the step's walk,
 # walk-read and summary lines are kept in .vid/next/stage-moves for the call to list as the owner's moves.
 # An error names its step and exits 1; a lost lock prints `lock-lost` and exits 3; an open ticket the log does not hold prints `stop stray …` and exits 4, in step and in next, and nothing more is written.
 # `stand-in: on` in .vid/tw/settings, off by default and never written by ViD: a held row with only its evidence missing is accepted, a held weak
@@ -203,7 +203,7 @@ stopped_() { s=$(git --git-dir=.vid/code for-each-ref --sort=-refname --sort=-co
   case $s in stopped-*) w=$(git --git-dir=.vid/code show "refs/heads/vid-results/$s:$s/results.txt" 2>/dev/null | sed -n 's/^stopped: *//p' | head -n 1); printf '%s\t%s\n' "$s" "${w:-no reason given}" ;; esac; }
 # R10: each once until it clears
 alarms() { F=''; N=$(date +%s); H1=$(($(skey ticket-hours | grep . || echo 8) * 3600)); Q1=$(($(skey quiet-hours | grep . || echo 2) * 3600))
-  # GM-4 E5: in GitHub manual ticket-hours, ticket-quiet, devagent-quiet and devagent-stopped watch no DevAgent of ViD's: not raised
+  # GM-4 E5: in GitHub manual ticket-hours, ticket-quiet, devagent-quiet, devagent-stopped and ticket-left watch no DevAgent of ViD's: not raised
   if ! manual; then
   for n in $(open_); do a=$(awk -v n="$n" '$1 == "published" && $2 == n' "$LOG" | tail -n 1 | tr ' ' '\n' | sed -n 's/^at=//p'); [ -z "$a" ] || [ $((N - $(epoch "$a"))) -le "$H1" ] || flag ticket-hours "$n"
     u=$(awk -F'\t' -v n="$n" '$1 == "issue" && $2 == n { print $5 } $1 == "open" && $3 == n { print $9 }' "$L/read" | sort | tail -n 1); [ -z "$u" ] || [ $((N - $(epoch "$u"))) -le "$Q1" ] || flag ticket-quiet "$n"; done
@@ -212,7 +212,10 @@ alarms() { F=''; N=$(date +%s); H1=$(($(skey ticket-hours | grep . || echo 8) * 
     $1 == "open" || $1 == "merged" { p[$3] = 1 } END { for (x in t) { k++; if (x in p) s = 1 } if (k && !s) print k }' "$L/read")
   a=$(awk '$1 == "published"' "$LOG" | tail -n 1 | tr ' ' '\n' | sed -n 's/^at=//p'); [ -z "$q" ] || [ -z "$a" ] || [ $((N - $(epoch "$a"))) -le "$Q1" ] || flag devagent-quiet "$q"
   # v0.26.10.28.6 (R3): the dev side stopped, its newest report a stopped one; a later report of any kind clears it
-  s=$(stopped_); [ -z "$s" ] || flag devagent-stopped "${s%%	*}" "${s#*	}"; fi
+  s=$(stopped_); [ -z "$s" ] || flag devagent-stopped "${s%%	*}" "${s#*	}"
+  # FB-2 A3: a ticket DevAgent left, each open one whose newest `DM: left: <why>` comment has no reopen after it; a reopen clears it
+  awk -F'\t' -v O=" $(open_ | tr '\n' ' ') " '$1 == "issue" && index(O, " " $2 " ") { m = split($4, c, "\001"); w = ""; for (i = 1; i <= m; i++) { if (c[i] ~ /^DM: left: /) w = substr(c[i], 11); else if (c[i] == "vid: reopened at the owner'"'"'s word") w = "" } if (w != "") print $2 "\t" w }' "$L/read" > "$L/lf"
+  while IFS=$TAB read -r n w; do flag ticket-left "$n" "$w"; done < "$L/lf"; fi
   A=$(awk -F'\t' '$2 == "accepted" || $2 == "accepted by ruling" { c++ } END { print c + 0 }' "$D/state" 2>/dev/null); A=${A:-0}; echo "$N $A" >> "$D/accepted-log"
   P=$(awk -v t=$((N - 3600)) '$1 >= t && $2 > m { m = $2 } END { print m + 0 }' "$D/accepted-log"); [ $((P - A)) -lt 20 ] || flag row-drop accepted
   for k in $(awk '{ print $1 "|" $2 }' "$D/flags"); do case " $F " in *" $k "*) ;; *) w=${k%%|*}; o=${k#*|}; grep -vxF "$w $o" "$D/flags" > "$L/f"; put "$D/flags" < "$L/f" || exit 1; ev "flag-cleared word=$w on=$o" ;; esac; done
@@ -289,7 +292,8 @@ asks_() {
   # one line while the code repository has no main); a refusal is the round's one line, retried on change, never a stop of its tickets
   # keyed on the newest export too, so a new export is tried at once and a refused one waits for a change
   if [ "$(skey layout)" = one ]; then X12=$(awk '$1 == "export" { v = $2 } END { print substr(v, 1, 12) }' "$LOG" 2>/dev/null)
-    # FB-1 B5: a failed GitHub call (exit 5) is `failed spec-publish <12>: …`, recorded under no key, so the next call tries it again
+    # FB-1 B5: a failed GitHub call (exit 5) is `failed spec-publish <12>: …`, recorded under no key, so the next call tries it again;
+    # FB-2 B1: any GitHub or git network call of spec-publish that fails is exit 5, and only a rule's refusal (exit 1) is keyed
     refused "spec-publish $X12" || { spc=0; gh_ spec-publish > /dev/null 2> "$L/e" || spc=$?
       case $spc in 0) ;; 5) echo "failed spec-publish $X12: $(tail -n 1 "$L/e")" ;; *) refuse "spec-publish $X12" "$(tail -n 1 "$L/e")" ;; esac; }; fi; fi   # the second fi: GitHub auto alone (GM-4 E5)
   cl owed > "$L/ow"; while read -r w s x <&3; do case $w in stage) cl ask --stage "$s" ;; okay) case $s in rehearsal) cl okay --rehearsal "$x" ;; production) cl okay --production "$x" ;; *) cl okay --stage "$x" ;; esac ;; cs) cl ask --cs "$s" ;; cr) cl ask --cr "$s" ;; cp) cl ask --cp "$s" ;; walk) continue ;;

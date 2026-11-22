@@ -3,7 +3,7 @@
 # stage 2's fake gh (fixtures/tickets.sh gh_fake, its viewerPermission answer) and .vid/tw/settings naming owner/code
 # and owner/code-spec (private): signed in, both reached, `access: ok`; the permission as the fake's perm file holds
 # it; the spec repository public (not ready, `access: 1 of 3 not ready`); a spec repository and a code repository not
-# reached, in gh's words; a key left out (not set yet); not signed in (it stops, `access: 1 of 1 not ready`); with
+# reached, in gh's words (the code repository's with the note that the connect makes it, FB-2 A1); a key left out (not set yet); not signed in (it stops, `access: 1 of 1 not ready`); with
 # layout: one, the spec repository's line as with two repositories (GM-4 J5: the private spec repository stays in both
 # layouts): not set yet while spec-repo: is left out, reached once it is set. Exit 0 each time, 2 on a usage error; the fake's log holds only gh auth status
 # and gh repo view (the fake gh adds its exit code to its own words). Env: CHECKS.
@@ -26,7 +26,7 @@ N="Could not resolve to a Repository with the name"
 set_ 'repo: owner/code\nspec-repo: owner/other-spec\n'
 acc; is "${G}${R}access spec-repo owner/other-spec — not reached: fake gh: $N 'owner/other-spec'. 1; spec-setup makes it if it does not exist yet\naccess: 1 of 3 not ready" 'a spec repository not reached'
 set_ 'repo: owner/none\nspec-repo: owner/other-spec\n'
-acc; grep -qx "access repo owner/none — not reached: fake gh: $N 'owner/none'. 1" "$T/out" && grep -qx 'access: 2 of 3 not ready' "$T/out" || fail 'a code repository not reached'
+acc; grep -qx "access repo owner/none — not reached: fake gh: $N 'owner/none'. 1; the connect makes it if it does not exist yet" "$T/out" && grep -qx 'access: 2 of 3 not ready' "$T/out" || fail 'a code repository not reached, or its line without the connect'"'"'s note (FB-2 A1)'
 set_ 'repo: owner/code\n'; acc; is "${G}${R}access spec-repo — not set yet\naccess: 1 of 3 not ready" 'a spec-repo: left out'
 set_ ''; acc; is "${G}access repo — not set yet\naccess spec-repo — not set yet\naccess: 2 of 3 not ready" 'no settings keys'
 set_ 'layout: one\nrepo: owner/code\n'; acc; is "${G}${R}access spec-repo — not set yet\naccess: 1 of 3 not ready" 'one repository, no spec-repo:'

@@ -15,10 +15,10 @@ Everything you need to work ViD's tickets as the dev side, on a small practice p
 
 The step-by-step guide is `../TUTORIAL-GITHUB-MANUAL.md`: every command, in order. The path through it, in short:
 
-1. Push `code/0-start/` as the first commit of the code repository's `main`.
-2. Copy `spec/` to a folder of its own, `git init`, commit everything. Then copy your installed ViD's `checks/` folder into it and commit that alone: ViD plans only in a project that holds it.
-3. In that folder, start ViD's planner, give it the two repositories and one team of one person, and ask for the two rows the lab builds after the skeleton (ROW-006, then ROW-019) as steps of their own, right after the skeleton. Do not approve yet.
-4. Switch the project to GitHub manual (`/vid:vid-mode manual`) and approve the plan there. Then call ViD (`/vid:vid-next`), switch its own work on, and publish the skeleton. Work the skeleton ticket, then the stage close ViD asks. This lab has no test site: leave the staging deploy open; nothing waits on it.
+1. Copy `spec/` to a folder of its own, `git init`, commit everything.
+2. Copy your installed ViD's `checks/` folder into it and commit that alone: ViD plans only in a project that holds it.
+3. In that folder, make ViD's first call (`/vid:vid-next`), which plans first; give it the two repositories and one team of one person, and ask for the two rows the lab builds after the skeleton (ROW-006, then ROW-019) as steps of their own, right after the skeleton. Do not approve yet.
+4. Approve the plan in the same call, which switches the project to GitHub manual and makes the repositories. Push `code/0-start/` as the first commit of the code repository's `main`. Then call ViD (`/vid:vid-next`), switch its own work on, and publish the skeleton. Work the skeleton ticket, then the stage close ViD asks. This lab has no test site: leave the staging deploy open; nothing waits on it.
 5. Publish and work the ticket of ROW-006, with its two questions, then its step's close. Answer the questions, and publish the ticket of ROW-019.
 6. Change the spec through ViD's door: a support address that reaches a person within one working day. Say yes to the draft, then apply the change.
 7. Leave the follow-up ticket for ROW-006 open, and work the amended ticket of ROW-019.

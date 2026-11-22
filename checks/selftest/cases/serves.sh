@@ -11,7 +11,7 @@ for f in "$CHECKS"/*.sh "$CHECKS"/hooks/commit-msg "$CHECKS"/hooks/pre-commit "$
   case $b in metrics.sh|brief.sh|evidence.sh|test.sh|stages.sh|deploy-gate.sh) [ "$n" = 0 ] || fail "$b is develop's own and says what it serves"; continue ;; esac
   [ "$n" = 1 ] && [ "$h" = 1 ] || fail "$b has $n serves: lines ($h in its head)"
   w=$(sed -n 's/^# serves: \([a-z][a-z ]*[a-z]\)\( (.*)\)\{0,1\}$/\1/p' "$f"); case $w in develop|tickets|both|'dev side') ;; *) fail "$b serves '$w', not develop, tickets, both or dev side" ;; esac
-  case $b in close.sh|decide.sh|end.sh|grade.sh|land.sh|planner.sh|queue.sh|refresh.sh|results.sh|round.sh|walk.sh|writer.sh|lib.sh) [ "$w" = tickets ] || fail "$b is a ticket script and serves $w" ;;
+  case $b in close.sh|close-*.sh|decide.sh|end.sh|grade.sh|land.sh|planner.sh|queue.sh|refresh.sh|results.sh|round.sh|walk.sh|writer.sh|lib.sh) [ "$w" = tickets ] || fail "$b is a ticket script and serves $w" ;;
     github.sh) [ "$w" = both ] || fail "github.sh serves $w, not both (the share works in every mode, 0.26.10.28.7)" ;; esac; done
 [ -d "$CHECKS/../devagent" ] || { echo 'serves: ok'; exit 0; }
 for f in "$CHECKS"/../devagent/*/*.sh; do [ "$(head_ "$f" | grep -c '^# serves: dev side' || true)" = 1 ] && [ "$(grep -c '^# serves:' "$f")" = 1 ] || fail "devagent's $(basename "$f") does not say dev side once"; done

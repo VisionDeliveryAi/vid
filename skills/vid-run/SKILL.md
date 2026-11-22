@@ -13,6 +13,8 @@ One long session runs the tickets to the end. It writes no code, reads none (see
 
 **The skills.** First invoke the `vid-connect`, `vid-read`, `vid-tickets`, `vid-accept-step`, `vid-step-close`, `vid-stage-close`, `vid-deploy`, `vid-answer`, `vid-replan`, `vid-triggers`, `vid-grade` and `vid-spec-publish` skills (the Skill tool), and again whenever a session takes over: Claude Code restores after a compaction only the skills that were invoked.
 
+**The plan, first** (FB-2 A2). Without `--state` (an empty folder restores first, and its plan is in the records), when `.vid/plan/ratified` holds no `ratified` line, no plan was ever approved: invoke the `vid-plan` skill (the Skill tool) and do its sitting, the setup questions first, before the start below. At its page the sitting waits for the owner's words. End the turn there, asking for them; nothing is published and no lock is held. On the owner's yes the sitting's "The owner's words" ratifies and records the go, as it always has; then the start below. If the owner answers that a team of people works the tickets, the sitting's GitHub manual route runs (the `vid-mode` skill): then say in one line that `/vid:vid-next` drives this project, and end. A ratification that lapsed later, after a change to a ratified file, keeps the run's own path: a project already planned never re-enters the sitting here.
+
 **The start.** The vid-connect skill's run's start: `sh "${CLAUDE_PLUGIN_ROOT}/checks/connect.sh" start --run`, with `--state <state repo>` in an empty folder, and again whenever a session takes over. Where it ends the run, end.
 
 Every event this skill names is written with `sh checks/event.sh '<event>'`. Rewrite `.vid/RUN-STATE.md` at each step that changes what it says.
@@ -44,6 +46,7 @@ Run `round.sh wait` and `round.sh step` yourself, in the foreground, in this tur
 | `update` | Print `sh checks/queue.sh status` unchanged |
 | `flag devagent-quiet <n>` (v0.26.10.28.3) | Tell the owner once, in one line: `No dev side has answered for <h> hours: <n> tickets open, none claimed. Start it with /vid:vid-devagent <job note> in a new conversation in its work folder, or in the background with dm.sh up <job note>, or check that it runs.`, `<h>` the whole hours since the newest `published` line of `.vid/tw/log`. It stops nothing |
 | `flag devagent-stopped <id>: <why>` (v0.26.10.28.6) | Tell the owner once, in one line: `The dev side stopped: <why>. Start it again with /vid:vid-devagent <job note> in a new conversation in its work folder, or in the background with dm.sh up <job note>.` Its newest report is a stopped one; a later report clears it. It stops nothing, and ViD starts nothing |
+| `flag ticket-left <n>: <why>` (FB-2 A3) | Tell the owner once, in one line: `DevAgent left ticket #<n>: <why>. When what it needs is in place, /vid:vid-tickets reopen #<n> "<your words>" has it taken up again.` It stops nothing |
 | `flag <word> <what>` | Say it to the owner in plain words, once. It stops nothing |
 | `refused <what>: <why>` | The vid-replan skill's line for it, in /vid run |
 | `error <step> …` | Read it, and go on. A third error running is a stop, below |

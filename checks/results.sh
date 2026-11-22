@@ -411,16 +411,25 @@ cmd_grade() { [ "${1:-}" = --ask ] && [ -n "${2:-}" ] && { cmd_gask "$2"; return
 # deploy --stage <N> (v0.26.10.26.2 R1, R6): the newest D1 report of the stage's newest candidate's okay, its form checked. Writes the okay's
 # read: `d1 passed <k>` with `staging <address>`, `signin <role> <address>` and `differs <what> TAB <staging> TAB <production>` lines (none for
 # `differs: none`); `d1 failed <k> <step> <yes|no>`; `d1 refused <k> <why>`; or `d1 absent -`
+# FB-2 A4: --kind dn --target staging|production, a take-down, read from <c>/dn-<target>/: `dn down <k>` with `down TAB <target> TAB
+# <address>` (report.txt's `outcome: down` and its `down: <target> <address>`), `dn failed <k> <why>` (`outcome: failed down — <why>`), or
+# `dn refused <k> <why>`
+dnread() { G show "$R:$1/report.txt" | tr -d '\r' | awk -v k="$2" -v tg="$DT" '/^outcome: *down[ \t]*$/ { o = "down"; next }
+    /^outcome: *failed down — / { o = "failed"; w = $0; sub(/^outcome: *failed down — */, "", w); next } /^outcome:/ { o = "?" } /^down: / { t = $2; a = $3 }
+    END { if (o == "down") { if (t != tg || a == "") printf "dn\trefused\t%s\treport.txt has no down: %s <address> line\n", k, tg; else printf "dn\tdown\t%s\ndown\t%s\t%s\n", k, t, a }
+      else if (o == "failed" && w !~ /^[ \t]*$/) printf "dn\tfailed\t%s\t%s\n", k, w
+      else printf "dn\trefused\t%s\treport.txt has no outcome: down, nor outcome: failed down — <why>\n", k }'; }
 # v0.26.10.27.1 (R1, R4): --kind rh, the rehearsal, and d2, the production deploy, read from <c>/rh/ and <c>/d2/, the stage's newest
 # closed candidate's folder (--candidate <c>); prodnow: production's commit, the newest line of .vid/decide/production (none: none yet)
 prodnow() { [ -f .vid/decide/production ] || return 0; awk -F'\t' 'NF { c = $1 } END { print c }' .vid/decide/production; }
-cmd_deploy() { ST=''; KD=d1; DCA=''; while [ $# -ge 2 ]; do case $1 in --stage) ST=$2 ;; --kind) KD=$2 ;; --candidate) DCA=$2 ;; *) die "unknown $1" ;; esac; shift 2; done; [ -n "$ST" ] || die 'usage — sh checks/results.sh deploy --stage <N> [--kind d1|rh|d2] [--candidate <c>]'
-  case $KD in d1|rh|d2) ;; *) die "no kind $KD" ;; esac; CD=$(stdir "$ST"); [ -z "$DCA" ] || CD=.vid/decide/stage/$ST/$DCA; CD=$CD/$KD
+cmd_deploy() { ST=''; KD=d1; DCA=''; DT=''; while [ $# -ge 2 ]; do case $1 in --stage) ST=$2 ;; --kind) KD=$2 ;; --candidate) DCA=$2 ;; --target) DT=$2 ;; *) die "unknown $1" ;; esac; shift 2; done; [ -n "$ST" ] || die 'usage — sh checks/results.sh deploy --stage <N> [--kind d1|rh|d2|dn] [--target staging|production] [--candidate <c>]'
+  case $KD in d1|rh|d2) ;; dn) case $DT in staging|production) ;; *) die 'a take-down is read with --target staging|production' ;; esac ;; *) die "no kind $KD" ;; esac; CD=$(stdir "$ST"); [ -z "$DCA" ] || CD=.vid/decide/stage/$ST/$DCA; CD=$CD/$KD; [ "$KD" != dn ] || CD=$CD-$DT
   [ -f "$CD/ask" ] || die "no okay at $CD/ask"; I=$(sed -n "s/^issue$TAB//p" "$CD/ask" | head -n 1); C=$(sed -n "s/^commit$TAB//p" "$CD/ask" | head -n 1); k=$(newest "deploy-$I")
   [ ! -f "$CD/closed" ] || { printf '%s\tclosed\t-\n' "$KD" > "$T/g" || exit 1; put "$CD/read" < "$T/g" || exit 1; cat "$T/g"; return 0; }   # a closed okay's report is not read
   if [ -z "$k" ]; then printf '%s\tabsent\t-\n' "$KD" > "$T/g"
   elif ! form "deploy-$I-$k" "$C"; then printf '%s\trefused\t%s\t%s\n' "$KD" "$k" "$WHY" > "$T/g"
   elif ! G show "$R:deploy-$I-$k/report.txt" | tr -d '\r' | grep -qE '^(decision: *[^ ]|decisions: *none[[:space:]]*$)'; then printf '%s\trefused\t%s\t%s\n' "$KD" "$k" 'report.txt has no decision: line, nor decisions: none' > "$T/g"   # 0.26.10.29.5 (DP-1 R2)
+  elif [ "$KD" = dn ]; then dnread "deploy-$I-$k" "$k" > "$T/g"   # FB-2 A4
   elif [ "$KD" != d1 ]; then deploy2 "$KD" "deploy-$I-$k" "$k" > "$T/g"
   else i=deploy-$I-$k; o=$(G show "$R:$i/report.txt" | sed -n 's/^outcome: *//p' | head -n 1); pc=$(G show "$R:$i/report.txt" | sed -n 's/^product change: *//p' | head -n 1 | tr -d ' \r')
     case $o in

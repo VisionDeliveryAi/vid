@@ -1,12 +1,12 @@
 #!/bin/sh
 # Purpose: selftest case — a folder publish that fails part way is finished by the next call (GM-4 K13: "a one-repository project
 # cannot publish" never holds). On the form fixture's toy (fixtures/form.sh) with `layout: one` and `spec-path: upstream/vid`, after
-# the export: the pull request fails once after the branch vid-spec/<12 hex> is made (exit 1, nothing logged); the call again
-# moves that branch, ViD's own, to its new commit, makes the one pull request, the publish ticket and the `spec-published` line.
-# Then, for a new export, the publish ticket fails once after the pull request is made: the `spec-published` line is logged all the
-# same (exit 1); the call again makes the publish ticket alone (no git data call, no second pull request), logging
-# `spec-ticket pr=<n> issue=<i> at=`; a third call posts nothing. A pull request open on the branch is reused, never made twice.
-# Env: CHECKS.
+# the export: the pull request fails once after the branch vid-spec/<12 hex> is made (exit 5, FB-2 B1: a failed call, unfinished,
+# .vid/tw/spec-owed holding the export; nothing logged); the call again moves that branch, ViD's own, to its new commit, makes the
+# one pull request, the publish ticket and the `spec-published` line. Then, for a new export, the publish ticket fails once after
+# the pull request is made: the `spec-published` line is logged all the same (exit 5, the marker holding the new export); the call
+# again makes the publish ticket alone (no git data call, no second pull request), logging `spec-ticket pr=<n> issue=<i> at=`; a
+# third call posts nothing. A pull request open on the branch is reused, never made twice. Env: CHECKS.
 set -eu
 unset CLAUDE_CODE_SESSION_ID VID_CALLER 2>/dev/null || true
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
@@ -22,7 +22,8 @@ sp() { RC=0; sh "$GS" spec-publish > "$T/out" 2>&1 || RC=$?; }
 prs() { ls "$FAKEGH/prs" 2>/dev/null | grep -c . || true; }
 sh "$GS" spec-export > "$T/out" 2>&1 || fail 'the export failed'; E=$(awk '$1 == "export" { v = $2 } END { print v }' .vid/tw/log); E12=$(printf %.12s "$E")
 # the pull request fails after the branch: nothing logged; the call again finishes it
-touch "$T/fail-pr-create"; sp; [ "$RC" = 1 ] || fail "a failed pull request exited $RC"
+touch "$T/fail-pr-create"; sp; [ "$RC" = 5 ] || fail "a failed pull request exited $RC, not 5"
+[ "$(cat .vid/tw/spec-owed 2>/dev/null)" = "$E12" ] || fail '.vid/tw/spec-owed does not hold the export after the failed pull request'
 git --git-dir="$C" rev-parse -q --verify "refs/heads/vid-spec/$E12" > /dev/null || fail 'the branch was not made before the pull request failed: the scene is wrong'
 ! grep -q '^spec-published ' .vid/tw/log || fail 'a publish with no pull request was logged'
 sp; [ "$RC" = 0 ] || fail "the call again, after the failed pull request, exited $RC"
@@ -34,7 +35,8 @@ grep -l "#$P" "$FAKEGH"/issues/*/body > /dev/null 2>&1 || fail 'no publish ticke
 # a new export; the publish ticket fails after the pull request: logged, then the ticket alone
 echo 'A new line for the spec.' >> PRD.md; g commit -qam 'the spec changed'; git rev-parse HEAD > .vid/tw/applied
 sh "$GS" spec-export > "$T/out" 2>&1 || fail 'the second export failed'; E2=$(awk '$1 == "export" { v = $2 } END { print v }' .vid/tw/log); F12=$(printf %.12s "$E2")
-touch "$T/fail-issue-create"; sp; [ "$RC" = 1 ] || fail "a failed publish ticket exited $RC"
+touch "$T/fail-issue-create"; sp; [ "$RC" = 5 ] || fail "a failed publish ticket exited $RC, not 5"
+[ "$(cat .vid/tw/spec-owed 2>/dev/null)" = "$F12" ] || fail '.vid/tw/spec-owed does not hold the new export after the failed publish ticket'
 P2=$(sed -n "s/^spec-published pr=\([0-9]*\) export=$F12 .*/\1/p" .vid/tw/log | tail -n 1); [ -n "$P2" ] || fail 'the pull request made, its publish not logged before the ticket'
 gh_wclear; sp; [ "$RC" = 0 ] || fail "the call again, after the failed ticket, exited $RC"
 ! grep -q '^owner/code \(git \|pr create\)' "$FAKEGH/writes" || { cp "$FAKEGH/writes" "$T/out"; fail 'the call again made the branch or the pull request again'; }
