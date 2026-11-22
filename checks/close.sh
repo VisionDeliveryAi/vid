@@ -138,11 +138,25 @@ wout() { ! wfin "$1/w1" || return 1; ws=$(ls "$1/w1" 2>/dev/null | grep -E '^[0-
 # dout <folder>: its okay out, or closed failed for a product change and not yet asked again
 dout() { [ -f "$1/d1/ask" ] && [ ! -f "$1/d1/passed" ] && { [ ! -f "$1/d1/closed" ] || grep -q '^failed ' "$1/d1/closed"; }; }
 # R3 (v0.26.10.25.5): a withdrawn ask whose issue is still open, its issue closed again, at each owed; silent. reclose <step>, that
-# step's alone (GM-4 K3, `step`). GitHub manual (GM M3): one a pending landing withdrew waits for the apply (lwait), told and closed after
+# step's alone (GM-4 K3, `step`). GitHub manual (GM M3): one a pending landing withdrew waits for the apply (lwait), told and closed after; FB-1 C3:
+# a stage candidate's withdrawn asks too, at a whole owed
 reclose() { for W in $(ls "$C"/${1:-*}/*/withdrawn 2>/dev/null); do s=$(basename "$(dirname "$(dirname "$W")")"); ! grep -q '^issue ' "$W" || continue; ! lwait "$W" || continue; i=$(sed -n "s/^issue$TAB//p" "$(dirname "$W")/ask" | head -n 1); [ -n "$i" ] || continue
     w1=$(head -n 1 "$W" | cut -d' ' -f1); if [ "$w1" = closed-outside ]; then printf 'vid: withdrawn. Ticket %s of %s was closed outside ViD; its rows come in a new ticket, and this close is asked again once it merges. A later report for it is not read.\n' "$(head -n 1 "$W" | cut -d' ' -f2)" "$s" > .vid/round/wc
     else printf 'vid: withdrawn. The landing %s changed rows of %s; this close is asked again once its new tickets merge. A later report for it is not read.\n' "$w1" "$s" > .vid/round/wc; fi
-    gh_ comment "$i" --body-file .vid/round/wc > /dev/null 2>&1 && gh_ close "$i" > /dev/null 2>&1 && echo "issue $i" >> "$W"; done; return 0; }
+    gh_ comment "$i" --body-file .vid/round/wc > /dev/null 2>&1 && gh_ close "$i" > /dev/null 2>&1 && echo "issue $i" >> "$W"; done
+  # FB-1 C3: and, at a whole owed, each ask a re-cut withdrew at a stage's candidate (land.sh's: its C3 unless passed or done, its S1
+  # when s1withdrawn, its D1 when d1/closed says the landing withdrew it), by the step's rule: the read shows it open, no `issue <i>`
+  # line records it yet; commented with the landing's text unless the read shows that comment on it already, closed, recorded
+  [ -z "${1:-}" ] || return 0
+  for W in $(ls "$SD"/*/*/withdrawn 2>/dev/null); do F=${W%/withdrawn}; ! lwait "$W" || continue; L0=$(head -n 1 "$W" | cut -d' ' -f1); c=${F##*/}; N=${F%/*}; N=${N##*/}
+    { [ -f "$F/passed" ] || [ -f "$F/done" ] || sed -n "s/^issue$TAB//p" "$F/ask" 2>/dev/null | head -n 1
+      [ ! -f "$F/s1withdrawn" ] || sed -n "s/^issue$TAB//p" "$F/s1ask" 2>/dev/null | head -n 1
+      ! grep -q '^withdrawn by the landing ' "$F/d1/closed" 2>/dev/null || sed -n "s/^issue$TAB//p" "$F/d1/ask" 2>/dev/null | head -n 1; } > .vid/round/wi
+    while read -r i; do [ -n "$i" ] && ! grep -qx "issue $i" "$W" || continue
+      h=$(awk -F'\t' -v i="$i" '$1 == "issue" && $2 == i { print $4; f = 1; exit } END { exit !f }' "$RD" 2>/dev/null) || continue   # open, as the read shows it
+      printf 'vid: withdrawn. The landing %s re-cut the stages and changed stage %s; its candidate %s is withdrawn, and a new one is named once one is due. A later report for this one is not read.\n' "$L0" "$N" "$c" > .vid/round/wc
+      printf '%s\n' "$h" | tr '\001' '\n' | grep -qF "vid: withdrawn. The landing $L0 " || gh_ comment "$i" --body-file .vid/round/wc > /dev/null 2>&1 || continue
+      gh_ close "$i" > /dev/null 2>&1 && echo "issue $i" >> "$W"; done < .vid/round/wi; done; return 0; }
 # owned [<step>]: each row the newest ask of a step, but that one, found red whose fix line's ticket has not merged; in a subshell, so
 # its loop leaves the caller's variables
 cmd_owned() ( { for s in $(ls "$C" 2>/dev/null); do echo "$s $C/$s/$(nk "$s")"; done; for x in $(ls "$SD" 2>/dev/null); do echo "stage-$x $SD/$x/$(snc "$x")"; echo "cs-$x $SD/$x/$(snc "$x")/cs"; done; } | while read -r s F; do [ "$s" != "${1:-}" ] || continue; [ -f "$F/acted" ] || continue   # v0.26.10.26.1: a stage's newest C3 too

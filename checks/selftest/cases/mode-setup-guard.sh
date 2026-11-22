@@ -2,7 +2,7 @@
 # Purpose: selftest case — the GitHub mode moves only through /vid mode (GM-1 S1, §5's setup keys). On the planner's toy
 # (fixtures/planner-toy.sh), committed in a git repository: a bare `planner.sh setup github-mode manual` is refused, naming
 # /vid mode, and records nothing; the same call marked as /vid mode's (VID_CALLER=mode) passes; a change away from manual is
-# refused bare and passes marked; a change between auto and team stays free. `state-repo` takes owner/name and never the
+# refused bare and passes marked; github-mode team is refused, bare or marked, and records nothing (FB-1 C1: retired). `state-repo` takes owner/name and never the
 # code repository or the spec repository (nor may those become it); `slack-channels` takes names, comma-separated, or none.
 # Before a first ratification, in GitHub manual the setup flags name state-repo when it has no answer; under /vid mode's
 # mark github-mode is not flagged (the switch records it last); outside manual state-repo is not asked. Env: CHECKS.
@@ -28,7 +28,9 @@ mpl setup github-mode manual --words 'by hand, from now on'; [ "$RC" = 0 ] || fa
 # out of manual: only /vid mode's call
 for v in auto team; do pl setup github-mode "$v" --words 'back'; [ "$RC" != 0 ] || fail "a bare change from manual to $v was taken"; ok '/vid mode'; [ "$(last)" = manual ] || fail "the refused change to $v was recorded"; done
 mpl setup github-mode auto --words 'DevAgent again'; [ "$RC" = 0 ] && [ "$(last)" = auto ] || fail "/vid mode's change to auto was refused ($RC)"
-pl setup github-mode team --words 'an outside team'; [ "$RC" = 0 ] && [ "$(last)" = team ] || fail "a change from auto to team was refused ($RC)"
+# FB-1 C1: team is retired, bare or marked
+pl setup github-mode team --words 'an outside team'; [ "$RC" != 0 ] && [ "$(last)" = auto ] || fail "a change from auto to team was taken ($RC)"; ok 'GitHub team is retired'
+mpl setup github-mode team --words 'an outside team'; [ "$RC" != 0 ] && [ "$(last)" = auto ] || fail "/vid mode's change to team was taken ($RC)"; ok 'GitHub team is retired'
 # state-repo: owner/name, never the code repository or the spec repository
 for v in owner/code owner/code-spec 'two words' noslash; do pl setup state-repo "$v" --words 'that one'; [ "$RC" != 0 ] || fail "state-repo $v was taken"; done
 ! grep -q '^state-repo:' .vid/tw/settings || fail 'a refused state-repo was written'

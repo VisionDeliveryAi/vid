@@ -13,7 +13,8 @@
 # vid-spec-publish's one request as the exception (K13), a verb taking the owner's words, run after the export, with layout: one alone,
 # pushing nothing from this machine, listed by vid-help. GM-4 4c (K2, K3, F14): the run also loads vid-accept-step and vid-step-close at
 # its start, names each in one row where it calls it (the decision, merge, decisions, held, closed-outside, split rows; the close's
-# rows and regression), and holds none of their lines (the weak test's lesson among vid-accept-step's), each line in one skill alone;
+# rows and regression), and holds none of their lines (the weak test's lesson among vid-accept-step's, FB-1 C2: the row of the round's
+# `weak` line in its "In both modes" table), each line in one skill alone;
 # both are verbs (`/vid:vid-accept-step <ticket> [<commit>]` through `round.sh accept`, `/vid:vid-step-close <step>` through
 # `close.sh step`), listed by vid-help, each with its GitHub manual paragraph naming its ruling (GM M8; GM M3 for the close), GitHub
 # auto's entry `round.sh step`, E6's line said with both of K1's commands; vid-spec-publish says the owner's words back. GM-4 4d (K4,
@@ -127,6 +128,9 @@ once 'regressions introduced, defects still open, rows fixed' "$K3" "$K2"
 once 'that close introduced `<n>` regressions' "$K3" "$K2"
 # the lesson's line named in the run skill, the rule gone
 grep -F 'failing, a weak test' "$R" | grep -q 'vid-accept-step' || fail "the run skill's weak-test line does not name vid-accept-step"
+# FB-1 C2: the round's `weak` line a row of vid-accept-step's "In both modes" table, the lesson run from it; no paragraph of its own
+awk '/^## In both modes/ { on = 1; next } on && /^## / { exit } on' "$K2" | grep -F '| `weak <rows> <#n or pull request> <head 12> — <the row'"'"'s text>` |' | grep -qF 'queue.sh lesson <rows, comma-joined>' || fail "vid-accept-step's table has no weak row running queue.sh lesson"
+! grep -qF "**A weak test's lesson.**" "$K2" || fail "vid-accept-step still holds the weak test's lesson as a paragraph of its own"
 # the open item from 4b: the owner's words to a spec publish are said back (the log line keeps none)
 grep -qF 'said back' "$P" || fail "vid-spec-publish does not say the owner's words back"
 # GM-4 4d (K10): every skill K10 names loaded at the start, and again when a session takes over

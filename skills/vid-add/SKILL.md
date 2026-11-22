@@ -157,7 +157,7 @@ the owner's yes. **Raised questions (0.26.10.29.3 R4):** a question an agent's r
   Write its record in the append — its findings, ruled, as rows of the
   section's own ```vid-prd-findings block (pass `review`), and the line
   `review: delta, round <r>, <n> findings` (`<r>` the round the review ended on, `<n>` the rows of the section's findings block, every round's; one round and no findings: `round 1, 0 findings`; vid-create-prd, "The findings record"); pre-commit
-  refuses a new append section holding rows without it. Then the append
+  refuses a new append section holding rows without it. Write the rulings as an edits file and apply it with `sh "${CLAUDE_PLUGIN_ROOT}/checks/prd-apply.sh" PRD.md <file>`; never edit the machine blocks by hand or with a script of your own. Then the append
   commit, its placement (above), and §2b.
   Run every helper in the foreground (`run_in_background: false` on the Agent call), wait for its result, and never end a turn, nor schedule a wake-up, while one, or a command you started in the background, is running.
 - BASELINE/ARCHITECTURE changes only if the feature genuinely adds a seam,

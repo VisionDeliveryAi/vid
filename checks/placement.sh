@@ -3,11 +3,14 @@
 # the ```vid-placement block in CLAUDE.md (a line may be an exact filename).
 # Root doc/config files, checks/, tests/ are always allowed. Fails closed.
 # 0.26.10.29.3 (R8, F33): so is .claude/settings.json, the one file under .claude/ init writes, on the owner's yes.
+# FB-1 A1: in ticket mode (RUN-STATE's mode: tickets, inventory.sh's test) it passes before the CLAUDE.md test: ViD's
+# repository holds no app source there, so there is nothing to place.
 # serves: both (0.26.10.28.4, M9)
 set -eu
 IFS='
 '
 
+! grep -q '^mode:[[:space:]]*tickets' .vid/RUN-STATE.md 2>/dev/null || exit 0
 [ -f CLAUDE.md ] || { echo 'ViD placement: CLAUDE.md missing — failing closed.' >&2; exit 1; }
 
 MAP=$(sed -n '/^```vid-placement/,/^```$/p' CLAUDE.md | sed '1d;$d' | sed 's/[[:space:]]*$//' | grep -v '^$' || true)

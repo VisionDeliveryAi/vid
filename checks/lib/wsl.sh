@@ -12,6 +12,14 @@
 #                                       one line saying so and how to change it. Prints nothing anywhere else, and on
 #                                       every later call. Exit 0; 1 when the answer cannot be written.
 #                                       (0.26.11.1.3, R2: it replaces the question, `ask` and `record`, which are cut.)
+#                                       FB-1 D2: once across sessions: before the probe it claims `<answer file>.claim`
+#                                       by an exclusive create (set -C), the answer file untouched, so a court started
+#                                       meanwhile reads no answer, as before. A call that loses the claim exits silently;
+#                                       the winner reads the answer again (another session may have answered since its
+#                                       first read), and with one there removes its claim and exits silently, else
+#                                       probes, writes and prints as above, then removes the claim. A claim older than
+#                                       2 minutes (a call stopped during the probe) is taken over by a rename to a name
+#                                       of the call's own, which one call alone wins, and claimed again.
 #   sourced at the top of a court       (the courts the agents and skills run directly: prd, inventory,
 #                                       design-join, imports, seams, stages) re-runs that court under WSL when the
 #                                       answer is `wsl: yes` (with no file yet, natively): `wsl.exe -e sh <court>
@@ -99,14 +107,25 @@ case ${0##*/} in
         vid_wsl_native_windows || exit 0
         _vw_f=$(vid_wsl_file); [ -z "$(vid_wsl_answer "$_vw_f")" ] || exit 0
         mkdir -p "${_vw_f%/*}" || exit 1
+        # FB-1 D2: the claim, so two sessions in the probe's window print once; an old one is a call stopped mid-probe
+        _vw_cl=$_vw_f.claim
+        # an old claim is taken over by a rename to this call's own name, which one call alone wins; a fresh claim moved by a
+        # call that found it old a moment before is put back, and that call exits
+        if [ -n "$(find "$_vw_cl" -mmin +2 2>/dev/null)" ]; then
+          mv "$_vw_cl" "$_vw_cl.old.$$" 2>/dev/null || exit 0
+          [ -n "$(find "$_vw_cl.old.$$" -mmin +2 2>/dev/null)" ] || { mv "$_vw_cl.old.$$" "$_vw_cl" 2>/dev/null || rm -f "$_vw_cl.old.$$"; exit 0; }
+          rm -f "$_vw_cl.old.$$"
+        fi
+        ( set -C; : > "$_vw_cl" ) 2>/dev/null || exit 0
+        [ -z "$(vid_wsl_answer "$_vw_f")" ] || { rm -f "$_vw_cl"; exit 0; }
         if vid_wsl_available; then
-          printf 'wsl: yes\n' > "$_vw_f" || exit 1
+          printf 'wsl: yes\n' > "$_vw_f" || { rm -f "$_vw_cl"; exit 1; }
           printf 'ViD runs its checks through WSL on this PC, which is much faster. To stop it, change `wsl: yes` to `wsl: no` in `%s`.\n' "$_vw_f"
         else
-          printf 'wsl: no\n# WSL did not start %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$_vw_f" || exit 1
+          printf 'wsl: no\n# WSL did not start %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$_vw_f" || { rm -f "$_vw_cl"; exit 1; }
           printf 'WSL did not start on this PC, so ViD runs its checks natively, more slowly. Once WSL works, delete `%s` and ViD will check again.\n' "$_vw_f"
         fi
-        exit 0 ;;
+        rm -f "$_vw_cl"; exit 0 ;;
       reviewers) # 0.26.10.29.3 (phase 2 R5): the Codex answer, kept and read as the WSL answer is, in .vid/reviewers
         _vw_f=$(vid_wsl_file); _vw_f=${_vw_f%/windows}/reviewers
         _vw_c=no; command -v codex > /dev/null 2>&1 && _vw_c=yes

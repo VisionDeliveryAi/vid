@@ -12,9 +12,11 @@
 #          (queue.sh sync) and `update` when the progress update is due; the alarms; RUN-STATE.md; the save. 0.26.10.29.5 (DP-1 R2): after the
 #          grade asks, `decisions.sh record`, its lines as they are. One line for each thing done and
 #          each thing that waits: `decided`, `merged`, `held <row>`, `question <n>`, `flag <word>`, `nothing-left` (no ticket open and no step
-#          can start) or `idle`, and `progress:`.
+#          can start) or `idle`, and `progress:`. FB-1 B5: in GitHub auto, `retry spec-publish <12>` in place of both while
+#          .vid/tw/spec-owed holds a folder publish left unfinished.
 #   next   renews the lock; nothing if the run is stopped, which a recorded pause is; the export (0.26.10.29.5, DP-1 R2: before the owed asks),
-#          then with layout: one its publish into the code repository's folder (GM-4 K13, github.sh spec-publish);
+#          then with layout: one its publish into the code repository's folder (GM-4 K13, github.sh spec-publish; FB-1 B5: a failed
+#          GitHub call there `failed spec-publish <12>: …`, recorded under no key);
 #          the closes' owed asks; the sync; each line `writer.sh due` owes, in order;
 #          then each step in plan order `plan.sh start` passes, up to the open-ticket limit, published through github.sh tw-publish (GM-4 K1:
 #          the steps every publish takes, the admission first). A save follows each post. `published <n>`; a refusal is
@@ -36,7 +38,8 @@
 #          --ticket <n>, `step-<n>-<c12> <n> <c> <c>` in .vid/decide/merges and its id in merged-prs. An accepted ticket asked again
 #          is answered `ticket: accepted at <its merge's commit12>; its close runs there`, nothing decided again; a closed ticket not
 #          accepted is refused, naming /vid:vid-tickets reopen and withdraw (E6). Lines: `decided #<n> <c12> <the ticket line>`,
-#          `accepted #<n> <c12>`, `refused #<n> <why>`. In GitHub auto it decides the open pull request naming the ticket at its
+#          `accepted #<n> <c12>`, `refused #<n> <why>`; FB-1 C2: after each `decided` line, in step and accept alike, one `weak <row>
+#          <#n or pull request> <head 12> — <the row's text>` line for each row of that decision reading `failing, a weak test`. In GitHub auto it decides the open pull request naming the ticket at its
 #          head, as step does, at the owner's word (`decided <p> <head12> …`)
 # GM-4 E5, in GitHub manual: step, asks and accept run; wait and next (its publishing on its own) refuse at the start (GM-1 S1), in one
 # line naming /vid next, exit 2, writing nothing. step there, by GM M8 (only a ticket is decided, at a commit of main): the asks are
@@ -110,6 +113,10 @@ table() { awk -F'\t' '$3 == "held" { print $1 "\t" $4 "\t" ($8 == "" ? "-" : $8)
   while IFS=$TAB read -r r un t3 l <&3; do case $l in *'a product failure'*) continue ;; esac
     if [ "$un" = 'evidence missing' ] && [ "$t3" = passed ]; then w=accept; c='held, its tests passing, only its evidence missing'; else case $l in *'a weak test'*) w=limit; c='a held weak test' ;; *) continue ;; esac; fi
     dec rule "$r" "$w" --by stand-in > /dev/null 2>&1 && said "$r" "$w" "$c"; done 3< "$L/rows"; }
+# FB-1 C2: weak_ <posted decision> <#n or pull request> <head 12>, right after a `decided` line: one `weak <row> <#n or pull request>
+# <head 12> — <the row's text>` line for each row line of the posted decision reading `failing, a weak test`, so the session runs
+# the lesson (vid-accept-step)
+weak_() { awk -v w="$2" -v h="$3" 'NR > 2 && index($0, "failing, a weak test") { t = substr($0, length($1) + 2); print "weak " $1 " " w " " h " — " t }' "$1" 2>/dev/null || true; }
 # ask <ticket> <pr> <head> ask|re: `ask`, a `vid: decide` newer than its answer, is always answered, unchanged or not; `re`, a re-decide a ruling
 # or an answer started, is posted only when it differs from the decision posted at that head (v0.26.10.28.6, R4)
 ask() { t=$1; p=$2; H=$3; h=$(printf %s "$H" | cut -c1-12); m=${4:-ask}
@@ -120,7 +127,7 @@ ask() { t=$1; p=$2; H=$3; h=$(printf %s "$H" | cut -c1-12); m=${4:-ask}
   b=''; [ ! -f "$D/posted-pr-$p-$h" ] || b=$(cksum < "$D/posted-pr-$p-$h")
   dec decide --ticket "$t" --pr "$p" --head "$H" --post > /dev/null 2> "$L/e" || fail post "$(tail -n 1 "$L/e")"
   a=''; [ ! -f "$D/posted-pr-$p-$h" ] || a=$(cksum < "$D/posted-pr-$p-$h")
-  [ "$m" = ask ] || [ "$a" != "$b" ] || return 0; echo "decided $p $h $(sed -n 2p "$D/posted-pr-$p-$h")"; DID=1; }
+  [ "$m" = ask ] || [ "$a" != "$b" ] || return 0; echo "decided $p $h $(sed -n 2p "$D/posted-pr-$p-$h")"; weak_ "$D/posted-pr-$p-$h" "$p" "$h"; DID=1; }
 # touch_ (R4): what the rulings and answers added since the last step touch, in $L/touch: `row <id>` for a ruling's row and a held row's answer,
 # `on <n>` for a question's issue or pull request, `ticket <n>` for a finding's ticket. `ruled` holds the two files' line counts; an older
 # one-number form that matches their sum reads as nothing new, and any other as everything new. Only the lines there now are read, and
@@ -255,7 +262,11 @@ cmd_step() { FT=''; renew; read_; sig_ > "$L/now"; cmp -s "$L/now" "$L/seen" || 
   manual || [ -z "$u" ] || { echo "$(date +%s) $c" > "$L/ua" || exit 1; put "$D/queue/update-at" < "$L/ua" || exit 1; echo update; }   # GM-4 E5: the call shows its own lines
   alarms; state_; gh_ state-save > /dev/null 2> "$L/e" || fail state-save "$(tail -n 1 "$L/e")"; sig_ | grep -v '^ask ' > "$L/sn" || true; put "$L/seen" < "$L/sn" || exit 1; rm -f .vid/round-errors
   left=''; KR=''; KS=''; for s in $(plan_steps); do started "$s" || refused "start $s" || left=1; done
-  if [ -z "$(open_ | awk -v L=" $(sh "$HERE/grade.sh" lost 2>/dev/null | tr '\n' ' ') " 'index(L, " " $1 " ") == 0')" ] && [ -z "$left" ] && [ -z "$PS" ] && [ -z "$(wr due 2>/dev/null)" ] && [ -z "$(cl owed)$(cl out)" ] && [ -z "$(sh "$HERE/grade.sh" out 2>/dev/null)" ]; then echo nothing-left; elif [ -z "$DID" ]; then echo idle; fi; }
+  # FB-1 B5: in GitHub auto, while .vid/tw/spec-owed holds a folder publish left unfinished (and not refused since), `retry spec-publish
+  # <12>` in place of idle and nothing-left, so /vid run goes on to next, which tries it again
+  SO=''; if ! manual && [ -s .vid/tw/spec-owed ] && [ "$(skey layout)" = one ]; then SO=$(head -n 1 .vid/tw/spec-owed); X12=$(awk '$1 == "export" { v = $2 } END { print substr(v, 1, 12) }' "$LOG" 2>/dev/null); ! refused "spec-publish $X12" || SO=''; fi
+  if [ -n "$SO" ]; then echo "retry spec-publish $SO"
+  elif [ -z "$(open_ | awk -v L=" $(sh "$HERE/grade.sh" lost 2>/dev/null | tr '\n' ' ') " 'index(L, " " $1 " ") == 0')" ] && [ -z "$left" ] && [ -z "$PS" ] && [ -z "$(wr due 2>/dev/null)" ] && [ -z "$(cl owed)$(cl out)" ] && [ -z "$(sh "$HERE/grade.sh" out 2>/dev/null)" ]; then echo nothing-left; elif [ -z "$DID" ]; then echo idle; fi; }
 # 0.26.10.29.2 (R3): the handovers of what is owed are logged before any ticket is written, so their order never matters. GM-4 K1:
 # each owed line goes out by tw-hand's own steps, github.sh tw-act (the write, a fix or reached ticket's warnings, the post), under
 # the round's lock, after its export, sync and read
@@ -278,7 +289,9 @@ asks_() {
   # one line while the code repository has no main); a refusal is the round's one line, retried on change, never a stop of its tickets
   # keyed on the newest export too, so a new export is tried at once and a refused one waits for a change
   if [ "$(skey layout)" = one ]; then X12=$(awk '$1 == "export" { v = $2 } END { print substr(v, 1, 12) }' "$LOG" 2>/dev/null)
-    refused "spec-publish $X12" || gh_ spec-publish > /dev/null 2> "$L/e" || refuse "spec-publish $X12" "$(tail -n 1 "$L/e")"; fi; fi   # the second fi: GitHub auto alone (GM-4 E5)
+    # FB-1 B5: a failed GitHub call (exit 5) is `failed spec-publish <12>: …`, recorded under no key, so the next call tries it again
+    refused "spec-publish $X12" || { spc=0; gh_ spec-publish > /dev/null 2> "$L/e" || spc=$?
+      case $spc in 0) ;; 5) echo "failed spec-publish $X12: $(tail -n 1 "$L/e")" ;; *) refuse "spec-publish $X12" "$(tail -n 1 "$L/e")" ;; esac; }; fi; fi   # the second fi: GitHub auto alone (GM-4 E5)
   cl owed > "$L/ow"; while read -r w s x <&3; do case $w in stage) cl ask --stage "$s" ;; okay) case $s in rehearsal) cl okay --rehearsal "$x" ;; production) cl okay --production "$x" ;; *) cl okay --stage "$x" ;; esac ;; cs) cl ask --cs "$s" ;; cr) cl ask --cr "$s" ;; cp) cl ask --cp "$s" ;; walk) continue ;;
       close-stage) [ -s ".vid/decide/stage/$s/$(ls ".vid/decide/stage/$s" | grep -E '^[0-9]+$' | sort -n | tail -n 1)/summary.md" ] || continue; cl close-stage --stage "$s"; gh_ state-save > /dev/null 2>&1 || true; return 1 ;;   # v0.26.10.26.5 (R1): nothing more in this call
       *) cl ask "$s" ;; esac; gh_ state-save > /dev/null 2> "$L/e" || fail state-save "$(tail -n 1 "$L/e")"; done 3< "$L/ow"; return 0; }
@@ -305,7 +318,7 @@ cmd_accept() { n=${1:-}; n=${n#\#}; c=${2:-}; case $n in ''|*[!0-9]*) echo 'usag
     awk -F'\t' -v n="$n" '$1 == "open" && $3 == n { print $2 "\t" $4 "\t" (($7 + 0 > $8 + 0) ? "ask" : "re"); exit }' "$L/read" > "$L/ap"; [ -s "$L/ap" ] || { echo "refused #$n no open pull request names it"; return 0; }
     IFS=$TAB read -r p H am < "$L/ap"; [ -z "$c" ] || case $H in "$c"*) ;; *) echo "refused #$n $c is not the head of pull request $p, $(printf %s "$H" | cut -c1-12)"; return 0 ;; esac
     # an unanswered ask at the head is always answered; else the decision is posted only when it changed
-    ask "$n" "$p" "$H" "$am"; [ -n "$DID" ] || echo "decided $p $(printf %s "$H" | cut -c1-12) $(sed -n 2p "$D/posted-pr-$p-$(printf %s "$H" | cut -c1-12)")"; return 0; fi
+    ask "$n" "$p" "$H" "$am"; [ -n "$DID" ] || { h=$(printf %s "$H" | cut -c1-12); echo "decided $p $h $(sed -n 2p "$D/posted-pr-$p-$h")"; weak_ "$D/posted-pr-$p-$h" "$p" "$h"; }; return 0; fi
   G() { git --git-dir=.vid/code "$@"; }; G rev-list --first-parent refs/heads/main > "$L/fp" 2>/dev/null || : > "$L/fp"
   tasks_ > "$L/ta"; AQ=$(awk -F'\t' -v n="$n" '$1 == n { print $2 }' "$L/ta")   # the ticket's unanswered ask, when it has one
   # the ask by the 12 characters the call's lines show it by is that ask, its full commit, even one .vid/code lacks
@@ -337,7 +350,7 @@ cmd_accept() { n=${1:-}; n=${n#\#}; c=${2:-}; case $n in ''|*[!0-9]*) echo 'usag
     printf 'step-%s-%s\t%s\t%s\t%s\n' "$n" "$h" "$n" "$C" "$C" >> "$D/merges"; echo "step-$n-$h" >> "$D/merged-prs"; fi
   sh "$HERE/queue.sh" sync > /dev/null 2> "$L/e" || fail queue "$(tail -n 1 "$L/e")"   # K6: a held row a Q line
   gh_ state-save > /dev/null 2> "$L/e" || fail state-save "$(tail -n 1 "$L/e")"
-  [ "$a" = "$b" ] && [ "$C" != "$AQ" ] || echo "decided #$n $h $TL"; [ "$TL" != 'ticket: accepted' ] || echo "accepted #$n $h"; DID=1; }
+  [ "$a" = "$b" ] && [ "$C" != "$AQ" ] || { echo "decided #$n $h $TL"; weak_ "$D/posted-step-$n-$h" "#$n" "$h"; }; [ "$TL" != 'ticket: accepted' ] || echo "accepted #$n $h"; DID=1; }
 CMD=${1:-}
 cmd_read() { [ $# -eq 0 ] || { echo 'usage: sh checks/round.sh read' >&2; exit 2; }; rd_ || { sed 's/^/    /' "$L/e" >&2; echo 'ViD round: the read failed (the lines above) — .vid/round/read is as it was' >&2; exit 1; }; }
 case $CMD in wait) cmd_wait ;; step) cmd_step ;; next) cmd_next ;; asks) cmd_asks ;; accept) shift; cmd_accept "$@" ;; read) shift; cmd_read "$@" ;; *) echo 'usage: sh checks/round.sh wait|step|next|asks|accept <ticket> [<commit>]|read' >&2; exit 2 ;; esac

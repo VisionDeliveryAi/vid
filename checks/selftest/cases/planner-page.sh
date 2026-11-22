@@ -12,7 +12,8 @@
 # too, two sets of one name told apart by folder, a missing one said; the grading checklist and the record DIF-003; the later-phase row ROW-020;
 # the counts, equal to `planner.sh counts`, Inventory + Seams + ViD's rows = Rows on every line, with a ViD row moved
 # too (v0.26.10.12.3.2, R5). No seam shows its module: or match:. An indented stage line is still a stage; with no STAGES.md, one stage shows the PRD's MVP focus.
-# Env: CHECKS.
+# FB-1 C1: the setup shows who works the tickets as GitHub manual's words, and no line offers GitHub team, an old answer of it
+# included. Env: CHECKS.
 set -eu
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 fail() { echo "planner-page: $*" >&2; cat "$T/out" >&2 2>/dev/null; exit 1; }
@@ -81,13 +82,17 @@ flags | grep -q '^- protection INV-002 — ' || fail 'a check flag is not on the
 flags | grep -q '^- finding 1 on RULE-004, not answered: 1: vague$' || fail 'an unanswered finding is not on the page'
 flags | grep -q '^- none$' && fail 'a flagged page says none'
 # v0.26.10.12.3.1 (R4, R9): the setup kept, two teams' lanes and the links between them, R9's prose heading
-fresh; mkdir -p .vid/tw; printf 'layout: separate\nrepo: toy/jd\nspec-repo: toy/jd-spec\nlabels-prefix:\nsplit: fine\ngithub-mode: team\nopen-tickets: 4\naccess: 2026-11-03 ok\n' > .vid/tw/settings
+# FB-1 C1: the mode shown is manual's (team is retired)
+fresh; mkdir -p .vid/tw; printf 'layout: separate\nrepo: toy/jd\nspec-repo: toy/jd-spec\nlabels-prefix:\nsplit: fine\ngithub-mode: manual\nopen-tickets: 4\naccess: 2026-11-03 ok\n' > .vid/tw/settings
 pt_teams 'india | stages 0 and 1 | strict | 3' 'usa | the data pipeline | core | 1'; pt_rs 's/lane: devagent/lane: india-2/'; pt_rs 's/^\(step S05 .*\)lane: india-2/\1lane: usa | fakes: S03/'
 printf '\nProvable only at a later stage: none in stage 1; none in stage 2.\n' >> .vid/RUN-STATE.md; pg
-for l in '- **The spec repository:** toy/jd-spec' '- **Who works the tickets:** an outside team (github-mode: team)' '- **The open-ticket limit:** 4' '- **Access:** 2026-11-03 ok' '- **The step size:** finer steps, technical ones allowed (split: fine)' '| usa | the data pipeline | core | 1 | usa |' \
+for l in '- **The spec repository:** toy/jd-spec' '- **Who works the tickets:** a team of people, by hand, through /vid next (github-mode: manual)' '- **The open-ticket limit:** 4' '- **Access:** 2026-11-03 ok' '- **The step size:** finer steps, technical ones allowed (split: fine)' '| usa | the data pipeline | core | 1 | usa |' \
   'Asked once, at the start of /vid plan, and kept in .vid/tw/settings. Nothing is missing: a later /vid:vid-plan asks nothing.'; do sec 'The setup' | grep -qxF -- "$l" || fail "the setup lacks: $l"; done
 for l in '- **india-2** (india): S01 (2 rows), S02 (11 rows), S03 (12 rows), S04 (7 rows)' '- **india-1** (india): no step' '- **usa** (usa): S05 (1 rows)' '- S05 (usa) → S02 (india), solid' '- S05 (usa) → S03 (india), dashed' \
   '| S05 | synonym-aware search | feature | usa | search | 1 of 60 | 0 | S02 | S03 |' 'Provable only at a later stage: none in stage 1; none in stage 2.'; do sec 'The plan' | grep -qxF -- "$l" || fail "the plan lacks: $l"; done
+# FB-1 C1: an old github-mode: team answer is offered by no line of the page
+sed 's/^github-mode: manual$/github-mode: team/' .vid/tw/settings > "$T/pps" && cat "$T/pps" > .vid/tw/settings; pg
+! sec 'The setup' | grep -qi 'outside team\|github-mode: team' || fail 'the page offers GitHub team, which is retired'
 # an indented stage line (stages.sh takes it) is still a stage
 fresh; sed 's/^STAGE-2 |/ STAGE-2 |/' STAGES.md > S.x && mv S.x STAGES.md; sh "$CHECKS/stages.sh" check > /dev/null 2>&1 || fail 'stages.sh refuses the indented stage line'
 pg; grep -qx '## Stage 2 — Synonym-aware search' "$PG" && grep -q '^### Step S05 ' "$PG" && grep -qF '| ROW-017 | REQ-003 |' "$PG" || fail 'an indented stage line drops stage 2 off the page'

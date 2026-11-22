@@ -37,8 +37,7 @@ published, a ticket closed before its acceptance.
 | `decisions refused pr=<p> <why>`, `decisions refused deploy=<id> <why>` | The hooks refused the dev side's lines, and nothing was written: `sh checks/queue.sh defect <its ticket's step, or the deploy's stage> "<the line>"`, and one plain line to the owner. It is not tried again; the status names it |
 | `held <row>` | Its `Q<n>` line is in RUN-STATE with its recommendation: read it, change it with `sh checks/queue.sh recommend Q<n> <letter> "<why>"` only when the record says otherwise, then tell the owner in one plain message what the row promises, what it needs and the recommendation, and go on. Every other ticket goes on |
 | `split <row>` | Say it once: every engine is now asked |
-
-**A weak test's lesson.** A decision reading `failing, a weak test`: `sh checks/queue.sh lesson <rows, comma-joined> "<the cause, from the decision and the fault>"`, which the next ticket of those rows carries.
+| `weak <rows> <#n or pull request> <head 12> — <the row's text>` | Right after its `decided` line, a weak test's lesson: `sh checks/queue.sh lesson <rows, comma-joined> "<the cause>"`, the cause in plain words from the line and the grade's `breached test` line for the row; the next ticket of those rows carries it |
 
 ## GitHub auto
 

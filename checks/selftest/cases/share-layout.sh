@@ -1,10 +1,10 @@
 #!/bin/sh
 # Purpose: selftest case — the share bundle's layout (0.26.10.28.7, stage 3 R2). A toy project in each mode (local auto; GitHub auto,
-# ticket mode with the owner's recorded answer auto; GitHub team, its answer team and the round's stand-in: switch on), each with a clone at .vid/code, an older clone at
+# ticket mode with the owner's recorded answer auto; GitHub manual (FB-1 C1: the label github-manual, once github-team), its answer manual and the round's stand-in: switch on), each with a clone at .vid/code, an older clone at
 # .vid/code.old-1, .vid/spec.git, a worktree under .vid/worktrees, a clone nested deeper, an earlier export holding a repo.bundle,
 # and round.log and PLAN.md at its root. Convicts unless `share.sh build` writes .vid/shares/<yyyy-mm>-<mode>-<project>/ with
 # records/.vid/ and records/round.log and records/PLAN.md, and none of the clones, object stores, worktrees, the export or any
-# repo.bundle; the summary names the mode; in GitHub team mode the manifest says the DevAgent's side is out of reach. A named
+# repo.bundle; the summary names the mode; in GitHub manual the manifest says the team's side is out of reach. A named
 # logs folder with a planted clone (a folder holding .git), a blind copy, a checkout, a run's c/ and a tree gives logs/ without
 # them, its timeline gzipped and a note kept. With --leave-out conversations no conversations/ is written and the manifest
 # lists it as left out at the user's request; `share.sh pack` makes one archive file holding the bundle. Env: CHECKS.
@@ -24,11 +24,11 @@ toy() {
   printf 'bundle\n' > .vid/exports/e1/repo.bundle; printf 'gitdir: x\n' > .vid/decide/inner/clone/.git; printf 'c\n' > .vid/decide/inner/clone/code.txt
   printf 'a decision\n' > .vid/decide/inner/kept.md; printf 'round\n' > round.log; printf '# plan\n' > PLAN.md
 }
-for m in local-auto github-auto github-team; do
-  # GitHub auto by the owner's recorded answer; GitHub team with the round's stand-in: switch on, which is no mode (the final review)
+for m in local-auto github-auto github-manual; do
+  # GitHub auto by the owner's recorded answer; GitHub manual with the round's stand-in: switch on, which is no mode (the final review)
   u=''; case $m in local-auto) w=''; s='' ;; github-auto) w='mode: tickets
-'; s='setup-answered key=github-mode value="auto" words="ViD'"'"'s own DevAgent" at=2026-11-03T09:00:00Z' ;; github-team) w='mode: tickets
-'; s='setup-answered key=github-mode value="team" words="our developers" at=2026-11-03T09:00:00Z'; u='stand-in: on' ;; esac
+'; s='setup-answered key=github-mode value="auto" words="ViD'"'"'s own DevAgent" at=2026-11-03T09:00:00Z' ;; github-manual) w='mode: tickets
+'; s='setup-answered key=github-mode value="manual" words="our developers, by hand" at=2026-11-03T09:00:00Z'; u='stand-in: on' ;; esac
   toy "$T/Toy Project $m" "$w" "$s" "$u"
   sh checks/share.sh build > "$T/out" 2>&1 || fail "$m: the build failed"
   P=$(echo "toy-project-$m"); R="2026-11-$m-$P"; B=.vid/shares/$R
@@ -37,8 +37,8 @@ for m in local-auto github-auto github-team; do
   for f in records/.vid/RUN-STATE.md records/.vid/decide/inner/kept.md records/round.log records/PLAN.md MANIFEST.json; do [ -f "$B/$f" ] || fail "$m: no $f"; done
   L=$(cd "$B" && find . | grep -E '/code(/|$)|code\.old|spec\.git|worktrees|exports|repo\.bundle|/clone(/|$)|\.git$' || true); [ -z "$L" ] || fail "$m: code or an export in the bundle: $L"
   grep -q '"records/.vid/code"' "$B/MANIFEST.json" && grep -q '"records/.vid/spec.git"' "$B/MANIFEST.json" || fail "$m: the manifest does not list the clone and the object store as left out"
-  if [ $m = github-team ]; then grep -q 'out of reach' "$B/MANIFEST.json" || fail 'team: the manifest does not say the DevAgent side is out of reach'
-  else ! grep -q 'out of reach' "$B/MANIFEST.json" || fail "$m: out of reach said outside team mode"; fi
+  if [ $m = github-manual ]; then grep -q 'out of reach' "$B/MANIFEST.json" || fail "manual: the manifest does not say the team's side is out of reach"
+  else ! grep -q 'out of reach' "$B/MANIFEST.json" || fail "$m: out of reach said outside GitHub manual"; fi
   cd "$T"
 done
 # a named logs folder, with code copies planted

@@ -509,7 +509,7 @@ has run:
   (`design 2026-09-09 P03/expired`); under a PRD headed `grammar: 0.9.4`
   or later each new row carries `feature:`, and a new feature is an
   appended ```vid-prd-features row; under a PRD headed `grammar: 0.9.5` or later every new or AMENDED demand item and invariant also carries `plain:` — one sentence of at most 30 words saying the rule in the owner's words, no ids, every number in it taken from its own statement or fail-if (v0.9.5 3.13). checks/prd.sh judges the effective
-  set at commit B — an amendment that drops its Fail-if fails the commit.
+  set at commit B — an amendment that drops its Fail-if fails the commit. Write the rulings as an edits file and apply it with `sh "${CLAUDE_PLUGIN_ROOT}/checks/prd-apply.sh" PRD.md <file>`; never edit the machine blocks by hand or with a script of your own.
   Inside init, the inventory rows that cite what the append amends are
   found and rewritten by vid-test-inventory §5, "Rows that cite an
   amended item", and read again by the strength pass's next round
@@ -524,7 +524,7 @@ has run:
   holding rows without it) — a design-wins amendment can contradict an item
   outside the marked screens (the consistency pass sees only
   marker-linked rows), and only the affected-set review sees that; its findings are ruled in this ratification sitting, what the repairs and the rulings land read again by the same pass (vid-create-prd, "Reviews converge", in Pass mechanics: every repaired round is read again by the same pass, up to three rounds, and what remains goes to the owner as one list; 0.26.10.29.3 phase 2, R1), the run
-  recording `sh "${CLAUDE_PLUGIN_ROOT}/checks/event.sh" 'tokens slice=0 phase=review n=T'`.
+  recording `sh "${CLAUDE_PLUGIN_ROOT}/checks/event.sh" 'tokens slice=0 phase=review n=T'`. Write the rulings as an edits file and apply it with `sh "${CLAUDE_PLUGIN_ROOT}/checks/prd-apply.sh" PRD.md <file>`; never edit the machine blocks by hand or with a script of your own.
   Run every helper in the foreground (`run_in_background: false` on the Agent call), wait for its result, and never end a turn, nor schedule a wake-up, while one, or a command you started in the background, is running.
   An answer the append adds is `human` only after the owner's yes at this sitting, and commit B quotes the owner's
   words in an `Owner:` trailer (0.26.10.29.3 R2; vid-create-prd, "The owner's words").

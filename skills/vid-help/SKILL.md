@@ -19,7 +19,7 @@ a version from memory.
 
 - **local auto** — ViD builds the whole product itself, on this machine, with no dev team: `/vid:vid-init`, then `/vid:vid-develop`.
 - **GitHub auto** — ViD builds your product through GitHub, with no outside team: each piece of work a ticket and a pull request you can read, nothing merged without ViD's acceptance, ViD's own DevAgent building it, started by you: `/vid:vid-init`, then `/vid:vid-plan` and `/vid:vid-run`, which prints the job note and two ways to start DevAgent: first, in a new Claude Code conversation in its work folder, `/vid:vid-devagent <job note>`, which shows each piece of its work as it ends; or in the background, `sh <plugin>/devagent/dev-manager/dm.sh up <job note>` (devagent/README.md).
-- **GitHub team** — ViD writes GitHub tickets for an outside team's DevAgent, which builds, tests and merges in its own pipeline: `/vid:vid-init`, then `/vid:vid-plan` and `/vid:vid-run`.
+- **GitHub manual** — ViD writes GitHub tickets for a team of people, who build, test and merge them by hand, and you make each of ViD's calls yourself: `/vid:vid-init`, then `/vid:vid-plan`, `/vid:vid-mode manual`, and at each call `/vid:vid-next`.
 
 The two GitHub modes are ticket mode, the mechanism the plan and run rows below name.
 
@@ -62,7 +62,7 @@ Close with the working sequence, one line: init (once; create-prd runs
 inside it, or standalone before it; test-inventory runs inside it, and
 on demand after any PRD append) → design (when the product has a
 face) → develop (stage by stage, when the product is cut into stages) →
-grade → fix → deploy; add re-enters the loop; stage re-cuts. In the GitHub modes, ticket mode: init → stage → plan → run, one long session to the end, while a dev team builds (ViD's own dev side in GitHub auto, an outside team's DevAgent in GitHub team); a "stage" is a slice of the product, "staging" the test site — never the same thing. And the composition rule: grade discovers, the owner adjudicates,
+grade → fix → deploy; add re-enters the loop; stage re-cuts. In the GitHub modes, ticket mode: init → stage → plan → run, one long session to the end, while a dev team builds (ViD's own dev side in GitHub auto); in GitHub manual, a team of people: init → stage → plan → mode manual → next, one call at a time; a "stage" is a slice of the product, "staging" the test site — never the same thing. And the composition rule: grade discovers, the owner adjudicates,
 fix applies — the owner is the pipeline between them.
 
 ## Law for maintainers

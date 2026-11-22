@@ -5,7 +5,7 @@ description: The spec where the team reads it, with one repository (`layout: one
 
 # /vid:vid-spec-publish
 
-One entry, `sh checks/github.sh spec-publish [<export commit>]` (GM-4 K13); its header says what it sends and each refusal. With
+One entry, `sh checks/github.sh spec-publish [--words "<the owner's words>"] [<export commit>]` (GM-4 K13); its header says what it sends and each refusal. With
 `layout: separate` the spec reaches the team by the private spec repository's export alone (`sh checks/github.sh spec-export`):
 the entry refuses, posting nothing, and the command says so. The private spec repository stays in both layouts: it is ViD's
 export, lock and saved records, and every ticket still names the export it rests on.
@@ -16,8 +16,10 @@ export, lock and saved records, and every ticket still names the export it rests
 `vid-spec/<12 hex>`, its pull request and a publish ticket naming it. Nothing outside the folder is sent: an entry that would
 fall outside it is refused, and nothing is posted. It reads and sends no code, and pushes nothing from this machine: the one
 request to GitHub the run's never-push names as its exception. The team merges the pull request; ViD merges nothing. Its record
-is the log line `spec-published pr=<n> export=<12 hex> path=<folder> at=<time>`; an export published already is said so, and
-nothing more is sent.
+is the log line `spec-published pr=<n> export=<12 hex> path=<folder> stamp=<file|-> at=<time> words="<the owner's words>"`, the
+words there only when given; an export published already is said so, and
+nothing more is sent. A newer publish closes each older folder pull request still open, and its publish ticket, each with one
+comment naming the new pull request (a merged one, and its ticket, left as they are), logged `spec-replaced pr=<old> by=<new> …`.
 
 ## The owner's command
 
@@ -30,13 +32,14 @@ nothing; optional in GitHub auto.
    so, and nothing is published.
 2. **The export.** `sh checks/github.sh spec-export`: the commit the team has (GM-4 F8), pushed to the spec repository only when
    something exported changed.
-3. **The publish.** `sh checks/github.sh spec-publish`. Say what it printed: the pull request and the publish ticket, with the
-   owner's words said back as the yes they gave (the `spec-published` log line keeps the export, the folder and the stamp, not the
-   words); the export published already; or the refusal, nothing posted.
+3. **The publish.** `sh checks/github.sh spec-publish --words "<the owner's words>"`, when they gave words. Say what it printed:
+   the pull request and the publish ticket, with the owner's words said back as the yes they gave (the `spec-published` log line
+   keeps them); the export published already; or the refusal, nothing posted.
 
 ## Its other callers
 
-- **/vid run,** GitHub auto: `round.sh next` runs it after its export, and a refusal is its `refused spec-publish …` line, tried again once the export changes. DevAgent
+- **/vid run,** GitHub auto: `round.sh next` runs it after its export, and a refusal is its `refused spec-publish …` line, tried again once the export changes;
+  a failed call to GitHub is its `failed spec-publish <12>: …` line, tried again at the next round (`round.sh step` says `retry spec-publish <12>`). DevAgent
   reads the private spec repository, as before, and merges only what ViD accepted, so the folder's pull request is the owner's to
   merge: one `Q<n>` line names it, gone once the read shows it merged.
 - **The apply,** GitHub manual: `replan.sh apply` runs it after its export, before any ticket is posted: `done spec-publish

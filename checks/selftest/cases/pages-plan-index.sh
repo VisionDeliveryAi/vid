@@ -35,7 +35,8 @@ grep -q '^plan	' .vid/pages/index 2>/dev/null && fail 'the index names a plan pa
 # the two skill sentences
 K=$CHECKS/../skills; [ -d "$K/vid-plan" ] && [ -d "$K/vid-view" ] || { echo 'needs skills/'; exit 77; }
 P=$K/vid-plan/SKILL.md
-[ "$(sed -n '1,261p' "$P" | cksum)" = '3196677686 24289' ] && [ "$(sed -n '267,$p' "$P" | cksum)" = '2320923771 1199' ] || fail "vid-plan changed outside its sentence on the page"
+# FB-1 C1: vid-plan's mode question changed on purpose (team retired), so its sentence moved down two lines and the sums are new
+[ "$(sed -n '1,263p' "$P" | cksum)" = '507042623 24477' ] && [ "$(sed -n '269,$p' "$P" | cksum)" = '1941019487 1658' ] || fail "vid-plan changed outside its sentence on the page"
 sed -n '262,266p' "$P" | tr '\n' ' ' > "$T/s"
 grep -qF 'sh "${CLAUDE_PLUGIN_ROOT}/checks/pages.sh" plan' "$T/s" && grep -qF 'do what its lines say' "$T/s" || fail "vid-plan's sentence does not send the page through pages.sh plan"
 grep -qiE 'publish it|private artifact' "$T/s" && fail 'vid-plan still tells the session to publish by itself'

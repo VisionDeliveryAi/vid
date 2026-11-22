@@ -113,7 +113,7 @@ for w in "$DW" "$TW" "$WD" "$TO"; do case "$w" in *'
 FROM=$(ghmode); RT=''; [ "$FROM" != manual ] || RT=1
 # GM-4 F13: the switch to auto (SWA) and the take-stock in auto read as a re-take: the applied version moves only by the apply
 SWA=''; if [ "$TG" = auto ]; then
-  case $FROM in manual) SWA=1 ;; auto) VID_CALLER=mode-auto; export VID_CALLER ;; *) ref "/vid mode auto switches a project from GitHub manual, and takes stock in GitHub auto; this one is in GitHub $FROM, whose mode is /vid plan's setup" ;; esac
+  case $FROM in manual) SWA=1 ;; auto) VID_CALLER=mode-auto; export VID_CALLER ;; team) ref "/vid mode auto switches a project from GitHub manual; this one is in GitHub team, which is retired: /vid mode manual moves it to GitHub manual first (FB-1 C1)" ;; *) ref "/vid mode auto switches a project from GitHub manual, and takes stock in GitHub auto; this one is in GitHub $FROM, whose mode is /vid plan's setup" ;; esac
   [ -z "$AP$TF$TO$DW$TW" ] || ref '--applied, --from, --take-over, --devagent and --to-place are the switch to GitHub manual'"'"'s; the switch to GitHub auto takes none of them'
   RT=1; fi
 [ -z "$RT" ] || [ -z "$TF$TO" ] || ref '--from and --take-over are the switch'"'"'s (GM-3 S2): on a re-take the applied version moves only by the apply, so a row the tickets quote that the spec lacks is refused'

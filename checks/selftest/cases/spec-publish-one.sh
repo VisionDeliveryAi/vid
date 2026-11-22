@@ -3,7 +3,8 @@
 # GitHub manual (the form fixture's toy) with layout: one, spec-path: upstream/vid and spec-stamp: STAMP, after the export: the call
 # makes, through the git data API alone, a branch whose commit changes nothing outside upstream/vid/ against main, holds there each
 # file of the export as it is and STAMP naming the export commit, then a pull request of that branch and a publish ticket naming it;
-# logged `spec-published pr=<n> export=<12 hex> path=upstream/vid stamp=STAMP at=` (GM-4 K13: the publish names its folder and stamp); called again for the same export, nothing more is posted. A
+# logged `spec-published pr=<n> export=<12 hex> path=upstream/vid stamp=STAMP at=<time> words="<the words>"` (GM-4 K13: the publish names its folder and stamp;
+# FB-1 B6: the owner's words given with --words, last on the line); called again for the same export, nothing more is posted. A
 # ticket written while the round's read shows that pull request open names it, asks for it to be merged first, and quotes the folder.
 # A stamp or folder outside upstream/vid is refused and nothing is posted. GitHub auto with layout: separate (TW's toy): spec-publish
 # is refused, nothing posted, and a ticket quotes the spec repository as today. Env: CHECKS.
@@ -24,9 +25,9 @@ for k in 'spec-stamp: ../STAMP' 'spec-path: upstream/../vid'; do cp .vid/tw/sett
   [ "$RC" = 1 ] && [ ! -s "$FAKEGH/writes" ] || fail "$k: not refused, or something was posted (exit $RC)"; done
 ! grep -q '^spec-published ' .vid/tw/log || fail 'a refused publish was logged'
 # the publish
-gh_wclear; RC=0; sh "$GS" spec-publish > "$T/out" 2>&1 || RC=$?; [ "$RC" = 0 ] || fail "spec-publish exited $RC"
+gh_wclear; RC=0; sh "$GS" spec-publish --words 'Yes, publish the spec' > "$T/out" 2>&1 || RC=$?; [ "$RC" = 0 ] || fail "spec-publish exited $RC"
 L=$(grep '^spec-published ' .vid/tw/log | tail -n 1); P=$(printf '%s\n' "$L" | sed -n 's/^spec-published pr=\([0-9]*\) .*/\1/p')
-printf '%s\n' "$L" | grep -qE "^spec-published pr=$P export=$(printf %.12s "$E") path=upstream/vid stamp=STAMP at=[^ ]+\$" || fail "the log line is not J4's: $L"
+printf '%s\n' "$L" | grep -qE "^spec-published pr=$P export=$(printf %.12s "$E") path=upstream/vid stamp=STAMP at=[^ ]+ words=\"Yes, publish the spec\"\$" || fail "the log line is not J4's, the owner's words last: $L"
 B=$(cat "$FAKEGH/prs/$P/head" 2>/dev/null); [ -n "$B" ] || fail 'no pull request made'; [ "$(cat "$FAKEGH/prs/$P/base")" = main ] || fail 'the pull request is not on main'
 BC=$(git --git-dir="$C" rev-parse "refs/heads/$B") || fail "no branch $B on the code repository"
 [ "$(git --git-dir="$C" rev-parse main)" = "$M0" ] || fail 'main moved: ViD merged or pushed to main'

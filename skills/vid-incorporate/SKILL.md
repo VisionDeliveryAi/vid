@@ -8,8 +8,8 @@ description: Incorporate a decision record or a proposal into a ViD project's sp
 One verb for a record someone already wrote: a decision record (a choice made) or a proposal (a change put forward).
 The owner names it and says what to do with it ("this is a decision, take all of it"; "take the new write path, leave
 the cost part for later"). Nothing else is read: a record the owner did not name is never read or acted on, and the
-skill never goes looking for records. Requires an existing ViD project (CLAUDE.md with a ```vid-placement block),
-else point the owner at /vid:vid-init.
+skill never goes looking for records. Requires an existing ViD project, else point the owner at /vid:vid-init: in develop,
+CLAUDE.md with a ```vid-placement block; in ticket mode, `.vid/RUN-STATE.md` saying `mode: tickets` (no CLAUDE.md is needed).
 
 Every call below is the project's `checks/` copy, run at the top of ViD's repository (the project, in develop). When
 `checks/incorporate.sh` is not there, the project's `checks/` predates this verb: tell the owner it needs the refresh
@@ -20,7 +20,7 @@ Every call below is the project's `checks/` copy, run at the top of ViD's reposi
 - **develop:** `.vid/RUN-STATE.md` does not say `mode: tickets`.
 - **GitHub manual:** `sh "${CLAUDE_PLUGIN_ROOT}/checks/devagent-start.sh" mode` prints `manual`. GM-3 U2: it drafts as GitHub
   auto does (one draft, one yes), so below, where a step names GitHub auto, GitHub manual takes it too.
-- **GitHub auto:** `mode: tickets` otherwise (GitHub team drafts the same way, as `/vid add` does in ticket mode).
+- **GitHub auto:** `mode: tickets` otherwise.
 
 ## 1. The input, the owner's words, the read
 

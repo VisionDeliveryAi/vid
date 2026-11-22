@@ -478,6 +478,8 @@ if [ -f checks/inventory.sh ] || [ -f checks/census.sh ]; then
       for _e in $(git ls-files --others --ignored --exclude-standard --directory 2>/dev/null | grep -E '^[^/]+/?$' || true); do
         _e=${_e%/}; [ -e "$LANEDIR/$_e" ] || ln -s "$PWD/$_e" "$LANEDIR/$_e"
       done
+      # FB-1 A1: .vid, untracked and not ignored, is linked in too, so the lane reads the mode the project is in
+      if [ -d .vid ] && [ ! -e "$LANEDIR/.vid" ]; then ln -s "$PWD/.vid" "$LANEDIR/.vid"; fi
     else
       echo 'ViD pre-commit: rejected — the index could not be copied for the inventory and census lane.' >&2
       BY=index-copy; exit 1

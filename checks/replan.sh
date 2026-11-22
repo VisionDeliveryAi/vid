@@ -83,7 +83,8 @@
 #              tw-hand amend <n>|publish <step> --words "<the words>", its preparation its own: the export at the new applied
 #              version, the sync, the round's read, the handovers): each ticket the proposal's amend names that writer.sh due
 #              owes, amended with the apply as its cause (--cause); GM-4 K13 (J4): with layout: one, before any post, the
-#              export and github.sh spec-publish <that export commit> (which does nothing more when its export, folder and stamp
+#              export and github.sh spec-publish --words <the apply's words> <that export commit> (FB-1 B6: the words on its line; it
+#              does nothing more when its export, folder and stamp
 #              are published already), `done spec-publish <12 hex>`; a refused publish or export is `owed spec-publish …`, exit 3, and holds
 #              every post below (`owed <kind> <subject>: held, …`);
 #              each follow-up the proposal names that due owes (`new step <S>`); each step of its publish; a follow-up due owes that
@@ -461,7 +462,8 @@ apply_() { WD=''; RVF=''; while [ $# -gt 0 ]; do case $1 in --words) [ $# -ge 2 
     if sh "$HERE/github.sh" spec-export > "$T/sx" 2>&1; then SX=$(awk '$1 == "export" { x = $2 } END { print x }' .vid/tw/log 2> /dev/null)
       # GM-4 K13: spec-publish alone judges what is published (its export, folder and stamp), so the apply keeps no check of its own
       if [ -z "$SX" ]; then SPH='the export made no export line'
-      elif sh "$HERE/github.sh" spec-publish "$SX" > "$T/sp" 2>&1; then echo "done spec-publish $(printf %.12s "$SX")"; grep -v '^[[:space:]]*$' "$T/sp" | sed 's/^/    /'
+      # FB-1 B6: the apply's words recorded on the spec-published line
+      elif sh "$HERE/github.sh" spec-publish --words "$WD" "$SX" > "$T/sp" 2>&1; then echo "done spec-publish $(printf %.12s "$SX")"; grep -v '^[[:space:]]*$' "$T/sp" | sed 's/^/    /'
       else SPH="spec-publish $(printf %.12s "$SX"): $(grep -v '^[[:space:]]*$' "$T/sp" | tail -n 1)"; fi
     else SPH="the export: $(grep -v '^[[:space:]]*$' "$T/sx" | tail -n 1)"; fi
     [ -z "$SPH" ] || { RCP=3; echo "owed $SPH"; case $SPH in spec-publish*) ;; *) echo 'owed spec-publish: the export did not go out' ;; esac

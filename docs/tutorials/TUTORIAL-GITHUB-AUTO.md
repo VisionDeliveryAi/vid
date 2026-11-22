@@ -167,7 +167,7 @@ The code repository is <your account>/jobdigest-search, and the spec repository 
 |---|---|
 | Where the code lives and the specs go | Two repositories. The spec repository does not exist yet; ViD makes it, private, at stop 5 |
 | The teams | One team named `devagent` |
-| Who works the tickets | ViD's own DevAgent, which is GitHub auto, or an outside team's, which is GitHub team. Your answer is what makes ViD print the dev side's start at stop 5 |
+| Who works the tickets | ViD's own DevAgent, which is GitHub auto, or an outside team's, which is GitHub manual. Your answer is what makes ViD print the dev side's start at stop 5 |
 | The step size | Steps by journey, the default. The other choice is finer steps |
 
 ViD then checks, read only, what it can reach on GitHub, and tells you what is not ready. It may say that the spec repository cannot be reached. That is expected at this stop.
@@ -619,7 +619,7 @@ live copy: http://127.0.0.1:<a port>
 
 Open it in your browser. The same line ends the stage's line of the status.
 
-**This is where the mode ends today.** The live copy is on your machine. No user can reach it. A deploy to a real host is not part of this mode today: ViD's README says it is done by your own developers' side, in GitHub team mode, or comes in a later release. ViD's deploy command, which the local auto tutorial points to, refuses in a GitHub project and sends you back to the run. So to put JobDigest search in front of visitors now, deploy the `main` branch of your code repository to a host by your own means. The overview's section 8 says more.
+**This is where the mode ends today.** The live copy is on your machine. No user can reach it. A deploy to a real host is not part of this mode today: ViD's README says it is done by your own developers' side, in GitHub manual mode, or comes in a later release. ViD's deploy command, which the local auto tutorial points to, refuses in a GitHub project and sends you back to the run. So to put JobDigest search in front of visitors now, deploy the `main` branch of your code repository to a host by your own means. The overview's section 8 says more.
 
 In the small recorded run: the rehearsal read "no backup yet", the yes followed, the live copy came up at `127.0.0.1:47300`, the run against it was green, and the stage read "in production". One row there needed the host's own backups, which a local copy does not have; it came as a question and was ruled a known limit.
 
@@ -671,7 +671,7 @@ To tidy for good: delete the two repositories on GitHub, and the project folder,
 
 You wrote one paragraph and approved a spec, a plan and a release. Between those, two sides that never spoke to each other built the product through GitHub: every step a ticket, every ticket a pull request, every acceptance a comment that names its evidence row by row. You answered questions by number and ruled on findings. The product runs on your machine.
 
-You have also seen the contract a team would work to. If you later hand the building to developers, the tickets are these tickets; the GitHub team overview and tutorial are written for them.
+You have also seen the contract a team would work to. If you later hand the building to developers, the tickets are these tickets; the GitHub manual overview and tutorial are written for them.
 
 ---
 
@@ -692,7 +692,7 @@ You have also seen the contract a team would work to. If you later hand the buil
 | A ticket sits unclaimed | The dev side was not started, or it stopped | Stop 10: the `list` line says whether the loop is alive. Start it as at stop 7 |
 | ViD says the dev side stopped, or that no dev side has answered | The same | The same |
 | The stop reads `no dev manager could start: …` | The first agent could not be started | The line names the cause. For a model, write the `model:` line it gives. Otherwise read `dm-loop.log` in the work folder |
-| You typed `/vid:vid-deploy` and it refused | In GitHub auto and in GitHub team, deploys go through the run | Answer the run's own questions; stops 12 and 15 |
+| You typed `/vid:vid-deploy` and it refused | In GitHub auto, deploys go through the run; in GitHub manual, through `/vid:vid-next` | Answer the run's own questions; stops 12 and 15 |
 | Many lines of `agents.txt`, in the work folder, end with `time-limit` | Agents are being stopped at `agent-time-limit:` | Raise it in the job note, stop the dev side, and start it again |
 | The session is idle at its prompt | It ended its turn, or everything waits on you | Answer what is open, or `/vid:vid-run` |
 | A question sits unanswered on a ticket | It is a `Q` line in your session | Ask ViD which questions are open. The status gives only their count; ViD's records hold each line with its number. Answer by the number |
@@ -718,7 +718,7 @@ The practice product was chosen to be small. For your own, two habits carry over
 4. **Products that send email or wait for a clock.** The walker has a browser and nothing else. In the small recorded run the first two walks could not finish, because the test site gave no inbox and no way to reach the next day. The third finished only after the people running that run had given the test site both, and had added their addresses to the walker's brief, by hand. ViD's instructions give no way to do either. For such a product, expect the walk to come back "not done" for a reason that `again` alone does not mend, and report it.
 5. **The limits in the job note.** A larger product needs a longer `time-limit:`, or a habit of starting the dev side again when ViD says it stopped.
 
-**And when you have a team:** keep the product side exactly as it is, and let your developers take the tickets. That is GitHub team mode, and it has its own overview and tutorial.
+**And when you have a team:** keep the product side exactly as it is, and let your developers take the tickets. That is GitHub manual mode, and it has its own overview and tutorial.
 
 ---
 

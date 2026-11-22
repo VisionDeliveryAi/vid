@@ -1,7 +1,7 @@
 #!/bin/sh
 # Purpose: selftest case — the README and the help card name real commands and the three modes (0.26.10.28.5, R1). Neither tells the user to "say
 # `vid …`", and neither names a bare `/vid <verb>`: every command is `/vid:vid-<verb>`, and each one so named is a skill the plugin ships, so no
-# command can be named that does not exist. The help card names local auto, GitHub auto and GitHub team, each with what it is for and the verb that
+# command can be named that does not exist. The help card names local auto, GitHub auto and GitHub manual (FB-1 C1: once GitHub team, now retired, named by neither), each with what it is for and the verb that
 # starts it, GitHub auto's dev side's start too; the README names them once; devagent/README.md names no bare verb either. The install check no longer says init runs the self-test. 0.26.11.1.3 (R2): the PC paragraph has no WSL question, and says the check, the record and how to turn it off. Needs skills/ (ViD's layout). Env: CHECKS.
 set -eu
 R=$CHECKS/..; [ -d "$R/skills/vid-help" ] && [ -f "$R/README.md" ] || { echo 'needs skills/ and README.md'; exit 77; }
@@ -28,7 +28,8 @@ bef() { tr '\n' ' ' | awk '{ i = index($0, "/vid:vid-devagent"); j = index($0, "
 D=$R/devagent/README.md; [ ! -f "$D" ] || { bef < "$D" || fail "devagent/README.md does not offer /vid:vid-devagent before dm.sh up"; }
 J=$R/devagent/job-note.example; [ ! -f "$J" ] || { sed -n 1,4p "$J" | bef || fail "job-note.example's head does not offer /vid:vid-devagent before dm.sh up"; }
 grep -A 4 -i '\*\*GitHub auto\*\*' "$M" | grep -qi 'nothing merges without' && grep -A 4 -i '\*\*GitHub auto\*\*' "$M" | grep -q 'DevAgent' || fail 'the README does not say what GitHub auto is for'
-for m in 'local auto' 'GitHub auto' 'GitHub team'; do grep -qi "\*\*$m\*\*" "$H" || fail "the help card does not name $m"
+! grep -qi 'GitHub team' "$H" "$M" || fail 'the help card or the README names GitHub team (FB-1 C1: retired)'
+for m in 'local auto' 'GitHub auto' 'GitHub manual'; do grep -qi "\*\*$m\*\*" "$H" || fail "the help card does not name $m"
   l=$(grep -i "\*\*$m\*\*" "$H" | head -n 1); printf '%s\n' "$l" | grep -qE '/vid:vid-(init|develop|plan|run)' || fail "the help card's $m line names no verb that starts it"
   [ "$(grep -ci "\*\*$m\*\*" "$M")" = 1 ] || fail "the README does not name $m once"; done
 # the install check

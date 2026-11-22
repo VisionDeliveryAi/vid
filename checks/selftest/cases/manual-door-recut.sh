@@ -9,7 +9,9 @@
 # prints `withdrawn #<n>: <why>`, and `next.sh triggers` lists `withdrawn #<n>` while the read shows the issue open, and not
 # once it is closed. And: .vid/plan/ratified and .vid/tw/applied byte for byte as before after the draft and after
 # the landing; the answer row the re-cut appends to PRD.md shows as pending too, `spec PRD.md 4 lines`, before STAGES.md's.
-# Env: CHECKS.
+# FB-1 C3: the candidate's S1 and D1 asks are out too, withdrawn with it; `close.sh owed` before the apply comments on none of the
+# three issues; once the applied commit holds the landing, `close.sh owed` comments on each once and closes it, and a second owed
+# posts nothing more. Env: CHECKS.
 set -eu
 unset CLAUDE_CODE_SESSION_ID VID_CALLER 2>/dev/null || true
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
@@ -23,6 +25,8 @@ mn_switch --applied "$AP" --words 'yes, ratify'; [ "$MN_RC" = 0 ] || { cp "$T/mo
 printf 'stage-closed 0 | stand-in: RM at 000000000000 candidate 1\n' >> .vid/tw/handed
 awk '{ print } /^run:/ { print "stage: 0" }' .vid/RUN-STATE.md > "$T/rs" && cat "$T/rs" > .vid/RUN-STATE.md
 NC=$(gh_issue 'Stage 2, candidate 1'); mkdir -p .vid/decide/stage/2/1; printf 'issue\t%s\n' "$NC" > .vid/decide/stage/2/1/ask; : > .vid/decide/stage/2/1/named
+NS=$(gh_issue 'Stage grade: stage 2, candidate 1'); printf 'issue\t%s\n' "$NS" > .vid/decide/stage/2/1/s1ask   # FB-1 C3: its S1 and D1 asks out too
+ND=$(gh_issue 'Deploy to staging: stage 2, candidate 1'); mkdir -p .vid/decide/stage/2/1/d1; printf 'issue\t%s\n' "$ND" > .vid/decide/stage/2/1/d1/ask
 gh_wclear; H0=$(git rev-parse HEAD); A0=$(cat .vid/tw/applied); cp .vid/plan/ratified "$T/rat0"; cp .vid/tw/applied "$T/app0"
 same() { cmp -s .vid/plan/ratified "$T/rat0" && cmp -s .vid/tw/applied "$T/app0" || fail "$1 changed .vid/plan/ratified or .vid/tw/applied"; }
  sed -n '/^## The plan/,$p' .vid/RUN-STATE.md > "$T/plan0"
@@ -58,11 +62,23 @@ sh "$CHECKS/planner.sh" ratified > "$T/out" 2>&1 || fail 'the re-cut ended the r
 [ -f .vid/decide/stage/2/1/withdrawn ] || fail 'the candidate of the stage the re-cut changed was not withdrawn'
 [ ! -s "$FAKEGH/writes" ] || { cp "$FAKEGH/writes" "$T/out"; fail 'the landing reached the fake GitHub'; }
 grep -q "^$NC${TB}" .vid/next/withdrawn || fail 'the withdrawn ask is not recorded in .vid/next/withdrawn'
+# FB-1 C3: each of the candidate's three asks recorded, ViD's to tell and close once the apply holds the landing; none told before it
+for i in $NC $NS $ND; do grep "^$i${TB}" .vid/next/withdrawn | grep -q 'ViD tells and closes it once the apply holds the landing' || fail "the withdrawn ask #$i is not recorded as ViD's to close after the apply"; done
+! grep -q 'close this issue by hand' .vid/next/withdrawn || fail 'a withdrawn stage ask is still left to the owner to close by hand'
+sh "$CHECKS/close.sh" owed > "$T/out" 2>&1 || fail 'close.sh owed failed before the apply'
+[ ! -s "$FAKEGH/writes" ] || { cp "$FAKEGH/writes" "$T/out"; fail 'close.sh owed reached the fake GitHub before the apply'; }
 sh "$CHECKS/next.sh" read > "$T/out" 2>&1 || fail 'next.sh read failed'
 sh "$CHECKS/next.sh" triggers > "$T/out" 2>&1 || fail 'next.sh triggers failed'
 grep -q "^withdrawn${TB}#$NC${TB}." "$T/out" || fail "triggers does not list withdrawn #$NC while its issue is open"
-gh issue close "$NC" -R owner/code > /dev/null 2>&1 || fail 'the fake could not close the issue'
+# FB-1 C3: the apply brings the landing to the team (the applied commit holds it); the next owed tells and closes each ask, once
+git rev-parse HEAD > .vid/tw/applied
+sh "$CHECKS/close.sh" owed > "$T/out" 2>&1 || fail 'close.sh owed failed after the apply'
+ncm() { ls "$FAKEGH/issues/$1/comments" 2>/dev/null | grep -c . || true; }
+for i in $NC $NS $ND; do [ "$(cat "$FAKEGH/issues/$i/state" 2>/dev/null)" = CLOSED ] || fail "the withdrawn ask #$i is still open after the apply"
+  [ "$(ncm "$i")" = 1 ] && grep -rq '^vid: withdrawn. The landing ' "$FAKEGH/issues/$i/comments" || fail "the withdrawn ask #$i holds $(ncm "$i") comments, not the one withdrawal"; done
 sh "$CHECKS/next.sh" read > "$T/out" 2>&1 || fail 'next.sh read failed after the close'
+sh "$CHECKS/close.sh" owed > "$T/out" 2>&1 || fail 'close.sh owed failed a second time'
+for i in $NC $NS $ND; do [ "$(ncm "$i")" = 1 ] || fail "the withdrawn ask #$i was told twice"; done
 sh "$CHECKS/next.sh" triggers > "$T/out" 2>&1 || fail 'next.sh triggers failed after the close'
 ! grep -q "^withdrawn${TB}#$NC${TB}" "$T/out" || fail "triggers still lists withdrawn #$NC once its issue is closed"
 exit 0

@@ -954,7 +954,7 @@ accordingly.
   withdrawn arm cites); its question goes to the owner at the next
   sitting, and on their yes the answer is restated `human` with the
   owner's own words in the trailer, not the delegation's, is not marked
-  delegated, and the withdrawal then lands. The answer's append goes to PRD.md
+  delegated, and the withdrawal then lands. Write the rulings as an edits file and apply it with `sh "${CLAUDE_PLUGIN_ROOT}/checks/prd-apply.sh" PRD.md <file>`; never edit the machine blocks by hand or with a script of your own. The answer's append goes to PRD.md
   `## Appends` (under a PRD headed `grammar: 0.9.4` or later, a new or
   amended item carries `feature:`; under one headed `grammar: 0.9.5` or later every new or AMENDED demand item and invariant also carries `plain:` — one sentence of at most 30 words saying the rule in the owner's words, no ids, every number in it taken from its own statement or fail-if (v0.9.5 3.13)); spawn
   `${CLAUDE_PLUGIN_ROOT}/skills/vid-create-prd/passes/whole-set-review.md`

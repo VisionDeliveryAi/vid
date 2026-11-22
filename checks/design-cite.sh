@@ -12,6 +12,8 @@
 # uncited marker reports pending — the code is owed to the skeleton — and is
 # no gap; once one exists, today's GAP lines return. --strict (the
 # completion bar) is unchanged.
+# FB-1 A1: in ticket mode (RUN-STATE's mode: tickets, inventory.sh's test) ViD's repository holds no app source: no
+# CLAUDE.md is read and no source prefix scanned, and an uncited marker keeps its pending report.
 # Usage: sh checks/design-cite.sh [--strict]
 # serves: both (0.26.10.28.4, M9)
 set -eu
@@ -53,9 +55,13 @@ if [ -f DESIGN-BRIEF.md ]; then
   done
 fi
 
+TMODE=no; grep -q '^mode:[[:space:]]*tickets' .vid/RUN-STATE.md 2>/dev/null && TMODE=yes
+PREFIXES=''
+if [ "$TMODE" = no ]; then
 [ -f CLAUDE.md ] || { echo 'ViD design-cite: CLAUDE.md missing — failing closed.' >&2; exit 1; }
 PREFIXES=$(sed -n '/^```vid-placement/,/^```$/p' CLAUDE.md | sed '1d;$d' | sed 's/[[:space:]]*$//' | grep -v '^$' || true)
 [ -n "$PREFIXES" ] || { echo 'ViD design-cite: no ```vid-placement block in CLAUDE.md — failing closed.' >&2; exit 1; }
+fi
 
 MTMP=$(mktemp); printf '%s\n' "$MARKERS" > "$MTMP"
 trap 'rm -f "$MTMP"' EXIT
@@ -111,7 +117,7 @@ for tok in $UNRESOLVED; do
     [ -e "$p" ] || continue
     grep -rqF "$tok" --exclude='*.md' "$p" 2>/dev/null && { CITED=yes; break; }
   done
-  if [ "$CITED" = no ] && [ "$STRICT" -eq 0 ] && [ -z "$CEXT" ]; then
+  if [ "$CITED" = no ] && [ "$STRICT" -eq 0 ] && { [ -z "$CEXT" ] || [ "$TMODE" = yes ]; }; then
     echo "PEND marker $tok drawn, cited by nothing yet — the code is owed to the skeleton"
     PENDS=$((PENDS + 1))
   elif [ "$CITED" = no ]; then

@@ -21,7 +21,7 @@
 <rect x="350" y="42" width="300" height="110" rx="3" style="fill:#e2eff4;stroke:#0b5c7a" stroke-width="1"/>
 <text x="362" y="64" text-anchor="start" style="fill:#16202a;font-size:14px;font-weight:600;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">The spec repository (private)</text>
 <text x="362" y="84" text-anchor="start" style="fill:#5a6875;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">The spec your developers read.</text>
-<text x="362" y="104" text-anchor="start" style="fill:#5a6875;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">ViD&#x27;s own records, on a branch.</text>
+<text x="362" y="104" text-anchor="start" style="fill:#5a6875;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">ViD&#x27;s records: a repository of its own.</text>
 <rect x="350" y="164" width="300" height="170" rx="3" style="fill:#e2eff4;stroke:#0b5c7a" stroke-width="1"/>
 <text x="362" y="186" text-anchor="start" style="fill:#16202a;font-size:14px;font-weight:600;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">The code repository (yours)</text>
 <text x="362" y="206" text-anchor="start" style="fill:#5a6875;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">Issues: tickets and run requests.</text>
@@ -33,7 +33,7 @@
 <text x="696" y="64" text-anchor="start" style="fill:#16202a;font-size:14px;font-weight:600;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">Your developers</text>
 <text x="696" y="84" text-anchor="start" style="fill:#5a6875;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">Write tests first; build; test.</text>
 <text x="696" y="104" text-anchor="start" style="fill:#5a6875;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">Grade each other&#x27;s work, fresh.</text>
-<text x="696" y="124" text-anchor="start" style="fill:#5a6875;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">Merge when ViD accepts.</text>
+<text x="696" y="124" text-anchor="start" style="fill:#5a6875;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">Merge to main, then ask ViD.</text>
 <rect x="684" y="164" width="300" height="170" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
 <text x="696" y="186" text-anchor="start" style="fill:#16202a;font-size:14px;font-weight:600;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">Your tools and your tests</text>
 <text x="696" y="206" text-anchor="start" style="fill:#5a6875;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">Any language, any test runner, any</text>

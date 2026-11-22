@@ -380,7 +380,8 @@ triggers_() {
     # line, and the proposal it applied (.vid/next/applied-proposal, its target that line's commit). Owed: a ticket of its amend
     # that writer.sh due still owes an amendment, a follow-up of its followup that due still owes (`new step`), and a step of its
     # publish, each with no amended or published line in .vid/tw/log since that apply's time; GM-4 K13: and the folder's publish the
-    # apply left owed (its proposal's spec-publish), with no spec-published line since
+    # apply left owed (its proposal's spec-publish), with no spec-published line since; FB-1 B6: each line read up to its ` words="`,
+    # so the owner's words never change what it reads
     _al=$(awk -F'\t' '$3 == "apply" { l = $1 "\t" $2 } END { print l }' .vid/tw/applied.log 2> /dev/null || true); _ap=.vid/next/applied-proposal
     if [ -n "$_al" ] && [ -f "$_ap/target" ] && [ "$(head -n 1 "$_ap/target")" = "${_al%%"$TAB"*}" ]; then
       { [ ! -f "$T/due" ] || { sed 's/^/A	/' "$_ap/amend"; sed 's/^/F	/' "$_ap/followup"; } 2> /dev/null | awk -F'\t' -v DUE="$T/due" '
@@ -388,10 +389,13 @@ triggers_() {
           $1 == "A" && (("a", $2) in D) { print "amend\t#" $2 } $1 == "F" && (("s", $2) in D) { print "publish\t" $2 }'
         grep -v '^[[:space:]]*$' "$_ap/publish" 2> /dev/null | sed 's/^/publish	/'
         [ ! -s "$_ap/spec-publish" ] || printf 'spec-publish\tspec-publish\n'; } | sort -u |
-      awk -F'\t' -v L="$LOG" -v AT="${_al#*"$TAB"}" -v A="$(printf %.12s "${_al%%"$TAB"*}")" 'BEGIN { while ((getline l < L) > 0) { n = split(l, w, " "); t = ""; s = ""
+      awk -F'\t' -v L="$LOG" -v AT="${_al#*"$TAB"}" -v A="$(printf %.12s "${_al%%"$TAB"*}")" 'BEGIN { while ((getline l < L) > 0) { p = index(l, " words=\""); if (p) l = substr(l, 1, p - 1); n = split(l, w, " "); t = ""; s = ""
           for (i = 2; i <= n; i++) { if (w[i] ~ /^at=/) t = substr(w[i], 4); if (w[i] ~ /^step=/) s = substr(w[i], 6) } if (t < AT) continue
           if (w[1] == "amended") X["#" w[2]] = 1; if (w[1] == "published" && s != "") X[s] = 1; if (w[1] == "spec-published") X["spec-publish"] = 1 } }
         !($2 in X) { print "AO\t" $1 "\t" $2 "\t" A }' >> "$T/f"; fi
+    # FB-1 B5: and in GitHub manual the folder's publish while .vid/tw/spec-owed stands, from that file alone, whatever the apply's
+    # records say (a publish failed before any apply, after a switch, too): `owed:<export 12>` in place of the apply
+    if [ -n "$MN" ] && [ -f .vid/tw/spec-owed ] && ! grep -q "^AO${TAB}spec-publish${TAB}" "$T/f"; then printf 'AO\tspec-publish\tspec-publish\towed:%s\n' "$(head -n 1 .vid/tw/spec-owed | cut -c1-12)" >> "$T/f"; fi
   else printf 'U\tread\t-\tno read kept (.vid/round/read): run next.sh read\n' >> "$T/f"; fi
   awk -F'\t' -v OFS='\t' -v WR="$HERE/writer.sh" -v MN="$MN" '
     function num(s) { return s ~ /^[0-9]+$/ }
@@ -463,7 +467,7 @@ triggers_() {
       for (i = 1; i <= nc; i++) trig("minor", "record", REC[i], "a record changed since the applied version")
       for (n in IL) if (index(IL[n], "," PX "blocked,")) trig("critical", "blocked", "#" n, "label " PX "blocked")
       # GM-3 U4, U6: a post the newest apply left owed, its cause the apply
-      for (i = 1; i <= nao; i++) { x = AOO[i]; if (x == "spec-publish") { trig("critical", "apply-owed", x, "the apply " AO[x] " left the spec'"'"'s publish into the code repository'"'"'s folder owed: no ticket quoting it goes out before it; /vid:vid-spec-publish publishes it, and each post publishes it first"); continue }
+      for (i = 1; i <= nao; i++) { x = AOO[i]; if (x == "spec-publish") { trig("critical", "apply-owed", x, (AO[x] ~ /^owed:/ ? "a call to GitHub in the folder publish of export " substr(AO[x], 6) " did not finish, which" : "the apply " AO[x]) " left the spec'"'"'s publish into the code repository'"'"'s folder owed: no ticket quoting it goes out before it; /vid:vid-spec-publish publishes it, and each post publishes it first"); continue }
         trig("critical", "apply-owed", x, "the apply " AO[x] " left it owed: its post did not go out; the " (x ~ /^#/ ? "amend" : "publish") " move posts it") }
       for (i = 1; i <= ns; i++) { s = SO[i]; if (SL[s] != "-" && !(SL[s] in LN)) { g = ""; for (x in LN) g = add(g, x); trig("critical", "lane-gone", s, "lane: " SL[s] "; the setup gives " g) } }
       for (i = 1; i <= nch; i++) { split(CH[i], CC, SUBSEP); trig("important", "team-" CC[1], "#" CC[2] " " CC[3], (CC[4] == "-" ? "in no step" : CC[4] == "pending-only" ? "only in the pending spec" : "step " CC[4]) ", evidence " CC[5]) }
@@ -481,19 +485,21 @@ triggers_() {
       if (MN && OWK != "on") print "context", "own-work", "off", "own-work on \"<your words>\": until you name it, step 2 decides, asks and posts nothing"
       for (i = 1; i <= nca; i++) { n = CAO[i]; print "context", "ask", "#" n, CAC[n], "/vid:vid-accept-step " n " " CAC[n] }
       # the moves, each publish with its warnings (N13), the one helper (GM-4 K9)
+      # FB-1 B3: the words asked for on a publish, amend or withdraw move in GitHub manual alone (optional in GitHub auto, K1)
+      NW = MN ? "; needs your words" : ""
       # GM-2 T10: each move named by its kind and its subject, `@` its hash until hashmoves; each warning after its move
       for (i = 1; i <= nt; i++) STK[TS[TO[i]]] = add(STK[TS[TO[i]]], "#" TO[i])
-      for (i = 1; i <= ns; i++) { s = SO[i]; if (s in PS) continue; r = SR[s]; gsub(/ /, ",", r); print "move", "publish", s, "@", "publishes the ticket of " s ", its tests " (r == "" ? "-" : r) ((s in AO) ? "; owed by the apply " AO[s] ", whose post did not go out" : "") "; needs your words"
+      for (i = 1; i <= ns; i++) { s = SO[i]; if (s in PS) continue; r = SR[s]; gsub(/ /, ",", r); print "move", "publish", s, "@", "publishes the ticket of " s ", its tests " (r == "" ? "-" : r) ((s in AO) ? "; owed by the apply " AO[s] ", whose post did not go out" : "") NW
         printf "%s", PWL[s] }   # GM-4 K9 (J2): the lines plan.sh warnings gives
       # the amendments and withdrawals writer.sh due owes, as it gives them (GM-2 T5, T6)
       # an amendment names what it would do, so its hash changes with it: the ticket'"'"'s tests at its last
       # writing and its step'"'"'s tests in the plan now
       for (i = 1; i <= ndu; i++) { split(DU[i], a, " "); if (a[1] != "amend") continue; n = a[2]; o = TR[n]; gsub(/ /, ",", o); w = SR[TS[n]]; gsub(/ /, ",", w)
-        print "move", "amend", "#" n, "@", "amends #" n ", its tests " (o == "" ? "-" : o) " at its last writing, step " TS[n] "'"'"'s tests now " (w == "" ? "-" : w) ", as writer.sh due owes it" ((("#" n) in AO) ? "; owed by the apply " AO["#" n] ", whose post did not go out" : "") "; needs your words" }
+        print "move", "amend", "#" n, "@", "amends #" n ", its tests " (o == "" ? "-" : o) " at its last writing, step " TS[n] "'"'"'s tests now " (w == "" ? "-" : w) ", as writer.sh due owes it" ((("#" n) in AO) ? "; owed by the apply " AO["#" n] ", whose post did not go out" : "") NW }
       # GM-3 U4: a follow-up writer.sh due owes for a step whose tickets are closed, the reset or reached tests
       # of a closed ticket (a follow-up the apply did not post), listed as the publish move of that step
-      for (i = 1; i <= ndu; i++) { split(DU[i], a, " "); if (a[1] == "new" && a[2] == "step" && (a[3] in PS)) print "move", "publish", a[3], "@", "publishes the follow-up of " a[3] ", the reset or reached tests of its closed ticket, as writer.sh due owes it" ((a[3] in AO) ? "; owed by the apply " AO[a[3]] ", whose post did not go out" : "") "; needs your words" }
-      for (i = 1; i <= ndu; i++) { split(DU[i], a, " "); if (a[1] == "withdraw") print "move", "withdraw", "#" a[2], "@", "withdraws #" a[2] ", as writer.sh due owes it (" DU[i] "); needs your words" }
+      for (i = 1; i <= ndu; i++) { split(DU[i], a, " "); if (a[1] == "new" && a[2] == "step" && (a[3] in PS)) print "move", "publish", a[3], "@", "publishes the follow-up of " a[3] ", the reset or reached tests of its closed ticket, as writer.sh due owes it" ((a[3] in AO) ? "; owed by the apply " AO[a[3]] ", whose post did not go out" : "") NW }
+      for (i = 1; i <= ndu; i++) { split(DU[i], a, " "); if (a[1] == "withdraw") print "move", "withdraw", "#" a[2], "@", "withdraws #" a[2] ", as writer.sh due owes it (" DU[i] ")" NW }
       # the team'"'"'s changes (GM-2 T7): a pending-only one is the apply move'"'"'s; a yes to an added test of another step'"'"'s published ticket
       # takes it out of that ticket; the size flag (T6) when one test is more than a fifth of the ticket'"'"'s tests at its last writing; a
       # yes to a dropped test that is its step'"'"'s last withdraws the ticket

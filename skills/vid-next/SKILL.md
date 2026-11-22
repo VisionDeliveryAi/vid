@@ -8,8 +8,8 @@ description: GitHub manual — one call, which the owner makes by hand: connect,
 The call's order, nothing more: every tier, warning, count, check and every move's rule is in a script or a called skill.
 
 0. **The mode.** `sh "${CLAUDE_PLUGIN_ROOT}/checks/devagent-start.sh" mode`, the one mode command (GM-4 F15). Unless it prints
-   `manual`, say in one line that this project is not in GitHub manual and the verb that fits, and end: `auto` or `team`,
-   /vid:vid-run works its tickets; `none`, /vid:vid-plan plans it. Nothing is written.
+   `manual`, say in one line that this project is not in GitHub manual and the verb that fits, and end: `auto`,
+   /vid:vid-run works its tickets; `team`, an old answer of the retired team mode, /vid:vid-mode manual moves it over (FB-1 C1); `none`, /vid:vid-plan plans it. Nothing is written.
 1. **Connect.** Invoke the `vid-connect` skill (the Skill tool) and do its connect, for every caller. Where it ends the call,
    end. Its start opens the call's stage: every move below runs in it.
 2. **ViD's own work by its rules,** behind the owner's switch: `sh "${CLAUDE_PLUGIN_ROOT}/checks/next.sh" own-work`.

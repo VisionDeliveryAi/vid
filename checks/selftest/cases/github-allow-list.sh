@@ -26,12 +26,15 @@ OK="$OK"'|api "repos/\$RR/pulls/\$N"|api "repos/\$RR/pulls/\$N/files"|api "repos
 OK="$OK"'|api user|api "users/\$WHO"|api "orgs/\$SOWN/memberships/\$LOGIN"|api "repos/\$SREPO/collaborators/\$WHO"|api "repos/\$SREPO/invitations"'
 # GM-4 K1: issue reopen, tw-reopen's; GM-4 K13: pr create, spec-publish's alone (its git data calls are api -X), under SPUB, which the file sets empty first
 OK="$OK"'|issue reopen|pr create'
+# FB-1 B1: pr close, spec-publish's alone, for an older folder pull request it replaces, under SPUB as pr create is
+OK="$OK"'|pr close'
 # GM-4 K13: spec-stamp's one read, a GET of the stamp file on the code repository's main, under STAMPREAD, which the file sets empty first
 OK="$OK"'|api "repos/\$REPO/contents/\$SPF\?ref=\$SMN"'
 grep -q "^STAMPREAD=''; SPF=''; SMN=''" "$GS" || fail 'STAMPREAD is not set empty before any call'
 grep -q '"repos/\$REPO/contents/"\*) \[ "\${STAMPREAD:-}" = yes \]' "$GS" || fail "the code repository's contents are not limited to spec-stamp's read"
 grep -q "^REPO=''; SHARE=''; .*SPUB=''" "$GS" || fail 'SPUB is not set empty before any call'
 grep -q "'pr create') \[ \"\${SPUB:-}\" = yes \] || gref" "$GS" || fail 'gh pr create is not limited to spec-publish'
+grep -q "'pr close') \[ \"\${SPUB:-}\" = yes \] || gref" "$GS" || fail 'gh pr close is not limited to spec-publish'
 grep -v '^[[:space:]]*#' "$GS" | grep -oE 'ghc [a-z"-][^ ]* [^ ]*' | sed 's/^ghc //' | awk '{ print $1 " " $2 }' | sort -u > "$T/calls"
 [ -s "$T/calls" ] || fail 'no ghc call found — the case reads nothing'
 while IFS= read -r c; do printf '%s\n' "$c" | grep -qxE "$OK" || fail "a gh call off the list: ghc $c"; done < "$T/calls"

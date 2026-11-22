@@ -379,10 +379,11 @@ cmd_land() { n=${1:-}; shift; WORDS=''; [ "${1:-}" = --words ] && WORDS=${2:-}; 
   # STAGES.md), the answer its law commit cites, STAGES.md's blob
   if recut "$X"; then ns=1; bl=''; if [ -f STAGES.md ]; then ns=$(sed -n '/^```vid-stages/,/^```$/p' STAGES.md | grep -cE '^[[:space:]]*STAGE-[0-9]+[[:space:]]*\|'); bl=" blob=$(git rev-parse "$LR:STAGES.md")"; fi
     ev "stage-cut n=$ns answer=$(answers "$X" | sed 's/,.*//')$bl"; fi
-  # GM-3 U2: in GitHub manual nothing is posted: each withdrawn ask's issue is a line of .vid/next/withdrawn, for the owner's hand
+  # GM-3 U2: in GitHub manual nothing is posted: each withdrawn ask's issue is a line of .vid/next/withdrawn, told and closed
+  # by close.sh's reclose once the apply holds the landing (GM-4 K3 for a step's, FB-1 C3 for a stage candidate's)
   if [ -n "$MAN" ]; then mkdir -p .vid/next; W=$(now)
-    { while read -r s k i; do [ -n "$i" ] || continue; printf '%s\t%s\t%s\tthe landing %s changed rows of %s: its close ask is withdrawn, and asked again once its new tickets merge; close this issue by hand\n' "$i" "$L" "$W" "$L" "$s"; done < "$T/wd"
-      while read -r N c w i; do [ -n "$i" ] || continue; printf '%s\t%s\t%s\tthe landing %s re-cut the stages and changed stage %s: candidate %s'"'"'s %s ask is withdrawn; close this issue by hand\n' "$i" "$L" "$W" "$L" "$N" "$c" "$w"; done < "$T/ws"; } > "$T/wn"
+    { while read -r s k i; do [ -n "$i" ] || continue; printf '%s\t%s\t%s\tthe landing %s changed rows of %s: its close ask is withdrawn, and asked again once its new tickets merge; ViD tells and closes it once the apply holds the landing\n' "$i" "$L" "$W" "$L" "$s"; done < "$T/wd"
+      while read -r N c w i; do [ -n "$i" ] || continue; printf '%s\t%s\t%s\tthe landing %s re-cut the stages and changed stage %s: candidate %s'"'"'s %s ask is withdrawn; ViD tells and closes it once the apply holds the landing\n' "$i" "$L" "$W" "$L" "$N" "$c" "$w"; done < "$T/ws"; } > "$T/wn"
     cat "$T/wn" >> .vid/next/withdrawn || echo "ViD land: .vid/next/withdrawn could not be written: the withdrawn asks are $(cut -f1 "$T/wn" | paste -sd , -)" >&2
     cat "$T/rec" "$T/stm" 2>/dev/null; awk -F'\t' '{ print "withdrawn #" $1 ": " $4 }' "$T/wn"; echo "landed $n at $L: $(sed -n 1p "$X/count")"; return 0; fi
   # 4. last, each withdrawn ask's issue closed on GitHub, with a comment naming the landing
@@ -390,7 +391,7 @@ cmd_land() { n=${1:-}; shift; WORDS=''; [ "${1:-}" = --words ] && WORDS=${2:-}; 
     sh "$HERE/github.sh" comment "$i" --body-file "$T/wc" > /dev/null 2>&1 && sh "$HERE/github.sh" close "$i" > /dev/null 2>&1 && echo "issue $i" >> "$D/close/$s/$k/withdrawn" || echo "ask-open $s $i"; done < "$T/wd"
   # 0.26.10.29.2 (R2): and each ask a re-cut withdrew at a stage's candidate
   while read -r N c w i; do [ -n "$i" ] || continue; printf 'vid: withdrawn. The landing %s re-cut the stages and changed stage %s; its candidate %s is withdrawn, and a new one is named once one is due. A later report for this one is not read.\n' "$L" "$N" "$c" > "$T/wc"
-    sh "$HERE/github.sh" comment "$i" --body-file "$T/wc" > /dev/null 2>&1 && sh "$HERE/github.sh" close "$i" > /dev/null 2>&1 || echo "ask-open stage-$N $i"; done < "$T/ws"
+    sh "$HERE/github.sh" comment "$i" --body-file "$T/wc" > /dev/null 2>&1 && sh "$HERE/github.sh" close "$i" > /dev/null 2>&1 && echo "issue $i" >> "$SD/$N/$c/withdrawn" || echo "ask-open stage-$N $i"; done < "$T/ws"   # FB-1 C3: recorded, so a failed one is close.sh reclose's
   cat "$T/rec" "$T/stm" 2>/dev/null; echo "landed $n at $L: $(sed -n 1p "$X/count")"; }
 
 CMD=${1:-}; [ $# -eq 0 ] || shift

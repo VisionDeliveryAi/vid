@@ -14,7 +14,7 @@
 # build    writes the bundle to .vid/shares/<run>/ and its summary to .vid/shares/<run>.summary, replacing an earlier
 #          bundle of the same run name (ViD's own output; nothing else is touched).
 #   --run <name>          the run's folder name; default <yyyy-mm>-<mode>-<short name>: the month of the run's first
-#                         event, its mode (local-auto, github-auto, github-team) and the project folder's name in
+#                         event, its mode (local-auto, github-auto, github-manual; FB-1 C1) and the project folder's name in
 #                         lowercase letters, digits and hyphens. Letters, digits, '.', '_' and '-' only.
 #   --logs <folder>       a dev-side folder copied to logs/, its clones, blind copies, checkouts and trees left out.
 #   --session <path|id>   a further session: a transcript's exact path, or a session id found as <id>.jsonl in a
@@ -40,7 +40,7 @@
 #   size           <bytes>                             the whole bundle
 #   project        <project's short name>
 #   run            <run name>
-#   mode           local-auto | github-auto | github-team
+#   mode           local-auto | github-auto | github-manual
 #   part           <records|logs|conversations|docs> <file count>   one line a part written; docs are RUN.md,
 #                                                      FINDINGS.md, findings/, MANIFEST.json and MANIFEST.md
 #   redacted       <kind> <count>                      one line a kind found, the kinds as MANIFEST.json names them
@@ -693,7 +693,7 @@ run_md() {
   awk -F'\t' 'FILENAME == ARGV[1] { if ($1 == "session") { E[$2] = 1; printf "| %s | unknown | unknown | %s |\n", $2, $3 } next }
     FILENAME == ARGV[2] { M[$1] = $4; next } !($1 in E) && !($1 in G) { G[$1] = 1; m = M[$2]; printf "| %s | unknown | unknown | %s |\n", $1, (m == "" || m == "-" ? "unknown" : m) }' "$W/runfacts" "$W/st.s" "$W/took" > "$W/who"
   TOK=$(awk -F'\t' '{ a += $5; b += $6; c += $7; o += $8; n++ } END { if (n) printf "input %d, cache read %d, cache write %d, output %d, over %d transcripts here (measured, from conversations/INDEX.md)", a, b, c, o, n }' "$W/tokens")
-  case $MODE in local-auto) MW='local auto (develop)' ;; github-auto) MW='GitHub auto (tickets, ViD'"'"'s DevAgent)' ;; *) MW='GitHub team (tickets)' ;; esac
+  case $MODE in local-auto) MW='local auto (develop)' ;; github-auto) MW='GitHub auto (tickets, ViD'"'"'s DevAgent)' ;; *) MW='GitHub manual (tickets)' ;; esac
   {
     echo "# Run card · $PROJ / $RUN"; echo
     echo '## Project'; echo; echo "- **Name:** $PROJ"; echo "- **Code repository:** ${REPO:-unknown}"; echo "- **Spec repository:** ${SREPO:-unknown}"; echo
@@ -789,11 +789,11 @@ build() {
   [ -z "$LOGS" ] || LOGS=$(cd "$LOGS" && pwd -P)
   findhome; EVF=$H/.vid/metrics-events
   # the mode: ticket mode is GitHub auto when the owner's recorded answer at the plan's setup says so (setup-answered key=github-mode
-  # value="auto" in .vid/plan/setup, as checks/devagent-start.sh reads it), else GitHub team; else local auto. The integration's final
+  # value="auto" in .vid/plan/setup, as checks/devagent-start.sh reads it), else GitHub manual (FB-1 C1); else local auto. The integration's final
   # review: the round's stand-in: switch, answering for an absent person, is no mode and is not read here
   MODE=local-auto
   if grep -q '^mode:[[:space:]]*tickets' "$H/.vid/RUN-STATE.md" 2>/dev/null; then
-    if [ "$(sed -n 's/^setup-answered key=github-mode value="\([a-z]*\)".*/\1/p' "$H/.vid/plan/setup" 2>/dev/null | tail -n 1)" = auto ]; then MODE=github-auto; else MODE=github-team; fi
+    if [ "$(sed -n 's/^setup-answered key=github-mode value="\([a-z]*\)".*/\1/p' "$H/.vid/plan/setup" 2>/dev/null | tail -n 1)" = auto ]; then MODE=github-auto; else MODE=github-manual; fi
   fi
   PROJ=$(basename "$H" | tr 'A-Z' 'a-z' | sed 's/[^a-z0-9]/-/g; s/--*/-/g; s/^-//; s/-$//'); PROJ=${PROJ:-project}
   if [ -z "$RUN" ]; then
@@ -816,7 +816,7 @@ build() {
   # logs/: the folder the user named
   if [ "$NOLOGS" = yes ]; then lo logs/ 'left out at the user'"'"'s request'
   elif [ -n "$LOGS" ]; then walk "$LOGS" logs log logs; src logs/ logs . 'the folder the user named, redacted; logs, timelines and files over 256 KB gzipped; clones, blind copies, checkouts and trees left out'
-  elif [ "$MODE" = github-team ]; then lo logs/ "out of reach: in GitHub team mode the DevAgent's side is on its own machines; this share holds ViD's side alone"
+  elif [ "$MODE" = github-manual ]; then lo logs/ "out of reach: in GitHub manual the team's side is on its own machines; this share holds ViD's side alone"
   else lo logs/ 'no logs folder named'; fi
   # conversations/: the sessions the events name, and the user's
   if [ "$NOCONV" = yes ]; then lo conversations/ 'left out at the user'"'"'s request'

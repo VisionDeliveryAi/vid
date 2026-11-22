@@ -1,13 +1,13 @@
 #!/bin/sh
 # Purpose: selftest case — the dev side's start printed in GitHub auto (v0.26.10.28.8, R3, R4, R10), on TW's toy, from a copy of the plugin
-# whose folder holds a space. The toy's own answer ("the toy"), a `github-mode: auto` written by hand and the owner's GitHub team answer
-# each print nothing; the owner's GitHub auto answer, given through planner.sh setup, prints the job note with the toy's repo: and
+# whose folder holds a space. The toy's own answer ("the toy"), a `github-mode: auto` written by hand and an old GitHub team answer
+# (FB-1 C1: the setup refuses team now; a project may still hold one) each print nothing; the owner's GitHub auto answer, given through planner.sh setup, prints the job note with the toy's repo: and
 # labels-prefix:, a work: outside the toy and outside ViD's records, the three limits (agent-time-limit: at least 7200, with the line on an
 # agent stopped twice), model: as dm.sh's MODEL0; in order (R12) the work folder's mkdir, the note, /vid:vid-devagent '<note>' in a new conversation in the work folder, then the background up line, the plugin's real folder single-quoted;
 # and check, list, used and down the same way; agents: left to /vid:vid-devagent's question, and the closing sentence for each way (0.26.11.1.3, R5). Saved as printed where it says, with the folder step run, dm.sh check reads `ready` on
 # fakes (where the dev side is beside checks/; checks/ alone runs on a stub dm.sh holding MODEL0 and skips that part). Nothing outside
 # .vid/ changes and no folder is made. check flags github-mode before the first ratify, not after. vid-run's read-access line is
-# conditioned on GitHub team, its start paragraph names the call. Env: CHECKS.
+# conditioned on the GitHub mode, its start paragraph names the call. Env: CHECKS.
 set -eu
 T=$(cd "$(mktemp -d)" && pwd -P); trap 'rm -rf "$T"' EXIT
 . "$CHECKS/selftest/fixtures/tw-toy.sh"
@@ -21,12 +21,13 @@ DM="$PL/devagent/dev-manager/dm.sh"; M0=$(sed -n 's/^MODEL0=\([^ ]*\).*/\1/p' "$
 pr() { RC=0; sh "$PL/checks/devagent-start.sh" "$@" > "$T/out" 2>&1 || RC=$?; }
 snap() { find . -path ./.vid -prune -o -type f -print | LC_ALL=C sort | while IFS= read -r f; do cksum "$f"; done; }
 tw_toy "$T/p"; snap > "$T/s0"
-# nothing in GitHub team or with no answer
+# nothing outside GitHub auto, an old team answer among them, or with no answer
 pr; [ "$RC" = 0 ] && [ ! -s "$T/out" ] || fail "the toy's own answer printed ($RC)"
 pr mode; [ "$(cat "$T/out")" = none ] || fail "mode with no answer: $(cat "$T/out")"
 echo 'github-mode: auto' >> .vid/tw/settings; pr; [ ! -s "$T/out" ] || fail 'a github-mode: written by hand printed the start'
-RC=0; sh "$CHECKS/planner.sh" setup github-mode team --words 'our own team works them' > "$T/out" 2>&1 || RC=$?; [ "$RC" = 0 ] || fail "setup github-mode team ($RC)"
-pr; [ ! -s "$T/out" ] || fail 'GitHub team printed the start'; pr mode; [ "$(cat "$T/out")" = team ] || fail "mode after team: $(cat "$T/out")"
+RC=0; sh "$CHECKS/planner.sh" setup github-mode team --words 'our own team works them' > "$T/out" 2>&1 || RC=$?; [ "$RC" != 0 ] || fail 'setup github-mode team was taken (FB-1 C1: it is retired)'
+printf 'setup-answered key=github-mode value="team" words="our own team works them" at=2026-11-03T09:30:00Z\n' >> .vid/plan/setup   # an old project's answer
+pr; [ ! -s "$T/out" ] || fail 'an old GitHub team answer printed the start'; pr mode; [ "$(cat "$T/out")" = team ] || fail "mode after an old team answer: $(cat "$T/out")"
 # GitHub auto
 sh "$CHECKS/planner.sh" setup github-mode auto --words 'your own DevAgent, please' > /dev/null 2>&1 || fail 'setup github-mode auto'
 pr mode; [ "$(cat "$T/out")" = auto ] || fail "mode after auto: $(cat "$T/out")"
@@ -81,7 +82,7 @@ grep -v '^setup-answered key=github-mode ' .vid/plan/setup > "$T/st" || true; ca
 sh "$CHECKS/planner.sh" check > "$T/out" 2>&1 || true; ! grep -q '^setup github-mode' "$T/out" || fail 'a ratified plan is flagged for github-mode'
 cd /; pt_toy "$T/q"; grep -v '^setup-answered key=github-mode ' .vid/plan/setup > "$T/st" || true; cat "$T/st" > .vid/plan/setup
 sh "$CHECKS/planner.sh" check > "$T/out" 2>&1 || true; grep -q "^setup github-mode — no answer of the owner's is recorded" "$T/out" || fail 'github-mode unanswered is not flagged before the first ratify'
-# the run's start (vid-connect's since GM-4 F2 and K10): it names the call; the read-access line only in GitHub team or with no answer (R10)
+# the run's start (vid-connect's since GM-4 F2 and K10): it names the call; the read-access line only outside GitHub auto (R10)
 S=$CHECKS/../skills/vid-connect/SKILL.md
 if [ -f "$S" ]; then
   grep -q 'sh "${CLAUDE_PLUGIN_ROOT}/checks/devagent-start.sh"' "$S" && grep -q 'devagent-start.sh.*as it is' "$S" || fail 'vid-connect does not name the call, or to show its output as it is'

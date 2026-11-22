@@ -9,7 +9,9 @@
 # L3): the ticket's acceptance as its merge (E4's `step-<n>-<c12>` line in merges and merged-prs), its decision's `step-` files and
 # .vid/decide/unit-merges are as they were after the switch, and the next round in GitHub auto reads them (its step lists the accepted
 # ticket not open, GM-4 E2): the step's close owed
-# and asked through `close.sh step` at the acceptance's commit. Then back to manual, the setting written again. Env: CHECKS.
+# and asked through `close.sh step` at the acceptance's commit. FB-1 B3: there `next.sh triggers` lists a publish move whose line does
+# not end "needs your words". Then back to manual, the setting written again, and each publish, amend or withdraw move line ends
+# "needs your words". Env: CHECKS.
 set -eu
 unset VID_CALLER CLAUDE_CODE_SESSION_ID 2>/dev/null || true
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
@@ -65,6 +67,10 @@ gh issue edit "$N1" -R owner/code --add-label vid:ticket > /dev/null 2>&1 || fai
 RC=0; sh "$CHECKS/round.sh" step > "$T/rs" 2>&1 || RC=$?; [ "$RC" = 0 ] || { cp "$T/rs" "$T/mo"; fail "the auto round's step exited $RC"; }
 TO=$(awk -F'\t' '$1 == "issue" && ("," $3 ",") ~ /,vid:(ticket|run|grade|deploy),/' .vid/round/read | grep -c . || true); OP=$(sed -n 's/^progress: .* open=\([0-9]*\) .*/\1/p' "$T/rs")
 grep -q "^issue	$N1	" .vid/round/read && [ "$OP" = $((TO - 1)) ] || { cp "$T/rs" "$T/mo"; fail "the auto round lists the ticket accepted in GitHub manual as open (open=$OP of $TO)"; }
+# FB-1 B3: in GitHub auto no publish, amend or withdraw move line asks for the owner's words
+sh "$CHECKS/next.sh" triggers > "$T/L" 2> "$T/out" || fail 'next.sh triggers failed in GitHub auto'
+grep -q "^move${TB}publish${TB}" "$T/L" || { cp "$T/L" "$T/mo"; fail 'in GitHub auto the triggers list no publish move'; }
+! grep -E "^move${TB}(publish|amend|withdraw)${TB}" "$T/L" | grep -q 'needs your words$' || { cp "$T/L" "$T/mo"; fail 'in GitHub auto a publish, amend or withdraw move line still ends: needs your words'; }
 sh "$CHECKS/github.sh" lock-free > /dev/null 2>&1 || true; unset CLAUDE_CODE_SESSION_ID
 
 sh "$CHECKS/queue.sh" list > "$T/ql" 2> "$T/out" || fail 'queue.sh list failed in GitHub auto'
@@ -79,4 +85,9 @@ grep -q '^owner-questions:' .vid/tw/settings && fail 'the switch to auto left ow
 mn_switch --applied "$(git rev-parse HEAD)" --devagent 'DevAgent is stopped' --words 'yes, manual again'
 [ "$MN_RC" = 0 ] && [ "$(mode_)" = manual ] || fail "the switch back to manual exited $MN_RC"
 grep -qx 'owner-questions: all' .vid/tw/settings || fail 'the switch back to manual did not write owner-questions: all'
+# FB-1 B3: in GitHub manual each publish, amend or withdraw move line asks for the owner's words
+sh "$CHECKS/next.sh" read > "$T/out" 2>&1 || fail 'next.sh read failed in GitHub manual'
+sh "$CHECKS/next.sh" triggers > "$T/L" 2> "$T/out" || fail 'next.sh triggers failed in GitHub manual'
+grep -q "^move${TB}publish${TB}" "$T/L" || { cp "$T/L" "$T/mo"; fail 'in GitHub manual the triggers list no publish move'; }
+! grep -E "^move${TB}(publish|amend|withdraw)${TB}" "$T/L" | grep -qv 'needs your words$' || { cp "$T/L" "$T/mo"; fail 'in GitHub manual a publish, amend or withdraw move line does not end: needs your words'; }
 echo 'mode-both-ways: ok'

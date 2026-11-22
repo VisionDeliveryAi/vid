@@ -90,7 +90,7 @@
 #             split, repo, spec-repo ("not yet" writes no key), spec-path and spec-stamp (GM-4 K13, J4: with layout one, the
 #             code repository's folder the spec is published into, a plain path from its top, read as docs/specs while missing;
 #             the stamp, a file inside it named from it, or none, which writes no key; never flagged unanswered) or github-mode (v0.26.10.28.8, R3: auto, ViD's own DevAgent works
-#             the tickets, or team, an outside team's; GM-1 S1: manual, the owner's team by hand, which, like a change away from
+#             the tickets; FB-1 C1: team is retired and refused, a team of people taking GitHub manual; GM-1 S1: manual, the owner's team by hand, which, like a change away from
 #             manual, only /vid mode's own call sets, VID_CALLER=mode), state-repo (GM-1 S1: owner/name, ViD's own private
 #             repository, never repo: or spec-repo:) or slack-channels (names, comma-separated, or none); GM-2 (§5): issue-form (a path in
 #             ViD's repository, from its top, no .., never one of the spec export's own files), issue-parent (an issue number, or
@@ -602,7 +602,7 @@ setuppage() { L=$(sk layout); R=$(sk repo); S=$(sk spec-repo); X=$(sk split); A=
   # (vid-spec-publish) fills by a pull request; ViD's private spec repository keeps its export, as with two
   if [ "$L" = one ]; then printf -- '- **Where the code lives and the specs go:** one repository: the team reads the specs in its folder %s, which ViD'"'"'s own\n  publish, vid-spec-publish, fills from each export by a pull request for the team to merge; %s.\n- **The code repository:** %s\n- **The spec repository (ViD'"'"'s own export):** %s\n' "$(sk spec-path | grep . || echo 'docs/specs (the default)')" "$(if [ -n "$(sk spec-stamp)" ]; then echo "its stamp file, $(sk spec-stamp), names the export there"; else echo 'no stamp file is set'; fi)" "${R:-not set yet}" "${S:-not set yet}"
   else printf -- '- **Where the code lives and the specs go:** separate repositories, the code and ViD'"'"'s private spec repository%s.\n- **The code repository:** %s\n- **The spec repository:** %s\n' "$([ -n "$L" ] || echo ' (the default)')" "${R:-not set yet}" "${S:-not set yet}"; fi
-  case $(sk github-mode) in auto) G='ViD'"'"'s own DevAgent, which you start (github-mode: auto)' ;; team) G='an outside team (github-mode: team)' ;; manual) G='a team of people, by hand, through /vid next (github-mode: manual)' ;; *) G='not asked yet' ;; esac   # v0.26.10.28.8 (R3); GM-1 S1
+  case $(sk github-mode) in auto) G='ViD'"'"'s own DevAgent, which you start (github-mode: auto)' ;; manual) G='a team of people, by hand, through /vid next (github-mode: manual)' ;; *) G='not asked yet' ;; esac   # v0.26.10.28.8 (R3); GM-1 S1; FB-1 C1: no team
   printf -- '- **Who works the tickets:** %s\n' "$G"
   if manual || [ -n "$(sk state-repo)" ]; then printf -- '- **ViD'"'"'s own state repository:** %s\n- **Slack channels read:** %s\n' "$(sk state-repo | grep . || echo 'not set yet')" "$(sk slack-channels | grep . || echo 'not set yet')"; fi   # GM-1 S1 (§5)   # GM M15
   printf -- '- **The step size:** %s\n- **The open-ticket limit:** %s\n- **Access:** %s\n\n| Team | Area | Strict or core | People | Lanes |\n|---|---|---|---|---|\n' "$X" "${O:-not set}" "${A:-not checked yet}"
@@ -772,7 +772,9 @@ case "$CMD" in
     K=${1:-}; V=${2:-}; [ $# -ge 2 ] && shift 2; OW=''; [ "${1:-}" = --words ] && OW=${2:-}
     [ -n "$K" ] && [ -n "$V" ] && [ -n "$OW" ] || die 'usage — sh checks/planner.sh setup <layout|team|split|repo|spec-repo|spec-path|spec-stamp|state-repo|slack-channels|github-mode|issue-form|issue-parent|plan-page> <the answer, or "not yet" for a repository> --words "<the owner'"'"'s words>"'
     case $K in layout|team|split|repo|spec-repo|spec-path|spec-stamp|state-repo|slack-channels|github-mode|issue-form|issue-parent|plan-page) ;; *) die "setup $K: no setup question has that key" ;; esac
-    case "$K:$V" in layout:separate|layout:one|split:journey|split:fine|team:*|repo:*|spec-repo:*|spec-path:*|spec-stamp:*|github-mode:auto|github-mode:team|github-mode:manual|state-repo:*|slack-channels:*|issue-form:*|issue-parent:*|plan-page:*) ;; *) die "setup $K: $V is no answer to it" ;; esac
+    # FB-1 C1: the old team mode is retired
+    [ "$K:$V" != github-mode:team ] || die "setup github-mode team: GitHub team is retired: a team of people works the tickets in GitHub manual (/vid mode manual); ViD's own DevAgent, in GitHub auto"
+    case "$K:$V" in layout:separate|layout:one|split:journey|split:fine|team:*|repo:*|spec-repo:*|spec-path:*|spec-stamp:*|github-mode:auto|github-mode:manual|state-repo:*|slack-channels:*|issue-form:*|issue-parent:*|plan-page:*) ;; *) die "setup $K: $V is no answer to it" ;; esac
     # GM-1 S1, GM M2: GitHub manual is entered and left only by /vid mode, which marks its own calls (VID_CALLER=mode)
     # GM-4 F13: and /vid mode's switch to auto (VID_CALLER=mode-auto) records github-mode auto last, as the switch to manual does
     if [ "$K" = github-mode ] && case ${VID_CALLER:-} in mode|mode-auto) false ;; *) true ;; esac && { [ "$V" = manual ] || [ "$(ghmode)" = manual ]; }; then

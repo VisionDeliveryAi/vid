@@ -2,7 +2,7 @@
 
 For a product manager, or an engineer with an interest in the product, who will use ViD to get a product built. You do not need to read code. This is the overview: read it once to see how the parts fit. A separate hands-on tutorial takes you through a small practice product step by step.
 
-ViD works in three modes. In *local auto*, ViD's own agents build on your machine, with no GitHub; the finished product is still hosted wherever you choose. In *GitHub auto*, ViD's own agents build through GitHub tickets. In *GitHub team*, your own developers build through GitHub tickets and ViD keeps to the product side. **This document is about local auto.**
+ViD works in three modes. In *local auto*, ViD's own agents build on your machine, with no GitHub; the finished product is still hosted wherever you choose. In *GitHub auto*, ViD's own agents build through GitHub tickets. In *GitHub manual*, your own developers build through GitHub tickets and ViD keeps to the product side. **This document is about local auto.**
 
 **What you will know after reading this:**
 
@@ -372,7 +372,7 @@ ViD writes ten reminders into the project's `README.md`. Four are enforced by th
 |---|---|---|---|
 | **Local auto** | Your machine, for the building. The product itself is hosted where you choose | ViD's own agents | You are alone or a small group, you want a working product from an idea, and nobody else needs to follow the work as it happens |
 | **GitHub auto** | GitHub tickets. Today the product ends as local copies on your machine, not on a host | ViD's own agents | You want the same building done for you, with every piece of work visible as a ticket and a pull request, so that others can follow, review and step in |
-| **GitHub team** | GitHub tickets | Your own developers | You have a team. ViD keeps the spec, writes the tickets and checks what comes back; your people build |
+| **GitHub manual** | GitHub tickets | Your own developers | You have a team. ViD keeps the spec, writes the tickets and checks what comes back; your people build |
 
 The spec is the same in all three: the same requirements, the same inventory, the same stages. What changes is who does the building and where the record of it lives.
 

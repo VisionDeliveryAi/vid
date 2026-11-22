@@ -7,7 +7,9 @@
 # Its C3 passed and its D1 okay out, and a candidate 3 named since with its C3 out, a second re-cut changing stage 2 (stage 3 taken
 # back) withdraws both candidates, candidate 2's okay and candidate 3's C3; the D1
 # report that passes afterwards writes no passed D1 at the withdrawn candidate, so stage 2 is not deployed and a third re-cut is
-# drafted. Env: CHECKS.
+# drafted. FB-1 C3: the first re-cut's close of the C3 ask fails once (a gh before the fake's), its comment posted: the landing
+# prints `ask-open stage-2 <i>`, records `issue <i>` for the S1 ask it closed, and the next `close.sh owed` closes the C3 ask with no
+# second comment and comments the closed S1 ask no more. Env: CHECKS.
 set -eu
 unset CLAUDE_CODE_SESSION_ID 2>/dev/null || true
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
@@ -15,6 +17,8 @@ T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 . "$CHECKS/selftest/fixtures/results-reports.sh"
 fail() { echo "recut-candidate: $*" >&2; cat "$T/out" >&2 2>/dev/null; exit 1; }
 tw_toy "$T/toy"
+# FB-1 C3: `issue close <n>` fails once while $T/failclose names n; every other call is the fake's
+mkdir -p "$T/bin0"; printf '#!/bin/sh\nif [ "$1 $2" = "issue close" ] && [ -f %s ] && [ "$3" = "$(cat %s)" ]; then rm -f %s; echo "gh: the close failed" >&2; exit 1; fi\nexec %s "$@"\n' "'$T/failclose'" "'$T/failclose'" "'$T/failclose'" "'$T/bin/gh'" > "$T/bin0/gh"; chmod +x "$T/bin0/gh"; PATH="$T/bin0:$PATH"; export PATH
 awk '{ print } /^STAGE-2 \| Synonym-aware search/ { print "split: REQ-012 -> STAGE-2" }' STAGES.md > "$T/s" && cp "$T/s" STAGES.md; g add STAGES.md && g commit -qm 'the cut: the support address in stage 2'
 awk '/^step S03 / || /^needs ROW-006 / { gsub(/ ROW-006| ROW-019/, "") } { print }
   /^step S05 / { print "step S06 | name: the support address | modules: web mail | builds-on: S01 | rows: ROW-006 ROW-019 | lane: devagent" } /^needs ROW-017 / { print "needs ROW-006 ROW-019 | -" }' .vid/RUN-STATE.md > "$T/rs" && cat "$T/rs" > .vid/RUN-STATE.md
@@ -41,9 +45,14 @@ recut() { { cat PRD.md; printf '\n### 2026-11-15 (the self-test)\n\n```vid-prd-a
   RC=0; sh "$CHECKS/land.sh" draft --review "$T/rv" --why "/vid stage: $2" > "$T/out" 2>&1 || RC=$?; [ "$RC" = 0 ] || fail "the re-cut was not drafted ($RC)"; n=$(sed -n 's/^draft \([0-9]*\)$/\1/p' "$T/out"); [ "${3:-}" = draft ] && return 0
   RC=0; sh "$CHECKS/land.sh" "$n" --words "Yes, $2" > "$T/out" 2>&1 || RC=$?; [ "$RC" = 0 ] || fail "the re-cut did not land ($RC)"; }
 three() { awk '{ print } /^STAGE-2 \| Synonym-aware search/ { print "STAGE-3 | Synonyms, later | features: -"; print "split: REQ-003 -> STAGE-3" }' STAGES.md > "$T/s" && cp "$T/s" STAGES.md; }
-three; recut 311 'the synonyms wait for a stage 3'
+echo "$I1" > "$T/failclose"; three; recut 311 'the synonyms wait for a stage 3'
 [ -f "$S/2/1/withdrawn" ] || fail "the re-cut left stage 2's candidate standing"; [ -f "$S/2/1/s1withdrawn" ] || fail "the re-cut left the candidate's S1 standing"
-for i in $I1 $I2; do [ "$(st "$i")" = CLOSED ] && grep -rq '^vid: withdrawn' "$T/gh/issues/$i/comments" 2>/dev/null || fail "ask #$i was not withdrawn on GitHub"; done
+grep -qx "ask-open stage-2 $I1" "$T/out" || fail "the landing does not name the C3 ask #$I1 whose close failed"; [ "$(st "$I1")" != CLOSED ] || fail "the C3 ask #$I1 closed though its close failed"
+grep -qx "issue $I2" "$S/2/1/withdrawn" || fail "the landing did not record the S1 ask #$I2 it closed"
+ncm() { ls "$T/gh/issues/$1/comments" 2>/dev/null | grep -c . || true; }
+fetch; cs owed
+for i in $I1 $I2; do [ "$(st "$i")" = CLOSED ] && grep -rq '^vid: withdrawn' "$T/gh/issues/$i/comments" 2>/dev/null || fail "ask #$i was not withdrawn on GitHub"; [ "$(ncm "$i")" = 1 ] || fail "ask #$i holds $(ncm "$i") comments, not one"; done
+grep -qx "issue $I1" "$S/2/1/withdrawn" || fail "close.sh owed did not record the C3 ask #$I1 it closed"
 cs out; no '^out stage-2$'; cs owed; ok '^stage 2$'
 fetch; cs ask --stage 2; [ "$RC" = 0 ] || fail "stage 2's candidate was not named again ($RC)"; ok '^candidate 2 2$'
 # candidate 2: C3 passed, its D1 okay out; a second re-cut takes stage 3 back

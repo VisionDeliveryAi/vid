@@ -2,7 +2,7 @@
 # Purpose: selftest case — the apply publishes the spec into the code repository's folder with one repository (GM-4 K13, J4's
 # core half). On the form fixture's toy (fixtures/form.sh) with `layout: one` and `spec-path: upstream/vid`, S02 posted as #N;
 # ROW-012 reworded (a reset): the apply, its own proposal shown, exports at the new applied version and then calls `github.sh
-# spec-publish <the export commit>` (the newest export line of .vid/tw/log), before any post; its amendment of #N goes out after,
+# spec-publish --words <the apply's words> <the export commit>` (the newest export line of .vid/tw/log; FB-1 B6), before any post; its amendment of #N goes out after,
 # through tw-hand. Then ROW-013 reworded and the spec-publish refused: the apply exits 3, saying the publish is owed, and holds
 # every post (`owed amend #<N>: held …`), asking tw-hand nothing, its records standing; the next call shows the owed publish as a
 # critical line of its own (`apply-owed spec-publish`, naming the apply and the export), beside #<N>'s. (With two repositories the apply calls no
@@ -33,7 +33,7 @@ RC=0; sh "$T/ck/replan.sh" apply --review "$T/none" --words 'Yes, apply the rewo
 RC=0; sh "$T/ck/replan.sh" apply --review "$T/none" --words 'Yes, apply the reworded row' > "$T/out" 2>&1 || RC=$?
 [ "$RC" = 0 ] || fail "the apply exited $RC"
 X=$(awk '$1 == "export" { x = $2 } END { print x }' .vid/tw/log); [ -n "$X" ] || fail 'the apply made no export'
-[ "$(sed -n 1p "$SHIM_LOG")" = "spec-publish|$X|" ] || { cp "$SHIM_LOG" "$T/out"; fail "the apply's first call to GitHub's posts is not spec-publish $X, the export it made"; }
+[ "$(sed -n 1p "$SHIM_LOG")" = "spec-publish|--words|Yes, apply the reworded row|$X|" ] || { cp "$SHIM_LOG" "$T/out"; fail "the apply's first call to GitHub's posts is not spec-publish $X, the export it made, with the apply's words"; }
 sed -n 2p "$SHIM_LOG" | grep -q "^tw-hand|amend|$N|--words|Yes, apply the reworded row|" || { cp "$SHIM_LOG" "$T/out"; fail "#$N's amendment did not follow the publish through tw-hand"; }
 [ "$(grep -c '^spec-publish|' "$SHIM_LOG")" = 1 ] || { cp "$SHIM_LOG" "$T/out"; fail 'the apply published the spec more than once'; }
 # the publish refused: every post held, owed

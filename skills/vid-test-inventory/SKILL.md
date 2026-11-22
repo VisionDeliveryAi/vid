@@ -810,7 +810,7 @@ pass (vid-create-prd, "Reviews converge", in Pass mechanics: every repaired roun
 (`slice=0` before develop's first slice). No
 append, no review: the review's record goes in the append itself before
 the commit — its findings, ruled, as rows of the section's own ```vid-prd-findings block (pass `review`), and the line `review: delta, round <r>, <n> findings` (`<r>` the round the review ended on, `<n>` the rows of the section's findings block, every round's; one round and no findings: `round 1, 0 findings`; vid-create-prd, "The findings record"); pre-commit refuses a new append section holding rows
-without it (0.26.10.29.3 R3). In init mode, consolidation follows this sitting and
+without it (0.26.10.29.3 R3). Write the rulings as an edits file and apply it with `sh "${CLAUDE_PLUGIN_ROOT}/checks/prd-apply.sh" PRD.md <file>`; never edit the machine blocks by hand or with a script of your own. In init mode, consolidation follows this sitting and
 precedes the initial commit (§7): the scheduled event of vid-create-prd's
 "Consolidation" — 7a `sh checks/prd-consolidate.sh`, 7b's review, one
 row-set-diff sitting, two commits.

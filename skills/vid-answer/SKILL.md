@@ -35,6 +35,7 @@ owner's words, and is acted on at once:
 
 - a held row: `a` accept, `b <N>` more rounds, `c` a known limit, `d` amend. The recommendation's rule: tests passing with only the evidence missing, (a); a weak test whose break the corrected test still misses, (c); a product failure or a row passing at its head, (b) with 1 more round. Amend prints a `door:` line: the change goes through `/vid fix`'s door (above);
 - a question: the owner's words, posted as the `RM:` answer, or `there "<words>"` when the owner answered it on GitHub;
+- ViD's own question (FB-1 B2, `own:<id>`, "ViD's question: …"): the owner's words, posted nowhere; it prints a `door:` line, and the draft is made with that answer through the door;
 - findings: `<finding> fix|row|known|no`, one by one; `known` reaches every later ticket, and `fix` and `row` print a `door:` line: SP drafts the new row the finding needs, whose ticket's red shows the defect;
 - a close: `again` or `limit`; for a row red again after its fix, `again` is another fix ticket;
 - a draft (v0.26.10.25.5): `yes "<their words>"` lands it, `no` declines it;

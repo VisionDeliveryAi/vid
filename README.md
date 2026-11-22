@@ -54,9 +54,9 @@ verb is a slash command of the plugin, `/vid:vid-<verb>`: type `/vid` to see the
   shows each piece of DevAgent's work as it ends; or in the background, `sh <plugin>/devagent/dev-manager/dm.sh up <job note>`
   (devagent/README.md says more).
   Where its deploys end, today: DevAgent deploys staging, the rehearsal and production only as local copies on its own
-  machine. A deploy to a real host is done by your own DevAgent, in GitHub team, or comes in a later release.
-- **GitHub team** — ViD writes GitHub tickets for an outside team's DevAgent, which builds, tests and merges in its own pipeline:
-  `/vid:vid-init`, then `/vid:vid-plan` and `/vid:vid-run`.
+  machine. A deploy to a real host is done by your own team, in GitHub manual, or comes in a later release.
+- **GitHub manual** — ViD writes GitHub tickets for a team of people, who build, test and merge them by hand, and you make each
+  of ViD's calls yourself: `/vid:vid-init`, then `/vid:vid-plan`, `/vid:vid-mode manual`, and at each call `/vid:vid-next`.
 
 The two GitHub modes are what the verbs below call ticket mode.
 
@@ -95,7 +95,7 @@ The three commands in the Install section above.
 An install is checked the way ViD checks anything: the judges prove they
 convict, and one real init completes. Three steps, in order:
 
-1. **Version.** Type `/vid:vid-help`. It shows the installed version, which must be **0.26.11.1.5**.
+1. **Version.** Type `/vid:vid-help`. It shows the installed version, which must be **0.26.11.1.6**.
 2. **Court self-test.** Ask Claude: *"Run ViD's court self-test suite —
    `checks/selftest/run.sh` under the installed plugin root — and report
    the verdict line."* Expected: every case that ran convicts, `selftest:

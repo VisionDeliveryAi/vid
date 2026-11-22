@@ -61,9 +61,11 @@ spec). `sh checks/planner.sh` judges it all (its header names each subcommand).
      letters and digits, starting with a letter; *strict* when the team does only its area, *core* when the area is
      its main one but it may help elsewhere. The default is offered, `devagent | the whole product | core | 1`, and
      recorded like any answer once the owner takes it. A team of one person has one lane, its name; a team of *n* has the lanes `<name>-1` … `<name>-<n>`.
-   - **Who works the tickets** (v0.26.10.28.8, R3). `github-mode: auto` (ViD's own DevAgent, which the owner starts on
-     their machine: GitHub auto) or `github-mode: team` (an outside team's DevAgent: GitHub team). No default is
-     offered: only the owner's answer counts. Both write `mode: tickets`; this key alone tells them apart.
+   - **Who works the tickets** (v0.26.10.28.8, R3; FB-1 C1). `github-mode: auto` (ViD's own DevAgent, which the owner
+     starts on their machine: GitHub auto) is the one answer this question records. For a team of people, who work the
+     tickets by hand (GitHub manual), leave the key unanswered and write the plan and its page as always: GitHub manual is
+     entered only through `/vid mode manual`, whose call is the ratification ("The owner's words", below). No default is
+     offered: only the owner's answer counts.
    - **The step size.** `split: journey` (the default: steps by journey, as now) or `split: fine` (finer steps,
      technical ones allowed, by passes/split.md).
    - **The open-ticket limit.** No question: when `open-tickets:` is absent, write `open-tickets: <the number of
@@ -277,6 +279,11 @@ owner says yes to a page whose flags say none:
    the go the ticket writer reads before it publishes.
 3. Commit the change to INVENTORY.md's `origin: plan` rows alone, its
    message citing the ratification and the owner's words; then PLAN.md alone.
+
+For a team of people (FB-1 C1: `github-mode` left unanswered, so `check` flags it and `ratify` refuses), steps 1 and 2 are
+the switch's: make step 3's commits, then on the owner's yes run `/vid mode manual --applied <the plan's commit> --words
+"<the owner's yes>"`. It reads the plan block and PLAN.md it finds, takes that commit as the applied version, asks GitHub
+manual's setup (`state-repo` among it), ratifies in the owner's words and records the mode.
 
 A "no" or a change: change the rows or the plan (through `plan.sh change`, `--trigger initial`), then check, review
 and page again. After the ratification, `planner.sh ratified` holds through recorded plan changes.

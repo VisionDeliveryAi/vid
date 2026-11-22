@@ -248,7 +248,7 @@ Fill every template; no placeholder survives. Specifics that matter:
   amendment). Init adds nothing to the base and
   edits nothing above `## Appends`; a product decision init makes later
   (a design read-back, a lifecycle ruling at ratification 3) lands as a
-  typed row append in the fix/add grammar.
+  typed row append in the fix/add grammar. Write the rulings as an edits file and apply it with `sh "${CLAUDE_PLUGIN_ROOT}/checks/prd-apply.sh" PRD.md <file>`; never edit the machine blocks by hand or with a script of your own.
 - **BASELINE.md** — stack table where FORBIDDEN alternatives are NAMED (the
   plausible things a future session might reach for instead: the competing
   framework, ORM, database — not vague categories). Tier-0 rows matching

@@ -53,7 +53,7 @@ Run `round.sh wait` and `round.sh step` yourself, in the foreground, in this tur
 | `idle` | Back to 1 |
 
 3. **Re-plan** after a step that printed something new: Invoke the `vid-triggers` skill and say its lines (GM-4 K9). A line that calls for a re-plan, its or the round's, is the `vid-replan` skill's GitHub auto paragraph: the run manager's own re-plan, `plan.sh change`, by the rules every change is made by, read where they stand.
-4. `sh checks/round.sh next`, when a step reported something new, `main-changed` among it, or the plan changed: the vid-tickets skill's round, which publishes what the plan now lets go out; say each line it prints as that skill says. The owner's own `/vid:vid-tickets` call in this conversation borrows the run's lock and leaves it held, as that skill says.
+4. `sh checks/round.sh next`, when a step reported something new, `main-changed` or `retry spec-publish <12>` among it, or the plan changed: the vid-tickets skill's round, which publishes what the plan now lets go out; say each line it prints as that skill says. The owner's own `/vid:vid-tickets` call in this conversation borrows the run's lock and leaves it held, as that skill says.
 
 **After any owner message** (v0.26.10.26.7, R3), act on it, say in one line what you did, then go on at 2. Asking the owner never ends your turn. Only the stops below end it. When everything left waits on the owner, the hold's Q line included, that is the waiting stop: write `run: waiting`, save, free the lock, and end. The owner's answer, a bare "continue" too, then starts the run again. The same holds when the vid-fix or vid-add skill's ticket-mode branch hands back: back to the loop at 2.
 

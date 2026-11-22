@@ -70,6 +70,8 @@
 # exists, a missing one is refused as before.
 # v0.26.10.25.5.1: a rule row owed `spec-only — ticket` (a ticket-mode row, the planner's, its census in words for the dev side)
 # reports pending and is never run: in ticket mode the dev side counts its places (V2 §3.2).
+# FB-1 A1: in ticket mode (RUN-STATE's mode: tickets, inventory.sh's test) every rule row takes that pending line, whatever its
+# test field says: ViD's repository holds no code in either GitHub mode, so no rule row's census is ever run there.
 # Usage: sh checks/census.sh [--report]   (--report always exits 0) | --measure <fixture dir>   (v0.9.8, advisory)
 # serves: both (0.26.10.28.4, M9)
 set -eu
@@ -78,6 +80,7 @@ IFS='
 
 MODE=default
 [ "${1:-}" = "--report" ] && MODE=report
+TMODE=no; grep -q '^mode:[[:space:]]*tickets' .vid/RUN-STATE.md 2>/dev/null && TMODE=yes
 
 # v0.9.8 (3.6, R11): the weak-test checks measured — `--measure <fixture dir>` runs this project's vacuity and strength
 # extractors (checks/extractors/vacuity.*.sh, strength.*.sh) with the fixture dir as their working directory — a
@@ -326,7 +329,7 @@ while IFS="$US" read -r id cmd test stmt <&3; do
   debt=active; case "$test" in owed*|OWED*) debt=owed ;; esac
   # v0.26.10.25.5.1: a ticket-mode rule row (`owed: spec-only — ticket`, the planner's) names its places in words for the dev side,
   # which counts them and reports `covers:` (V2 §3.2): ViD's repository holds no code, so its census is never run and never fails
-  case "$test" in 'owed: spec-only — ticket'*) echo "PEND  $id  a ticket-mode rule row: its places are counted by the dev side, never run here"; TPEND=$((TPEND + 1)); continue ;; esac
+  case "$TMODE:$test" in yes:*|no:'owed: spec-only — ticket'*) echo "PEND  $id  a ticket-mode rule row: its places are counted by the dev side, never run here"; TPEND=$((TPEND + 1)); continue ;; esac
   if [ -z "$cmd" ]; then
     echo "FAIL  $id  rule row has no census command — a rule without a denominator is a hand-list." >&2
     FAILS=$((FAILS + 1)); continue

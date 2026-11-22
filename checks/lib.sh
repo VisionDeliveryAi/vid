@@ -13,7 +13,7 @@ put() { _p=$(dirname "$1")/.put.$$.$(basename "$1"); cat > "$_p" && mvr "$_p" "$
 skey() { sed -n "s/^$1:[[:space:]]*//p" .vid/tw/settings 2>/dev/null | head -n 1 | sed 's/[[:space:]]*$//'; }
 twkey() { skey "$1"; }
 # ghmode (GitHub manual, GM-1 S1): the GitHub mode, the owner's newest `setup-answered key=github-mode` line of .vid/plan/setup:
-# auto, team or manual; none with no answer (a `github-mode:` line written by hand is no answer). manual: in GitHub manual, or in
+# auto, team (FB-1 C1: retired, an old project's answer, which connect.sh start refuses) or manual; none with no answer (a `github-mode:` line written by hand is no answer). manual: in GitHub manual, or in
 # a call /vid mode marks as its own switch to or re-take of GitHub manual (VID_CALLER=mode), which reads under manual's rules
 # before the mode is recorded; never in /vid mode's switch to GitHub auto (GM-4 F13, VID_CALLER=mode-auto), which reads under
 # auto's rules before the mode is recorded. Every script asks these, never the setup or the caller mark itself (GM-4 F10)

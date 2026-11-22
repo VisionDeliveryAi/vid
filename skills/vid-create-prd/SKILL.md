@@ -608,7 +608,7 @@ staying ViD's, labelled `shown: pause-1 <sum>`; and the thesis
 ratified. **The sitting's contract rulings are attributed:** the strikes
 and the case-by-case in/out rulings land as one ledger answer (`human`),
 so ten struck dimensions are an owner decision the record can point to,
-not a comment's claim. Write the sitting's findings rows with their
+not a comment's claim. Write the rulings as an edits file and apply it with `sh "${CLAUDE_PLUGIN_ROOT}/checks/prd-apply.sh" PRD.md <file>`; never edit the machine blocks by hand or with a script of your own. Write the sitting's findings rows with their
 dispositions into `## Findings`, the labels, re-run `--pause` green,
 write the Ratifications line, commit — staging `.gitattributes` with
 PRD.md when the file is present (0.26.10.28.1: vid-init writes its line-ending
@@ -801,7 +801,7 @@ its carrier is rewritten `RESOLVED: (OQ-n) A-NNN — …`, and each item
 citing the decision stays provisional while any decision it cites is
 still ViD's, then is amended `authoritative`. A ViD decision the owner
 changes becomes the owner's (restated `human`); one the owner lets stand
-stays ViD's, labelled `shown:`. Labels, `--pause` green, Ratifications
+stays ViD's, labelled `shown:`. Write the rulings as an edits file and apply it with `sh "${CLAUDE_PLUGIN_ROOT}/checks/prd-apply.sh" PRD.md <file>`; never edit the machine blocks by hand or with a script of your own. Labels, `--pause` green, Ratifications
 line, commit.
 
 ### 9. Augment — answers become coverage, additively
@@ -864,7 +864,7 @@ rules:
 > finding appears in the plan.
 
 The plan also carries the wording lens's rewordings (§9b) as edits of
-the same kind. **Every repair edit touching a fail-if carries the
+the same kind. Write the rulings as an edits file and apply it with `sh "${CLAUDE_PLUGIN_ROOT}/checks/prd-apply.sh" PRD.md <file>`; never edit the machine blocks by hand or with a script of your own. **Every repair edit touching a fail-if carries the
 `arms:` line beside the edit** (v0.9.1 3.5b, 3.10 10d): one entry per
 arm of the clause it replaces — `retained · strengthened · moved <id> ·
 withdrawn <A-NNN>` — so the diff shows what each acceptance arm became.
@@ -906,7 +906,7 @@ rulings is a repair: before the commit the same loop reads what they
 changed (§ "Reviews converge"), and only new product decisions and what it
 could not close come back, in the same one list. The court must pass —
 and it holds this mechanically: a blocking finding row without a
-resolving disposition refuses the commit. Write the
+resolving disposition refuses the commit. Write the rulings as an edits file and apply it with `sh "${CLAUDE_PLUGIN_ROOT}/checks/prd-apply.sh" PRD.md <file>`; never edit the machine blocks by hand or with a script of your own. Write the
 final Ratifications line and commit, then
 `sh "${CLAUDE_PLUGIN_ROOT}/checks/face.sh" end pause-3`. A commit cannot contain its own
 sha: each pause's Ratifications line is written immediately after its
@@ -1137,7 +1137,7 @@ reader"). Its record (0.26.10.29.3 phase 2, R2, R6): every round's
 findings, and both readers', ruled, as rows under a dated `## Findings`
 sub-heading of their own (`### <date> — consolidation review`) with the line `review: whole, round <r>, <n>
 findings`; its append holds no rows and carries `review: whole, round
-<r>, 0 findings, see <that heading>`. Record `sh "${CLAUDE_PLUGIN_ROOT}/checks/event.sh" 'tokens slice=N
+<r>, 0 findings, see <that heading>`. Write the rulings as an edits file and apply it with `sh "${CLAUDE_PLUGIN_ROOT}/checks/prd-apply.sh" PRD.md <file>`; never edit the machine blocks by hand or with a script of your own. Record `sh "${CLAUDE_PLUGIN_ROOT}/checks/event.sh" 'tokens slice=N
 phase=review n=T'` (in a ViD project only, as the stage events).
 
 **The sitting.** The owner ratifies 7a and 7b as two commits after one

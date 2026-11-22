@@ -5,7 +5,7 @@ description: Send one run's logs to someone you choose, without making them publ
 
 # /vid:vid-share
 
-One run, one share, each time the user asks (0.26.10.28.7). It works in every mode — local auto, GitHub auto and GitHub team —
+One run, one share, each time the user asks (0.26.10.28.7). It works in every mode — local auto, GitHub auto and GitHub manual —
 from the project's home (`.vid/home`, when this session's checkout is a builder's worktree). It changes nothing of the
 project but its own folder, `.vid/shares/`. It never starts a run, and it writes, reads and runs no DevAgent code.
 
@@ -18,7 +18,7 @@ first. Never call `gh` yourself, never ask for, print or store a token, and neve
 Ask, one at a time, never in one message, taking a plain default when the user does not care:
 
 - **The run's name**, `<yyyy-mm>-<mode>-<short-name>`, the short name from the project; the user can change it.
-- **A logs folder**, if any: in GitHub auto, the dev side's work folder. In GitHub team, the DevAgent's side is out of reach,
+- **A logs folder**, if any: in GitHub auto, the dev side's work folder. In GitHub manual, the team's side is out of reach,
   and the bundle says so.
 - **Further sessions**, by their exact path or id, such as the dev side's own: ViD's events name only the sessions of this home.
 - **Words to redact** beyond the built-in kinds: written to a file the build reads, never on a command line.

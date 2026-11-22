@@ -24,7 +24,11 @@ F="$CHECKS/../skills/vid-create-prd/SKILL.md"
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 fail() { echo "face-r4-skill: $*" >&2; exit 1; }
 awk '/^\*\*The face \(0\.26\.10\.29\)/ { skip = 1 } skip && /^$/ { skip = 0; next } !skip { print }' "$F" > "$T/base"
-[ "$(cksum < "$T/base" | awk '{ print $1, $2 }')" = '115045415 71731' ] || fail 'the skill changed beyond its face paragraphs'
+# FB-1 A2: the PRD writer's sentence, five times, word for word, is taken out too; the rest is the skill as before
+A2S='Write the rulings as an edits file and apply it with `sh "${CLAUDE_PLUGIN_ROOT}/checks/prd-apply.sh" PRD.md <file>`; never edit the machine blocks by hand or with a script of your own. '
+awk -v s="$A2S" 'BEGIN { c = 0 } { l = $0; out = ""; while ((i = index(l, s)) > 0) { out = out substr(l, 1, i - 1); l = substr(l, i + length(s)); c++ } print out l } END { print c > "/dev/stderr" }' "$T/base" > "$T/base2" 2> "$T/a2n"
+[ "$(cat "$T/a2n")" = 5 ] || fail "the PRD writer's sentence is not in the skill five times (FB-1 A2)"
+[ "$(cksum < "$T/base2" | awk '{ print $1, $2 }')" = '115045415 71731' ] || fail 'the skill changed beyond its face paragraphs'
 awk '/^\*\*The face \(0\.26\.10\.29\)/ { on = 1 } on && /^$/ { on = 0 } on' "$F" > "$T/face"
 [ "$(grep -c '^\*\*The face (0\.26\.10\.29)' "$F")" = 2 ] || fail 'the face paragraphs are not two'
 for c in 'face.sh" write interview' 'face.sh" end interview' 'face.sh" write pause-N' 'face.sh" end pause-N'; do

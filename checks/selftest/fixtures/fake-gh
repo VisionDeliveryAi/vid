@@ -39,6 +39,8 @@
 # author) made a commit; git/refs (ref refs/heads/<b>, sha) made a branch, refused when it exists. --jq .sha (.ref for a ref) prints
 # what was made; each is a line of the write log (`<repo> git blob|tree|commit`, `<repo> git ref <ref>`). git/refs/heads/<b> with -X
 # PATCH --input <file> (sha) moves an existing branch, `<repo> git ref move <ref>` in the write log.
+# FB-1 B1: `pr close <n>` closes an open pull request (refused when merged); `issue view` and `pr view` with --jq RPL (below) print
+# the state and how many comments open "vid: replaced by", tab-separated.
 # GM-3 S1: `issue list --label <l> --state <open|closed|all> --limit <k> --json number,state --jq '.[] | [.number, .state] | @tsv'`, each
 # issue's number and OPEN or CLOSED, in number order, cut at the limit.
 set -u
@@ -83,6 +85,8 @@ hook() { mkdir -p "$1/hooks"; { printf '#!/bin/sh\nprintf "%%s push %%s\\n" %s "
 TQ='[.state, ([.assignees[].login] | join(",")), .createdAt] | @tsv'
 AQ='.[] | [.number, ([.labels[].name] | join(",")), ([.comments[].body | split("\n") | .[0]] | join("\u0001")), .title] | @tsv'
 SQ='.[] | [.number, .state, .title, ([.assignees[].login] | join(","))] | @tsv'
+RPL='.state + "\t" + ([.comments[].body | select(startswith("vid: replaced by"))] | length | tostring)'
+rpl() { _k=0; for _j in $(ls "$1/comments" 2>/dev/null); do head -n 1 "$1/comments/$_j" | grep -q '^vid: replaced by' && _k=$((_k + 1)); done; printf '%s\t%s\n' "$(cat "$1/state")" "$_k"; }
 asg() { [ -f "$1/assignees" ] && grep -v '^$' "$1/assignees" | paste -sd ',' - || true; }
 CMD="${1:-} ${2:-}"
 case "$CMD" in
@@ -133,6 +137,7 @@ case "$CMD" in
       .body) cat "$d/body" ;;
       "$TQ") printf '%s\t%s\t%s\n' "$(cat "$d/state")" "$(asg "$d")" "$(cat "$d/created" 2>/dev/null || echo 2026-11-01T09:00:00Z)" ;;
       '.state + "\t" + ([.labels[].name] | join(","))') printf '%s\t%s\n' "$(cat "$d/state")" "$(labels_of "$d")" ;;
+      "$RPL") rpl "$d" ;;
       .comments*) comments "$d" "$q" ;;
       *) die "unknown --jq for issue view: $q" 64 ;;
     esac; exit 0 ;;
@@ -156,6 +161,7 @@ case "$CMD" in
     printf '%s' "$h" > "$d/head"; b=$(opt --base "$@"); printf '%s' "${b:-main}" > "$d/base"; echo OPEN > "$d/state"
     if has --draft "$@"; then echo true > "$d/draft"; else echo false > "$d/draft"; fi
     echo "https://github.com/$REPO/pull/$n"; exit 0 ;;
+  'pr close') n=$3; shift 3; chkrepo "$@"; wlog "$REPO" "pr close $n"; d=$F/prs/$n; [ -d "$d" ] || die "no pull request $n"; [ "$(cat "$d/state")" != MERGED ] || die "pull request $n is merged"; echo CLOSED > "$d/state"; exit 0 ;;
   'pr edit') n=$3; wlog "$REPO" "pr edit $n"; shift 3; d=$F/prs/$n; [ -d "$d" ] || die "no pull request $n"; body_from "$@" > "$d/body"; exit 0 ;;
   'pr ready') n=$3; wlog "$REPO" "pr ready $n"; shift 3; d=$F/prs/$n; [ -d "$d" ] || die "no pull request $n"; if has --undo "$@"; then echo true > "$d/draft"; else echo false > "$d/draft"; fi; exit 0 ;;
   'pr view')
@@ -163,6 +169,7 @@ case "$CMD" in
     case "$q" in
       .body) cat "$d/body" ;;
       '[.labels[].name] | join(",")') labels_of "$d"; echo ;;
+      "$RPL") rpl "$d" ;;
       .comments*) comments "$d" "$q" ;;
       '.commits[].oid') b=$(headsha "$(cat "$d/base")"); h=$(cat "$d/headoid" 2>/dev/null || headsha "$(cat "$d/head")"); [ -f "$d/merge" ] && b=$(git -C "$REMOTE" rev-parse "$(cat "$d/merge")^1")
         git -C "$REMOTE" rev-list --reverse "$b..$h" ;;

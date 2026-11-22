@@ -2,7 +2,7 @@
 
 For a product manager, or an engineer with an interest in the product, who wants ViD to build a product through GitHub. You do not need to read code. This is the overview: read it once to see how the parts fit. A separate hands-on tutorial takes you through a small practice product step by step.
 
-ViD works in three modes. In *local auto*, ViD's own agents build on your machine, with no GitHub. In *GitHub auto*, ViD builds your product through GitHub: every piece of work is a ticket and a pull request you can read, and ViD's own DevAgent does the building. In *GitHub team*, ViD writes the same tickets and your own developers work them. **This document is about GitHub auto.**
+ViD works in three modes. In *local auto*, ViD's own agents build on your machine, with no GitHub. In *GitHub auto*, ViD builds your product through GitHub: every piece of work is a ticket and a pull request you can read, and ViD's own DevAgent does the building. In *GitHub manual*, ViD writes the same tickets and your own developers work them. **This document is about GitHub auto.**
 
 **What you will know after reading this:**
 
@@ -43,17 +43,17 @@ Three things follow, and they are the ones to remember.
 
 ## 2. When to choose it
 
-| | Local auto | GitHub auto | GitHub team |
+| | Local auto | GitHub auto | GitHub manual |
 |---|---|---|---|
 | Who builds | ViD's own agents | ViD's own agents, as a separate dev side | Your own developers |
-| Where the record is | A folder on your machine | Two GitHub repositories | Two GitHub repositories |
-| What you start | One session | One session, and ViD's DevAgent in a conversation of its own | One session; your team does the rest |
+| Where the record is | A folder on your machine | Two GitHub repositories | Three GitHub repositories: yours, the spec, and ViD's own records |
+| What you start | One session | One session, and ViD's DevAgent in a conversation of its own | Each of ViD's turns, by hand; your team does the rest |
 | Where the product ends up | On your machine, and from there on a host you choose, through ViD's deploy command | As local copies on your machine: a test site, a rehearsal and a live copy. No real host today (section 8) | Where your team deploys it |
 
 **Choose GitHub auto when** you want what local auto gives, a working product from an idea with no team, and one or more of these matter to you:
 
 - **The work should be readable by others.** Every step is an issue and a pull request in a private repository. Anyone you give access to can read what was asked, what was sent back and what was decided.
-- **You expect to hand the building to a team later.** The tickets are the ones a team would get. Moving to GitHub team changes who works them, and nothing else on your side.
+- **You expect to hand the building to a team later.** The tickets are the ones a team would get. Moving to GitHub manual changes who works them, and that you start each of ViD's turns yourself.
 - **You want to see the contract before you ask people to work to it.** Watching ViD's dev side work a ticket shows what a ticket asks and what an answer must hold.
 
 **Choose local auto instead when** nobody else needs to follow the work and you want the shortest path: one session, no repositories, and a deploy command that takes the product to a real host.
@@ -160,7 +160,7 @@ ROW-004 passing
 
 **Who wrote a comment.** Both sides post from your own GitHub account, so every comment carries your name. Read the first lines instead: `by: DM`, `by: TM` or another two-letter role is the dev side; `vid: decision` and comments that begin `RM:` are ViD.
 
-The GitHub team overview, section 4, reads a real ticket line by line: every section, every report, every word a decision can say. Read it when you want that depth, or before you hand the tickets to a team.
+The GitHub manual overview, section 4, reads a real ticket line by line: every section, every report, every word a decision can say. Read it when you want that depth, or before you hand the tickets to a team.
 
 ---
 
@@ -189,7 +189,7 @@ A question never stops another ticket. It stops its own ticket only when the wor
 | "pause" | Nothing new is published or asked. Decisions and merges go on |
 | "continue" | A pause ends |
 
-**Changing the product during a run** is the same as in GitHub team mode: you say the correction with `/vid:vid-fix`, or the feature with `/vid:vid-add`, in the run's session. ViD drafts the change, counts the rows it touches, and asks you once. Nothing is written before your yes.
+**Changing the product during a run** is drafted as in GitHub manual mode: you say the correction with `/vid:vid-fix`, or the feature with `/vid:vid-add`, in the run's session. ViD drafts the change, counts the rows it touches, and asks you once. Nothing is written before your yes.
 
 **Nothing pops up.** A waiting question is written in the session and in ViD's records. Nothing is sent to you. You have to look.
 
@@ -199,7 +199,7 @@ A question never stops another ticket. It stops its own ticket only when the wor
 
 You have five ways, from the quickest to the most thorough.
 
-**1. The status.** Ask where things stand. ViD prints one block under the heading `== where things stand`. Four of its lines, from a recorded run in GitHub team mode, where the same block is printed:
+**1. The status.** Ask where things stand. ViD prints one block under the heading `== where things stand`. Four of its lines, from a recorded run with a team of people on the dev side, where the same block is printed:
 
 ```
 rows: passing 3 · accepted 4
@@ -228,7 +228,7 @@ Read them as: the rows counted by state; three steps closed and one closing run 
 
 So "in production" in this mode means: the release passed every gate, and the version you approved is running as the live copy on your machine. It does not mean that users can reach it.
 
-**A deploy to a real host is not part of this mode today.** ViD's README says where it is: with your own developers' side, in GitHub team mode, or in a later release. ViD's own deploy command, which the local auto overview describes in its section 7, belongs to local auto: in a GitHub project it refuses, and tells you that deploys go through the run. So if you need the product in front of users now, the finished code is on the `main` branch of your code repository, with its tests, and putting it on a host is an ordinary deployment of that repository, by you or by whoever runs your hosting.
+**A deploy to a real host is not part of this mode today.** ViD's README says where it is: with your own developers' side, in GitHub manual mode, or in a later release. ViD's own deploy command, which the local auto overview describes in its section 7, belongs to local auto: in a GitHub project it refuses, and tells you that deploys go through the run. So if you need the product in front of users now, the finished code is on the `main` branch of your code repository, with its tests, and putting it on a host is an ordinary deployment of that repository, by you or by whoever runs your hosting.
 
 **Rows that only a real host can prove** are run against the local copies. Where a local copy cannot give what a row needs, the row comes to you as a question. In the small recorded run one row needed the host's own backups, and it was ruled a known limit.
 
@@ -260,7 +260,7 @@ So "in production" in this mode means: the release passed every gate, and the ve
 - **A walk that cannot finish.** A walker has a browser and nothing else. A journey that goes through an email, or waits for the next day, needs help that the test site has to give. In the small recorded run the first two walks came back "not done" for that reason, and the third finished only after the test site had been given an inbox and a clock by hand.
 - **Expect "not yet".** A first decision does not always accept everything, and that is the method working. In the larger recorded run, 11 defects were stopped before a merge in the first two steps: 4 failing rows and 7 weak tests.
 
-**What this overview did not cover:** the spec's files and sittings, which the local auto overview covers; the full form of tickets and reports, which the GitHub team overview covers; and hosting.
+**What this overview did not cover:** the spec's files and sittings, which the local auto overview covers; the full form of tickets and reports, which the GitHub manual overview covers; and hosting.
 
 ---
 
