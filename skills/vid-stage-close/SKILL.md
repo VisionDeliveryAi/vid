@@ -1,6 +1,6 @@
 ---
 name: vid-stage-close
-description: The stage's end in ticket mode, in both GitHub modes — once every step of a stage is in and its candidate named, ViD asks the stage's full run and grade, starts and reads the walk of the staged product, writes the stage's summary in plain product words and closes the stage; with nothing left, it computes the completion report. Through `close.sh`, `walk.sh` and `end.sh`. `/vid:vid-stage-close <stage>` does whichever is next now, or says what is missing; `walk`, `read-walk` and `summary <stage>` do one alone; `end` computes the end. /vid run's round and /vid next's step 2 and moves run the same entries. Use when the owner says "vid stage-close", or asks for a stage's end now.
+description: The stage's end in ticket mode, in both GitHub modes — once every step of a stage is in and its candidate named, ViD asks the stage's full run and grade (in GitHub manual ViD makes the grade itself), starts and reads the walk of the staged product, writes the stage's summary in plain product words and closes the stage; with nothing left, it computes the completion report. Through `close.sh`, `walk.sh` and `end.sh`. `/vid:vid-stage-close <stage>` does whichever is next now, or says what is missing; `walk`, `read-walk` and `summary <stage>` do one alone; `end` computes the end. /vid run's round and /vid next's step 2 and moves run the same entries. Use when the owner says "vid stage-close", or asks for a stage's end now.
 ---
 
 # /vid:vid-stage-close (GM-4 K4)
@@ -44,6 +44,7 @@ and the moves below. /vid run loads this skill at its start and says these lines
 |---|---|
 | `stage <N>`, `asked <n> close stage-<N>`, `asked <n> grade stage-<N>`, `candidate <N> <c>` (v0.26.10.26.1) | Nothing by hand: the round names the stage's candidate, main's newest merge, once every step of the stage has merged and its rows are accepted, ruled or owed; it asks C3, the full run, and S1, the stage grade. Say the candidate to the owner, once |
 | `stage-c3 <N> passed`, `s1 <N> read`, `s1-refused <N> <k>` | Say a green C3 and the grades once; a refused S1 report is posted back to GR by the round. The stage's findings are counted in the status, and the owner rules them from 0.26.10.26.4 |
+| `review stage-<N> <c12>` (FB-3 A1.6) | The stage's grade was asked of ViD itself (GitHub manual) and is not made yet, whichever mode the project is in now: make it at once, as "The stage's own grade" below says, while the team's full run is out; it is said again at each read until it is recorded |
 | `walk <N>` (v0.26.10.26.4) | Write the brief, `sh checks/walk.sh brief --stage <N>`, and start the walker, `sh checks/walk.sh start --stage <N>`: a session of its own on `claude-opus-5-5`, in the brief's folder outside the project, with nothing of yours. Never walk it yourself, and never tell it more than its brief. In GitHub manual, only through the owner's move (below) |
 | `walk-read <N>` | The walker ended: `sh checks/walk.sh read --stage <N>` (in GitHub manual, through the owner's move). Say `w1 done` once; `w1 not-done <why>` is a `Q<n>` line (often no browser: say so plainly), whose `again` walks the same staged commit again; a refused return starts the walker once more, and a second is a `Q<n>` line. When `<why>` is `browser: none`, the owner may answer instead "close without the walk" (0.26.10.28.6): the owner's alone, so run `sh checks/queue.sh answer Q<n> close without the walk` only on the owner's own words, never `--by RM` or as a stood-in answer; the walk becomes a known limit, "walk not done: no browser on this machine", with who and when, and the stage closes without it. A not-done for any other reason (an unreachable address, a failed sign-in) has `again` alone. A stage with no screens and no journey row owes no walk: no `walk <N>` comes, and its walk is recorded "no walk: this stage has no screens and no journey" |
 | A stage's finding, `stage:<N>:…` | A `Q<n>` line for each, from S1, the rest chunk and W1: the owner answers `row "<words>"` (or `fix`), `no`, `known`, or `later <M>` (a later stage, which asks it again there), each through the vid-answer skill. `row` prints a `door:` line: run the vid-fix skill's ticket-mode branch on it. You may recommend, `sh checks/queue.sh recommend Q<n> <answer> "<why>"`. 7.5's close needs none open |
@@ -59,6 +60,21 @@ merges staging runs past the held stage's closed candidate.
 
 ## GitHub manual (GM M16, D4)
 
+- **The stage's own grade** (FB-3 A1.6): no grade is asked of the team. One fresh grader, as develop has one a pass, grades the stage's
+  requirements from the changes of the pull requests, contained in the candidate, of the tickets holding their rows, read through
+  GitHub; ViD keeps and runs none of the code. At `review stage-<N> <c12>`:
+  1. `CLAUDE_PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT}" sh checks/review.sh prepare stage-<N>`. `recorded <id>`: nothing was there to read, so
+     every requirement reads `absent — unread: …`; say so, and stop. `brief <id> <path>`: go on. The brief holds the reviewer's pass,
+     skills/vid-accept-step/passes/review.md.
+  2. Spawn one fresh `vid:grader` agent (the Agent tool, no model override) with the repository's path and that brief file, and
+     nothing else: it reads the brief, the spec files the brief names and the changes through `sh checks/review.sh show <id> …`, and
+     writes one file, `.vid/round/review/<id>/grade.txt`. Run it in the foreground (`run_in_background: false`) and never open what it read.
+  3. `CLAUDE_PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT}" sh checks/review.sh record <id> .vid/round/review/<id>/grade.txt`. `recorded <id>`: say it once; the next read of the stage
+     takes the grade and its findings (`s1 <N> read`), as the rows above say. Refused, or the agent wrote no file: one fresh agent
+     more, with the same brief alone; failing again, say the line as it stands: the grade is due at the next call.
+
+  A requirement with no pull request to read is a finding the owner rules (`absent — unread: …`), never a wait. After any entry here,
+  `CLAUDE_PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT}" sh checks/review.sh due` lists what is still due.
 - **The walk and the summary are moves the owner names** (GM M16: the stage's end is done at the moves named). When step 2 prints
   `walk <N>`, `walk-read <N>` or `summary <N>`, the call lists the move `walk-stage <N>`, `read-walk <N>` or `write-summary <N>`,
   which runs this skill's `walk`, `read-walk` or `summary` action; nothing starts and nothing is written until the owner names it.

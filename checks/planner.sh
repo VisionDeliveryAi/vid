@@ -29,6 +29,7 @@
 #             setup's; with more than one lane, a step with none); needs (R10: a row of a step in no `needs <rows> | <steps
 #             or ->` line of the block, or in two; a needs id no row of a step; a needed step no step, the row's own or of
 #             a later stage; a row whose step reaches a step it needs through no builds-on: chain, "only a dashed link")
+#             stages (FB-3 C2: `stages STAGES.md — <why>`, each line the stage court, stages.sh check --work, refuses)
 #   (R5) the notes, computed beside the flags and shown on the page alone, never in check, ratify or ratified: each
 #             stage's steps whose wave is no later than an earlier stage's last; a journey whose step does not reach
 #             the home step (the most of its other rows, the earliest on a tie) of one of its items, in its stage or before;
@@ -89,15 +90,17 @@
 #   setup <key> <answer> --words "<the owner's words>"   (v0.26.10.26.7, R11) one setup answer: layout, team (one line each),
 #             split, repo, spec-repo ("not yet" writes no key), spec-path and spec-stamp (GM-4 K13, J4: with layout one, the
 #             code repository's folder the spec is published into, a plain path from its top, read as docs/specs while missing;
-#             the stamp, a file inside it named from it, or none, which writes no key; never flagged unanswered) or github-mode (v0.26.10.28.8, R3: auto, ViD's own DevAgent works
+#             the stamp, a file inside it named from it, or none, which writes no key; never flagged unanswered), spec-publish (FB-3 B1: vid, read
+#             while missing, ViD's own publish into that folder; hand, in GitHub manual the team's own process, which ViD reads; never flagged) or github-mode (v0.26.10.28.8, R3: auto, ViD's own DevAgent works
 #             the tickets; FB-1 C1: team is retired and refused, a team of people taking GitHub manual; GM-1 S1: manual, the owner's team by hand, which, like a change away from
 #             manual, only /vid mode's own call sets, VID_CALLER=mode), state-repo (GM-1 S1: owner/name, ViD's own private
-#             repository, never repo: or spec-repo:) or slack-channels (names, comma-separated, or none); GM-2 (§5): issue-form (a path in
+#             repository, never repo: or spec-repo: (FB-3 B2: with layout: one the old spec repository may be it, asked before
+#             the switch to manual too; and outside GitHub auto spec-repo "not yet" is refused while pushed exports are not moved into the project)) or slack-channels (names, comma-separated, or none); GM-2 (§5): issue-form (a path in
 #             ViD's repository, from its top, no .., never one of the spec export's own files), issue-parent (an issue number, or
 #             none) or plan-page (artifact, its link once made, or none); written to .vid/tw/settings, and `setup-answered key=` in
 #             .vid/plan/setup, the planner's own record (it writes no event) — until
-#             the first ratify, check flags `setup <key>` for each of layout, team, split, repo, spec-repo (GM-4 J5: with
-#             layout: one too, ViD's private spec repository being asked in both layouts) and github-mode that no such event covers; in GitHub manual (GM-1 S1) state-repo too, and github-mode
+#             the first ratify, check flags `setup <key>` for each of layout, team, split, repo, spec-repo (FB-3 B2: with
+#             layout: one in GitHub auto alone, the export being kept in the project in manual) and github-mode that no such event covers; in GitHub manual (GM-1 S1) state-repo too, and github-mode
 #             not under /vid mode's own mark (GM-2 §5's issue-form, issue-parent and plan-page are asked by /vid mode, not flagged here)
 #   prereq    (v0.26.10.12.3.2, R10) what the skeleton ticket quotes, no PLAN.md needed: one line per gap, exit 0; the page's notes repeat each
 #   prd-form  (0.26.10.28.1, stage 9 R6, CK-R-006) refuses a PRD.md in the legacy block form (no ```vid-prd block) in one line,
@@ -494,8 +497,12 @@ model() {
   # GM-1 S1, GM M15 (ViD's own state repository): in GitHub manual state-repo too; GM M2 (the mode recorded last): under /vid mode's mark github-mode is not asked, as the switch records it last
   if [ ! -s .vid/plan/ratified ]; then KS='layout team split repo spec-repo github-mode'
     if manual; then KS='layout team split repo spec-repo state-repo'; [ "${VID_CALLER:-}" = mode ] || KS="$KS github-mode"; fi   # GM M15, GM M2
-    for k in $KS; do grep -q "^setup-answered key=$k " .vid/plan/setup 2>/dev/null && continue   # GM-4 J5: spec-repo in both layouts
+    for k in $KS; do grep -q "^setup-answered key=$k " .vid/plan/setup 2>/dev/null && continue
+      [ "$k" != spec-repo ] || ! noxr || continue   # FB-3 B2
       echo "setup $k — no answer of the owner's is recorded: ask it, then sh checks/planner.sh setup $k <the answer> --words \"<their words>\"" >> "$T/fl0"; done; fi
+  # FB-3 C2: the stage court on the STAGES.md read here, each refusal a flag, so no page or ratification takes a cut it refuses (not
+  # run for a reading of the rows, the teams or the steps alone, which prints no flag)
+  case $CMD in rows|teams|steps) ;; *) [ ! -f STAGES.md ] || sh "$HERE/stages.sh" check --work 2> /dev/null > "$T/sco" || sed -n 's/^STAGES  /stages STAGES.md — /p' "$T/sco" >> "$T/fl0" ;; esac
   mv "$T/fl0" "$T/flags"
   # GM-1 S3 (§5), GM M2 (rows to place, in the owner's words): in GitHub manual a row .vid/tw/to-place lists in the place its flag names (no-step, other-stage) is no flag: it
   # goes to $T/toplace, `<row>\t<no-step|other-stage>\t<where>\t<the owner's words>`, for the page
@@ -593,14 +600,18 @@ planpage() {
 }
 # setuppage: the page's setup section (R4) — the answers kept in .vid/tw/settings, read as their defaults when missing
 sk() { sed -n "s/^$1:[[:space:]]*//p" "$T/set" | head -n 1 | sed 's/[[:space:]]*$//'; }
+# noxr (FB-3 B2, GM M15): with one repository, outside GitHub auto (an unanswered mode included), no spec repository is asked
+noxr() { [ "$(skey layout)" = one ] && [ "${VID_CALLER:-}" != mode-auto ] && { manual || [ "$(ghmode)" != auto ]; }; }
 setuppage() { L=$(sk layout); R=$(sk repo); S=$(sk spec-repo); X=$(sk split); A=$(sk access); O=$(sk open-tickets); W=''
-  for k in layout repo split team github-mode labels-prefix; do grep -q "^$k:" "$T/set" || W="$W, $k"; done; grep -q '^spec-repo:' "$T/set" || W="$W, spec-repo"
+  for k in layout repo split team github-mode labels-prefix; do grep -q "^$k:" "$T/set" || W="$W, $k"; done; grep -q '^spec-repo:' "$T/set" || noxr || W="$W, spec-repo"
   if [ -z "$W" ]; then W='Nothing is missing: a later /vid:vid-plan asks nothing.'; else W="Still to ask at the next /vid:vid-plan: ${W#, }; until then each reads as its default."; fi
   case $X in fine) X='finer steps, technical ones allowed (split: fine)' ;; journey) X='steps by journey (split: journey)' ;; *) X='steps by journey (the default)' ;; esac
   printf '\n## The setup\n\nAsked once, at the start of /vid plan, and kept in .vid/tw/settings. %s\n\n' "$W"
   # GM-4 K13, J5: with one repository the team reads the spec in a folder of the code repository, which ViD's own publish
-  # (vid-spec-publish) fills by a pull request; ViD's private spec repository keeps its export, as with two
-  if [ "$L" = one ]; then printf -- '- **Where the code lives and the specs go:** one repository: the team reads the specs in its folder %s, which ViD'"'"'s own\n  publish, vid-spec-publish, fills from each export by a pull request for the team to merge; %s.\n- **The code repository:** %s\n- **The spec repository (ViD'"'"'s own export):** %s\n' "$(sk spec-path | grep . || echo 'docs/specs (the default)')" "$(if [ -n "$(sk spec-stamp)" ]; then echo "its stamp file, $(sk spec-stamp), names the export there"; else echo 'no stamp file is set'; fi)" "${R:-not set yet}" "${S:-not set yet}"
+  # (vid-spec-publish) fills by a pull request; ViD's private spec repository keeps its export, as with two, and in GitHub manual the
+  # project does (FB-3 B2, GM M15)
+  XS="The spec repository (ViD's own export):** ${S:-not set yet}"; if noxr && { manual || [ -z "$S" ]; }; then XS="ViD's own export:** kept in this project, saved with ViD's records"; fi
+  if [ "$L" = one ]; then printf -- '- **Where the code lives and the specs go:** one repository: the team reads the specs in its folder %s, which %s; %s.\n- **The code repository:** %s\n- **%s\n' "$(sk spec-path | grep . || echo 'docs/specs (the default)')" "$(if [ "$(sk spec-publish)" = hand ] && noxr; then printf 'the team\n  fills from each export by its own process, and vid-spec-publish lays out and reads'; else printf 'ViD'"'"'s own\n  publish, vid-spec-publish, fills from each export by a pull request for the team to merge'; fi)" "$(if [ -n "$(sk spec-stamp)" ]; then echo "its stamp file, $(sk spec-stamp), names the export there"; else echo 'no stamp file is set'; fi)" "${R:-not set yet}" "$XS"
   else printf -- '- **Where the code lives and the specs go:** separate repositories, the code and ViD'"'"'s private spec repository%s.\n- **The code repository:** %s\n- **The spec repository:** %s\n' "$([ -n "$L" ] || echo ' (the default)')" "${R:-not set yet}" "${S:-not set yet}"; fi
   case $(sk github-mode) in auto) G='ViD'"'"'s own DevAgent, which you start (github-mode: auto)' ;; manual) G='a team of people, by hand, through /vid next (github-mode: manual)' ;; *) G='not asked yet' ;; esac   # v0.26.10.28.8 (R3); GM-1 S1; FB-1 C1: no team
   printf -- '- **Who works the tickets:** %s\n' "$G"
@@ -770,21 +781,24 @@ case "$CMD" in
     echo "planner: ratified, hash $H, in the owner's words" ;;
   setup)   # v0.26.10.26.7 (R11, W-13): one setup answer, as the owner gave it: its key in .vid/tw/settings and setup-answered
     K=${1:-}; V=${2:-}; [ $# -ge 2 ] && shift 2; OW=''; [ "${1:-}" = --words ] && OW=${2:-}
-    [ -n "$K" ] && [ -n "$V" ] && [ -n "$OW" ] || die 'usage — sh checks/planner.sh setup <layout|team|split|repo|spec-repo|spec-path|spec-stamp|state-repo|slack-channels|github-mode|issue-form|issue-parent|plan-page> <the answer, or "not yet" for a repository> --words "<the owner'"'"'s words>"'
-    case $K in layout|team|split|repo|spec-repo|spec-path|spec-stamp|state-repo|slack-channels|github-mode|issue-form|issue-parent|plan-page) ;; *) die "setup $K: no setup question has that key" ;; esac
+    [ -n "$K" ] && [ -n "$V" ] && [ -n "$OW" ] || die 'usage — sh checks/planner.sh setup <layout|team|split|repo|spec-repo|spec-path|spec-stamp|spec-publish|state-repo|slack-channels|github-mode|issue-form|issue-parent|plan-page> <the answer, or "not yet" for a repository> --words "<the owner'"'"'s words>"'
+    case $K in layout|team|split|repo|spec-repo|spec-path|spec-stamp|spec-publish|state-repo|slack-channels|github-mode|issue-form|issue-parent|plan-page) ;; *) die "setup $K: no setup question has that key" ;; esac
     # FB-1 C1: the old team mode is retired
     [ "$K:$V" != github-mode:team ] || die "setup github-mode team: GitHub team is retired: a team of people works the tickets in GitHub manual (/vid mode manual); ViD's own DevAgent, in GitHub auto"
-    case "$K:$V" in layout:separate|layout:one|split:journey|split:fine|team:*|repo:*|spec-repo:*|spec-path:*|spec-stamp:*|github-mode:auto|github-mode:manual|state-repo:*|slack-channels:*|issue-form:*|issue-parent:*|plan-page:*) ;; *) die "setup $K: $V is no answer to it" ;; esac
+    case "$K:$V" in layout:separate|layout:one|split:journey|split:fine|team:*|repo:*|spec-repo:*|spec-path:*|spec-stamp:*|spec-publish:vid|spec-publish:hand|github-mode:auto|github-mode:manual|state-repo:*|slack-channels:*|issue-form:*|issue-parent:*|plan-page:*) ;; *) die "setup $K: $V is no answer to it" ;; esac
     # GM-1 S1, GM M2: GitHub manual is entered and left only by /vid mode, which marks its own calls (VID_CALLER=mode)
     # GM-4 F13: and /vid mode's switch to auto (VID_CALLER=mode-auto) records github-mode auto last, as the switch to manual does
     if [ "$K" = github-mode ] && case ${VID_CALLER:-} in mode|mode-auto) false ;; *) true ;; esac && { [ "$V" = manual ] || [ "$(ghmode)" = manual ]; }; then
       echo "ViD planner: refused — github-mode $V: GitHub manual is entered and left only through /vid mode, which takes stock first" >&2; exit 1; fi
+    # FB-3 B2: the key of a spec repository that holds exports not moved into the project yet is not dropped
+    if [ "$K:$V" = 'spec-repo:not yet' ] && noxr && grep -q '^export ' .vid/tw/log 2>/dev/null && ! git rev-parse -q --verify refs/vid/export > /dev/null 2>&1; then
+      echo 'ViD planner: refused — setup spec-repo "not yet": the exports pushed there are not in this project yet: /vid:vid-spec-publish moves them in, then run this again' >&2; exit 1; fi
     # GM-1 S1 (§5): state-repo, ViD's own private repository for the lock and the saved records, owner/name, never the code
     # repository or the spec repository; slack-channels, the channel names comma-separated, or none
     case "$K:$V" in
       state-repo:*) printf %s "$V" | grep -Eq '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$' || die "setup state-repo: $V is not owner/name"
         lo() { printf %s "$1" | tr 'A-Z' 'a-z'; }   # GitHub's names ignore case
-        for k in repo spec-repo; do [ "$(lo "$(skey "$k")")" != "$(lo "$V")" ] || die "setup state-repo: $V is the $k:; ViD's own state repository is neither the code repository nor the spec repository"; done ;;
+        for k in repo spec-repo; do [ "$k" != spec-repo ] || [ "$(skey layout)" != one ] || continue; [ "$(lo "$(skey "$k")")" != "$(lo "$V")" ] || die "setup state-repo: $V is the $k:; ViD's own state repository is neither the code repository nor the spec repository"; done ;;
       repo:*|spec-repo:*) [ "$V" = 'not yet' ] || [ "$(skey state-repo | tr 'A-Z' 'a-z')" != "$(printf %s "$V" | tr 'A-Z' 'a-z')" ] || die "setup $K: $V is the state-repo:, ViD's own state repository" ;;
       # GM-4 K13 (J4): with one repository, the folder of the code repository the spec is published into, a plain path from its
       # top; and the stamp, a file inside that folder named from it (STAMP is <spec-path>/STAMP), or none

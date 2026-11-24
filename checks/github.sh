@@ -7,7 +7,8 @@
 # milestone endpoints (repos/<repo>/milestones…) and an issue comment's edit (-X PATCH repos/<the code
 # repository>/issues/comments/<id>, tw-post's amendment, fix 3); GM-2 T3, for tw-post's first post in GitHub manual's form: a read
 # of an issue's id (repos/<repo>/issues/<n>, a GET), and -X POST of one field to repos/<repo>/issues/<p>/sub_issues (sub_issue_id)
-# and to repos/<repo>/issues/<n>/dependencies/blocked_by (issue_id), no other method, endpoint or field. 0.26.10.28.1 (9.1 C1, stage 9 S2): the first ticket
+# and to repos/<repo>/issues/<n>/dependencies/blocked_by (issue_id), no other method, endpoint or field. FB-3 A2: gh api graphql, one read-only
+# query of one repository, in results-fetch alone. 0.26.10.28.1 (9.1 C1, stage 9 S2): the first ticket
 # mode's subcommands (publish, pull, run-full, session, clone, next-ticket, claim, push, review, merge) are removed,
 # with the calls only they made. The code repository is the vid-code block's repo: (ARCHITECTURE.md), else
 # .vid/tw/settings' repo:.
@@ -43,6 +44,9 @@
 #                named and left out, built in a temporary index and .vid/spec.git (borrowing ViD's objects), authored and
 #                committed as ViD <vid@export.invalid>, a fast-forward of the spec repository's main only; `export <c>
 #                from=<ViD commit> state=pushed`, or `state=unchanged` when the tree is main's already (nothing pushed).
+#                FB-3 B2: with layout: one in GitHub manual (xlocal) the export is kept in the project, at refs/vid/export of ViD's
+#                repository (state-save's bundle holds it), `state=local`, its dates the applied commit's, and no spec repository is made,
+#                read or pushed; elsewhere the ref follows each export, so a project that changes mode keeps one line of exports.
 #                GM-2 T1: in GitHub manual every path at the applied commit (.vid/tw/applied), with the issue form issue-form:
 #                names at HEAD, and its commit is main's tree with the export's own files replaced (those it puts there now,
 #                and those an earlier export put there, read from main's history), every other file kept; unchanged, and
@@ -66,6 +70,13 @@
 #   pr-body <pr>   0.26.10.29.5 (DP-1 R2, R8): the pull request's description, printed whole, read only (gh pr view), for checks/decide.sh's
 #                Decisions section and checks/decisions.sh record
 #   results-fetch   v0.26.10.24.5: .vid/code, the copy checks/results.sh reads: 0.26.10.28.4 (M5), the vid-results/* reports and every other head's commits, no file of the code;
+#                FB-3 A2: of a report branch its own folder alone, the rest never named or sent; one with no such folder left out, in .vid/round/reports-skipped
+#   pr-files <p> [<path>]   FB-3 A1.4: GitHub's list of a pull request's files (a GET of repos/<repo>/pulls/<p>/files), printed and kept nowhere, no file
+#                of it written: a line a file, its path, status, lines added and deleted, earlier path and patch|none (none: GitHub gives no
+#                change), tab-separated; with a path, that file's line less its path, then its change. checks/review.sh show's one read
+#   closing-prs <issue>…   FB-3 A1.4: the merged pull requests GitHub keeps as closing each issue, `<issue> <p> <merge>` tab-separated, read
+#                only: a graphql query of 50 issues; a number that is no issue is left out
+#   own-refs     FB-3 A1.4: ViD's own reviews, .vid/decide/review/<id>/, as the refs vid-results/<id> of .vid/code (results-fetch makes them too)
 #                0.26.10.28.1 (S5): a working clone found there is moved aside to .vid/code.old-<UTC>, saying so, and the bare copy cloned
 #   tw-post [--amend <n>] [--words "<w>"] [--title "<t>"] <ticket>   (--words and --title in GitHub manual alone) refused when writer.sh check refuses it, writer.sh fresh finds it stale (the plan,
 #                the export or its ticket work moved since it was written) or its export is not the spec repository's
@@ -117,15 +128,17 @@
 # the switch to GitHub manual asks state-repo:), and the saved records hold .vid/next/ too, and in GitHub manual of .vid/round/ the one read and the read before it alone (GM-4 F3, I2; GM-2 T12). ticket-writing <n> <file> and round-read read only; round-read --bodies's one new call (GM-4 F3), a GET of
 # repos/<repo>/issues/<n>/sub_issues, is on the allow-list with no method but GET and no field.
 # GM-4 K13: spec-publish [<export commit>], with layout: one, the export mirrored into spec-path: on the code repository: its calls,
-# inside spec-publish alone (SPUB set there alone), are -X POST --input <file> of repos/<repo>/git/blobs, git/trees, git/commits and
+# inside spec-publish alone (SPUB set there alone), are (FB-3 B1) GETs of git/trees/<tree>, names and ids alone, and -X POST --input <file> of repos/<repo>/git/blobs, git/trees, git/commits and
 # git/refs (no field), -X PATCH --input <file> of git/refs/heads/vid-spec/<hex> (its own branch moved, no field), gh pr list's read
 # of that branch's open pull request and gh pr create, and (FB-1 B1) gh pr close of an older folder pull request it replaces; nothing pushed from this machine (the one request to GitHub beside "never push to the code
-# repository"), and nothing of the code read or sent: main's commit and tree are read from .vid/code.
-# GM-3 S1: tickets [<folder>], read only, the published tickets on the allowed issue list call (its lines at the subcommand); spec-fetch,
-# read only, the spec repository's main fetched into ViD's copy, .vid/spec.git (specgit), nothing pushed.
+# repository"), and nothing of the code read or sent: main's commit and tree are read from .vid/code. FB-3 B1: it changes only files
+# ViD put in the folder; in GitHub manual with `spec-publish: hand` it writes nothing to GitHub, and spec-publish #<pr> reads the team's own publish.
+# GM-3 S1: tickets [<folder>], read only, the published tickets on the allowed issue list and view calls (its lines at the subcommand); spec-fetch,
+# read only, the spec repository's main fetched into ViD's copy, .vid/spec.git (specgit), nothing pushed (FB-3 B2: xlocal, from refs/vid/export, no network).
+# FB-3 E1: ticket-decided <n>, read only, a ticket's state and its newest accepting decision comment, one allowed issue view.
 # The planner's setup (v0.26.10.12.3.1 R3), read only — gh auth status and gh repo view alone:
-#   access       one line each: `access gh — signed in` (or not, then it stops); for repo: and, in both layouts (GM-4 J5),
-#                spec-repo: of .vid/tw/settings — not set yet, reached (its permission, private or
+#   access       one line each: `access gh — signed in` (or not, then it stops); for repo: and, in both layouts (GM-4 J5; FB-3 B2: but
+#                with layout: one in GitHub manual), spec-repo: of .vid/tw/settings — not set yet, reached (its permission, private or
 #                public; a public spec repository is not ready) or not reached (gh's words); then `access: ok`, or
 #                `access: <n> of <m> not ready`. Exit 0; 2 on a usage error. It never creates, edits or pushes.
 # The planner's subcommands (ViD's repository; they write only labels, comments and milestones):
@@ -134,11 +147,11 @@
 #                (the milestone's description names the commit; `milestone … state=closed commit=`).
 # Usage, one line a group (the usage message says the same):
 #   sh checks/github.sh access
-#   sh checks/github.sh spec-setup [--make-only] | spec-export | spec-publish [--words "<w>"] [<export commit>]
-#   sh checks/github.sh code-setup | state-setup | ticket-writing <n> <file> | tickets [<folder>] | spec-fetch
+#   sh checks/github.sh spec-setup [--make-only] | spec-export | spec-publish [#<pr>] [--words "<w>"] [<export commit>]
+#   sh checks/github.sh code-setup | state-setup | ticket-writing <n> <file> | tickets [<folder>] | ticket-decided <n> | spec-fetch
 #   sh checks/github.sh tw-sync | tw-post [--amend <n>] [--words "<the owner's words>"] [--title "<a title>"] <ticket> | tw-outside <n> | tw-close [--words "<w>"] [--cause "<line>"] <n> | tw-team-no <n> <id> <added|dropped> | tw-tell <n> | tw-handovers | tw-reopen [--words "<w>"] <n> | tw-publish <step> [--words "<w>"] [--title "<t>"] | tw-act <amend|withdraw|tell> <n> | tw-act new <write's arguments> [--words "<w>"] [--cause "<line>"]
 #   sh checks/github.sh tw-hand write <writer.sh write's arguments>|close <n>|tell <n>|publish <step> [--words "<w>"] [--title "<t>"]|amend <n> [--words "<w>"] [--cause "<line>"]|withdraw <n> [--words "<w>"] [--cause "<line>"]|reopen <n> [--words "<w>"]|fix <key> [--words "<w>"]|reached [--words "<w>"]
-#   sh checks/github.sh decide-blocked <issue> <pr> | decide-post <pr> <file> | pr-body <pr> | results-fetch | round-read [--bodies]
+#   sh checks/github.sh decide-blocked <issue> <pr> | decide-post <pr> <file> | pr-body <pr> | results-fetch | own-refs | pr-files <pr> [<path>] | closing-prs <issue>… | round-read [--bodies]
 #   sh checks/github.sh record-read <a blob link at a commit, or a pull request link>
 #   sh checks/github.sh deploy-ask|grade-ask --stage <N> --commit <c> --title <t> --body-file <f> | run-ask --step <s> --commit <c> --title <t> --body-file <f>
 #   sh checks/github.sh state-save | state-restore [<repo>] | lock-take [<session>] | lock-renew | lock-free
@@ -165,10 +178,12 @@ keeperr() { [ "${SPX:-}" = yes ] || { "$@"; return; }; rm -f "$W/gfail"; _ke=0; 
 putd() { _q=$(dirname "$1")/.put.$$.$(basename "$1"); _o=$(dirname "$1")/.old.$$.$(basename "$1"); rm -rf "$_q" && cp -R "$2" "$_q" || { rm -rf "$_q"; return 1; }
   if [ -e "$1" ]; then mvr "$1" "$_o" || { rm -rf "$_q"; return 1; }; fi; mvr "$_q" "$1" || { [ ! -e "$_o" ] || mvr "$_o" "$1"; rm -rf "$_q"; return 1; }; rm -rf "$_o"; }
 # a state-restore stopped between its two renames left .vid/.old.<pid>.<name> and no live folder: it is renamed back first
-# (IR I1: never by record-read, which changes nothing under the project)
-[ "${1:-}" = record-read ] || for _o in .vid/.old.*.decide .vid/.old.*.tw .vid/.old.*.plans .vid/.old.*.plan .vid/.old.*.next .vid/.old.*.results; do [ -d "$_o" ] && [ ! -e ".vid/${_o##*.}" ] || continue; mvr "$_o" ".vid/${_o##*.}"; done
+# (IR I1, FB-3 A1.4: never by record-read nor pr-files, which change nothing under the project)
+[ "${1:-}" = record-read ] || [ "${1:-}" = pr-files ] || for _o in .vid/.old.*.decide .vid/.old.*.tw .vid/.old.*.plans .vid/.old.*.plan .vid/.old.*.next .vid/.old.*.results; do [ -d "$_o" ] && [ ! -e ".vid/${_o##*.}" ] || continue; mvr "$_o" ".vid/${_o##*.}"; done
 W=$(mktemp -d); trap 'rm -rf "$W"' EXIT
 REPO=''; SHARE=''; SCREATE=''; MKREPO=''; FORMPOST=''; RECREAD=''; RR=''; SPUB=''   # 0.26.10.28.7: the share's allow-list switches never come from the environment; GM-2 T3: nor the form post's (IR I1: nor record-read's)
+RESREAD=''   # FB-3 A2: results-fetch's graphql read (A1.4: closing-prs' too), its switch never from the environment
+PRREAD=''   # FB-3 A1.4: pr-files' read of a pull request's files, its switch never from the environment
 STAMPREAD=''; SPF=''; SMN=''   # GM-4 K13: spec-stamp's read of the stamp file, its switch never from the environment
 SPX=''   # FB-2 B1: spec-publish's flag (gref, keeperr), never from the environment
 # one read a tick (R3): the same three reads as DevAgent's dm.sh next, its own copy
@@ -211,7 +226,13 @@ ghc() {
         *) gref "gh api in a share subcommand is allowed for the share's own calls only, not '$_p'" ;; esac
       else
       [ -z "$_in" ] || [ "${SPUB:-}" = yes ] || gref "gh api --input is spec-publish's alone (GM-4 K13)"
-      case "$_p" in "repos/$REPO/milestones"|"repos/$REPO/milestones/"[0-9]*) ;;
+      case "$_p" in graphql)   # FB-3 A2: one query of one repository, in results-fetch alone; A1.4: and closing-prs
+          [ "${RESREAD:-}" = yes ] && [ -z "$_m$_fv$_in" ] && [ "$_fn" = 1 ] && [ "${3:-}" = -f ] && case "${4:-}" in 'query=query { repository(owner: '*) true ;; *) false ;; esac || gref "gh api graphql is allowed in results-fetch and closing-prs alone, as one query of one repository" ;;
+        "repos/$REPO/pulls/"[0-9]*"/files?per_page=100") _q=${_p#"repos/$REPO/pulls/"}; case "${_q%/files*}" in *[!0-9]*) gref "not a pull request's files: '$_p'" ;; esac   # FB-3 A1.4: pr-files' read
+          [ "${PRREAD:-}" = yes ] && [ -z "$_fl" ] && { [ -z "$_m" ] || [ "$_m" = GET ]; } || gref "gh api on a pull request's files is allowed as pr-files' read alone (a GET, no field)" ;;
+        "repos/$REPO/milestones"|"repos/$REPO/milestones/"[0-9]*) ;;
+        "repos/$REPO/git/trees/"*) _q=${_p#"repos/$REPO/git/trees/"}; _q=${_q%"?recursive=1"}; case "$_q" in *[!0-9a-f]*|'') gref "not a tree's read: '$_p'" ;; esac   # FB-3 B1: the folder's names and ids
+          [ "${SPUB:-}" = yes ] && [ -z "$_fl" ] && [ -z "$_in" ] && { [ -z "$_m" ] || [ "$_m" = GET ]; } || gref "gh api on a tree is allowed only in spec-publish, as a read alone (a GET, no field)" ;;
         "repos/$REPO/git/blobs"|"repos/$REPO/git/trees"|"repos/$REPO/git/commits"|"repos/$REPO/git/refs")   # GM-4 K13: spec-publish's git data calls alone
           [ "${SPUB:-}" = yes ] && [ "$_m" = POST ] && [ -z "$_fl" ] && [ -n "$_in" ] || gref "gh api on the git data endpoints is allowed only in spec-publish: -X POST --input <file>, no field" ;;
         "repos/$REPO/git/refs/heads/vid-spec/"*)   # GM-4 K13: spec-publish's move of its own branch, left by an earlier call, alone
@@ -240,6 +261,16 @@ ghc() {
 auth() { command -v gh > /dev/null 2>&1 || gref "gh is not found on this machine's PATH: install it, or put it on PATH; signing in is not the problem"
   ghc auth status > "$W/auth" 2>&1 || { sed 's/^/    /' "$W/auth" >&2; ! grep -q 'not logged into any' "$W/auth" || { rm -f "$W/gfail"; gref 'gh auth status fails — log in with gh auth login (ViD never handles a token)'; }
     gref 'gh auth status failed (its words above); it may not be the login: check the network and the machine'"'"'s load, then run gh auth status by hand'; }; }
+cg() { git --git-dir=.vid/code -c log.showSignature=false "$@"; }   # ViD's copy of the code repository's reports and commits
+# FB-3 A1.4: ownrefs, each of ViD's own reviews as a report. A folder .vid/decide/review/<id>/ holding grade.txt or sorted.txt is the local
+# ref vid-results/<id> of .vid/code, that folder with those files alone, in a commit of ViD's whose message is `vid-own` and whose time is
+# fixed, so the same record is the same commit and no report of DevAgent's or a team's is ever older than it; it stands in place of a
+# branch of that name. One whose record is gone is dropped. No .vid/code: nothing, the next fetch makes them. $W/own, their ids
+ownrefs() { ls .vid/decide/review/*/grade.txt .vid/decide/review/*/sorted.txt 2>/dev/null | sed 's|^\.vid/decide/review/||; s|/[^/]*$||' | grep -xE '[A-Za-z0-9._-]+' | sort -u > "$W/own" || :
+  [ -d .vid/code ] || return 0
+  cg for-each-ref --format='%(refname:lstrip=3) %(contents:subject)' refs/heads/vid-results/ | sed -n 's/ vid-own$//p' | grep -vxFf "$W/own" > "$W/owd" || :; while read -r i; do cg update-ref -d "refs/heads/vid-results/$i" || return 1; done < "$W/owd"
+  while read -r i; do { for f in grade.txt sorted.txt; do [ ! -f ".vid/decide/review/$i/$f" ] || printf '100644 blob %s\t%s\n' "$(cg hash-object -w --stdin < ".vid/decide/review/$i/$f")" "$f"; done; } > "$W/owt"
+    t=$(cg mktree < "$W/owt") && t=$(printf '040000 tree %s\t%s\n' "$t" "$i" | cg mktree) && n=$(GIT_AUTHOR_NAME=ViD GIT_AUTHOR_EMAIL=vid@export.invalid GIT_AUTHOR_DATE=2000-01-01T00:00:00Z GIT_COMMITTER_NAME=ViD GIT_COMMITTER_EMAIL=vid@export.invalid GIT_COMMITTER_DATE=2000-01-01T00:00:00Z cg commit-tree "$t" -m vid-own) && cg update-ref "refs/heads/vid-results/$i" "$n" || return 1; done < "$W/own"; }
 codekey() { [ -f ARCHITECTURE.md ] && sed -n '/^```vid-code[[:space:]]*$/,/^```[[:space:]]*$/p' ARCHITECTURE.md | sed -n "s/^$1:[[:space:]]*//p" | head -n 1 | sed 's/[[:space:]]*$//'; }
 kv() { printf '%s\n' "$1" | tr ' ' '\n' | sed -n "s/^$2=//p" | head -n 1; }
 # GM-4 K13: spdest, where spec-publish puts the export: SP the folder (spec-path:, docs/specs while missing, no trailing /), SS the
@@ -247,6 +278,8 @@ kv() { printf '%s\n' "$1" | tr ' ' '\n' | sed -n "s/^$2=//p" | head -n 1; }
 # spec-published line names that export, that folder and that stamp, so a changed folder or stamp is published again
 spdest() { SP=$(twkey spec-path); SP=${SP:-docs/specs}; SP=${SP%/}; SS=$(twkey spec-stamp); SS=${SS#"$SP"/}; }
 spdone() { spdest; _sl=$(grep '^spec-published ' .vid/tw/log 2>/dev/null | tail -n 1 || true); [ -n "$_sl" ] && [ "$(kv "$_sl" export)" = "$1" ] && [ "$(kv "$_sl" path)" = "$SP" ] && [ "$(kv "$_sl" stamp)" = "${SS:--}" ]; }
+# FB-3 B1: BYH, a spec-published line of the team's own publish (by=hand stands before the words, so no words of the owner's read as it)
+BYH='^spec-published pr=[^ ]+ export=[^ ]+ path=[^ ]+ stamp=[^ ]+ at=[^ ]+ by=hand( |$)'
 num_of_url() { sed -n 's#.*/\([0-9][0-9]*\)$#\1#p' | tail -n 1; }
 mapline() { [ -f .vid/tickets/map ] && awk -v w="$1" -v k="$2" -v v="$3" 'function g(x,  i) { for (i = 2; i <= NF; i++) if (index($i, x "=") == 1) return substr($i, length(x) + 2); return "" } $1 == w && g(k) == v { l = $0 } END { print l }' .vid/tickets/map; }
 planner() {
@@ -358,14 +391,43 @@ hov() { awk -v n="$1" -v r="rows=$2" '($1 == "published" || $1 == "amended") && 
 # tell <n> <file>: the comment on issue n and on each of its open pull requests (0.26.10.29.2, R3, R11), whoever claimed it or not; OP
 # their numbers. The pull requests are read first ($W/opn, unless the caller read them already), so a failed read posts nothing
 tell() { [ -f "$W/opn" ] || oprs "$1" > "$W/opn"; OP=$(paste -sd , "$W/opn"); ghc issue comment "$1" -R "$REPO" --body-file "$2" > /dev/null || return 1; for _p in $(cat "$W/opn"); do ghc pr comment "$_p" -R "$REPO" --body-file "$2" > /dev/null || return 1; done; }
+# xlocal (FB-3 B2): with one repository in GitHub manual ViD's line of export commits is refs/vid/export (XR) of its own repository, and
+# .vid/spec.git a copy made from it: the predicate that decides where a ticket quotes the spec (writer.sh reading, tw-hand)
+xlocal() { [ "$(twkey layout)" = one ] && manual; }
+# wasmanual (FB-3 B2): the project has ever been in GitHub manual, by the owner's recorded answers
+wasmanual() { grep -q '^setup-answered key=github-mode value="manual"' .vid/plan/setup 2>/dev/null; }
+XR=refs/vid/export; XFETCH=''
+# xfollow: refs/vid/export moved to .vid/spec.git's main, forward only (the relative path, so Git Bash needs no translation); 1 when it is none
+xfollow() { _xo=$(git rev-parse -q --verify "$XR^{commit}" 2>/dev/null || true); _xn=$(git --git-dir="$SG" rev-parse -q --verify refs/heads/main) || return 1; [ "$_xo" != "$_xn" ] || return 0
+  [ -z "$_xo" ] || git --git-dir="$SG" merge-base --is-ancestor "$_xo" "$_xn" 2>/dev/null || return 1; git fetch -q --no-tags .vid/spec.git "refs/heads/main:$XR" 2>/dev/null && [ "$(git rev-parse -q --verify "$XR^{commit}")" = "$_xn" ]; }
+# specloc (FB-3 B2, xlocal's specgit): SM the newest export, refs/vid/export, and .vid/spec.git's main set from it. A project whose exports
+# were pushed moves them in once, while the ref lacks the log's newest export: from .vid/spec.git's main when that holds it, else from
+# the spec repository its spec-repo: still names, fetched this once; from neither, refused (no export a ticket names is lost)
+specloc() { SURL=''; _xe=$(awk '$1 == "export" { v = $2 } END { print v }' .vid/tw/log 2>/dev/null); _xm=''
+  if git rev-parse -q --verify "$XR^{commit}" > /dev/null 2>&1; then [ -z "$_xe" ] || git merge-base --is-ancestor "$_xe" "$XR" 2>/dev/null || _xm=1; elif [ -n "$_xe$XFETCH" ]; then _xm=1; fi
+  if [ -n "$_xm" ]; then
+    [ -n "$_xe" ] && git --git-dir="$SG" merge-base --is-ancestor "$_xe" refs/heads/main 2>/dev/null || { [ -z "$SPEC" ] || specmain; }
+    if [ -n "$_xe" ]; then git --git-dir="$SG" merge-base --is-ancestor "$_xe" refs/heads/main 2>/dev/null && { xfollow || xjoin; } || gref "the export $(printf %.12s "$_xe"), the newest .vid/tw/log names, is in neither this project ($XR, .vid/spec.git) nor ${SPEC:-a spec repository}: name the spec repository that holds it once (sh checks/planner.sh setup spec-repo <owner/name> --words \"<their words>\"), and the exports are moved into the project"
+    elif git --git-dir="$SG" rev-parse -q --verify refs/heads/main > /dev/null; then xfollow || gref "the exports could not be moved into the project ($XR)"; fi; fi
+  SM=$(git rev-parse -q --verify "$XR^{commit}" 2>/dev/null || true)
+  if [ -n "$SM" ]; then git --git-dir="$SG" update-ref refs/heads/main "$SM" || gref "$SG could not be set from $XR"; else git --git-dir="$SG" update-ref -d refs/heads/main 2>/dev/null || true; fi; }
+# xjoin: a line pushed elsewhere since (another spec repository, or its main put back) and the one the ref kept, joined by one commit of the
+# pushed one's tree, the pushed one first, so no export of either is lost; logged as an export kept in the project
+xjoin() { _jn=$(git --git-dir="$SG" rev-parse refs/heads/main) && _jf=$(kv "$(awk '$1 == "export" { l = $0 } END { print l }' .vid/tw/log)" from) && [ -n "$_jf" ] || return 1
+  _jd=$(git log -1 --format=%cI "$_jf" 2>/dev/null || true)   # the applied commit's dates, as spec-export's, so the same join is the same commit
+  _jc=$(GIT_AUTHOR_NAME=ViD GIT_AUTHOR_EMAIL=vid@export.invalid GIT_COMMITTER_NAME=ViD GIT_COMMITTER_EMAIL=vid@export.invalid GIT_AUTHOR_DATE="$_jd" GIT_COMMITTER_DATE="$_jd" git --git-dir="$SG" commit-tree "$_jn^{tree}" -p "$_jn" -p "$_xo" -m "ViD export of $(printf %.12s "$_jf")" -m "from: $_jf") || return 1
+  git --git-dir="$SG" update-ref refs/heads/main "$_jc" && xfollow && twlog "export $_jc from=$_jf state=local at=$(now)"; }
 # specgit: .vid/spec.git, a bare repository whose objects borrow ViD's (alternates) — the export is built and pushed
 # there; SG its path, SURL the spec repository's URL, SM its main (fetched), or empty (main 404–411)
 specgit() {
-  [ -n "$SPEC" ] || gref ".vid/tw/settings names no spec-repo: — sh checks/github.sh spec-setup first"
+  xlocal || ! wasmanual || [ -z "$SPEC" ] || [ "$(lc "$SPEC")" != "$(lc "$(twkey state-repo)")" ] || gref "spec-repo: names the state-repo:, $SPEC, ViD's own state repository: answer it again (sh checks/planner.sh setup spec-repo <owner/name> --words \"<their words>\")"   # FB-3 B2: manual's state repository may be the old spec repository
+  xlocal || [ -n "$SPEC" ] || gref ".vid/tw/settings names no spec-repo: — sh checks/github.sh spec-setup first"
   SG=$(pwd -P)/.vid/spec.git
   [ -d "$SG" ] || { git init -q --bare "$SG" && git --git-dir="$SG" symbolic-ref HEAD refs/heads/main; } || gref "$SG could not be made"
   GC=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null) && case $GC in /*|?:/*) ;; *) false ;; esac || { GC=$(cd "$(git rev-parse --git-common-dir)" && pwd -P); ! command -v cygpath > /dev/null 2>&1 || GC=$(cygpath -m "$GC"); }   # git before 2.31 has no --path-format; Git Bash's cygpath gives Windows git's form
   printf '%s/objects\n' "$GC" > "$W/alt" || exit 1; put "$SG/objects/info/alternates" < "$W/alt" || exit 1   # the path in the form the git that reads it gives, never the shell's (v0.26.10.25.2.1, F-007: Git Bash's /c/… is no path to Windows git)
+  if xlocal; then specloc; else specmain; fi; }
+specmain() {   # the spec repository's main, fetched
   SURL=$(ghc repo view "$SPEC" --json url --jq .url 2>/dev/null) && [ -n "$SURL" ] || gref "no access to the spec repository $SPEC: gh repo view $SPEC failed (sh checks/github.sh spec-setup makes it)"
   SM=$(git --git-dir="$SG" ls-remote "$SURL" refs/heads/main 2>/dev/null | cut -f1)
   if [ -n "$SM" ]; then keeperr git --git-dir="$SG" fetch -q "$SURL" "+refs/heads/main:refs/heads/main" 2>/dev/null || gref "the spec repository $SPEC could not be fetched (git needs its credentials: gh auth setup-git)"
@@ -507,7 +569,8 @@ case "$CMD" in
     say() { M=$((M + 1)); [ "$1" = ok ] || B=$((B + 1)); shift; echo "access $*"; }
     words() { tr '\n' ' ' < "$1" | sed 's/[[:space:]]*$//'; }
     if ghc auth status > "$W/auth" 2>&1; then say ok 'gh — signed in'; else say no "gh — not signed in: $(words "$W/auth")"; echo "access: $B of $M not ready"; exit 0; fi
-    for k in repo spec-repo; do   # GM-4 J5: the private spec repository in both layouts
+    for k in repo spec-repo; do   # GM-4 J5: the private spec repository in both layouts; FB-3 B2: but with one repository in GitHub manual
+      [ "$k" = repo ] || ! xlocal || continue
       n=$(twkey "$k")
       if [ -z "$n" ]; then say no "$k — not set yet"; continue; fi
       if P=$(ghc repo view "$n" --json isPrivate --jq .isPrivate 2> "$W/e") && V=$(ghc repo view "$n" --json viewerPermission --jq .viewerPermission 2> "$W/e"); then
@@ -551,7 +614,7 @@ case "$CMD" in
     if manual; then   # GM-2 T1: the export's own paths alone: the ticket's export, on main's history, and main each hold there what the export holds now
       [ -n "$SM" ] && git --git-dir="$SG" rev-parse -q --verify "$X^{commit}" > /dev/null 2>&1 && git --git-dir="$SG" merge-base --is-ancestor "$X" "$SM" 2>/dev/null &&
         [ "$(mtree "$X" "$TR")" = "$(git --git-dir="$SG" rev-parse "$X^{tree}")" ] && [ "$(mtree "$SM" "$TR")" = "$(git --git-dir="$SG" rev-parse "$SM^{tree}")" ] ||
-        gref "the ticket's export ${X:-none} does not hold, at the export's own paths, the applied version the spec repository's main holds: sh checks/github.sh spec-export, then write it again"
+        gref "the ticket's export ${X:-none} does not hold, at the export's own paths, the applied version $(if xlocal; then echo "ViD's newest export"; else echo "the spec repository's main"; fi) holds: sh checks/github.sh spec-export, then write it again"
     else [ -n "$SM" ] && [ "$X" = "$SM" ] && [ "$(git --git-dir="$SG" rev-parse "$SM^{tree}")" = "$TR" ] || gref "the ticket's export ${X:-none} is not the spec repository's main at ViD's HEAD: sh checks/github.sh spec-export, then write it again"; fi
     [ -z "$A" ] || oprs "$A" > "$W/opn"   # 0.26.10.29.2 (R11): its pull requests read whole before anything is posted
     if [ -n "$FA" ]; then   # GM-2 T5: the body as GitHub holds it, read before anything is posted; the form refilled from the new writing
@@ -863,11 +926,11 @@ $1"; shift ;; esac; done
     if [ -n "$FR" ]; then sh "$0" lock-free > /dev/null 2>&1 || gref 'posted and saved, but the lock this call took could not be freed'; echo 'ViD github: the records saved; the lock freed'
     else echo "ViD github: the records saved; the run's lock kept"; fi; exit 0 ;;
 
-  state-setup)   # GM-1 S2 (M15): ViD's own private state repository, state-repo:, made private when missing, or checked private; never repo: or spec-repo:
+  state-setup)   # GM-1 S2 (M15): ViD's own private state repository, state-repo:, made private when missing, or checked private; never repo: or spec-repo: (FB-3 B2: xlocal, the old spec repository may be it)
     tw; STATE=$(twkey state-repo); [ -n "$STATE" ] || gref ".vid/tw/settings names no state-repo: <owner>/<name>"
     case "$STATE" in */*/*|/*|*/|*[!A-Za-z0-9._/-]*) gref "state-repo: '$STATE' is not <owner>/<name>" ;; */*) ;; *) gref "state-repo: '$STATE' is not <owner>/<name>" ;; esac
     _lc() { printf %s "$1" | tr 'A-Z' 'a-z'; }   # GitHub's names ignore case
-    [ "$(_lc "$STATE")" != "$(_lc "$REPO")" ] && [ "$(_lc "$STATE")" != "$(_lc "$SPEC")" ] || gref "state-repo: names the code or the spec repository ($STATE): ViD's records go to a repository of their own"
+    [ "$(_lc "$STATE")" != "$(_lc "$REPO")" ] && { xlocal || [ "$(_lc "$STATE")" != "$(_lc "$SPEC")" ]; } || gref "state-repo: names the code or the spec repository ($STATE): ViD's records go to a repository of their own"
     rc=0; mkrepo state-repo "$STATE" || rc=$?   # FB-2 A1
     [ "$rc" != 2 ] || gref "$STATE exists and is not private: ViD's records go only to a private repository; make it private, or name another"
     [ "$rc" = 0 ] || gref "the state repository $STATE could not be made"
@@ -903,7 +966,9 @@ $1"; shift ;; esac; done
     for v in j jr jo; do [ "$(git hash-object "$W/$v" | cut -c1-12)" != "$HW" ] || { cp "$W/$v" "$W/j"; break; }; done
     put "$O" < "$W/j" || exit 1; echo "writing $N $HW $SRC $M"; exit 0 ;;
 
-  tickets)   # GM-3 S1: tickets [<folder>], read only: every issue of the code repository labelled <prefix>ticket, open or closed, in issue order,
+  tickets)   # GM-3 S1: tickets [<folder>], read only: every issue of the code repository labelled <prefix>ticket, open or closed, and
+    # (FB-3 C3) each ticket on ViD's record (lib.sh onrec) whatever its labels, in issue order; one on record GitHub has no issue of is
+    # `not-found <n> <why>`, kept on record, and any other failed read refuses;
     # one line each: `ticket <n> <open|closed> <step>`, the step from its newest writing's header as ticket-writing joins it, or
     # `not-taken-over <n> <why>` (`no header` for a writing whose header names no step; ticket-writing's words when there is no whole
     # writing). A list as long as its limit (VID_TICKETS_LIMIT, 1000) is read again with the limit doubled, up to a cap
@@ -913,8 +978,14 @@ $1"; shift ;; esac; done
     while :; do ghc issue list -R "$REPO" --label "${PFX}ticket" --state all --limit "$L" --json number,state --jq '.[] | [.number, .state] | @tsv' > "$W/tl" || gref "the issues labelled ${PFX}ticket could not be read"
       [ "$(grep -c . "$W/tl")" -ge "$L" ] || break; [ "$L" -lt "$CP" ] || { echo "cut $CP $CP or more issues are labelled ${PFX}ticket, the most read at once: the list may be cut"; exit 0; }
       L=$((L * 2)); [ "$L" -le "$CP" ] || L=$CP; done
-    tr -d '\r' < "$W/tl" | awk -F'\t' 'NF { print $1 "\t" tolower($2) }' | sort -n > "$W/tn"
-    while IFS='	' read -r n s; do case "$n" in ''|*[!0-9]*) gref "the issue list gave '$n', no issue number" ;; esac
+    tr -d '\r' < "$W/tl" | awk -F'\t' 'NF { print $1 "\t" tolower($2) }' > "$W/tn"
+    for n in $(onrec); do ! grep -q "^$n	" "$W/tn" || continue   # FB-3 C3: on record, its label gone or never there
+      if ghc issue view "$n" -R "$REPO" --json state,labels --jq '.state + "\t" + ([.labels[].name] | join(","))' > "$W/st" 2> "$W/e"; then printf '%s\t%s\n' "$n" "$(cut -f1 "$W/st" | tr -d '\r' | tr 'A-Z' 'a-z')" >> "$W/tn"
+      elif grep -qi 'could not resolve to an issue' "$W/e"; then echo "not-found $n on record in .vid/tw/log, and the code repository has no issue of that number (deleted, or moved): kept on record"
+      else sed 's/^/    /' "$W/e" >&2; gref "#$n could not be read"; fi; done
+    sort -n "$W/tn" -o "$W/tn"
+    pni=0; while IFS='	' read -r n s; do case "$n" in ''|*[!0-9]*) gref "the issue list gave '$n', no issue number" ;; esac
+      pni=$((pni + 1)); prog now "ticket $pni of $(grep -c . "$W/tn" | tr -d ' ')"   # FB-3 D2
       sh "$0" ticket-writing "$n" "$W/tw.md" > "$W/tw.line" 2> "$W/e" || { sed 's/^/    /' "$W/e" >&2; gref "#$n could not be read"; }
       [ -z "$K" ] || { cp "$W/tw.line" "$K/$n.line"; [ ! -f "$W/tw.md" ] || cp "$W/tw.md" "$K/$n.md"; } || gref "#$n could not be kept in $K"
       if [ "$(cut -d' ' -f1 "$W/tw.line")" != writing ]; then echo "not-taken-over $n $(cut -d' ' -f3- "$W/tw.line")"
@@ -922,14 +993,26 @@ $1"; shift ;; esac; done
         if [ -n "$st" ]; then echo "ticket $n $s $st"; else echo "not-taken-over $n no header"; fi; fi; rm -f "$W/tw.md"
     done < "$W/tn"; exit 0 ;;
 
+  ticket-decided)   # FB-3 E1: ticket-decided <n>, read only, one view of the issue: `<open|closed>\t<commit>\t<author>\t<date>`, its state and
+    # its newest comment whose first line is `vid: decision <commit>` and whose second is `ticket: accepted`, `-` each with none; an issue
+    # GitHub does not have is `not-found\t-\t-\t-`, and any other failed read refuses
+    tw; N=${1:-}; case "$N" in ''|*[!0-9]*) usage ;; esac
+    CDQ='.state, (.comments[] | select(.body | startswith("vid: decision ")) | [(.body | split("\n") | .[0]), (.body | split("\n") | .[1] // ""), (.author.login // "-"), .createdAt] | @tsv)'
+    if ghc issue view "$N" -R "$REPO" --json state,comments --jq "$CDQ" > "$W/cd" 2> "$W/e"; then   # a line end's CR is @tsv's two characters
+      tr -d '\r' < "$W/cd" | awk -F'\t' -v OFS='\t' 'NR == 1 { s = tolower($1); c = a = d = "-"; next } { sub(/(\\r|[ \t])*$/, "", $1); sub(/(\\r|[ \t])*$/, "", $2) } $2 == "ticket: accepted" && $1 ~ /^vid: decision [0-9a-f]+$/ && length($1) >= 21 { c = substr($1, 15); a = $3; d = $4 } END { print s, c, a, d }'
+    elif grep -qi 'could not resolve to an issue' "$W/e"; then printf 'not-found\t-\t-\t-\n'
+    else sed 's/^/    /' "$W/e" >&2; gref "#$N could not be read"; fi; exit 0 ;;
+
   spec-fetch)   # GM-3 S1: read only, the spec repository's main fetched into ViD's copy, .vid/spec.git; nothing pushed
     # its main read on its own first, a failed read refused with git's words (an absent main is a read that succeeded)
-    tw; [ -z "$SPEC" ] || { U=$(ghc repo view "$SPEC" --json url --jq .url 2>/dev/null) && [ -n "$U" ] || gref "no access to the spec repository $SPEC: gh repo view $SPEC failed"
+    tw; if xlocal; then XFETCH=yes; specgit; echo "ViD github: ViD's exports, kept in the project, read into .vid/spec.git, the newest ${SM:-none}"; exit 0; fi   # FB-3 B2: no network, but the one move of pushed exports (specloc)
+    [ -z "$SPEC" ] || { U=$(ghc repo view "$SPEC" --json url --jq .url 2>/dev/null) && [ -n "$U" ] || gref "no access to the spec repository $SPEC: gh repo view $SPEC failed"
       git ls-remote "$U" refs/heads/main > /dev/null 2> "$W/sle" || { sed 's/^/    /' "$W/sle" >&2; gref "the spec repository $SPEC could not be read (git ls-remote, the lines above)"; }; }
     specgit; echo "ViD github: the spec repository $SPEC read into .vid/spec.git, its main ${SM:-none}"; exit 0 ;;
 
   spec-setup)   # v0.26.10.12.3 (R2, main 436–448): the private spec repository, made once, then an export
     tw
+    ! xlocal || gref "with layout: one in GitHub manual ViD's export is kept in the project (FB-3 B2): there is no spec repository to make"
     [ -n "$SPEC" ] || gref ".vid/tw/settings names no spec-repo: <owner>/<name>"
     case "$SPEC" in */*/*|/*|*/|*[!A-Za-z0-9._/-]*) gref "spec-repo: '$SPEC' is not <owner>/<name>" ;; */*) ;; *) gref "spec-repo: '$SPEC' is not <owner>/<name>" ;; esac
     [ "$SPEC" != "$REPO" ] || gref "spec-repo: names the code repository $REPO — the spec repository is another, <project>-spec"
@@ -941,24 +1024,35 @@ $1"; shift ;; esac; done
     sh "$0" spec-export; exit $? ;;
 
   spec-export)   # v0.26.10.12.3 (R2, main 450–494 less the spec-export: key and its ! entries): always R2's paths
-    tw; exptree say; specgit
+    tw; exptree say; specgit; XO=$SPEC; ! xlocal || XO="the export kept in the project"
+    # FB-3 B2: back in GitHub auto (or with two repositories) the line kept in the project meanwhile (refs/vid/export, XH; in a project
+    # that was ever in GitHub manual, wasmanual: any other pushes after the spec repository's main alone) is followed and pushed whole: SM the newest of it and of the spec repository's main (RM); each on its own line, both are the commit's parents (XP)
+    RM=$SM; XP=''; XH=$(git rev-parse -q --verify "$XR^{commit}" 2>/dev/null || true)
+    wasmanual || XH=''
+    if ! xlocal && [ -n "$XH" ] && [ "$XH" != "$SM" ]; then
+      if [ -z "$SM" ] || git --git-dir="$SG" merge-base --is-ancestor "$SM" "$XH" 2>/dev/null; then SM=$XH; elif ! git --git-dir="$SG" merge-base --is-ancestor "$XH" "$SM" 2>/dev/null; then XP=$XH; fi; fi
     ! manual || TR=$(mtree "$SM" "$TR") || gref "the export could not be put beside the files of $SPEC's main no export put there"   # GM-2 T1: they are kept
-    if [ -n "$SM" ] && [ "$(git --git-dir="$SG" rev-parse "$SM^{tree}")" = "$TR" ]; then twlog "export $SM from=$H state=unchanged at=$(now)"
-      echo "ViD github: the export at $(printf '%.12s' "$H") changes nothing — $SPEC stays at $(printf '%.12s' "$SM")"; exit 0; fi
-    set -- -m "ViD export of $(printf '%.12s' "$H")" -m "from: $H" -m "paths: $(paste -sd ' ' "$W/xp")"; [ -z "$SM" ] || set -- -p "$SM" "$@"
+    if [ -n "$SM" ] && [ "$RM" = "$SM" ] && [ -z "$XP" ] && [ "$(git --git-dir="$SG" rev-parse "$SM^{tree}")" = "$TR" ]; then twlog "export $SM from=$H state=unchanged at=$(now)"; xfollow || true
+      echo "ViD github: the export at $(printf '%.12s' "$H") changes nothing — $XO stays at $(printf '%.12s' "$SM")"; exit 0; fi
+    set -- -m "ViD export of $(printf '%.12s' "$H")" -m "from: $H" -m "paths: $(paste -sd ' ' "$W/xp")"; [ -z "$XP" ] || set -- -p "$XP" "$@"; [ -z "$SM" ] || set -- -p "$SM" "$@"
+    # FB-3 B2: kept in the project, its dates are the applied commit's, so the same spec on the same parent is the same commit
+    XD=''; ! xlocal || XD=$(git log -1 --format=%cI "$H")
     # authored and committed as ViD <vid@export.invalid> — no one's address (.invalid is reserved), in the call's own
     # environment, so neither git config nor an exported GIT_AUTHOR_*/GIT_COMMITTER_* overrides it (main's v0.26.10.17)
-    C=$(GIT_AUTHOR_NAME=ViD GIT_AUTHOR_EMAIL=vid@export.invalid GIT_COMMITTER_NAME=ViD GIT_COMMITTER_EMAIL=vid@export.invalid \
-      git --git-dir="$SG" commit-tree "$TR" "$@") || gref 'the export commit could not be made'
+    if [ -n "$SM" ] && [ "$RM" != "$SM" ] && [ "$(git --git-dir="$SG" rev-parse "$SM^{tree}")" = "$TR" ]; then C=$SM; else   # FB-3 B2: the line's newest holds it already
+    C=$(GIT_AUTHOR_NAME=ViD GIT_AUTHOR_EMAIL=vid@export.invalid GIT_COMMITTER_NAME=ViD GIT_COMMITTER_EMAIL=vid@export.invalid GIT_AUTHOR_DATE="$XD" GIT_COMMITTER_DATE="$XD" \
+      git --git-dir="$SG" commit-tree "$TR" "$@") || gref 'the export commit could not be made'; fi
+    if xlocal; then git --git-dir="$SG" update-ref refs/heads/main "$C" && xfollow || gref "the export could not be kept in the project ($XR, forward only)"
+      twlog "export $C from=$H state=local at=$(now)"; echo "ViD github: exported $(paste -sd ' ' "$W/xp") at $(printf '%.12s' "$H") as $(printf '%.12s' "$C"), kept in the project"; exit 0; fi
     # fast-forward only, never forced: no + and no --force, so a remote that moved is a refusal
     git --git-dir="$SG" push -q "$SURL" "$C:refs/heads/main" 2> "$W/xpush" || { sed 's/^/    /' "$W/xpush" >&2; gref "the export could not be pushed to $SPEC (a fast-forward of main only)"; }
-    git --git-dir="$SG" update-ref refs/heads/main "$C"
+    git --git-dir="$SG" update-ref refs/heads/main "$C"; xfollow || true
     twlog "export $C from=$H state=pushed at=$(now)"
     echo "ViD github: exported $(paste -sd ' ' "$W/xp") at $(printf '%.12s' "$H") to $SPEC as $(printf '%.12s' "$C")"; exit 0 ;;
 
-  spec-publish)   # GM-4 K13 (J4): spec-publish [--words "<w>"] [<export commit>], with layout: one, the export commit's spec tree mirrored into spec-path:
-    # (default docs/specs) on the code repository through GitHub's git data API alone: each file of the export a blob, the folder one tree
-    # of them with spec-stamp: (optional, a file inside the folder) holding the export commit, that tree put at the folder on main's tree
+  spec-publish)   # GM-4 K13 (J4): spec-publish [#<pr>] [--words "<w>"] [<export commit>], with layout: one, the export commit's spec tree put into spec-path:
+    # (default docs/specs) on the code repository through GitHub's git data API alone: each file of the export a blob, spec-stamp:
+    # (optional, a file inside the folder) holding the export commit, and (FB-3 B1) one tree on main's tree with those files at the folder
     # (main's commit and its tree read from .vid/code, the copy ViD fetches; no file of the code read or sent), one commit on main, the
     # branch vid-spec/<12 hex>, a pull request of it and a publish ticket (an issue labelled <prefix>spec) naming it. Refused, nothing
     # posted: with any layout but one; for a folder or stamp that leaves the folder (an entry outside spec-path is never sent); for an
@@ -968,6 +1062,15 @@ $1"; shift ;; esac; done
     # ticket, logged `spec-ticket pr=<n> issue=<i> at=<time>`, made alone when it is all that is owed. Nothing more when the newest
     # spec-published line names this export, this folder and this stamp (spdone) and its ticket is made: a changed folder or stamp is
     # published again. Nothing pushed from this machine, and ViD merges nothing: the team merges it.
+    # FB-3 B1: it changes only files ViD put there. Kept: every file of main's folder the export lacks; overwritten: a path the export
+    # holds, and the stamp; deleted: a path the export no longer holds (an older stamp too) whose file on main is the one an earlier
+    # spec-published export of this folder, ViD's own, put there, so a first publish deletes nothing. The folder's names and ids
+    # (fold) are read before any deletion, and once after the tree call, so a tree that does not hold the export is refused.
+    # FB-3 B1, spec-publish: hand, in GitHub manual (GitHub auto publishes as ever): the team publishes by its own process and nothing is written to GitHub. The code repository is
+    # fetched; the folder read at main, or at pull request #<pr>'s head (closed and not merged, refused). Every file of the export there: logged `spec-published
+    # pr=<pr|-> export= path= stamp= at= by=hand[ words=]` (the stamp's form is the team's, not read). Not there: the export laid out in
+    # .vid/spec-out/<12>/files with changes.tsv (`new|changed|gone <path>`; not saved, made again each call), and refused (exit 1),
+    # naming the folder. A by=hand line makes no publish ticket and is never replaced (spreplace).
     # Logged `spec-published pr=<n> export=<12 hex> path=<folder> stamp=<file|-> at=<time>`, and (FB-1 B6) ` words="<w>"` last when the
     # owner's words were given, quoted as tw-post's are (in GitHub auto blank words are no words); whether they are required is the skill's rule
     # FB-1 B5: a git data call that itself fails, or a close of FB-1 B1's that fails, exits 5, the call unfinished, not refused (1 is a
@@ -981,14 +1084,15 @@ $1"; shift ;; esac; done
     spfail() { _e=$E12; [ -n "$_e" ] || _e=$(awk '$1 == "export" { v = $2 } END { print substr(v, 1, 12) }' .vid/tw/log 2>/dev/null); [ -z "$_e" ] || { printf '%s\n' "$_e" > "$W/so" && put .vid/tw/spec-owed < "$W/so"; }
       twlog "spec-failed export=${_e:--} at=$(now) why=\"$(printf '%s' "$*" | tr '\t\n\r' '   ' | tr '"' "'")\""; echo "ViD github: not finished — $*" >&2; exit 5; }
     spok() { rm -f .vid/tw/spec-owed; }
-    tw; SPUB=yes; WO=''; WS=''; [ "${1:-}" != --words ] || { [ $# -ge 2 ] || usage; WO=$2; WS=1; shift 2; }; [ $# -le 1 ] || usage
+    tw; SPUB=yes; WO=''; WS=''; PN=''; EA=''; while [ $# -gt 0 ]; do case $1 in --words) [ $# -ge 2 ] || usage; WO=$2; WS=1; shift 2 ;; '#'*) PN=${1#?}; case $PN in ''|*[!0-9]*) usage ;; esac; shift ;; *) [ -z "$EA" ] || usage; EA=$1; shift ;; esac; done
+    HND=''; ! manual || [ "$(twkey spec-publish)" != hand ] || HND=yes; [ -z "$PN" ] || [ -n "$HND" ] || gref "#$PN is read as the team's own publish in GitHub manual with the setup's spec-publish: hand alone (sh checks/planner.sh setup spec-publish hand --words \"<their words>\") — nothing posted"   # FB-3 B1
     [ -z "$WS" ] || [ -n "$(printf '%s' "$WO" | tr -d '[:space:]')" ] || manual || WS=''; WQ=$(printf '%s' "$WO" | tr '\t\n\r' '   ' | tr '"' "'")
     [ "$(twkey layout)" = one ] || gref "layout: $(twkey layout | grep . || echo separate): the spec reaches the team by the spec repository's export alone (sh checks/github.sh spec-export); spec-publish is layout: one's — nothing posted"
     spdest
     case "$SP" in ''|/*|.|..|./*|../*|*/../*|*/..|*/.|*/./*|*//*|*[!A-Za-z0-9._/-]*) gref "spec-path: '$SP' is no folder inside the code repository (a plain path from its top): nothing outside the folder is ever published — nothing posted" ;; esac
     case "$SS" in '') ;; /*|.|..|./*|../*|*/../*|*/..|*/.|*/./*|*//*|*/|*[!A-Za-z0-9._/-]*) gref "spec-stamp: '$(twkey spec-stamp)' is no file inside spec-path: $SP: an entry outside the folder is never published — nothing posted" ;; esac
-    specgit; E=${1:-$(awk '$1 == "export" { v = $2 } END { print v }' .vid/tw/log 2>/dev/null)}; [ -n "$E" ] || gref 'no export yet: sh checks/github.sh spec-export first — nothing posted'
-    E=$(git --git-dir="$SG" rev-parse -q --verify "$E^{commit}") || gref "the export ${1:-} is not in ViD's copy of the spec repository (.vid/spec.git) — nothing posted"; E12=$(printf %.12s "$E")
+    specgit; E=${EA:-$(awk '$1 == "export" { v = $2 } END { print v }' .vid/tw/log 2>/dev/null)}; [ -n "$E" ] || gref 'no export yet: sh checks/github.sh spec-export first — nothing posted'
+    E=$(git --git-dir="$SG" rev-parse -q --verify "$E^{commit}") || gref "the export $EA is not in ViD's copy of the spec repository (.vid/spec.git) — nothing posted"; E12=$(printf %.12s "$E")
     # spticket <pr>: the publish ticket naming the pull request, logged `spec-ticket pr=<n> issue=<i> at=<time>` once made
     spticket() { printf 'vid: pull request #%s brings the spec at export %s into the folder %s. Merge it before working on a ticket that quotes this export, then close this issue.\n' "$1" "$E12" "$SP" > "$W/pt"
       ghc label create "${PFX}spec" -R "$REPO" --force --description 'ViD: the spec published' > /dev/null || gref "pull request #$1 is made, but the label ${PFX}spec could not be: sh checks/github.sh spec-publish again makes its publish ticket"
@@ -998,14 +1102,14 @@ $1"; shift ;; esac; done
     # changed folder or stamp reuses its own), with no `spec-replaced pr=<it>` line yet, in two halves, each on its own: the pull
     # request, open, told `vid: replaced by pull request #<pr> …` and closed (merged or closed already: left as it is); its publish
     # ticket (spec-ticket), open, told `vid: replaced by #<ticket> …` and closed, unless its pull request was merged. Each item's
-    # comments are read first, so one opening `vid: replaced by` there is never posted again and only the close is tried. Logged
+    # comments are read first (FB-3 B1: a by=hand line, the team's own publish, is none of them), so one opening `vid: replaced by` there is never posted again and only the close is tried. Logged
     # `spec-replaced pr=<old> by=<pr> issue=<i|-> at=<time>` once both halves are done; a half not done leaves the call unfinished
     # (exit 5), and the next call tries it again. FB-2 B2: each failed call's reply kept as it happens (rpk, $W/rpw: `#<old>: <reply>`,
     # never $W/gfail, which a later call that succeeds removes) and put on spfail's line, so on its spec-failed line
     RPL='.state + "\t" + ([.comments[].body | select(startswith("vid: replaced by"))] | length | tostring)'
     rpk() { _ro=$1; shift; _rk=0; "$@" 2> "$W/rpe" || _rk=$?; cat "$W/rpe" >&2; [ "$_rk" = 0 ] && return 0; _g=$(ghwhy "$W/rpe"); [ -z "$_g" ] || printf '#%s: %s\n' "$_ro" "$_g" >> "$W/rpw"; return "$_rk"; }
     spreplace() { _rf=''; : > "$W/rpw"
-      for _o in $(sed -n 's/^spec-published pr=\([0-9][0-9]*\) .*/\1/p' .vid/tw/log | sort -un); do [ "$_o" != "$1" ] || continue; ! grep -q "^spec-replaced pr=$_o " .vid/tw/log || continue
+      for _o in $(grep -vE "$BYH" .vid/tw/log | sed -n 's/^spec-published pr=\([0-9][0-9]*\) .*/\1/p' | sort -un); do [ "$_o" != "$1" ] || continue; ! grep -q "^spec-replaced pr=$_o " .vid/tw/log || continue
         _oi=$(sed -n "s/^spec-ticket pr=$_o issue=\([0-9]*\) .*/\1/p" .vid/tw/log | tail -n 1); _pk=1; _tk=1
         _ps=$(rpk "$_o" ghc pr view "$_o" -R "$REPO" --json state,comments --jq "$RPL" 2>/dev/null) || _ps=''; _pst=$(printf '%s' "$_ps" | cut -f1)
         case $_pst in OPEN) if [ "$(printf '%s' "$_ps" | cut -f2)" = 0 ]; then printf 'vid: replaced by pull request #%s, the spec at export %s; nothing of this one is to merge.\n' "$1" "$E12" > "$W/rp" && rpk "$_o" ghc pr comment "$_o" -R "$REPO" --body-file "$W/rp" > /dev/null || _pk=''; fi
@@ -1021,7 +1125,8 @@ $1"; shift ;; esac; done
       _g=$(paste -sd '|' "$W/rpw" | sed 's/|/; /g'); [ -z "$_rf" ] || spfail "pull request #$1 is made; the older$_rf or its ticket could not be closed${_g:+ (GitHub: $_g)}: spec-publish again closes it"; }
     # GM-4 K13: published already: nothing more, but the publish ticket when a call failed after the pull request was made; FB-1 B1:
     # and the older folder pull requests' close, when a call stopped before it was done
-    LP=$(grep '^spec-published ' .vid/tw/log 2>/dev/null | tail -n 1 || true); if spdone "$E12"; then P=$(kv "$LP" pr)
+    LP=$(grep '^spec-published ' .vid/tw/log 2>/dev/null | tail -n 1 || true); if spdone "$E12" && [ -z "$PN" ]; then P=$(kv "$LP" pr)
+      if [ -n "$HND" ] || printf '%s\n' "$LP" | grep -qE "$BYH"; then echo "ViD github: the export $E12 is published into $SP already ($([ "$P" = - ] && echo 'on main' || echo "pull request #$P"))"; spok; exit 0; fi   # FB-3 B1
       I=$(sed -n "s/^spec-ticket pr=$P issue=\([0-9]*\) .*/\1/p" .vid/tw/log | tail -n 1)
       if [ -n "$I" ]; then echo "ViD github: the export $E12 is published into $SP already (pull request #$P)"; spreplace "$P"; spok; exit 0; fi
       spticket "$P"; echo "ViD github: the export $E12 is published into $SP (pull request #$P): its publish ticket #$I made"; spreplace "$P"; spok; exit 0; fi
@@ -1031,33 +1136,62 @@ $1"; shift ;; esac; done
         if (m[2] != "blob" || p ~ /["\\]/ || p ~ /[[:cntrl:]]/ || index(f, P "/") != 1 || f ~ /(^|\/)\.\.?(\/|$)/) print p }' "$W/pe" | tr '\001' ' ' > "$W/pbad"
     [ ! -s "$W/pbad" ] || gref "the export $E12 holds $(head -n 1 "$W/pbad"), which the folder $SP cannot take as a plain file of its own — nothing posted"
     [ -z "$SS" ] || ! awk -F'\t' -v s="$SS" '$2 == s || index(s, $2 "/") == 1 || index($2, s "/") == 1 { f = 1 } END { exit !f }' "$W/pe" || gref "spec-stamp: $SS is a file of the export itself — nothing posted"
-    # the folder's tree as GitHub must make it, built here first in .vid/spec.git (a temporary index), so what comes back is checked
-    _pi=$W/pindex; GIT_INDEX_FILE=$_pi git --git-dir="$SG" read-tree "$E" || gref 'the export could not be read into a temporary index — nothing posted'
-    STB=''; if [ -n "$SS" ]; then STB=$(printf '%s\n' "$E" | git --git-dir="$SG" hash-object -w --stdin) && GIT_INDEX_FILE=$_pi git --git-dir="$SG" update-index --add --cacheinfo "100644,$STB,$SS" || gref 'the stamp could not be made — nothing posted'; fi
-    STL=$(GIT_INDEX_FILE=$_pi git --git-dir="$SG" write-tree) || gref "the folder's tree could not be made — nothing posted"
-    # main: its commit and tree, from .vid/code (fetched once when it holds no main)
+    STB=''; if [ -n "$SS" ] && [ -z "$HND" ]; then STB=$(printf '%s\n' "$E" | git --git-dir="$SG" hash-object -w --stdin) || gref 'the stamp could not be made — nothing posted'; fi
+    # main: its commit and tree, from .vid/code, fetched first (FB-3 B1)
     # GM-4 K13: a code repository with no main yet (the normal start, before the skeleton merges) has no folder to publish into: one
     # line, exit 0, nothing posted; the export goes there by a later call once main exists
     # FB-2 B1: main's fetch (results-fetch, its own process) keeps its reply ($W/rfe); main on GitHub and not in .vid/code is the call
     # unfinished (exit 5, the fetch's reply, or a later read's), never a rule
-    MC=$(git --git-dir=.vid/code rev-parse -q --verify refs/heads/main 2>/dev/null) || { sh "$0" results-fetch > /dev/null 2> "$W/rfe" || :; MC=$(git --git-dir=.vid/code rev-parse -q --verify refs/heads/main 2>/dev/null); } || {
+    # FB-3 B1: the fetch is made first, each call, so the folder is read, and what is deleted decided, as main stands
+    RF=''; sh "$0" results-fetch > /dev/null 2> "$W/rfe" || RF=no
+    MC=$(git --git-dir=.vid/code rev-parse -q --verify refs/heads/main 2>/dev/null) || {
       CU=$(ghc repo view "$REPO" --json url --jq .url 2>/dev/null) && [ -n "$CU" ] && keeperr git ls-remote "$CU" refs/heads/main > "$W/pm" 2>/dev/null && [ ! -s "$W/pm" ] &&
         { echo "ViD github: the code repository has no main yet, so no folder $SP to publish the export $E12 into: nothing posted; it goes there once main exists"; spok; exit 0; }
       [ -f "$W/gfail" ] || cp "$W/rfe" "$W/gfail" 2>/dev/null || : > "$W/gfail"; gref "the code repository's main is not in .vid/code (sh checks/github.sh results-fetch) — nothing posted; the next call fetches it"; }
+    [ -z "$RF" ] || { cp "$W/rfe" "$W/gfail"; gref 'the code repository could not be fetched into .vid/code — nothing posted; the next call fetches it'; }
     MT=$(git --git-dir=.vid/code cat-file commit "$MC" 2>/dev/null | sed -n '1s/^tree //p'); [ -n "$MT" ] || gref "main's tree could not be read from .vid/code — nothing posted"
     # GM-4 proof D6: each git data call's reply kept ($W/gde), so a refusal says what GitHub answered (gw)
     gd() { SPUB=yes ghc api -X POST "repos/$REPO/git/$1" --input "$W/pj" --jq "$2" 2> "$W/gde"; }
     gw() { _g=$(ghwhy "$W/gde"); if [ -n "$_g" ]; then printf ' (GitHub: %s)' "$_g"; elif [ -n "${1:-}" ]; then printf ' (GitHub made %s, the export'"'"'s is %s)' "$1" "$2"; else printf ' (GitHub gave no reply)'; fi; }
+    # FB-3 B1: fold <tree>: $W/fold, the folder's files at that tree of the code repository, `<blob id>\t<path from the folder>`, names and
+    # ids alone (GETs, down to the folder and then whole); empty when the folder is not there
+    fold() { FT=$1; : > "$W/fold"; for _c in $(printf '%s\n' "$SP" | tr / '\n'); do FT=$(ghc api "repos/$REPO/git/trees/$FT" --jq ".tree[] | select(.path == \"$_c\" and .type == \"tree\") | .sha" 2> "$W/gde") || spfail "the folder $SP could not be read$(gw) — nothing posted; the next call reads it"; [ -n "$FT" ] || return 0; done
+      ghc api "repos/$REPO/git/trees/$FT?recursive=1" --jq "$FOQ" > "$W/fold" 2> "$W/gde" || spfail "the folder $SP could not be read$(gw) — nothing posted; the next call reads it"
+      [ "$(head -n 1 "$W/fold")" != truncated ] || gref "the folder $SP holds more files than GitHub lists in one read — nothing posted"; }
+    FOQ='(if .truncated then "truncated" else empty end), (.tree[] | select(.type == "blob") | [.sha, .path] | @tsv)'
+    # olds [all]: $W/olds, `<blob id>\t<path>` of each file an earlier publish of this folder put there (ViD's own, its stamp too; all: the
+    # team's too) that this export and its stamp do not hold; was: those of them in $W/fold unchanged, by path
+    olds() { : > "$W/ol0"; grep '^spec-published ' .vid/tw/log 2>/dev/null | if [ "${1:-}" = all ]; then cat; else grep -vE "$BYH"; fi > "$W/ol1"
+      while IFS= read -r _l; do [ "$(kv "$_l" path)" = "$SP" ] && _x=$(git --git-dir="$SG" rev-parse -q --verify "$(kv "$_l" export)^{commit}" 2>/dev/null) || continue
+        git --git-dir="$SG" ls-tree -r -z "$_x" | tr '\n\000' '\001\n' | sed 's/^[0-9]* [a-z]* //' >> "$W/ol0"; _st=$(kv "$_l" stamp); [ "$_st" = - ] || printf '%s\t%s\n' "$(printf '%s\n' "$_x" | git --git-dir="$SG" hash-object --stdin)" "$_st" >> "$W/ol0"; done < "$W/ol1"
+      awk -F'\t' -v S="$SS" 'FILENAME == ARGV[1] { H[$2] = 1; next } $2 != S && !($2 in H) && !U[$0]++' "$W/pe" "$W/ol0" > "$W/olds"; }
+    was() { awk 'FILENAME == ARGV[1] { O[$0] = 1; next } $0 in O { sub(/^[^\t]*\t/, ""); print }' "$W/olds" "$W/fold" | sort -u; }
+    awk -F'\t' '{ split($1, m, " "); print m[3] "\t" $2 }' "$W/pe" > "$W/px"
+    if [ -n "$HND" ]; then   # FB-3 B1: the team's own publish, read
+      HT=$MT; HW="the code repository's main"; if [ -n "$PN" ]; then HW="pull request #$PN"; HT=$(git --git-dir=.vid/code cat-file commit "refs/pull/$PN/head" 2>/dev/null | sed -n '1s/^tree //p'); [ -n "$HT" ] || gref "pull request #$PN is not on the code repository — nothing posted"
+        # closed and not merged, it publishes nothing: its state by spreplace's read
+        HS=$(ghc pr view "$PN" -R "$REPO" --json state,comments --jq "$RPL" 2> "$W/gde") || spfail "the state of pull request #$PN could not be read$(gw) — nothing posted; the next call reads it"
+        [ "$(printf '%s' "$HS" | cut -f1)" != CLOSED ] || gref "pull request #$PN is closed and not merged, so it publishes nothing: name the one that does — nothing posted"; fi
+      fold "$HT"; awk -F'\t' 'FILENAME == ARGV[1] { F[$2] = $1; next } !($2 in F) { print "new\t" $2; next } F[$2] != $1 { print "changed\t" $2 }' "$W/fold" "$W/px" > "$W/hc"
+      if [ ! -s "$W/hc" ]; then if spdone "$E12" && [ "$(kv "$LP" pr)" = "${PN:--}" ]; then echo "ViD github: the export $E12 is published into $SP already ($HW)"; else twlog "spec-published pr=${PN:--} export=$E12 path=$SP stamp=${SS:--} at=$(now) by=hand${WS:+ words=\"$WQ\"}"
+        echo "ViD github: the export $E12 is in the folder $SP, in $HW: the team's publish recorded, nothing posted"; fi; spok; exit 0; fi
+      HN=$(grep -c . "$W/hc" | tr -d ' '); HF=$(head -n 3 "$W/hc" | cut -f2 | paste -sd , - | sed 's/,/, /g'); olds all; was | sed 's/^/gone	/' >> "$W/hc"
+      HO=.vid/spec-out/$E12; rm -rf .vid/spec-out; mkdir -p "$HO/files" && git --git-dir="$SG" -c core.autocrlf=false archive "$E" | tar -x -C "$HO/files" && put "$HO/changes.tsv" < "$W/hc" || gref "the export $E12 could not be laid out in $HO — nothing posted"
+      gref "the export $E12 is not in the folder $SP of $HW: $HN of its files are not there or differ ($HF$([ "$HN" -le 3 ] || echo ', …')). Laid out in $HO/files, with $HO/changes.tsv; the team publishes it by its own process, then /vid:vid-spec-publish #<its pull request> reads it — nothing posted"; fi
+    # FB-3 B1: what this publish deletes: a file ViD put there, dropped from the export and unchanged on main
+    olds; : > "$W/pdel"; [ ! -s "$W/olds" ] || { fold "$MT"; was > "$W/pdel"; }
     # each file a blob: what GitHub names it must be the export's own
     { awk -F'\t' '{ split($1, m, " "); print m[3] }' "$W/pe"; [ -z "$STB" ] || echo "$STB"; } | sort -u > "$W/pbl"
     for b in $(cat "$W/pbl"); do { printf '{"content":"'; git --git-dir="$SG" cat-file blob "$b" | base64 | tr -d '\n\r'; printf '","encoding":"base64"}\n'; } > "$W/pj" || gref "a file of the export could not be read — nothing posted"
       r=$(gd blobs .sha) || spfail "a file of the export could not be sent (blob $b)$(gw): no branch names what was sent — nothing posted; the next call sends it"
       [ "$r" = "$b" ] || gref "a file of the export could not be sent as itself (blob $b)$(gw "$r" "$b"): no branch names what was sent — nothing posted"; done
-    { printf '{"tree":[\n'; awk -F'\t' -v S="$SS" -v SB="$STB" '{ split($1, m, " "); L[++n] = sprintf("{\"path\":\"%s\",\"mode\":\"%s\",\"type\":\"blob\",\"sha\":\"%s\"}", $2, m[1], m[3]) }
-        END { if (S != "") L[++n] = sprintf("{\"path\":\"%s\",\"mode\":\"100644\",\"type\":\"blob\",\"sha\":\"%s\"}", S, SB); for (i = 1; i <= n; i++) print L[i] (i < n ? "," : "") }' "$W/pe"; printf ']}\n'; } > "$W/pj"
-    r=$(gd trees .sha) || spfail "the folder's tree could not be made$(gw) — nothing posted; the next call makes it"
-    [ "$r" = "$STL" ] || gref "the folder's tree could not be made as the export holds it$(gw "$r" "$STL") — nothing posted"
-    printf '{"base_tree":"%s","tree":[\n{"path":"%s","mode":"040000","type":"tree","sha":"%s"}\n]}\n' "$MT" "$SP" "$STL" > "$W/pj"; TOP=$(gd trees .sha) || spfail "main's tree with the folder could not be made$(gw) — nothing posted; the next call makes it"; [ -n "$TOP" ] || gref "main's tree with the folder could not be made$(gw) — nothing posted"
+    # FB-3 B1: one tree: main's, with the export's files and the stamp at the folder, and each deleted path out; read back by its names and ids
+    { printf '{"base_tree":"%s","tree":[\n' "$MT"; awk -F'\t' -v P="$SP/" -v S="$SS" -v SB="$STB" 'FILENAME == ARGV[2] { L[++n] = "{\"path\":\"" P $0 "\",\"mode\":\"100644\",\"type\":\"blob\",\"sha\":null}"; next } { split($1, m, " "); L[++n] = sprintf("{\"path\":\"%s\",\"mode\":\"%s\",\"type\":\"blob\",\"sha\":\"%s\"}", P $2, m[1], m[3]) }
+        END { if (S != "") L[++n] = sprintf("{\"path\":\"%s\",\"mode\":\"100644\",\"type\":\"blob\",\"sha\":\"%s\"}", P S, SB); for (i = 1; i <= n; i++) print L[i] (i < n ? "," : "") }' "$W/pe" "$W/pdel"; printf ']}\n'; } > "$W/pj"
+    TOP=$(gd trees .sha) || spfail "the folder's tree could not be made$(gw) — nothing posted; the next call makes it"; [ -n "$TOP" ] || gref "the folder's tree could not be made$(gw) — nothing posted"
+    fold "$TOP"; [ -z "$STB" ] || printf '%s\t%s\n' "$STB" "$SS" >> "$W/px"
+    BADF=$(awk -F'\t' 'FILENAME == ARGV[1] { F[$2] = $1; next } F[$2] != $1 { print $2 " is " (($2 in F) && F[$2] != "" ? F[$2] : "not there") ", the export'"'"'s is " $1; exit }' "$W/fold" "$W/px")
+    [ -z "$BADF" ] || gref "the folder's tree could not be made as the export holds it (GitHub made $TOP, where $BADF) — nothing posted"
     printf '{"message":"ViD export %s into %s","tree":"%s","parents":["%s"],"author":{"name":"ViD","email":"vid@export.invalid"}}\n' "$E12" "$SP" "$TOP" "$MC" > "$W/pj"; PC=$(gd commits .sha) || spfail "the commit could not be made$(gw) — nothing posted; the next call makes it"; [ -n "$PC" ] || gref "the commit could not be made$(gw) — nothing posted"
     # GM-4 K13: the branch, ViD's own: made, or, left by a call that failed after making it, moved to this commit (forced)
     BR=vid-spec/$E12; CU=$(ghc repo view "$REPO" --json url --jq .url) && [ -n "$CU" ] && keeperr git ls-remote "$CU" "refs/heads/$BR" > "$W/pbr" 2>/dev/null || gref "the code repository's branches could not be read — nothing posted"
@@ -1119,21 +1253,44 @@ $1"; shift ;; esac; done
     tw; [ -n "${1:-}" ] && [ -f "${2:-}" ] || usage; ghc pr comment "$1" -R "$REPO" --body-file "$2" > /dev/null || gref "the decision on pull request $1 could not be posted"; exit 0 ;;
 
   results-fetch)   # v0.26.10.24.5 (R2): .vid/code, the local copy checks/results.sh reads: every head and vid-results/* branch; 0.26.10.28.4: no file of the code
+    prog now "fetching the team's reports"   # FB-3 D2
     tw; U=$(ghc repo view "$REPO" --json url --jq .url 2>/dev/null) && [ -n "$U" ] || gref "no access to $REPO: gh repo view $REPO failed"
     # 0.26.10.28.1 (stage 9 R5, S5): a working clone there (the first ticket mode's) is moved aside, and the bare copy cloned
     if [ -d .vid/code/.git ]; then CO=.vid/code.old-$(date -u '+%Y%m%dT%H%M%SZ'); mv .vid/code "$CO" || gref ".vid/code, a working clone, could not be moved aside"; echo "ViD github: .vid/code was a working clone — moved aside to $CO; the bare copy is cloned in its place"; fi
-    # 0.26.10.28.4 (9.3 R5, M5): .vid/code holds no file of DevAgent's code. The reports: each vid-results/* branch's newest commit and its own folder
-    # (--depth=1, the reports alone offered as had). DevAgent's commits: every other branch and pull-request head with no tree (--filter=tree:0), through a
+    # 0.26.10.28.4 (9.3 R5, M5): .vid/code holds no file of DevAgent's code. The reports: each vid-results/* branch's own folder alone (FB-3 A2,
+    # below). DevAgent's commits: every other branch and pull-request head with no tree (--filter=tree:0), through a
     # promisor remote whose address is never stored, so nothing is fetched later; HEAD unborn, so no attributes are read from a code tree. At every fetch:
     # what no ref reaches is dropped, then the proof (nothing but the reports' trees and files, the empty tree aside; each report its folder alone), else
     # .vid/code is removed and the fetch refused. A copy in the earlier, full form is replaced
-    cg() { git --git-dir=.vid/code "$@"; }; xref() { rm -rf .vid/code; gref "the fetch brought DevAgent's files ($1); ViD keeps none. .vid/code removed, nothing fetched."; }
+    xref() { rm -rf .vid/code; gref "the fetch brought DevAgent's files ($1); ViD keeps none. .vid/code removed, nothing fetched."; }
     if [ -d .vid/code ] && [ "$(cg config extensions.partialClone 2>/dev/null)" != vid-commits ]; then rm -rf .vid/code; echo "ViD github: .vid/code held DevAgent's files, the earlier form — replaced by a copy that holds none"; fi
     [ -d .vid/code ] || { git init -q --bare .vid/code && cg config core.repositoryformatversion 1 && cg config extensions.partialClone vid-commits; } || { rm -rf .vid/code; gref ".vid/code could not be made"; }
     cg symbolic-ref HEAD refs/vid/none || gref ".vid/code's HEAD could not be set"   # unborn, outside both fetches' refs
     LR=$(git ls-remote "$U" 'refs/heads/vid-results/*' 2>/dev/null) || gref "$REPO's reports could not be listed (git ls-remote)"   # whole: a branch ending in vid-results/… is no report
-    [ -z "$LR" ] || cg fetch -q --no-tags --depth=1 --negotiation-tip='refs/heads/vid-results/*' "$U" '+refs/heads/vid-results/*:refs/heads/vid-results/*' 2>/dev/null || gref "$REPO's reports could not be fetched into .vid/code"
+    # FB-3 A2: of a report branch its own folder alone is read and fetched, whatever else the branch holds. GitHub names that folder's tree (one
+    # read-only graphql query of 50 branches; nothing of the rest is named or sent), that tree alone is fetched, and the branch's ref here is a
+    # parentless commit of ViD's holding the folder alone, at the branch's commit's time, its message `vid-report: <the branch's commit>`; a branch
+    # whose ref says its commit already is not asked for. A branch with no such folder is left out, its line in .vid/round/reports-skipped (id,
+    # commit, author, date, why; tab), asked again at each fetch. A read GitHub fails is the call refused, the copy and the list as they were
+    ownrefs || gref "ViD's own reviews could not be put into .vid/code"; mkdir -p .vid/round; : > "$W/sk"; : > "$W/got"
+    printf '%s\n' "$LR" | awk '$2 ~ /^refs\/heads\/vid-results\// { sub(/^refs\/heads\/vid-results\//, "", $2); print $1 "\t" $2 }' > "$W/lr"
+    cg for-each-ref --format='%(refname:lstrip=3) %(contents:subject)' refs/heads/vid-results/ | awk -v OFS='\t' '$2 == "vid-report:" { print $1, $3 }' > "$W/here"
+    # an id is any plain character git allows in a branch's last part but the double quote (graphql's, and git's own quoting of a name)
+    LC_ALL=C awk -F'\t' -v OFS='\t' -v H="$W/here" -v O="$W/own" -v SK="$W/sk" 'BEGIN { while ((getline l < H) > 0) { split(l, x, "\t"); C[x[1]] = x[2] } while ((getline l < O) > 0) OW[l] = 1 } $2 in OW { next }
+      $2 !~ /^[!#-~]+$/ || index($2, "/") { print $2, $1, "-", "-", "its name holds " (index($2, "/") ? "a slash after vid-results/" : "a double quote, or a letter past plain text") ", so it is pushed again under a plain name" > SK; next } C[$2] != $1 { print $1, $2 }' "$W/lr" > "$W/ask"
+    RESREAD=yes; split -l 50 "$W/ask" "$W/ask." 2>/dev/null || :; for f in "$W"/ask.??*; do [ -s "$f" ] || continue
+      Q=$(awk -F'\t' -v o="${REPO%%/*}" -v n="${REPO#*/}" 'BEGIN { printf "query { repository(owner: \"%s\", name: \"%s\") {", o, n } { printf " c%d: object(oid: \"%s\") { oid ... on Commit { committedDate author { name } } } f%d: object(expression: \"%s:%s\") { __typename oid }", NR, $1, NR, $1, $2 } END { print " } }" }' "$f")
+      ghc api graphql -f query="$Q" --jq '.data.repository | to_entries[] | [.key, (.value.__typename // "-"), (.value.oid // "-"), (.value.committedDate // "-"), (.value.author.name // "-")] | @tsv' > "$W/gq" 2> "$W/e" || gref "$REPO's reports could not be read: $(ghwhy "$W/e")"
+      [ "$(grep -c . "$W/gq")" = $(($(grep -c . "$f") * 2)) ] || gref "$REPO's reports could not be read: the reply is not whole"
+      awk -F'\t' -v OFS='\t' -v SK="$W/sk" -v A="$f" 'BEGIN { while ((getline l < A) > 0) { split(l, x, "\t"); c[++n] = x[1]; id[n] = x[2] } } { k = substr($1, 2) + 0; if ($1 ~ /^c/) { o[k] = $3; d[k] = $4; a[k] = $5 } else { t[k] = $2; f[k] = $3 } }
+        END { for (k = 1; k <= n; k++) if (o[k] != c[k] || d[k] == "-") { print id[k]; exit 3 }
+          for (k = 1; k <= n; k++) if (t[k] == "Tree") print c[k], id[k], f[k], d[k]; else print id[k], c[k], a[k], d[k], (t[k] == "-" ? "it has no folder " id[k] : id[k] " is a file there, not a folder") >> SK }' "$W/gq" > "$W/g1" || gref "$REPO's reports could not be read: $(tail -n 1 "$W/g1") is listed, its commit not there"
+      cat "$W/g1" >> "$W/got"; done; RESREAD=''
+    # the folders by their trees' own ids; noop, so no commit held here is taken as holding files that are not here
+    [ ! -s "$W/got" ] || cg -c fetch.negotiationAlgorithm=noop fetch -q --no-tags --no-write-fetch-head "$U" $(cut -f3 "$W/got" | sort -u) 2>/dev/null || gref "$REPO's reports could not be fetched into .vid/code"
     cg -c remote.vid-commits.url="$U" fetch -q --no-tags --filter=tree:0 vid-commits '+refs/heads/*:refs/heads/*' '^refs/heads/vid-results/*' '+refs/pull/*/head:refs/pull/*/head' 2>/dev/null || gref "$REPO's commits could not be fetched into .vid/code"
+    while IFS="$(printf '\t')" read -r c i f d <&4; do t=$(printf '040000 tree %s\t%s\n' "$f" "$i" | cg mktree --missing) && n=$(GIT_AUTHOR_NAME=ViD GIT_AUTHOR_EMAIL=vid@export.invalid GIT_AUTHOR_DATE="$d" GIT_COMMITTER_NAME=ViD GIT_COMMITTER_EMAIL=vid@export.invalid GIT_COMMITTER_DATE="$d" cg commit-tree "$t" -m "vid-report: $c") && cg update-ref "refs/heads/vid-results/$i" "$n" || gref "the report $i could not be kept in .vid/code"; done 4< "$W/got"
+    for i in $(cut -f1 "$W/sk"); do cg update-ref -d "refs/heads/vid-results/$i" 2>/dev/null || :; done
     # each report its folder alone; what no ref reaches dropped; then each report read whole, and nothing present that no report holds
     cg for-each-ref --format='%(refname)' refs/heads/vid-results/ > "$W/rr"
     for r in $(sed 's|^refs/heads/vid-results/||' "$W/rr"); do cg ls-tree "refs/heads/vid-results/$r" 2>/dev/null | awk -v r="$r" -F'\t' '{ n++; if ($2 != r || $1 !~ /^040000 tree /) bad = 1 } END { exit !(n == 1 && !bad) }' || xref "refs/heads/vid-results/$r holds more than its folder, or not whole"; done
@@ -1145,9 +1302,31 @@ $1"; shift ;; esac; done
     E=$(git hash-object -t tree /dev/null); cg cat-file --batch-all-objects --batch-check='%(objectname) %(objecttype)' 2>/dev/null | awk '$2 == "tree" || $2 == "blob" { print $1 }' | sort > "$W/have"
     : > "$W/rep"; [ ! -s "$W/rr" ] || { cg rev-list --objects --stdin < "$W/rr" > "$W/ro" 2>/dev/null || xref 'a report that could not be read whole'; cut -d' ' -f1 "$W/ro" | sort -u > "$W/rep"; }
     X=$(comm -23 "$W/have" "$W/rep" | grep -vx "$E" | head -n 1 || true)
+    # FB-3 A2: git keeps what a promised commit names once it was held here (a pull request opened on a report's own branch), so the copy is
+    # made again once, from nothing; a stray object there too is the refusal
+    if [ -n "$X" ] && [ -z "${VID_REFETCH:-}" ]; then rm -rf .vid/code; VID_REFETCH=1 sh "$HERE/github.sh" results-fetch; exit $?; fi
     if [ -n "$X" ]; then XR=$(cg for-each-ref --format='%(refname)' refs/heads/ refs/pull/ | grep -v '^refs/heads/vid-results/' | while read -r r; do cg rev-list --objects --missing=allow-any "$r" 2>/dev/null | grep -q "^$X" && { echo "$r"; break; }; done)
       xref "${XR:-an object no report holds, $X}"; fi
+    if [ ! -s "$W/sk" ]; then rm -f .vid/round/reports-skipped; else sort "$W/sk" | put .vid/round/reports-skipped; fi || gref 'the list of report branches left out could not be written'
     echo "ViD github: results fetched from $REPO into .vid/code, the reports and the commits, no file of the code"; exit 0 ;;
+
+  pr-files)   # FB-3 A1.4: printed straight from gh; nothing of it is kept in a file or a folder of ViD's
+    case ${1:-} in ''|*[!0-9]*) usage ;; esac; [ $# -le 2 ] || usage; tw; PRREAD=yes
+    if [ $# -eq 1 ]; then Q='.[] | [.filename, .status, .additions, .deletions, (.previous_filename // "-"), (if .patch then "patch" else "none" end)] | @tsv'
+    else Q=$(printf '%s' "$2" | sed 's/\\/\\\\/g; s/"/\\"/g'); Q='.[] | select(.filename == "'"$Q"'") | ([.status, .additions, .deletions, (.previous_filename // "-"), (if .patch then "patch" else "none" end)] | @tsv), (.patch // empty)'; fi
+    ghc api "repos/$REPO/pulls/$1/files?per_page=100" --paginate --jq "$Q" 2> "$W/e" || gref "pull request $1's files could not be read: $(ghwhy "$W/e")"; exit 0 ;;
+
+  closing-prs)   # FB-3 A1.4: GitHub's closing references of a ticket and its sub-issues
+    [ $# -ge 1 ] || usage; for n in "$@"; do case $n in ''|*[!0-9]*) usage ;; esac; done; tw; RESREAD=yes; printf '%s\n' "$@" | sort -un > "$W/cn"; split -l 50 "$W/cn" "$W/cn."
+    J='.data.repository | to_entries[] | .value | .number as $n | .closedByPullRequestsReferences.nodes[] | select(.merged and ((.repository.nameWithOwner | ascii_downcase) == ("'"$REPO"'" | ascii_downcase))) | [$n, .number, (.mergeCommit.oid // "-")] | @tsv'
+    for f in "$W"/cn.??*; do while [ -s "$f" ]; do
+      Q=$(awk -v o="${REPO%%/*}" -v n="${REPO#*/}" 'BEGIN { printf "query { repository(owner: \"%s\", name: \"%s\") {", o, n } { printf " i%d: issue(number: %s) { number closedByPullRequestsReferences(first: 100, includeClosedPrs: true) { nodes { number merged mergeCommit { oid } repository { nameWithOwner } } } }", NR, $1 } END { print " } }" }' "$f")
+      ! ghc api graphql -f query="$Q" --jq "$J" > "$W/cq" 2> "$W/e" || { cat "$W/cq"; break; }
+      grep -oE 'Could not resolve to an Issue with the number of [0-9]+' "$W/e" | grep -oE '[0-9]+$' | sort -u > "$W/cx"; [ -s "$W/cx" ] || gref "the pull requests closing the issues could not be read: $(ghwhy "$W/e")"
+      grep -vxFf "$W/cx" "$f" > "$W/cy" || :; [ "$(grep -c . "$W/cy")" -lt "$(grep -c . "$f")" ] || gref "the pull requests closing the issues could not be read: $(ghwhy "$W/e")"; mv "$W/cy" "$f"; done; done; exit 0 ;;
+
+  own-refs)   # FB-3 A1.4: ViD's own reviews (.vid/decide/review/) as the reports they are in .vid/code (ownrefs); no GitHub. What a review's record runs
+    [ -f .vid/RUN-STATE.md ] || gref "run it at the top of ViD's repository"; ownrefs || gref "ViD's own reviews could not be put into .vid/code"; exit 0 ;;
 
   round-read)   # v0.26.10.25.1 (R3): one read a tick, whatever the count. Tab-separated: open <p> <ticket> <head> <draft> <labels> <newest decide at the head> <newest decision there> <updated>, the two by comment; merged <p> <ticket> <head> <merge>; issue <n> <labels> <comment heads, \001 between> <updated>; main <the code repository's main> (v0.26.10.28.2); result <report id> <its commit>, a line a vid-results/* branch (v0.26.10.28.6)
     # GM-4 F3: round-read --bodies, the one read with the ticket bodies, sub-issues and assignees (phase 1's next-read, GM-1 S6, moved in),
@@ -1163,7 +1342,7 @@ $1"; shift ;; esac; done
     un() { printf 'unread\t%s\t%s\t%s\n' "$1" "$2" "$(tr '\n\t' '  ' < "$W/e" | cut -c1-200)"; }
     sh "$0" round-read 2> "$W/e" || un round -
     awk '$1 == "published" { p[$2] = 1 } $1 == "withdrawn" { delete p[$2] } END { for (n in p) print n }' .vid/tw/log 2>/dev/null | sort -n > "$W/pn"
-    for n in $(cat "$W/pn"); do
+    pni=0; for n in $(cat "$W/pn"); do pni=$((pni + 1)); prog now "ticket $pni of $(grep -c . "$W/pn")"   # FB-3 D2
       if ghc issue view "$n" -R "$REPO" --json state,assignees,createdAt --jq "$TQ" > "$W/t" 2> "$W/e"; then tr -d '\r' < "$W/t" | awk -F'\t' -v OFS='\t' -v n="$n" 'NR == 1 { print "ticket", n, $1, ($2 == "" ? "-" : $2), $3 }'; else un ticket "$n"; continue; fi
       if ghc issue view "$n" -R "$REPO" --json body --jq .body > "$W/t" 2> "$W/e"; then tr -d '\r' < "$W/t" | awk -v n="$n" '{ L[NR] = $0 } END { while (NR > 0 && L[NR] == "") NR--; for (i = 1; i <= NR; i++) print "body\t" n "\t" L[i] }'; else un body "$n"; fi; done
     for n in $(cat "$W/pn"); do printf '%s %s\n' "$n" "$n"; done > "$W/q"; : > "$W/seen"
@@ -1258,6 +1437,7 @@ $1"; shift ;; esac; done
     esac; exit 0 ;;
 
   comment)
+    ! ownask "${1:-}" || exit 0   # FB-3 A1.6: ViD's own ask has no issue: nothing is sent
     planner; n=${1:-}; [ "${2:-}" = --body-file ] && [ -f "${3:-}" ] || usage
     ghc issue comment "$n" -R "$REPO" --body-file "$3" > /dev/null || gref "the comment on #$n could not be posted"
     tl=$(mapline ticket number "$n"); [ -n "$tl" ] && ev "ticket issue=$n step=$(kv "$tl" step) kind=$(kv "$tl" kind) state=commented"
@@ -1273,6 +1453,7 @@ $1"; shift ;; esac; done
     echo "ViD github: #$n labels${A:+ +$A}${R:+ -$R}"; exit 0 ;;
 
   close)
+    ! ownask "${1:-}" || exit 0   # FB-3 A1.6
     planner
     if [ "${1:-}" = --milestone ]; then
       S=${2:-}; [ "${3:-}" = --commit ] && C=${4:-} || usage

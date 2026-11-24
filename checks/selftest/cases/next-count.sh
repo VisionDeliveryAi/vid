@@ -58,5 +58,5 @@ awk -F'\t' '$1 == "counted" { print $2, $3 }' "$T/out" | sort > "$T/got"
 printf '%s\n' 'added ROW-021' 'reset ROW-011' 'restated ROW-012' 'restated ROW-013' 'retired ROW-019' 'to-place ROW-002' 'to-place ROW-018' 'unpublished DIF-001' 'unpublished HOS-003' 'unpublished ROW-017' 'unpublished RULE-004' > "$T/want"
 cmp -s "$T/got" "$T/want" || fail "counted $(paste -sd ' ' "$T/got" | tr ' ' ' '), not one row of each kind as planted"
 for l in 'total 11' 'to-place 2' 'added 1' 'retired 1' 'restated 2' 'reset 1' 'unpublished 4'; do grep -q "^count${TB}${l% *}${TB}${l#* }\$" "$T/out" || fail "no count line: $l"; done
-grep -q "^trigger${TB}important${TB}stage-to-correct${TB}ROW-006${TB}" "$T/out" || fail 'ROW-006, to place and in #3, is not listed as a stage to correct'
+grep -q "^quiet${TB}minor${TB}stage-to-correct${TB}ROW-006${TB}" "$T/out" || fail 'ROW-006, to place and in #3, is not counted as a stage to correct (FB-3 C5: minor, the owner accepted it)'
 exit 0

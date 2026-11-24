@@ -12,15 +12,16 @@
 #        from the records, with no new read, and the call's lock renewed (github.sh lock-renew). A `done` of a to-do that is a move
 #        of the lines is checked as that move. A refusal stops that move alone, naming its step and its words; a save that fails
 #        stops the call, the moves after it not done;
-#        GM-3 U6 (lane C's review): when the lines list implement-replan with its own proposal, that proposal and its page are
-#        made first (replan.sh own; `proposal: …`), unless the one kept is its own and fresh (its target HEAD, its hash replan.sh
-#        hash's), so the owner has seen the page; so too after the moves, when a move ran;
-#     3. after the moves the call's lines (made again when a move ran, and then printed, `counted` lines left out), and what they
+#        FB-3 C5 (g): the call never makes the re-plan's own proposal. While one is due and none fresh stands (next.sh triggers'
+#        `context proposal due`), it asks, one `proposal due: …` line: what it covers and touches, by count, and how long it takes
+#        (.vid/next/proposal/took, or the applied one's, the seconds the last one took), and (FB-3 E2) that it needs engines while none is named; the yes is implement-replan, named;
+#     3. after the moves the call's lines (made again when a move ran, and then printed as next.sh short shows them, `counted` lines left out), and what they
 #        raise kept in the owner's queue (GM-4 F4: queue.sh raise), each trigger and move a `Q<n>` line;
 #     4. the plan page (next-page.sh write on the call's last lines): its `page <path>` line; then (GM-4 K6, I6) each open `Q<n>`
-#        line of the owner's queue with the answers it takes, as queue.sh list prints it.
+#        line of the owner's queue with the answers it takes, as queue.sh list --short prints it (FB-3 C5: one line a kind).
 #   shell <page>   the plan page's fixed shell (GM-2 T12), plan-shell.html beside the page: it shows plan.html, the data file the
-#                  vid-next skill publishes to the same link; prints `shell <path>`
+#                  vid-next skill publishes to the same link; prints `shell <path>`. FB-3 E3: of REPLAN-PAGE.html, the re-plan page's,
+#                  replan-shell.html beside it, with its own title and frame
 # The moves (GM-2 T10's table), named by kind and subject, never by a number, the owner's words their last argument. GM-4 K11
 # (step 6): each runs the script entry of the skill it belongs to; next-move.sh holds only the listing check (A20) and the call's
 # order, never a move's rule:
@@ -58,7 +59,8 @@
 #        here alone (`checked planning-analysis -: …`, its arguments named); the analysis itself is the vid-replan skill's, which the
 #        conversation runs after the call's moves with those arguments, since it writes the candidate. Records nothing
 #   implement-replan "<words>" [--review <file>]   (U4) named once a call at most; replan.sh apply --words "<words>" [--review <file>]: --review the fresh
-#        agent's review the call makes when the line says the rows ViD's planner adds need one. Its exit 3, a post left owed, is done
+#        agent's review the call makes when the line says the rows ViD's planner adds need one. FB-3 C5 (g): named with no fresh
+#        proposal, it makes it and shows it, and applies nothing (its exit 4); named again, it applies what was shown. Its exit 3, a post left owed, is done
 #        (the owed post a move of the next call); 4, the proposal stale, is shown again, not done
 #   GM-4 F9 (I5): a draft of the door is asked through the owner's queue (queue.sh ask draft) and landed by the owner's answer yes
 #   (answer Q<n> yes "<words>"); no move of its own
@@ -83,7 +85,9 @@ ref() { echo "ViD next-move: refused — $*" >&2; exit 1; }
 one() { printf '%s' "$1" | tr '\t\n' '  ' | tr '"' "'"; }   # the owner's words on one line (GM-2 §5)
 
 case ${1:-} in
-  shell) [ $# -eq 2 ] && [ -f "$2" ] || usage; D=$(cd "$(dirname "$2")" && pwd); [ "$(basename "$2")" = plan.html ] || ref "the page is plan.html, not $(basename "$2")"
+  shell) [ $# -eq 2 ] && [ -f "$2" ] || usage; D=$(cd "$(dirname "$2")" && pwd); PG=$(basename "$2")
+    # FB-3 E3: the re-plan page's shell, its own title and frame, beside it
+    case $PG in plan.html) SH=plan-shell.html; TT='Plan page' ;; REPLAN-PAGE.html) SH=replan-shell.html; TT='Re-plan page' ;; *) ref "the page is plan.html or REPLAN-PAGE.html, not $PG" ;; esac
     cat > "$W/sh" <<'HTML'
 <!doctype html>
 <html lang="en">
@@ -104,10 +108,16 @@ iframe { display: block; border: 0; width: 100%; height: 100%; }
 </body>
 </html>
 HTML
-    put "$D/plan-shell.html" < "$W/sh" || exit 1; echo "shell $D/plan-shell.html"; exit 0 ;;
+    if [ "$PG" = REPLAN-PAGE.html ]; then sed -e "s|<title>Plan page<|<title>$TT<|" -e "s|src=\"plan.html\" title=\"The plan page\"|src=\"$PG\" title=\"The re-plan page\"|" "$W/sh" > "$W/sh2" && mv "$W/sh2" "$W/sh" || exit 1; fi
+    put "$D/$SH" < "$W/sh" || exit 1; echo "shell $D/$SH"; exit 0 ;;
   call) shift ;;
   *) usage ;;
 esac
+# FB-3 D2: a call that ends on a failure leaves the part it was at stopped, with what it needs (PST), kept by the connect's end; on its
+# own, where no parts are named, it writes nothing of the panel's
+PST='a look at the chat, which says why it stopped'
+pend_() { _rc=$?; [ "$_rc" != 1 ] || pneed "$PST"; rm -rf "$W"; }
+trap pend_ EXIT
 
 # the moves named, one file each, an argument a line (a newline or tab in one written as a space), `--` between two
 mkdir "$W/m"; NM=0; NEW=1; NIR=0
@@ -140,15 +150,14 @@ manual || ref 'the moves are GitHub manual'"'"'s (/vid next): this project is no
 [ -f .vid/round/read ] || ref "no read of this call (.vid/round/read): the call's read comes first (vid-read)"
 # lines <file>: the call's lines, next.sh triggers from the records
 lines() { sh "$HERE/next.sh" triggers > "$1" 2> "$W/te" && return 0; sed 's/^/    /' "$W/te" >&2; return 1; }
+prog on 'Working out what changed'   # FB-3 D2
 lines "$W/L" || ref "the call's lines could not be made (next.sh triggers): no move is done"
-# GM-3 U6 (lane C's review): an implement-replan the lines list with its own proposal has that proposal and its page made first
-# (replan.sh own), unless the one kept is its own and fresh, so the owner sees the page before naming it; the line does not change
-ownp() { awk -F'\t' '$1 == "move" && $2 == "implement-replan" && $5 ~ /^applies the pending changes with its own proposal/ { f = 1 } END { exit !f }' "$1" || return 0
-  _p=.vid/next/proposal; if [ "$(cat "$_p/made" 2> /dev/null)" = own ] && [ "$(cat "$_p/target" 2> /dev/null)" = "$(git rev-parse HEAD)" ] &&
-    [ "$(cat "$_p/hash" 2> /dev/null)" = "$(sh "$HERE/replan.sh" hash 2> /dev/null)" ]; then return 0; fi
-  if sh "$HERE/replan.sh" own > "$W/ow" 2>&1; then echo "proposal: implement-replan's own proposal made, its page .vid/pages/REPLAN-PAGE.html"
-  else echo "proposal: implement-replan's own proposal could not be made: $(grep -v '^[[:space:]]*$' "$W/ow" | tail -n 1)"; fi; }
-ownp "$W/L"
+# FB-3 C5 (g): duep <lines>: the one question of an own proposal due and not made; nothing is made here, the move named makes it
+duep() { _c=$(awk -F'\t' '$1 == "context" && $2 == "proposal" && $3 == "due" { print $4; exit }' "$1"); [ -n "$_c" ] || return 0
+  _s=''; for _f in .vid/next/proposal/took .vid/next/applied-proposal/took; do [ -n "$_s" ] || _s=$(grep -xE '[0-9]+' "$_f" 2> /dev/null | head -n 1); done
+  if [ -n "$_s" ]; then _s="the last one took $_s seconds"; else _s="it writes each of the $(printf '%s' "$_c" | sed -n 's/.* of \([0-9]*\) open tickets .*/\1/p') open tickets again, some minutes"; fi
+  ! engnone || _s="$_s; needs engines — named before the apply"   # FB-3 E2
+  echo "proposal due: the re-plan's own proposal is not made. Make it now? It $_c; $_s. implement-replan \"<your words>\" makes it and shows it, and applies nothing; named again, it applies what was shown"; }
 
 # no <step> <words>: the move refused at its step, its output under it
 NOK=''; no() { NOK=1; echo "refused $MK $MS at $1: $2"; [ ! -s "$W/so" ] || grep -v '^[[:space:]]*$' "$W/so" | head -n 20 | sed 's/^/    /'; : > "$W/so"; }
@@ -158,11 +167,13 @@ step() { _w=$1; shift; "$@" > "$W/so" 2>&1 && return 0; no "$_w" "$(grep -v '^[[
 # (`trigger <what> [<subject>]`), each with its raising, `<key>@<since>` a line (GM-4 F4, .vid/decide/queue/raised)
 raised() { awk -F'\t' -v w="$1" -v k="$2" -v s="${3-}" 'BEGIN { x = (w == "move") ? 3 : 4 }
   { n = split($1, a, ":"); if (a[1] != w || a[2] != k) next; sb = $1; for (i = 1; i <= x; i++) sub(/^[^:]*:/, "", sb); if (s != "" && sb != s) next; print $1 "@" $2 "\t" a[3] "\t" a[4] }' "$QD/raised" 2> /dev/null; }
-# chk <kind> <subject>: 0 when the call's lines hold the move with the hash the last call raised; 1 no such move now; 2 changed
+# chk <kind> <subject>: 0 when the call's lines hold the move with the hash the last call raised (or, shown, implement-replan's due line); 1 no such move now; 2 changed
 chk() { _h=$(awk -F'\t' -v k="$1" -v s="$2" '$1 == "move" && $2 == k && $3 == s { print $4; exit }' "$W/L")
   _o=$(raised move "$1" "$2" | cut -f2 | head -n 1)
   [ -n "$_h" ] || { WHY="it is no move of the call's lines now"; return 1; }
   [ -n "$_o" ] || { WHY='the listing the owner saw did not show it'; return 2; }
+  # FB-3 C5 (g): an implement-replan whose line is the due one only makes and shows, whatever the listing held (replan.sh apply's exit 4)
+  [ "$1" != implement-replan ] || ! grep -q "^context${TAB}proposal${TAB}due${TAB}" "$W/L" || return 0
   [ "$(printf %.12s "$_h")" = "$_o" ] || { WHY='what it would do, or its warnings, changed since the listing'; return 2; }; return 0; }
 # open_ <key>: the queue holds the item open (no answer closed it)
 open_() { ! awk -F'\t' -v k="$1" '$2 == k { f = 1 } END { exit !f }' "$QD/answers" 2> /dev/null; }
@@ -246,9 +257,9 @@ mv_done() { WD=$(arg 3); DK=${MS%% *}; DS=${MS#* }; [ "$DS" != "$MS" ] || DS=''
   while IFS= read -r _k; do step 'the to-do' sh "$HERE/queue.sh" answer "$_k" done "$WD" < /dev/null || return 0; done < "$W/dk"; echo "done done $MS: off the to-do list, in the owner's words"; }
 
 i=0; RAN=''; while [ $i -lt "$NM" ]; do i=$((i + 1)); F=$W/m/$i; na=$(grep -c '' "$F"); MK=$(arg 1); MS=$(arg 2)
-  [ -z "$RAN" ] || lines "$W/L" || { echo "not done $MK $MS: the call's lines could not be made again; the moves after it are not done"; exit 1; }
+  [ -z "$RAN" ] || lines "$W/L" || { PST='a look at the chat: what changed could not be worked out again, so the moves after it were not done'; echo "not done $MK $MS: the call's lines could not be made again; the moves after it are not done"; exit 1; }
   # the call's lock renewed before each move after the first, so a long call keeps it
-  [ "$i" = 1 ] || sh "$HERE/github.sh" lock-renew > "$W/lr" 2>&1 || { sed 's/^/    /' "$W/lr"; echo "not done $MK $MS: the call's lock could not be renewed; the moves after it are not done"; exit 1; }
+  [ "$i" = 1 ] || sh "$HERE/github.sh" lock-renew > "$W/lr" 2>&1 || { PST="a look at the chat: the call's lock could not be renewed, so the moves after it were not done"; sed 's/^/    /' "$W/lr"; echo "not done $MK $MS: the call's lock could not be renewed; the moves after it are not done"; exit 1; }
   case $MK in
     planning-analysis|implement-replan) MS=- ;;
     answer) case $MS in Q*) ;; *) MS="#${MS#\#}" ;; esac ;; amend|withdraw|reopen) MS="#${MS#\#}" ;; team-change) MS="#${MS#\#} $(arg 3)" ;;
@@ -271,15 +282,16 @@ i=0; RAN=''; while [ $i -lt "$NM" ]; do i=$((i + 1)); F=$W/m/$i; na=$(grep -c ''
   case $MK in publish) mv_publish ;; engines) mv_engines ;; own-work) mv_ownwork ;; answer) mv_answer ;; decline) mv_decline ;; done) mv_done ;; amend) mv_tick amended amended ;; withdraw) mv_tick withdrawn withdrawn ;; reopen) mv_tick reopened reopened ;; team-change) mv_team ;;
     implement-replan) mv_apply ;; walk-stage|read-walk|write-summary) mv_stage ;; esac
   rback "$NL0"
-  sh "$HERE/github.sh" state-save > "$W/sv" 2>&1 || { sed 's/^/    /' "$W/sv"; echo "not saved: the records after $MK $MS could not be saved ($(tail -n 1 "$W/sv")); the moves after it are not done"; exit 1; }
+  sh "$HERE/github.sh" state-save > "$W/sv" 2>&1 || { PST='a look at the chat: the records were not saved, so the moves after it were not done'; sed 's/^/    /' "$W/sv"; echo "not saved: the records after $MK $MS could not be saved ($(tail -n 1 "$W/sv")); the moves after it are not done"; exit 1; }
 done
 
 if [ "$NM" -gt 0 ]; then [ -z "$RAN" ] || lines "$W/L" || ref "the call's lines after the moves could not be made (next.sh triggers): the page is not written"
-  [ -z "$RAN" ] || ownp "$W/L"
-  [ -z "$RAN" ] || { echo 'after the moves:'; grep -v "^counted$TAB" "$W/L"; }; fi
+  [ -z "$RAN" ] || { echo 'after the moves:'; grep -v "^counted$TAB" "$W/L" > "$W/Ls"; sh "$HERE/next.sh" short "$W/Ls"; }; fi   # FB-3 C5: one line a kind
+prog on 'Your list and the plan page'   # FB-3 D2
+duep "$W/L"
 # GM-4 F4: what the call raised kept in the owner's queue, each trigger and move a `Q<n>` line
-sh "$HERE/queue.sh" raise "$W/L" > "$W/so" 2>&1 || { sed 's/^/    /' "$W/so" >&2; ref 'what the call raised could not be kept (queue.sh raise)'; }
-sh "$HERE/next-page.sh" write "$W/L" > "$W/pg" 2>&1 || { sed 's/^/    /' "$W/pg"; echo 'page: not written (the lines above)'; exit 1; }
+sh "$HERE/queue.sh" raise "$W/L" > "$W/so" 2>&1 || { PST='a look at the chat: your list could not be kept'; sed 's/^/    /' "$W/so" >&2; ref 'what the call raised could not be kept (queue.sh raise)'; }
+sh "$HERE/next-page.sh" write "$W/L" > "$W/pg" 2>&1 || { PST='a look at the chat: the plan page was not written'; sed 's/^/    /' "$W/pg"; echo 'page: not written (the lines above)'; exit 1; }
 cat "$W/pg"
-# GM-4 K6, I6: each open `Q<n>` line with the answers it takes
-sh "$HERE/queue.sh" list 2> "$W/so" || { sed 's/^/    /' "$W/so" >&2; echo "queue: not listed (queue.sh list)"; exit 1; }; exit 0
+# GM-4 K6, I6: each open `Q<n>` line with the answers it takes, one line a kind (FB-3 C5)
+sh "$HERE/queue.sh" list --short 2> "$W/so" || { PST='a look at the chat: your list could not be shown'; sed 's/^/    /' "$W/so" >&2; echo "queue: not listed (queue.sh list)"; exit 1; }; exit 0

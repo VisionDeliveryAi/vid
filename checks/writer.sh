@@ -7,7 +7,7 @@
 # `engine-split <row>`, `closed <step>`, `row <id> <state> [fault-proven]`, `fix <row> [<row> …] | <reason> | <links>`, `lesson
 # <ids> | <words>`, `reached <row> <REQ|INV id> [<the landing>]`, `candidate <stage>`), .vid/tw/log (github.sh's), .vid/tw/named (name's, 0.26.10.29.5), .vid/tw/out/.
 #   gate      exit 0 only when planner.sh ratified exits 0, the newest publish-approved event's words are the newest
-#             ratification's, the settings name repo:, spec-repo: (another repository), labels-prefix: (empty counts)
+#             ratification's, the settings name repo:, spec-repo: (another repository; FB-3 B2: not with layout: one in GitHub manual), labels-prefix: (empty counts)
 #             and, when set, an open-tickets: of 1 or more, and no exported or quoted file has an uncommitted change;
 #             else one line per thing missing, exit 1. GM-2 T1: in GitHub manual no publish-approved event is asked, and
 #             the uncommitted-change check covers PLAN.md and the issue form (issue-form:) alone
@@ -27,6 +27,9 @@
 #             step has no open ticket, on main as it then is, never beside one; and a step ticket after the step's first, merged, is
 #             a follow-up: `- follows: #<n>` in its header (n its newest earlier ticket), "Follow-up ticket" its title, and no T5 in
 #             its asks, as a step has one grade, at its first ticket's first head (the stage's grade reads the rest).
+#             FB-3 A1.7: in GitHub manual the roles and the asks are the team's own: no grader, no second reviewer, no T5; a red run and a break are read if
+#             the team makes one; the tests pass in its own results at the commit of main it asks about. Both sections stay outside
+#             the hash, so a ticket published with the older words owes no amendment for them; the check asks for the mode's own
 #             Every ticket's Further reading (§1.1 §8) names the spec repository (GM-4 K13: with layout: one in GitHub manual, the
 #             folder of the code repository, and the open folder pull request, to merge first), then each file of its export by path
 #   check <file>   exit 1, one line per refusal (`line <k>: <shape> — <word>`, or `item: …`): an item of the kind
@@ -92,7 +95,7 @@
 # serves: tickets (0.26.10.28.4, M9)
 set -eu
 LC_ALL=C; export LC_ALL
-HERE=$(cd "$(dirname "$0")" && pwd)
+HERE=$(cd "$(dirname "$0")" && pwd); QAT=''
 . "$HERE/lib.sh"   # 0.26.10.28.4 (9.3 R3): the shared helpers, lib.sh beside this file
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 die() { echo "ViD writer: $*" >&2; exit 2; }
@@ -140,7 +143,8 @@ gate() {
   elif [ "$AW" != "$RW" ]; then echo "the newest publish-approved event's words (\"$AW\") are not the newest ratification's (\"$RW\")" >> "$T/why"; fi
   R=$(twkey repo); S=$(twkey spec-repo); L=$(twkey open-tickets)
   [ -n "$R" ] || echo "the settings name no repo: (the code repository; .vid/tw/settings)" >> "$T/why"
-  if [ -z "$S" ]; then echo "the settings name no spec-repo: (the spec repository; .vid/tw/settings)" >> "$T/why"
+  if manual && [ "$(twkey layout)" = one ]; then :   # FB-3 B2, GM M15: the export is kept in the project
+  elif [ -z "$S" ]; then echo "the settings name no spec-repo: (the spec repository; .vid/tw/settings)" >> "$T/why"
   elif [ "$S" = "$R" ]; then echo "spec-repo: names the code repository $R; the spec repository is another" >> "$T/why"; fi
   twhas labels-prefix || echo "the settings have no labels-prefix: line (an empty one counts)" >> "$T/why"
   if twhas open-tickets; then case "$L" in ''|0*|*[!0-9]*) echo "open-tickets: '$L' is not a whole number of 1 or more" >> "$T/why" ;; esac; fi
@@ -345,7 +349,8 @@ stack() { printf 'The stack, decided at init:\n\n'; { git show "$AT:BASELINE.md"
   printf '\nThe hosting, decided at init:\n\n'; sed -n '/^```vid-hosting[[:space:]]*$/,/^```[[:space:]]*$/p' "$T/arch" | grep -v '^```' > "$T/ho" || true; q_ "$T/ho"; }
 # GM-4 F16: no engines line recorded is the writer's refusal, wherever a ticket is written (write, and due's writings at a commit)
 noeng() { ref "no engines line in .vid/tw/handed: the skeleton's head report declares them first, or the owner names them with the engines move (vid-accept-step's, through results.sh declare)"; }
-engines() { set -- $(sv eng); [ $# -gt 0 ] || noeng; printf '\n## Engines\n\n- primary: %s\n' "$1"; shift
+# FB-3 C5: QAT, set in qat alone, whose hash reads neither the engines nor the reading: there each stands in when none is on record
+engines() { set -- $(sv eng); [ $# -gt 0 ] || [ -z "$QAT" ] || set -- none; [ $# -gt 0 ] || noeng; printf '\n## Engines\n\n- primary: %s\n' "$1"; shift
   if grep -q '^split' "$T/st"; then for e; do printf -- '- also: %s\n' "$e"; done; printf '\nEvery engine is asked: a row has failed in one engine and passed in another.\n'
   else printf '\nThe primary alone is asked: no row has yet failed in one engine and passed in another.\n'; fi; }
 reached() { if [ -n "$REACH" ]; then for r in $REACH; do i=$(awk -F'\t' -v r="$r" '$1 == "reached" && $2 == r { v = $3 } END { print v }' "$T/st")
@@ -364,7 +369,7 @@ xpaths() { git --git-dir=.vid/spec.git ls-tree -r -z --name-only "$1" > "$T/xz" 
 # where github.sh spec-publish mirrors the export, and, while the round's read shows the newest folder pull request (the log's
 # spec-published line) open, that pull request, the team asked to merge it first; else, and in GitHub auto, where DevAgent reads the
 # spec repository (K13), the spec repository
-reading() { xpaths "$EXP" > "$T/xr" || ref "the export $EXP is not in .vid/spec.git: sh checks/github.sh spec-export"
+reading() { xpaths "$EXP" > "$T/xr" || [ -n "$QAT" ] || ref "the export $EXP is not in .vid/spec.git: sh checks/github.sh spec-export"
   if [ "$(twkey layout)" = one ] && manual; then _sf=$(twkey spec-path); _sf=${_sf:-docs/specs}; _sf=${_sf%/}   # GM-4 K13
     _sp=$(fld "$(grep '^spec-published ' "$T/lg" | tail -n 1)" pr)
     if [ -n "$_sp" ] && awk -F'\t' -v p="$_sp" '$1 == "open" && $2 == p { f = 1 } END { exit !f }' .vid/round/read 2>/dev/null; then
@@ -375,7 +380,27 @@ reading() { xpaths "$EXP" > "$T/xr" || ref "the export $EXP is not in .vid/spec.
 known() { if [ -s .vid/tw/known-findings ]; then q .vid/tw/known-findings; else echo none; fi; }
 lessons() { awk -F'\t' -v IDS="$T/ids" 'BEGIN { while ((getline l < IDS) > 0) W[l] = 1 } $1 == "lesson" { n = split($2, a, ","); for (i = 1; i <= n; i++) if (a[i] in W) { print "- " $3 " (" $2 ")"; c++; break } } END { if (!c) print "none" }' "$T/st"; }
 # 0.26.10.29.5 (DP-1 R3): rule 2 keeps each decision's why: from every GR, not a fix ticket's alone; a fix ticket's failed: lines and History as before
-roles() { cat <<'R'
+# FB-3 A1.7, GM M8: in GitHub manual the team's own work alone: no grader and no second reviewer, whose work there is ViD's own review
+roles() { if manual; then cat <<'R'
+The team's work, by the names the asks use. They are labels: share the work out as you like, and say on each report, in its first line, who made it.
+
+- DM, manager: claims the ticket and integrates the work.
+- TA, test author: writes each row's tests from the row and its fail-if.
+- TM, test manager: keeps the test environments and runs the tests.
+- AN, test analyst: finds why a run failed when the cause is not plain.
+- BU, builder: writes the product code until the row tests and the regression rows pass.
+- FX, fixer: fixes failing rows, and builds fix tickets.
+- MR, merger: does the team's own review of the code, merges, and then asks for ViD's decision.
+- DP, deployer: deploys on ViD's okay, and reports each deploy.
+
+The independence rules, which ViD takes the team's word it keeps:
+
+1. TA and TM are never BU or FX. TA and TM may be one.
+2. BU and FX never write, change or weaken a test.
+3. TA never weakens a test below its row's promise. It may correct a test that asks more than the promise.
+4. Where there is a spec repository, the team reads its main alone: its other branches hold ViD's records, and are no part of the spec.
+R
+  return 0; fi; cat <<'R'
 DevAgent's roles; each report names the role that made it:
 
 - DM, DevAgent's manager: claims the ticket, starts DevAgent's agents and keeps them apart, and integrates their work.
@@ -401,7 +426,34 @@ The independence rules, which ViD takes DevAgent's word it keeps:
 8. DevAgent reads the spec repository's main alone: its other branches hold ViD's records, and are no part of the spec.
 R
 }
+rowasks() { awk -F'\t' -v IDS="$T/ids" -v FU="$FU" -v MAN="${1:-}" 'BEGIN { while ((getline l < IDS) > 0) W[l] = 1 } ($1 in W) && $2 == "row" { m = " " $7 " "
+      if (index(m, " protection ")) print "- " $1 ": its test'"'"'s failure message carries the line vid-forbidden-effect: " $1 ". A protection row names something that must never happen, and the line marks evidence of that thing alone."
+      if (index(m, " seam ")) print "- " $1 ": the seam'"'"'s probe: its test makes one real action through the service, on staging."
+      if (index(m, " rule ")) print "- " $1 (MAN != "" ? ": when the report gives the number of places its test covered, zero places means the row fails." : ": the report gives the number of places its test covered; zero places means the row fails.")
+      if ($1 ~ /^DIF-/) print "- " $1 ": a test difference: the test environment uses its test value as the stand-in, and the report names it."
+      if (index($11, "actor: (process)") || index(m, " journey ")) print "- " $1 ": run with the product'"'"'s own declared processes, not inline."
+      if (m ~ / (owed-[a-z]+|seam) /) D = D " " $1 } END { if (D != "") print "- Deploy-owed rows take part in " (FU == "" && MAN == "" ? "T1 and T5" : "T1") " only:" D "." }' "$T/rows"; }
+qdasks() { printf '\nQuestions: a product question goes as a comment on this issue, its pull request or a run ask, its first line beginning Question: and naming the rows or step it concerns. Label the issue %sblocked only when the work cannot go on without the answer; otherwise build on your default, and say the default in the question.\n\nDecisions: the pull request'"'"'s body holds a section that begins with the line Decisions:, then one line a technical decision of the branch, "- what was chosen | why: the reason", or the one line Decisions: none. A decision is a choice that picked between plausible alternatives, constrains later code, or would surprise a competent newcomer. A hand-rolled security mechanism (cryptography, one-time codes, session tokens, signing) is always one, and names the standard it implements; so is a change to stored data, naming what it changes and how it is rolled back. A new or extended lifecycle, the states a stored record moves through, is a question on this ticket before it is built. A line that bears on many areas of the product ends with | scope: project. Keep the section current from the first head on; ViD records it when the pull request merges. A pull request whose body lacks the section is not accepted: its decision reads not yet until the section is there.' "$PFX"; }   # the two paragraphs every ticket asks, in both modes
+# rowasks [manual]: the lines of the rows that ask more. masks (FB-3 A1.7): the asks in GitHub manual: the tests pass in the team's own results at the commit of main it asks about; a red run and a
+# break are read if it makes one; no grade. No ask of a file for each engine
+masks() {
+  t1='- T1 (TA): write at least one test per row, per transition for a journey, its name matching the row'"'"'s id.'
+  t3='- T3 (TM): the tests pass in your own results at the commit of main you ask about: every row and every regression row, in results files of any name, made by anyone.'
+  t2='- T2 (TA, then TM; if you make one, it is read): the tests run before the product code, and seen to fail.'
+  t4='- T4 (TM; if you make one, it is read): a deliberate break of a row, making its fail-if true and nothing else, with its test seen to fail under it. A test that still passes under its break is too weak, and its row fails.'
+  case $K in
+    reached) echo '- T1 (TA): for each row, keep its test when the changed clause is not one it tests, or rewrite it; when unsure, rewrite it. A rewritten test makes its row retested.'; echo "$t3"; echo "$t4" ;;
+    skeleton) echo "$t1"; echo "$t3 The report declares the engines you run, the primary first, and how many test environments you run, when you can."; echo "$t4" ;;
+    *) echo "$t1"
+      if [ "$AO" = yes ]; then echo '- T3 (TM): the regression rows pass in your own results at the commit of main you ask about.'; printf '\nEvery row of this ticket is deploy-owed: its next staging, rehearsal or production run proves it.\n'
+      else echo "$t2"; echo "$t3"; echo "$t4"; [ "$K" != fix ] || printf '\nIn this fix ticket TA first makes the test catch the reason.\n'; fi ;;
+  esac; echo
+  if [ -n "$FU" ]; then printf 'This ticket follows #%s, whose review was the step'"'"'s: ViD makes no review of this one. The stage'"'"'s grade, ViD'"'"'s too, reads its changes.\n\n' "$FU"
+  elif [ "$K" != reached ]; then printf 'No grade is asked of you: once every row passes, ViD makes its own review of the ticket, once, from what its merged pull requests changed. Each test it then asks for is a request line of its decision.\n\n'; fi
+  rowasks manual; qdasks
+  printf '\n\nA decision line beginning analyst due asks you to find why the cases that could not run could not.\n\nResults: every report in ViD'"'"'s results format, by name: ViD results format 1. What a report holds and when it counts is on the page on reports the product owner hands you.\n\nWork on any branch, from the base above, in as many pull requests into main as you need; the body of each begins ticket: #, then this issue'"'"'s number, or a sub-issue'"'"'s. Merge them, push the results at a commit of main, then ask here: a comment on this issue whose first line is vid: decide, then that commit'"'"'s full id.\n'; }
 asks() {
+  if manual; then masks; return 0; fi   # FB-3 A1.7, GM M8
   t3='- T3 (TM): at the pull request'"'"'s head, run every row and every regression row, in each asked engine.'
   t4='- T4 (GR, then TM): at the same head, GR writes each needed fault'"'"'s change: make this row'"'"'s fail-if true, and nothing else; a later head may plant a row'"'"'s earlier patch again. TM plants it and runs the faulted row'"'"'s test and the control'"'"'s, in the primary engine; TM picks each control, a row or another case of the faulted row that passed at this head'"'"'s T3. The needed faults: the faulted rows'"'"', each row with no red'"'"'s, each retested row'"'"'s.'
   t5='- T5 (GR, SR): at the ticket'"'"'s first head alone, two fresh GRs, each in its own blind copy, grade each row against its fail-if, the grading checklist and the test differences, a screen row also against the design, and their lines are combined. SR sorts what the grade leaves, once. No later head has a grade or a sort.'
@@ -417,14 +469,8 @@ asks() {
         echo "$t3"; echo "$t4"; [ -n "$FU" ] || echo "$t5"; fi ;;
   esac; echo
   [ -z "$FU" ] || printf 'This ticket follows #%s. This step had its grade at its first ticket, #%s: this one asks no T5, so it has no grade and no sort. The stage'"'"'s grade reads its code.\n\n' "$FU" "$(ffst "$S")"   # 0.26.10.28.10 (R1)
-  awk -F'\t' -v IDS="$T/ids" -v FU="$FU" 'BEGIN { while ((getline l < IDS) > 0) W[l] = 1 } ($1 in W) && $2 == "row" { m = " " $7 " "
-      if (index(m, " protection ")) print "- " $1 ": its test'"'"'s failure message carries the line vid-forbidden-effect: " $1 ". A protection row names something that must never happen, and the line marks evidence of that thing alone."
-      if (index(m, " seam ")) print "- " $1 ": the seam'"'"'s probe: its test makes one real action through the service, on staging."
-      if (index(m, " rule ")) print "- " $1 ": the report gives the number of places its test covered; zero places means the row fails."
-      if ($1 ~ /^DIF-/) print "- " $1 ": a test difference: the test environment uses its test value as the stand-in, and the report names it."
-      if (index($11, "actor: (process)") || index(m, " journey ")) print "- " $1 ": run with the product'"'"'s own declared processes, not inline."
-      if (m ~ / (owed-[a-z]+|seam) /) D = D " " $1 } END { if (D != "") print "- Deploy-owed rows take part in " (FU == "" ? "T1 and T5" : "T1") " only:" D "." }' "$T/rows"
-  printf '\nQuestions: a product question goes as a comment on this issue, its pull request or a run ask, its first line beginning Question: and naming the rows or step it concerns. Label the issue %sblocked only when the work cannot go on without the answer; otherwise build on your default, and say the default in the question.\n\nDecisions: the pull request'"'"'s body holds a section that begins with the line Decisions:, then one line a technical decision of the branch, "- what was chosen | why: the reason", or the one line Decisions: none. A decision is a choice that picked between plausible alternatives, constrains later code, or would surprise a competent newcomer. A hand-rolled security mechanism (cryptography, one-time codes, session tokens, signing) is always one, and names the standard it implements; so is a change to stored data, naming what it changes and how it is rolled back. A new or extended lifecycle, the states a stored record moves through, is a question on this ticket before it is built. A line that bears on many areas of the product ends with | scope: project. Keep the section current from the first head on; ViD records it when the pull request merges. A pull request whose body lacks the section is not accepted: its decision reads not yet until the section is there.\n\nA decision line beginning analyst due asks for DevAgent'"'"'s test analyst on the cases that could not run.\n\nResults: every report in ViD'"'"'s results format, by name: ViD results format 1.\n\nWork on any branch, from the base above; open one pull request into main whose body begins ticket: #, then this issue'"'"'s number.\n' "$PFX"; }   # v0.26.10.26.7 (R6, W-7): outside the hash (qhash); 0.26.10.29.5 (DP-1 R1): the Decisions paragraph after the Questions one, outside it too
+  rowasks
+  qdasks; printf '\n\nA decision line beginning analyst due asks for DevAgent'"'"'s test analyst on the cases that could not run.\n\nResults: every report in ViD'"'"'s results format, by name: ViD results format 1.\n\nWork on any branch, from the base above; open one pull request into main whose body begins ticket: #, then this issue'"'"'s number.\n'; }   # v0.26.10.26.7 (R6, W-7): outside the hash (qhash); 0.26.10.29.5 (DP-1 R1): the Decisions paragraph after the Questions one, outside it too
 # qhash: what an amendment is owed on; 0.26.10.29.2 (R3): the earlier work lines too
 qhash() { awk '/^## / { s = substr($0, 4); next } s == "Header" && /^- (kind|step|rows|earlier work):/ { print; next } s ~ /^(The step|Rows|Requirements|Decisions|Rules that bear on these rows|Laws|Non-goals|Rows a ruling reached|Grading checklist and records|Golden sets|The stack and hosting)$/' "$1" | git hash-object --stdin | cut -c1-12; }
 # ticket <file>: the ticket of K, S, $T/ids, NUM, BASE, EXP, WHY, FIXL, REACH, RUL and AMW, and its meta
@@ -484,7 +530,8 @@ where_() { L0=$(tk "$1"); [ -n "$L0" ] || ref "#$1 is no ticket TW published"; s
 check() {
   : > "$T/ref"; parts_ "$1" 0 "$T/pk" > /dev/null 2>> "$T/ref" || true; roles > "$T/roles"; X=$(sed -n 's/^- export: //p' "$1" | head -n 1)
   xpaths "${X:-none}" > "$T/xp" || { : > "$T/xp"; echo "item: the export ${X:-none} is not in .vid/spec.git, so no path of ## Further reading can be checked" >> "$T/ref"; }
-  awk -v REF="$T/ref" -v RL="$T/roles" -v XF="$T/xp" -v X="$X" "$A1"'
+  # FB-3 A1.7, GM M8: the asks of a ticket in GitHub manual ask no grade
+  awk -v REF="$T/ref" -v MANT="$(! manual || echo 1)" -v RL="$T/roles" -v XF="$T/xp" -v X="$X" "$A1"'
     function ref(s) { print s > REF }
     function word(l, c,   n, w, i) { n = split(l, w, /[ \t]+/); for (i = 1; i <= n; i++) if (index(w[i], c)) return w[i]; return c }
     function shapes(l, k,   i, c, u, n, w, x) { for (i = 1; i <= length(SET); i++) { c = substr(SET, i, 1); if (index(l, c)) ref("line " k ": code or a test — " word(l, c)) }
@@ -525,7 +572,7 @@ check() {
       m = split(hv["rows"], R, " "); for (i = 1; i <= m; i++) if (!(R[i] in RW)) ref("item: the row " R[i] " is not quoted in ## Rows")
       if (!srn) ref("item: the further reading does not name the spec repository")
       if (K == "fix" && !why) ref("item: the fix ticket gives no reason its row failed")
-      need = (K == "skeleton") ? "T1 T3 T4 T5" : (K == "reached") ? "T1 T3 T4" : (index(at, "Every row of this ticket is deploy-owed") ? "T1 T3 T5" : "T1 T2 T3 T4 T5")
+      need = (K == "skeleton") ? "T1 T3 T4 T5" : (K == "reached") ? "T1 T3 T4" : (index(at, "Every row of this ticket is deploy-owed") ? "T1 T3 T5" : "T1 T2 T3 T4 T5"); if (MANT != "") { sub(/ T5$/, "", need) }   # FB-3 A1.7: in GitHub manual no grade is asked
       FW = hv["follows"]; if (FW != "") { if (K != "step" || FW !~ /^#[0-9]+$/) ref("item: follows: is #<n> on a step ticket alone"); sub(/ T5$/, "", need) }   # 0.26.10.28.10 (R1)
       if ((FW != "") != (substr(TL, 3, 9) == "Follow-up")) ref("item: a follow-up is titled Follow-up ticket and has a follows: line, and only it")
       for (i = 1; i <= 5; i++) { t = "T" i; if (index(need, t) && !ask[t]) ref("item: the asks lack " t); if (!index(need, t) && ask[t]) ref("item: the asks hold " t ", which this ticket must not ask") }
@@ -722,7 +769,7 @@ mowed0() { _oc=$(ownc "$(fld "$2" at)"); [ -n "$_oc" ] && [ "$_oc" != "$AT" ] &&
   [ "$_q0" = "$_q1" ] || echo 'writing -'; }
 # qat <n> <commit>: the hash of today's writing of open ticket n with every quote read at <commit> (GM-3 U4), in a subshell of its
 # own scratch folder, so the caller's loaded files stand
-qat() { ( T=$T/qat.$1.$2; mkdir -p "$T"; VID_WRITER_AT=$2; load; EXP=$(awk '$1 == "export" { v = $2 } END { print v }' "$T/lg")
+qat() { ( T=$T/qat.$1.$2; mkdir -p "$T"; VID_WRITER_AT=$2; QAT=1; load; EXP=$(awk '$1 == "export" { v = $2 } END { print v }' "$T/lg")
   NOTELL=1; : > "$T/tell"; amendset "$1" > /dev/null; ticket "$T/q.md"; qhash "$T/q.md" ); }
 # why_: due --why's GM M5 lines (GM-4 F7), after due's own: each open ticket's mowed lines, `why <n> <kind> <row>`, then
 # `followup <step> <rows,>` for each started step whose newest step ticket is closed and that mfollow owes rows

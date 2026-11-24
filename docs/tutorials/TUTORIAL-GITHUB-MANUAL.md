@@ -15,15 +15,15 @@ This is ViD's *GitHub manual* mode: your own developers build through GitHub tic
 1. Planned a product from its spec, switched it to GitHub manual and approved the plan.
 2. Worked the first ticket, the skeleton (the walking skeleton), from claim to acceptance.
 3. Run a stage's full test run, chunk by chunk.
-4. Worked an ordinary ticket: tests first, a failing run sent before any product code, a question to the product side, the merge, deliberate breaks, an independent review, the decision.
+4. Worked an ordinary ticket: the tests, a question to the product side, the merge, the results, ViD's own review, the decision.
 5. Changed the spec as the lead, applied the change, and seen what it sends your developers.
 6. Closed three steps, the last two by a close run of their own.
 
-**You play every role alone,** one after the other. As the lead you talk to ViD. As the dev side you are, in turn, the manager (DM), the test author (TA), the test manager (TM), the builder (BU), the grader (GR) and the merger (MR). Real work keeps some of these apart, and the ticket says which: the person who writes or runs the tests is never the builder, and the grader comes fresh and has not seen the builder's reasoning. In this lab you keep them apart only in what you sign: each comment and each report names the role that made it.
+**You play every role alone,** one after the other. As the lead you talk to ViD. As the dev side you are, in turn, the manager (DM), the test author (TA), the test manager (TM), the builder (BU) and the merger (MR). These are the ticket's labels for a team's work; a real team shares them out as it likes, and does best when the person who writes a row's test is not the one who builds it. In this lab each comment and each report names the role that made it. ViD's own session makes the review.
 
-**How this tutorial was checked.** Part 1 was done once, on this practice product, against real GitHub repositories, and every ticket was accepted, in this mode's older form: one long ViD session read GitHub by itself, and each decision was asked for and given in the pull request's comments, before the merge. GitHub manual keeps that run's tickets, its reports, its tests and its breaks. What it changes is who starts ViD's turns (you, with `/vid:vid-next`), what reaches your developers (only what you publish or apply), and where the work is decided (on the ticket, at a commit of `main`, after the merge). Those parts are written here from ViD's own rules, its commands and its results format, and were not run for this tutorial. The excerpts are the checked run's; where GitHub manual shows something else, the text says so. The dev seat's commands are written from that run's record: shell variables stand where it had its own numbers, the lines that fill in a report's commit were written by hand there, and its false starts are left out. One thing here was not typed in that run and is marked where it comes: finding the `checks/` folder of an installed ViD. The lab's test command was run again on the lab's own files after this tutorial was written, at stop 5's head and with stop 5's first break. In that run ViD's session was driven by a script, not typed by a person. Where a typed session should behave differently (it asks you a question the script could not be asked, for example), the text says *typed session*. Part 2 was not run for this tutorial.
+**How this tutorial was checked.** Part 1 was done once, on this practice product, against real GitHub repositories, and every ticket was accepted, in this mode's older form: one long ViD session read GitHub by itself, and each decision was asked for and given in the pull request's comments, before the merge. GitHub manual keeps that run's rows, its code and its tests. What it changes is who starts ViD's turns (you, with `/vid:vid-next`), what reaches your developers (only what you publish or apply), where the work is decided (on the ticket, at a commit of `main`, after the merge), and what decides it (your own test results and ViD's own review; that run's dev side also sent failing runs, breaks and grades). Those parts are written here from ViD's own rules, its commands and its results format, and were not run for this tutorial. The excerpts are the checked run's; where GitHub manual shows something else, the text says so. The dev seat's commands are written from that run's record: shell variables stand where it had its own numbers, the lines that fill in a report's commit were written by hand there, and its false starts are left out. One thing here was not typed in that run and is marked where it comes: finding the `checks/` folder of an installed ViD. The lab's test command was run again on the lab's own files after this tutorial was written, at stop 5's commit. In that run ViD's session was driven by a script, not typed by a person. Where a typed session should behave differently (it asks you a question the script could not be asked, for example), the text says *typed session*. Part 2 was not run for this tutorial.
 
-**Time.** Run by script without a pause, in the older form, Part 1 took 48 minutes. ViD's first plan took 4 minutes 25 seconds, and each of its other turns between one and two minutes. Reading as you go, allow an afternoon.
+**Time.** Run by script without a pause, in the older form, Part 1 took 48 minutes. ViD's first plan took 4 minutes 25 seconds, and each of its other turns between one and two minutes. A call that makes ViD's review takes longer; its time is not measured yet. Reading as you go, allow an afternoon.
 
 ---
 
@@ -50,7 +50,7 @@ Everything the lab needs is in `jobdigest-lab/`, beside this file:
 | `spec/` | The starter project: the approved spec of the practice product |
 | `code/` | The product's tests and code, one folder for each commit you will make |
 | `env/` | The test setup: one command runs a commit's tests and writes the report; one command pushes a report |
-| `reports/` | The few lines of each report that are written by hand, and the deliberate breaks as patches |
+| `reports/` | The few lines of each report that are written by hand, and, for the two optional kinds of evidence, the lines and patches they need |
 
 **The practice product is JobDigest:** two job feeds merged into one list, and a daily email of new matches for each saved search. Its spec holds nine requirements and a test inventory. You will build three small pieces of it.
 
@@ -198,7 +198,7 @@ Then it shows the plan page again. **Approve.** Your words are recorded as the a
 Yes, I approve this plan as it stands on the page, for GitHub manual.
 ```
 
-ViD says what it recorded, the mode last: GitHub manual, recorded. The switch has made the three repositories, private; the code repository is empty. The call then goes on as every call does, reads GitHub and shows its lines.
+ViD says what it recorded, the mode last: GitHub manual, recorded. It also shows you one page, `.vid/plan/TEAM-REPORTS.md`: what your team sends, and when it counts. In real work you hand it to your team. If ViD says that no engines are named yet, leave it: the skeleton's results name them. The switch has made the three repositories, private; the code repository is empty. The call then goes on as every call does, reads GitHub and shows its lines.
 
 **The code repository's first commit.** *Dev seat.* Give it the lab's starter code on `main`, because the first ticket names the commit it starts from:
 
@@ -240,22 +240,19 @@ gh issue view 1
 - rows: ROW-003 ROW-004
 ```
 
-`base` is the commit your branch starts from: `main`, as you pushed it. `export` is the commit of the spec repository the ticket quotes. Then come the rows with their fail-ifs, the requirements they serve, the decisions and rules that bear on them, the stack, the roles, and last the asks. The ticket calls your side *DevAgent*.
+`base` is the commit your branch starts from: `main`, as you pushed it. `export` is the commit of the spec repository the ticket quotes. Then come the rows with their fail-ifs, the requirements they serve, the decisions and rules that bear on them, the stack, the roles, and last the asks.
 
-A skeleton ticket asks four things, where an ordinary ticket asks five:
+A skeleton ticket asks three things, where an ordinary ticket asks four:
 
 > - T1 (TA): write at least one test per row, per transition for a journey, its name matching the row's id.
-> - T3 (TM): at the pull request's head, run every row in each engine you declare. The head report declares the engines, the primary first, and how many test environments you run.
-> - T4 (GR, then TM): at the same head, the skeleton's fault: GR writes the change that makes its rows' fail-if true, and nothing else; TM plants it and runs the rows' tests in the primary engine, with no control.
-> - T5 (GR, SR): at the ticket's first head alone, two fresh GRs, each in its own blind copy, grade each row against its fail-if, the grading checklist and the test differences, a screen row also against the design, and their lines are combined. SR sorts what the grade leaves, once. No later head has a grade or a sort.
+> - T3 (TM): the tests pass in your own results at the commit of main you ask about: every row and every regression row, in results files of any name, made by anyone. The report declares the engines you run, the primary first, and how many test environments you run, when you can.
+> - T4 (TM; if you make one, it is read): a deliberate break of a row, making its fail-if true and nothing else, with its test seen to fail under it. A test that still passes under its break is too weak, and its row fails.
 >
-> There is no T2: the skeleton has no red, so its fault stands in for it.
+> No grade is asked of you: once every row passes, ViD makes its own review of the ticket, once, from what its merged pull requests changed. Each test it then asks for is a request line of its decision.
 
-In plain words: write the tests (T1); run them at the head (T3); break the product on purpose and show that the tests notice (T4, a small mutation test); have someone who did not build it review each row (T5). T2, sending a failing run before any product code, is left out for the skeleton, because there is no product yet for a test to fail against in a useful way.
+These are ViD's own words for GitHub manual. In plain words: write the tests (T1); once your team has merged, run them at that commit of `main` and send the results (T3). ViD reviews the ticket itself. An ordinary ticket adds T2, a run of the tests before the product code, seen to fail. T2 and T4 are **optional**: read when you send them, and nothing is missing without them. This lab sends neither; `reports/README.md` says how to make each one, if you wish.
 
-**The head, in GitHub manual.** The asks say the pull request's head. In GitHub manual the head is the commit of `main` that holds the ticket's work, once your team has merged it: every report of the ticket's ask is about that commit, and the ask goes on the ticket's issue.
-
-The ticket names no branch. You choose; this tutorial uses `ticket-<number>`. ViD ties your pull request to the ticket by the first line of its description, not by its branch.
+The ticket names no branch. You choose; this tutorial uses `ticket-<number>`. ViD ties your pull request to the ticket by the first line of its description, not by its branch. Its review reads the changes of the pull requests it finds that way.
 
 ### Stop 5. The skeleton ticket, worked by hand
 
@@ -306,9 +303,9 @@ git checkout main && git pull
 SHA=$(git rev-parse HEAD); H12=$(printf %s $SHA | cut -c1-12)
 ```
 
-`SHA` is now the ticket's head: the merge commit on `main`, on `main`'s own line. Every report from here names it. (The pull request's own last commit is not on that line, and a decision asked there reads `not on main`.)
+`SHA` is now the merge commit on `main`, on `main`'s own line. The report and the ask name it. (The pull request's own last commit is not on that line, and a decision asked there reads `not on main`.)
 
-**TM: the run at the head (T3).** A report is a folder named by the report's id. For the run at a ticket's head in GitHub manual the id is `step-<ticket>-<first 12 characters of the commit>-<attempt>`.
+**TM: the run at that commit (T3).** A report is a folder named by the report's id. The id is yours to choose; this lab uses `step-<ticket>-<first 12 characters of the commit>-<attempt>`.
 
 ```bash
 R=$WORK/reports/step-$T-$H12-1
@@ -316,21 +313,6 @@ sh $LAB/env/run-tests.sh $WORK/code $SHA $R
 ```
 
 The first run fetches a base image and builds two Docker images, about two minutes. Then it makes a clean copy of exactly that commit, starts the product and two fakes (a mail provider and a job feed), runs every test in Chromium and writes `cases-chromium.xml` into the folder: the standard JUnit XML that any test runner can write. Its last lines name the commit and the report file; above them you should see `7 passed`.
-
-**GR writes the breaks, TM plants them (T4).** A break (a fault) is the smallest change to the product that makes a row's fail-if true. The lab has one for each row, as a patch. Look at one before you plant it:
-
-```bash
-cat $LAB/reports/1-skeleton/fault-ROW-003.patch
-```
-
-It removes one line from one page: *Check your inbox to confirm*. ROW-003 fails if that line is missing, so ROW-003's test must now fail. Run the rows' tests with each break planted. Each result goes in a folder of its own inside the report, `faults/<row>/`.
-
-```bash
-sh $LAB/env/run-tests.sh $WORK/code $SHA $R/faults/ROW-003 -k "ROW_003 or ROW_004" --fault $LAB/reports/1-skeleton/fault-ROW-003.patch
-sh $LAB/env/run-tests.sh $WORK/code $SHA $R/faults/ROW-004 -k "ROW_003 or ROW_004" --fault $LAB/reports/1-skeleton/fault-ROW-004.patch
-```
-
-The first should end with 1 test failed, the second with 5. **Here a failure is the result you want:** it shows the tests can catch the defect they exist to catch. The break is planted in the clean copy alone and never reaches `main`.
 
 **TM: the few lines written by hand.** Every test report holds a `results.txt`. The lab has each one ready, with the commit left for you to fill in:
 
@@ -351,28 +333,15 @@ stand-in: the addresses — plain http on the test network — the platform's ht
 stand-in: the feed — a fake — the partner feed
 ```
 
-`by:` is the role, `commit:` the commit the run was made at. The skeleton's head report is the one that declares your setup, once: which browser engines you test in, how many test environments you can run side by side, and one `stand-in:` line for each way your tests differ from production. ViD shows those differences to every later grade, and the lead sees them. Be honest in them; they cost you nothing.
+`by:` is the role, `commit:` the commit the run was made at. The skeleton's results declare your setup, once: which browser engines you test in, how many test environments you can run side by side, and one `stand-in:` line for each way your tests differ from production. ViD keeps those differences on record, and the lead sees them. Be honest in them; they cost you nothing.
 
-**TM: send the report.** A report travels as a branch of the code repository named `vid-results/<id>`, holding that one folder and nothing else.
+**TM: send the report.** A report travels as a branch of the code repository named `vid-results/<id>`, holding a folder of that same name. ViD reads that folder alone.
 
 ```bash
 sh $LAB/env/push-report.sh $REMOTE $R
 ```
 
 Read `env/push-report.sh` once: ten lines. It copies the folder into a new, empty folder, makes one commit there and pushes it as the branch. Your working branch is never touched. In your own project you will write the same ten lines.
-
-**GR: the grade (T5).** The grade is a second kind of report: one line for each row, with a verdict and the reason, written by someone who reads the code, the tests and the results and was not told the builder's reasoning. Its id is the head report's with `grade-` in front.
-
-```bash
-G=$WORK/reports/grade-step-$T-$H12-1; mkdir -p $G
-sed "s/<the head commit, full id>/$SHA/" $LAB/reports/1-skeleton/grade.txt > $G/grade.txt
-cat $G/grade.txt
-sh $LAB/env/push-report.sh $REMOTE $G
-```
-
-Read the file. A journey gets one line for each transition. Each line reads `<row> kept — <why>`. The other verdicts are `breached product` (the product does not keep the row's promise), `breached test` (the test would pass on a product that breaks it) and `unclear`. The last line is a `finding:`, a defect the grader saw that no row covers; here, that the confirm and unsubscribe links act on a plain GET. Findings go to the lead, not into this ticket. Every line is `kept`, so there is nothing to sort.
-
-In real work two graders each write a grade in a fresh context and their lines are combined. Here you copy the one a real grader wrote for this code. Grade what you see is the rule; the copy is the lab's shortcut.
 
 **MR: ask for the decision.** One comment on the ticket's issue, naming the commit of `main` in full.
 
@@ -386,7 +355,7 @@ gh issue comment $T --body "vid: decide $SHA"
 /vid:vid-next
 ```
 
-With its own work on, the call reads the three reports you sent and answers on the ticket's issue. *Dev seat:*
+With its own work on, the call reads your results. Every row passes, so it prints `review #1 <commit>` and makes **ViD's own review**, once for this ticket, before it answers. You do nothing for it. A fresh reviewer, who saw none of your work, reads the ticket, the spec items it cites, the names and results of your test cases, and what your pull request changed, as GitHub shows it. ViD keeps no copy of your code and runs none of it. If the reviewer doubts something, a second fresh reader sorts each doubt once. Then the call answers on the ticket's issue. *Dev seat:*
 
 ```bash
 gh issue view $T --comments
@@ -404,13 +373,21 @@ ROW-004-T3 accepted
 ROW-004 accepted
 ```
 
-That run gave it under the pull request, at its head; in GitHub manual the same lines come on the ticket's issue, naming your commit of `main`. One line for the ticket, one for each row. `accepted` means the runs a row needs were sent and read: its tests passed at this head, and its break made them fail. A row's state comes from runs alone. A grade can keep the ticket at `not yet` while a line of it is still open, but it does not by itself fail a row. Had the ticket line read `not yet`, each row short of that would carry its reason, and your next move would be to fix exactly that, merge the fix, and ask again at the new commit of `main`.
+That run gave it under the pull request, at its head; in GitHub manual the same lines come on the ticket's issue, naming your commit of `main`. One line for the ticket, one for each row. `accepted` means the row's tests passed in the results you sent for this commit, and ViD's review is in. A row's state comes from runs alone; a doubt of the review never fails a row by itself. Had the ticket line read `not yet`, each row short of that would carry its reason, and your next move would be to fix exactly that, merge the fix, and ask again at the new commit of `main`.
+
+**If your decision reads `not yet` with a `request` line,** ViD's review asks for one added test. (The reviewer is a model, and reads your lab afresh.) In your own project you add the test, with the row's id in its name, merge, send the results and ask again. The lab has no such test; a request holds that one decision alone, so here you go past it by asking again at the same commit:
+
+```bash
+gh issue comment $T --body "vid: decide $(git rev-parse HEAD)"
+```
+
+Then `/vid:vid-next` again. The review is not made twice. What the reviewer saw outside the rows comes to the lead as a finding.
 
 **Nothing is left to merge.** The work went into `main` before the ask, and the acceptance stands at that commit. That is a whole ticket. Everything else in this lab is a variation on it.
 
 ### Stop 6. The stage's full run
 
-The skeleton is all of stage 0, so its acceptance completes a stage. With its own work on, the call that accepted it, or your next one, asks for the stage's full run: every row of the stage, again, at the accepted commit. It asks with a new issue, labelled `run`. If none is there yet, call `/vid:vid-next` again.
+The skeleton is all of stage 0, so its acceptance completes a stage. With its own work on, the call that accepted it, or your next one, asks for the stage's full run: every row of the stage, again, at the accepted commit. ViD grades the stage itself meanwhile, with one fresh reader; you are asked for no grade. It asks with a new issue, labelled `run`. If none is there yet, call `/vid:vid-next` again.
 
 *Dev seat:*
 
@@ -453,11 +430,12 @@ The second chunk, `p1cx`, is every test that belongs to no row of the first chun
 R=$WORK/reports/req-$C-p1cx-1
 sh $LAB/env/run-tests.sh $WORK/code $SHA $R -k "not ROW_003 and not ROW_004"
 sed "s/<the commit the close issue names, full id>/$SHA/" $LAB/reports/5-closes/results.txt > $R/results.txt
+echo "none left" >> $R/results.txt
 sh $LAB/env/push-report.sh $REMOTE $R
 gh issue comment $C --body "vid: reported p1cx-1"
 ```
 
-No test is selected, and the report holds no test case at all. That is a correct report: you were asked what else there is, and the answer is nothing. *Lead's seat:* call `/vid:vid-next` again. ViD reads both chunks, and tells you that the stage's full run passed and the skeleton's step closed.
+No test is selected, and the results file holds no test case at all. With the line `none left` in its `results.txt` that is a correct report: you were asked what else there is, and the answer is nothing. *Lead's seat:* call `/vid:vid-next` again. ViD reads both chunks, and tells you that the stage's full run passed and the skeleton's step closed.
 
 ### Stop 7. The staging deploy you will not make, and the next ticket
 
@@ -477,7 +455,7 @@ Issue 4, *Deploy to staging: stage 0, candidate 1*, asks your side to deploy the
 /vid:vid-next publish S5 "Publish the ticket of ROW-006, the header and footer on every page."
 ```
 
-### Stop 8. An ordinary ticket: tests first, a red run, a question
+### Stop 8. An ordinary ticket: tests first, a question
 
 *Dev seat:*
 
@@ -486,7 +464,7 @@ gh issue list --label ticket
 gh issue view 5
 ```
 
-This is a step ticket (`kind: step`) for ROW-006, the header and footer on every page. It has what the skeleton ticket lacked: an **Engines** section (which browser engines to run), **Regression rows** (ROW-003 and ROW-004: rows already accepted, which this work must not break), and the ask T2.
+This is a step ticket (`kind: step`) for ROW-006, the header and footer on every page. It has what the skeleton ticket lacked: an **Engines** section (the browser engines your team named), **Regression rows** (ROW-003 and ROW-004: rows already accepted, which this work must not break), and the ask T2, which is optional and which this lab skips.
 
 **DM: claim it.**
 
@@ -521,23 +499,6 @@ Decisions: none"
 P=6
 ```
 
-**TM: the red run (T2).** Run the tests at this commit, where no product code for the row exists, and send the result. This is the *red* of red, green, refactor, made into evidence: it shows the tests can fail, and that they fail for the right reason.
-
-```bash
-SHA=$(git rev-parse HEAD)
-R=$WORK/reports/red-$T-1
-sh $LAB/env/run-tests.sh $WORK/code $SHA $R
-```
-
-You should see `6 failed, 7 passed`: the six new tests of ROW-006 fail, the seven of the skeleton pass. Each failure says what the product lacks (`ROW-006: S01/default: 0 headers …`), and none says the test could not run. A test that failed because the setup was broken proves nothing, and ViD does not count it as a red.
-
-```bash
-sed "s/<the tests-first commit, full id>/$SHA/" $LAB/reports/2-header-footer/red-results.txt > $R/results.txt
-sh $LAB/env/push-report.sh $REMOTE $R
-```
-
-The red report's id is `red-<ticket>-<attempt>`, and its `results.txt` names the rows it is the red of: `rows: ROW-006`. The tests-first commit stays on your branch; the red run names it, and the code repository holds it once it is pushed.
-
 **BU: the product change, and MR: the merge.**
 
 ```bash
@@ -549,39 +510,22 @@ git checkout main && git pull
 SHA=$(git rev-parse HEAD); H12=$(printf %s $SHA | cut -c1-12)
 ```
 
-**TM: the run at the head (T3).**
+**TM: the run at that commit (T3).**
 
 ```bash
 R=$WORK/reports/step-$T-$H12-1
 sh $LAB/env/run-tests.sh $WORK/code $SHA $R
 ```
 
-`13 passed`: the row's tests and the regression rows'.
-
-**A retested row, its break and its control (T4).** ROW-006 needs no break: its red run already showed its tests can fail. But the tests commit also changed a helper that ROW-003's test uses, so ROW-003's test now checks something slightly different from the test that was accepted. The report must say so, with the line `retested: ROW-003`, and a retested row needs a break of its own.
-
-An ordinary ticket's break also needs a **control**: a second test, run in the same broken copy, that must still pass. It shows the break was narrow, and that the test failed because of this defect and not because everything fell over. The test manager picks it and names it in `control.txt`. Here the control is ROW-006.
+`13 passed`: the row's tests and the regression rows'. Send it.
 
 ```bash
-sh $LAB/env/run-tests.sh $WORK/code $SHA $R/faults/ROW-003 -k "ROW_003 or ROW_006" --fault $LAB/reports/2-header-footer/fault-ROW-003.patch
-cp $LAB/reports/2-header-footer/control.txt $R/faults/ROW-003/control.txt
 sed "s/<the head commit, full id>/$SHA/" $LAB/reports/2-header-footer/head-results.txt > $R/results.txt
 cat $R/results.txt
 sh $LAB/env/push-report.sh $REMOTE $R
 ```
 
-`1 failed, 7 passed`: ROW-003's own test fails, and every test of ROW-006 passes. This `results.txt` is three lines. The engines and the stand-ins were declared at the skeleton and are not repeated.
-
-**GR: the grade (T5).**
-
-```bash
-G=$WORK/reports/grade-step-$T-$H12-1; mkdir -p $G
-sed "s/<the head commit, full id>/$SHA/" $LAB/reports/2-header-footer/grade.txt > $G/grade.txt
-cat $G/grade.txt
-sh $LAB/env/push-report.sh $REMOTE $G
-```
-
-The grade covers the ticket's row and the regression rows, and ends with two findings. Read the first: the support address is in a domain that can receive no mail, so a requirement will fail on the day the product ships. No test here could have shown that. It is what an independent review is for. Every row's line is `kept`, so again there is nothing to sort.
+This `results.txt` is short: the engines and the stand-ins were declared at the skeleton and are not repeated. Its `retested:` line says that ROW-003's test now checks something a little different, since the tests commit changed a helper it uses. It is read when given, and asks nothing of you.
 
 **MR: ask for the decision.**
 
@@ -599,7 +543,7 @@ ROW-003 passing
 ROW-004 passing
 ```
 
-As at stop 5, that run gave it under the pull request; in GitHub manual it is on the ticket's issue. The ticket's own row is `accepted`. The regression rows are `passing`: they were accepted before, and they still pass.
+As at stop 5, the call makes ViD's review first, and a `request` line is gone past in the same way. That run gave its decision under the pull request; in GitHub manual it is on the ticket's issue. The ticket's own row is `accepted`. The regression rows are `passing`: they were accepted before, and they still pass.
 
 **The step's close.** ROW-006's step has no other ticket, so the same call, or your next one, asks for its close run: a new issue labelled `run`. A merged ticket is not a closed step: the close asks the step's rows and its regression rows once more, at the commit of its acceptance, as the step stands on `main`. The checked run's:
 
@@ -645,7 +589,7 @@ The new ticket, 8 in the checked run, is for ROW-019. **Leave it for now.**
 
 ### Stop 9. Change the spec
 
-The grader's finding and your own answer point at the same weakness. REQ-012 says the support address must "reach a person", and nobody can test that. As the lead you tighten it.
+A reviewer's finding in the checked run and your own answer point at the same weakness: the support address is in a domain that can receive no mail, so a requirement would fail on the day the product ships, and no test here could show it. It is what an independent review is for; yours may say it or not. REQ-012 says the support address must "reach a person", and nobody can test that. As the lead you tighten it.
 
 A spec under ViD is never edited by hand. A change goes through ViD: it drafts the change, counts what the change touches, and asks you once. Nothing is written until you say yes, and nothing reaches your developers until you apply it.
 
@@ -704,7 +648,7 @@ ViD writes its proposal, what the change does to the plan and to each published 
 /vid:vid-next implement-replan "Apply the change as the page shows it."
 ```
 
-If your draft added no row, the call lists `implement-replan` at once, with no analysis first. The apply exports the spec again to the spec repository and sends what the change owes your developers. Its lines say what it sent.
+If your draft added no row, there is no analysis to name. The call asks instead, in a line `proposal due`, whether to make the proposal now, and says what it covers and how long it takes. Your yes is `implement-replan` itself: named once it makes the proposal, shows it and applies nothing; named again, it applies what it showed. The apply exports the spec again to the spec repository and sends what the change owes your developers. Its lines say what it sent.
 
 ### Stop 10. What the change sent your developers
 
@@ -716,9 +660,9 @@ gh issue list --label ticket
 gh issue view 8 --comments | tail -5
 ```
 
-**The open ticket was amended in place.** Ticket 8, for ROW-019, was published before your change and nobody had started it. It now quotes the new text of REQ-012, its header has a line `amended:`, and a comment beginning `vid: amended` names its cause and says that earlier results for its changed rows do not count. (The checked run's comment named the spec export as its cause; GitHub manual's names the change you applied.) Had a developer already sent a red run for it, that run would no longer count. A team that reads only the first version of a ticket will build the old spec; read the comments.
+**The open ticket was amended in place.** Ticket 8, for ROW-019, was published before your change and nobody had started it. It now quotes the new text of REQ-012, its header has a line `amended:`, and a comment beginning `vid: amended` names its cause and says that earlier results for its changed rows do not count. (The checked run's comment named the spec export as its cause; GitHub manual's names the change you applied.) Had a developer already sent results for a changed row, they would no longer count. A team that reads only the first version of a ticket will build the old spec; read the comments.
 
-**The accepted row went out again.** ROW-006 was accepted under the old text, and its step closed at stop 8. ViD does not take it back, and it does not let it stand unexamined either. In GitHub manual the apply sends it in a *follow-up ticket* of its step: its title begins *Follow-up ticket*, its header names the ticket it follows (`follows: #5`), and it asks no grade. The checked run sent the row in a reached-rows ticket instead, whose test was kept with an empty commit; the lab's files are for that ticket, not for a follow-up's asks. **Leave the follow-up open,** as you will leave the next step's ticket at stop 13. Your developers would work it as stop 8's ticket, by its own asks.
+**The accepted row went out again.** ROW-006 was accepted under the old text, and its step closed at stop 8. ViD does not take it back, and it does not let it stand unexamined either. In GitHub manual the apply sends it in a *follow-up ticket* of its step: its title begins *Follow-up ticket*, its header names the ticket it follows (`follows: #5`), and ViD makes no review of it. The checked run sent the row in a reached-rows ticket instead, whose test was kept with an empty commit; the lab's files are for that ticket, not for a follow-up's asks. **Leave the follow-up open,** as you will leave the next step's ticket at stop 13. Your developers would work it as stop 8's ticket, by its own asks.
 
 ### Stop 11. The amended ticket
 
@@ -739,17 +683,7 @@ Decisions: none"
 P=11
 ```
 
-The red run. `3 failed, 14 passed`:
-
-```bash
-SHA=$(git rev-parse HEAD)
-R=$WORK/reports/red-$T-1
-sh $LAB/env/run-tests.sh $WORK/code $SHA $R
-sed "s/<the tests-first commit, full id>/$SHA/" $LAB/reports/4-digest-footer/red-results.txt > $R/results.txt
-sh $LAB/env/push-report.sh $REMOTE $R
-```
-
-The build, the merge, and the run at the head. `17 passed`:
+The build, the merge, and the run at that commit. `17 passed`:
 
 ```bash
 cp -R $LAB/code/6-digest-footer-build/. .
@@ -764,12 +698,9 @@ sed "s/<the head commit, full id>/$SHA/" $LAB/reports/4-digest-footer/head-resul
 sh $LAB/env/push-report.sh $REMOTE $R
 ```
 
-No break this time: ROW-019 had its red, and no accepted row's test changed what it checks, so nothing is retested. The grade, and the ask:
+The ask:
 
 ```bash
-G=$WORK/reports/grade-step-$T-$H12-1; mkdir -p $G
-sed "s/<the head commit, full id>/$SHA/" $LAB/reports/4-digest-footer/grade.txt > $G/grade.txt
-sh $LAB/env/push-report.sh $REMOTE $G
 gh issue comment $T --body "vid: decide $SHA"
 ```
 
@@ -808,7 +739,7 @@ gh issue comment $C --body "vid: reported p1c1-1"
 
 `17 passed`. *Lead's seat:* `/vid:vid-next`. ViD reads the close, closes the step, and closes ticket 8 with its `vid: closed` comment.
 
-The checked run's lead read a status page here. In GitHub manual, where things stand is what each call shows, and the plan page it writes: each step, what is left, and what waits on you. Each number on it is a count of evidence your side sent and ViD read. Nothing in it is anyone's estimate.
+The checked run's lead read a status page here. In GitHub manual, where things stand is what each call shows, and the plan page it writes: each step, what is left, and what waits on you. In the Claude desktop app the panel beside the chat shows the lasting list of what is open, and the parts of a long call as they happen; `/vid:vid-answer backlog` prints that list. Each number on it is a count of evidence your side sent and ViD read. Nothing in it is anyone's estimate.
 
 ### Stop 13. Stop, and what is left
 
@@ -820,7 +751,7 @@ Left open on purpose, and worth a look before you tidy:
 
 - The staging deploy issue from stop 7, never deployed.
 - The follow-up ticket of ROW-006 from stop 10, never claimed.
-- In the lead's queue, the graders' findings, which wait for the lead's ruling. Each can be ruled a fix, a new row, a known limit or nothing. The overview's section 6 says what each means.
+- In the lead's queue, the findings of ViD's reviews and of its grade of stage 0, if any, which wait for the lead's ruling. Each can be ruled a fix, a new row, a known limit or nothing. The overview's section 6 says what each means.
 
 To tidy: delete the three repositories on GitHub (the code, the spec, and ViD's state repository) and the `$WORK` folder. Deleting a repository is permanent; check the name twice.
 
@@ -832,13 +763,12 @@ docker image rm jobdigest-lab-product jobdigest-lab-tests
 
 ## What this walk did not show you
 
-Every ticket here was accepted at the first decision, because the lab's code and tests were already right. Your first real tickets will not be. Four things you did not see, each in the overview's section 4:
+Every ticket of the checked run was accepted at the first decision, because the lab's code and tests were already right. Your first real tickets will not be. Three things you may not have seen, each in the overview's section 4:
 
 | What | When it happens | What your side does |
 |---|---|---|
-| **`ticket: not yet`** | Evidence a row needs is missing, a test failed, or the tests missed a deliberate break | Fix exactly what the decision names, merge the fix into `main`, and ask again at that new commit, with a new report |
-| **A break after a grade** | A grade line reads `breached test`: the grader doubts the test would catch a broken product | Before you ask for the decision, plant a break aimed at what the line says and send the head report again as its next attempt, with the fault folder added. If the test fails under the break, the doubt is closed. If it passes, the test is weak and is fixed |
-| **A sort** | A grade line reads `breached product` or `unclear` | Before the ask, a second reviewer, fresh, sorts each such line once: test it, note it or drop it. Then ask for the decision |
+| **`ticket: not yet`** | A row's test failed, or no result for it was read at the commit | Fix exactly what the decision names, merge the fix into `main`, and ask again at that new commit, with a new report |
+| **A `request` answered by a test** | ViD's review doubts that a test would catch a broken product | Add the test, with the row's id in its name. If it passes, the doubt is closed. If it fails, the row fails, and you fix the product |
 | **A held row** | A row has failed its rounds and cannot be accepted as it stands | Nothing: it goes to the lead, who accepts it, gives it more rounds, rules it a known limit or changes the spec. Every other ticket goes on |
 
 ---
@@ -857,13 +787,13 @@ Part 1 used a spec that was already written. With your own product you write it 
 |---|---|
 | Runs the tests on a clean copy of exactly one commit | A report names a commit. What was not committed must not be in the run |
 | Starts the product the way it really starts | Some rows ask for the product's own processes, not a shortcut inside the test |
-| Writes a JUnit XML file for each browser engine, named `cases-<engine>.xml` | It is the one file ViD reads test results from. Any runner can write it |
+| Writes a JUnit XML file | It is what ViD reads test results from, under any name, in as many files as you have. Any runner can write it |
 | Puts each row's id in its tests' names | It is how a test case is tied to a row |
-| Can apply a patch to the clean copy, then run a chosen few tests | The breaks, with their controls |
-| Marks a test that could not run apart from one that failed | A broken setup is not a red, and not a product failure |
+| Can run a chosen few tests | The chunks of a close run. (Applying a patch first is for an optional break) |
+| Marks a test that could not run apart from one that failed | A broken setup is not a product failure |
 | Pushes one folder as one branch | How a report travels |
 
-**4. Keep the roles apart.** In Part 1 you were everyone. With a team, the ticket's independence rules decide who may be whom, and the overview's section 4.2 turns them into a team of people. The short form: whoever writes or runs the tests does not build; the grader comes fresh; the builder never touches a test.
+**4. Share the work out.** In Part 1 you were everyone. A team shares the work as it likes; the overview's section 4.2 says what ViD needs to know. Two habits make tests worth more: whoever writes a row's test does not build it, and the builder never weakens a test. Your team grades nothing. Hand it the page the switch wrote, `.vid/plan/TEAM-REPORTS.md`; `/vid:vid-accept-step reports` shows it again.
 
 ---
 
@@ -881,10 +811,13 @@ Part 1 used a spec that was already written. With your own product you write it 
 | Nothing is decided though your team asked | ViD decides only at a call, with its own work on | `/vid:vid-next`. With its own work off, the call shows the ask with the command that decides it, `/vid:vid-accept-step <ticket> <commit>` |
 | `run-tests.sh` stops with `setup: the product did not start` and an empty log | The base image could not be fetched | Check the network, `docker pull python:3.12-slim-bookworm`, then run again |
 | `run-tests.sh` ends with every test failing on a line that begins `setup:` | The commit holds tests and no product | Expected at a tests-only commit of the skeleton. Anywhere else, check that you ran the right commit |
-| `the fault … does not apply` | The patch does not fit that commit | Check `SHA` is the commit the stop names |
+| `the fault … does not apply` | An optional break's patch does not fit that commit | Check `SHA` is the commit you merged for that ticket |
 | The decision reads `not on main — <commit>` | The commit asked is not on `main`'s own line: a pull request's own last commit, for instance | Ask again at the merge commit, `git rev-parse origin/main` |
 | The decision reads `no Decisions section — #<n>` | That pull request's description has no Decisions section | Add `Decisions: none`, or the decisions, to its description (`gh pr edit <n> --body …`), and ask again |
-| The decision reads `not yet` | Something your side sent is missing or wrong | Read each row's line; it names what is short. The commonest causes here: a report pushed under the wrong id, or `SHA` not the commit of `main` you asked at |
+| The decision reads `request <row> — …` | ViD's review asks for an added test | Stop 5 says how to go on |
+| The decision reads `review missing — no merged pull request names this ticket` | The pull request's description lacks its first line | Begin it `ticket: #<n>` (`gh pr edit <n> --body …`), and ask again |
+| The decision reads `not yet` | Something your side sent is missing or wrong | Read each row's line; it names what is short. The commonest causes here: a branch whose folder has not its own id, or `SHA` not the commit of `main` you asked at |
+| No decision comes, and the call says `no results` | No result report counts at that commit | Check that a report's `commit:` is that commit, and that its folder holds the results file. The call names each branch it left out |
 | A question sits unanswered on a ticket | It is in the lead's queue, and nothing is said on GitHub until the lead answers | Lead's seat: `/vid:vid-next`, then its `answer` move |
 
 ---
@@ -899,29 +832,26 @@ Part 1 used a spec that was already written. With your own product you write it 
 | The ticket, or a pull request of it | `Question: <rows> …`, with your default | Anyone | When the spec does not say |
 | A pull request's description, as its first line | `ticket: #<n>` | DM | When it is opened |
 | A pull request's description | `Decisions:` with one line a decision, or `Decisions: none` | DM | When it is opened |
-| `main` | The ticket's pull requests, merged | MR | Before the head report |
-| The ticket | `vid: decide <the commit of main, in full>` | MR | When the reports for that commit are pushed |
+| `main` | The ticket's pull requests, merged | MR | Before the results |
+| The ticket | `vid: decide <the commit of main, in full>` | MR | When the results for that commit are pushed |
 | A run issue | `vid: started` / `by: TM` | TM | Before the first chunk |
 | A run issue | `vid: reported <chunk>-<attempt>` | TM | After each chunk's report is pushed |
 
-**What your side pushes,** each as a branch `vid-results/<id>` holding one folder:
+**What your side pushes,** each as a branch `vid-results/<id>` holding a folder `<id>`:
 
 | The report | Its id | What is in the folder |
 |---|---|---|
-| The red run | `red-<ticket>-<k>` | `results.txt` (`by:`, `commit:`, `rows:`), `cases-<engine>.xml` |
-| The run at the head | `step-<ticket>-<commit of main, 12>-<k>` | `results.txt` (`by:`, `commit:`, and `retested:` when a row is; at the skeleton also `engines:`, `environments:`, `stand-in:`), `cases-<engine>.xml`, and for each break `faults/<row>/cases-<engine>.xml` with `control.txt` (no control at the skeleton) |
-| The grade | `grade-step-<ticket>-<commit of main, 12>-<k>` | `grade.txt`: `by: GR`, `commit:`, one verdict line a row, `finding:` lines |
-| The sort, when a grade line is open | `sort-step-<ticket>-<commit of main, 12>-<k>` | `sorted.txt`: `by: SR`, `commit:`, one line for each open grade line |
-| A chunk of a run | `req-<issue>-<chunk>-<k>` | `results.txt` (`by:`, `commit:`, `engines:`), `cases-<engine>.xml` |
-
-The lab's `reports/README.md` names the head report, the grade and the sort in this mode's older pull request form; in GitHub manual use the ids above.
+| The results at a commit of `main` | Yours to choose; here `step-<ticket>-<commit of main, 12>-<k>` | `results.txt` (`by:`, `commit:`; at the skeleton also `engines:`, `environments:`, `stand-in:`), and any `.xml` results files |
+| A chunk of a run | `req-<issue>-<chunk>-<k>` | `results.txt` (`by:`, `commit:`, and `none left` when there is no test to run), and any `.xml` results files |
+| Optional: a run that failed first | `red-<ticket>-<k>` | `results.txt` (`by:`, `commit:`, `rows:`), the results files |
+| Optional: a deliberate break | in a result report | `faults/<row>/`: its results files, with `control.txt` |
 
 **What ViD writes**
 
 | Where | What |
 |---|---|
 | An issue labelled `ticket` | A ticket, when the lead publishes it or applies a change: skeleton, step, follow-up or fix |
-| A comment on the ticket | `vid: decision <commit>`, then `ticket: accepted` or `ticket: not yet`, then one line a row |
+| A comment on the ticket | `vid: decision <commit>`, then `ticket: accepted` or `ticket: not yet`, then one line a row, and a `request` line for each test its review asks for |
 | A comment beginning `RM:` | The lead's answer to a question |
 | A comment `vid: amended …` | The ticket's text changed with the spec |
 | A comment `vid: closed — …` | The step's close passed; the ticket is closed |

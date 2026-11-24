@@ -1,6 +1,6 @@
 ---
 name: vid-answer
-description: Every answer of the owner's in ticket mode, in both GitHub modes, through one entry, `checks/queue.sh answer`, with the owner's words — a held row, the team's product questions, a ticket's or a stage's findings, a close that could not finish, a stand-in, a duty not done, a draft of the door, a trigger or a move a call raised, the compaction question. `/vid:vid-answer <Q<n> or #<n>:<k>> <answer> "<words>"`; /vid run and /vid next call it for the same. Use when the owner answers a question ViD asked, rules a held row or a finding, says yes or no to a draft, or asks what waits on them.
+description: Every answer of the owner's in ticket mode, in both GitHub modes, through one entry, `checks/queue.sh answer`, with the owner's words — a held row, the team's product questions, a ticket's or a stage's findings, a close that could not finish, a stand-in, a duty not done, a draft of the door, a trigger or a move a call raised, the compaction question; and the backlog, the owner's one list in their order, `/vid:vid-answer backlog`. `/vid:vid-answer <Q<n> or #<n>:<k>> <answer> "<words>"`; /vid run and /vid next call it for the same. Use when the owner answers a question ViD asked, rules a held row or a finding, says yes or no to a draft, or asks what waits on them or for the backlog.
 ---
 
 # /vid:vid-answer
@@ -24,7 +24,23 @@ and in every mode (GM-4 K6); no other path records one.
 4. **A `door:` line.** The answer changes rows: the change goes through the door, the vid-fix skill's ticket-mode branch, run here
    on the words the line gives. It drafts and asks; it lands nothing.
 5. **What waits.** `sh checks/queue.sh list`: each open line, `Q<n>`, its key, the answers it takes and its words. Say each in
-   plain words, with the answers it takes as the script gives them.
+   plain words, with the answers it takes as the script gives them. Then `sh checks/queue.sh backlog`, and end with its `next:` line.
+
+## The backlog (FB-3 D1)
+
+One list of everything open, in the owner's order, kept with the records in both GitHub modes: `.vid/decide/queue/backlog`, which
+`checks/queue.sh` alone writes. The panel beside the chat draws it. `/vid:vid-answer backlog` shows it, with no lock and no read:
+`sh checks/queue.sh backlog`, each open item and then its `next:` line, said in plain words.
+
+- **What is in it.** Each `Q<n>` line, added and closed by the script at every sync; in GitHub manual each issue assigned to the
+  owner; and what comes up as you work, which no script sees (a person waited for, a push, a decision owed), added by you at once:
+  `sh checks/queue.sh backlog add "<words>" [--who <who>] [--next "<next action>"] [--note "<note>"]`, a `B<n>`.
+- **What you work on** is the top open item, neither waiting nor aside. A new thing lands at the end and interrupts nothing: never
+  ask it on its own, and never put it above the owner's order.
+- **As the work goes** you keep it true: `sh checks/queue.sh backlog set <id> --state doing` (one item at most), `waiting` with
+  `--note` saying on whom and since when, `--next`, `--who`, and `--state done` for a `B<n>`. A `Q<n>` closes by its answer alone.
+- **Order, and what is set aside,** are the owner's, changed only on the owner's say: `backlog set <id> --place top|after <id>`, `--state aside`.
+- It posts nothing and records no answer. Every answer ends with the `next:` line.
 
 ## The owner's queue (v0.26.10.25.3)
 
@@ -67,5 +83,5 @@ owner's answers, named in the call and passed to `next-move.sh call` as the vid-
 - `team-change "#<n>" <id> yes "<words>"`, or `no`: the team's change to a published ticket's test taken in or declined; a yes
   amends the ticket through the vid-tickets skill's one path, `github.sh tw-hand` (GM-4 F5), a no is one comment on it.
 
-After the call's page, `next-move.sh` prints each open `Q<n>` line with the answers it takes, as `queue.sh list` gives them: say
-each in plain words. A `door:` line among its lines goes through the door, as above.
+After the call's page, `next-move.sh` prints each open `Q<n>` line with the answers it takes, as `queue.sh list --short` gives them, one line a
+kind (`queue.sh list` gives each on its own): say each in plain words. A `door:` line among its lines goes through the door, as above.

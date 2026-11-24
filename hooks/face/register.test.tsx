@@ -1067,3 +1067,145 @@ test('S10 a section with no pointed item draws neither heading', async ($, on) =
   expect(await ui.find({ type: 'Text', text: 'The rest, as recommended' })).toBeUndefined()
   await ui.unmount()
 })
+
+// --- FB-3 D1: the backlog; D2: the parts of a long call -------------------------------------------------------------
+
+const item = (id: string, state: string, words: string, more: object = {}) => ({ id, state, who: 'you', words, next: '', note: '', since: '2026-11-20T09:00:00Z', ended: '', ...more })
+const BACKLOG = {
+  items: [
+    item('Q4', 'to do', 'the move publish S03', { next: 'done "<words>"' }),
+    item('B2', 'doing', 'push the branch', { next: 'run the release', note: 'half done' }),
+    item('B3', 'waiting', 'the bank account', { who: 'Ann', note: 'asked on Monday' }),
+    item('Q7', 'aside', 'the trigger step-slow S02'),
+    item('B5', 'to do', 'decide the export'),
+  ],
+  done: [item('B1', 'done', 'read the terms', { note: 'read', ended: '2026-11-21T09:00:00Z' }), item('Q1', 'done', 'the old question', { note: 'no longer there', ended: '2026-11-20T09:00:00Z' })],
+  doneCount: 14,
+}
+const withBacklog = (text: string, fn: (s: any) => void = () => undefined): string =>
+  edited(text, s => {
+    s.backlog = BACKLOG
+    fn(s)
+  })
+const allDone = (s: any) => {
+  s.current = 10
+  s.next = ''
+  for (const x of s.stops) x.state = 'done'
+}
+const PARTS = { parts: [{ name: 'Reading GitHub', state: 'done' }, { name: 'Working out what changed', state: 'now' }, { name: 'Saving the records', state: 'to come' }], now: 'ticket 7 of 21', stop: '', written: '' }
+
+test('FB-3 D1 the backlog: the item in progress, the rest in order, waiting and aside apart, the done and their count', async ($, on) => {
+  await start($, on, { standing: withBacklog(WORKING_STANDING), run: STOPPED })
+  const ui = await $.ui.mount(PANE('desktop'))
+  const all = await texts(ui)
+  const at = (t: string) => all.findIndex(x => x.startsWith(t))
+  const order = ['In progress', 'push the branch', 'To do, in order', 'the move publish S03', 'decide the export', 'Waiting', 'the bank account', 'Set aside', 'the trigger step-slow S02', 'Done', 'read the terms', 'the old question']
+  for (const t of order) expect(at(t)).toBeGreaterThan(-1)
+  for (let i = 1; i < order.length; i++) expect(at(order[i]!)).toBeGreaterThan(at(order[i - 1]!))
+  expect(all).toContain('Next: run the release')
+  expect(all).toContain('half done')
+  expect(all).toContain('asked on Monday')
+  expect(all).toContain('Done · 14 in all, the newest 2 here')
+  expect(all).toContain('2 to do · 1 in progress · 1 waiting · 1 set aside')
+  expect(all.some(t => t.includes('B2') && t.includes('you'))).toBe(true)
+  expect(all.some(t => t.includes('B3') && t.includes('Ann'))).toBe(true)
+  // never the map's step of a project past defining
+  expect(all.some(t => /^Step \d of 9/.test(t))).toBe(false)
+  await ui.unmount()
+})
+
+test('FB-3 D1 the mode run stands before done, idle, working and stopped; a waiting sitting stands before it', async ($, on) => {
+  const log = await start($, on, { standing: withBacklog(WORKING_STANDING, allDone) })
+  const ui = await $.ui.mount(PANE('desktop'))
+  for (const [cur, run] of [[10, STOPPED], [1, STOPPED], [5, RUNNING], [5, STOPPED]] as const) {
+    log.files[`${ROOT}/.vid/face/standing.json`] = withBacklog(WORKING_STANDING, s => {
+      s.current = cur
+    })
+    log.files[`${ROOT}/.vid/face/run.sess-A`] = run
+    await $.command.run({ command: 'vid-panel', args: '' })
+    const all = await texts(ui)
+    expect(all).toContain('To do, in order')
+    expect(all.some(t => /Every stop is done|Nothing waits on you here|ViD is working on|^ViD has stopped/.test(t))).toBe(false)
+  }
+  log.files[`${ROOT}/.vid/face/standing.json`] = withBacklog(PAUSE2_STANDING)
+  log.files[`${ROOT}/.vid/face/sitting.json`] = PAUSE2
+  await $.command.run({ command: 'vid-panel', args: '' })
+  expect(await texts(ui)).not.toContain('To do, in order')
+  await ui.unmount()
+})
+
+test('FB-3 D1 no backlog, or an empty one with no parts: the panel as before', async ($, on) => {
+  const log = await start($, on, { standing: edited(WORKING_STANDING, s => { s.backlog = { items: [], done: [], doneCount: 0 } }), run: STOPPED })
+  const ui = await $.ui.mount(PANE('desktop'))
+  expect(await texts(ui)).toContain('ViD has stopped. Look at the chat.')
+  expect(log.opens).toHaveLength(0)
+  await ui.unmount()
+})
+
+test('FB-3 D1 it opens once a conversation for the backlog, never with the keys; not outside the desktop app', async ($, on) => {
+  const log = await start($, on, { standing: withBacklog(WORKING_STANDING), run: STOPPED })
+  expect(log.opens).toHaveLength(1)
+  expect(log.opens[0].focus).toBeUndefined()
+  expect(log.opens[0].title).toBe('ViD')
+  await $.tool.call({ tool: 'Bash', input: {} } as any).catch(() => undefined)
+  await $.turn.complete({ answer: 'done', stop: 'stop' } as any).catch(() => undefined)
+  expect(log.opens).toHaveLength(1)
+})
+
+test('FB-3 D1 a project on the terminal alone: no open', async ($, on) => {
+  const log = await start($, on, { standing: withBacklog(WORKING_STANDING), surfaces: ['terminal'] })
+  expect(log.opens).toHaveLength(0)
+})
+
+test('FB-3 D1 long words are cut, and nothing undefined is drawn', async ($, on) => {
+  const long = 'x'.repeat(900)
+  await start($, on, { standing: edited(WORKING_STANDING, s => { s.backlog = { items: [{ id: 'Q1', state: 'to do', words: long }], done: [], doneCount: 0 } }), run: STOPPED })
+  const ui = await $.ui.mount(PANE('desktop'))
+  const all = await texts(ui)
+  expect(all.some(t => t.startsWith('xxx') && t.endsWith('…') && t.length < 320)).toBe(true)
+  expect(all.some(t => /undefined/.test(t))).toBe(false)
+  await ui.unmount()
+})
+
+test('FB-3 D2 the parts of a long call, drawn in the mode run while the session runs, with every stop done', async ($, on) => {
+  await start($, on, { standing: withBacklog(WORKING_STANDING, s => { allDone(s); s.wait = PARTS }), run: RUNNING })
+  const ui = await $.ui.mount(PANE('desktop'))
+  const all = await texts(ui)
+  const at = (t: string) => all.indexOf(t)
+  expect(at('✓ Reading GitHub')).toBeGreaterThan(-1)
+  expect(at('● Working out what changed')).toBeGreaterThan(at('✓ Reading GitHub'))
+  expect(at('○ Saving the records')).toBeGreaterThan(at('● Working out what changed'))
+  expect(all).toContain('Now: ticket 7 of 21')
+  expect(at('To do, in order')).toBeGreaterThan(at('Now: ticket 7 of 21'))
+  await ui.unmount()
+})
+
+test('FB-3 D2 a take-stock with no backlog yet draws its parts too', async ($, on) => {
+  await start($, on, { standing: edited(WORKING_STANDING, s => { allDone(s); s.backlog = { items: [], done: [], doneCount: 0 }; s.wait = PARTS }), run: RUNNING })
+  const ui = await $.ui.mount(PANE('desktop'))
+  expect(await texts(ui)).toContain('● Working out what changed')
+  await ui.unmount()
+})
+
+test('FB-3 D2 a killed call leaves nothing hanging: no parts once the session has stopped, nor in a later turn', async ($, on) => {
+  const log = await start($, on, { standing: withBacklog(WORKING_STANDING, s => { s.wait = PARTS }), run: STOPPED })
+  const ui = await $.ui.mount(PANE('desktop'))
+  expect((await texts(ui)).some(t => /Reading GitHub|ticket 7 of 21/.test(t))).toBe(false)
+  log.files[`${ROOT}/.vid/face/standing.json`] = withBacklog(WORKING_STANDING, s => { s.wait = { ...PARTS, written: utc(20) } })
+  log.files[`${ROOT}/.vid/face/run.sess-A`] = RUNNING
+  await $.command.run({ command: 'vid-panel', args: '' })
+  expect((await texts(ui)).some(t => /Reading GitHub|ticket 7 of 21/.test(t))).toBe(false)
+  await ui.unmount()
+})
+
+test('FB-3 D2 a stop is said in amber with Look at the chat, with the session stopped', async ($, on) => {
+  const stopped = { parts: [{ name: 'Reading each ticket', state: 'done' }, { name: 'Checking the plan', state: 'stopped' }], now: 'your yes to the plan', stop: 'your yes to the plan', written: utc(3) }
+  await start($, on, { standing: withBacklog(WORKING_STANDING, s => { s.wait = stopped }), run: STOPPED })
+  const ui = await $.ui.mount(PANE('desktop'))
+  const t = await ui.find({ type: 'Text', text: 'ViD stopped at: Checking the plan' })
+  expect(t).toBeDefined()
+  expect((t as any).props.color).toBe('warning')
+  expect(await texts(ui)).toContain('It needs: your yes to the plan')
+  expect(await texts(ui)).toContain('Look at the chat.')
+  await ui.unmount()
+})

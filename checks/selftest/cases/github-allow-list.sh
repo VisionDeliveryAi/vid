@@ -30,6 +30,15 @@ OK="$OK"'|issue reopen|pr create'
 OK="$OK"'|pr close'
 # GM-4 K13: spec-stamp's one read, a GET of the stamp file on the code repository's main, under STAMPREAD, which the file sets empty first
 OK="$OK"'|api "repos/\$REPO/contents/\$SPF\?ref=\$SMN"'
+# FB-3 B1: the publish's read of the folder's names and ids, a GET of a tree, under SPUB
+OK="$OK"'|api "repos/\$REPO/git/trees/\$FT"|api "repos/\$REPO/git/trees/\$FT\?recursive=1"'
+grep -q '\[ "\${SPUB:-}" = yes \] && \[ -z "\$_fl" \] && \[ -z "\$_in" \]' "$GS" || fail "a tree's read is not limited to spec-publish, as a read alone"
+# FB-3 A2, A1.4: one graphql query, results-fetch's and closing-prs', under RESREAD, which the file sets empty first
+OK="$OK"'|api graphql'
+grep -q "^RESREAD=''" "$GS" && grep -q '\[ "\${RESREAD:-}" = yes \] && \[ -z "\$_m\$_fv\$_in" \] && \[ "\$_fn" = 1 \]' "$GS" || fail 'gh api graphql is not limited to one query, under RESREAD'
+# FB-3 A1.4: pr-files' read of a pull request's files, under PRREAD, which the file sets empty first
+OK="$OK"'|api "repos/\$REPO/pulls/\$1/files\?per_page=100"'
+grep -q "^PRREAD=''" "$GS" && grep -q '\[ "\${PRREAD:-}" = yes \] && \[ -z "\$_fl" \]' "$GS" || fail "a pull request's files are not limited to pr-files' read"
 grep -q "^STAMPREAD=''; SPF=''; SMN=''" "$GS" || fail 'STAMPREAD is not set empty before any call'
 grep -q '"repos/\$REPO/contents/"\*) \[ "\${STAMPREAD:-}" = yes \]' "$GS" || fail "the code repository's contents are not limited to spec-stamp's read"
 grep -q "^REPO=''; SHARE=''; .*SPUB=''" "$GS" || fail 'SPUB is not set empty before any call'

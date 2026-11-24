@@ -53,9 +53,12 @@ spec). `sh checks/planner.sh` judges it all (its header names each subcommand).
    - **Where the code lives and the specs go.** `layout: separate` (the default: the code repository and ViD's private
      spec repository) or `layout: one` (one repository: the team reads the specs in a folder of the code repository).
      With one repository, ViD's own publish into the folder comes with `vid-spec-publish`: each export mirrored into the
-     folder by a pull request the team merges. The code repository as `repo: <owner>/<name>`; `spec-repo:` in both
-     layouts (default `<repo>-spec`), ViD's own export; with `one`, `spec-path: <folder>` (default `docs/specs`) and
-     `spec-stamp: <a file in the folder>` (the file the publish sets to the export it holds, or `none`); an empty
+     folder by a pull request the team merges. The code repository as `repo: <owner>/<name>`; with `separate`, and
+     with `one` in GitHub auto alone, `spec-repo:` (default `<repo>-spec`), ViD's own export (FB-3 B2: in GitHub manual with one
+     repository the export is kept in the project, so ask it only once the owner names GitHub auto); with `one`, `spec-path: <folder>` (default `docs/specs`) and
+     `spec-stamp: <a file in the folder>` (the file the publish sets to the export it holds, or `none`), and
+     `spec-publish: vid|hand` (FB-3 B1: `vid`, the default, ViD's own pull request; `hand`, in GitHub manual the team publishes by its own
+     process, and ViD lays the files out and reads the team's pull request); an empty
      `labels-prefix:` when none is there. "Not yet" is offered for the repositories alone: their keys stay out, and a later `/vid:vid-plan` asks again.
      A repository named here that does not exist yet is made by ViD, private and empty, at the next connect (FB-2 A1): naming it is the owner's yes to make it, and the read-only access check saying it is not reached is expected until then.
    - **The teams.** One line each, `team: <name> | <area in words> | strict|core | <people>`: a name of lower-case

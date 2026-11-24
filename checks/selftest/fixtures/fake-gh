@@ -39,8 +39,13 @@
 # author) made a commit; git/refs (ref refs/heads/<b>, sha) made a branch, refused when it exists. --jq .sha (.ref for a ref) prints
 # what was made; each is a line of the write log (`<repo> git blob|tree|commit`, `<repo> git ref <ref>`). git/refs/heads/<b> with -X
 # PATCH --input <file> (sha) moves an existing branch, `<repo> git ref move <ref>` in the write log.
+# FB-3 B1: a GET of git/trees/<tree>, one entry's tree by its name (--jq .tree[] | select(.path == "<name>" and .type == "tree") | .sha),
+# or with ?recursive=1 every file, `<blob id>\t<path>`; in a git/trees call an entry whose sha is null deletes that path, refused when
+# the base lacks it.
 # FB-1 B1: `pr close <n>` closes an open pull request (refused when merged); `issue view` and `pr view` with --jq RPL (below) print
 # the state and how many comments open "vid: replaced by", tab-separated.
+# FB-3 E1: `issue view` with --jq CDQ (below): the issue's state, then each comment opening "vid: decision ", its first two lines, its
+# author (issues/<n>/cby/<k>, else toy) and its date (issues/<n>/cat/<k>, else 2026-11-20T09:00:00Z), tab-separated, as @tsv writes them.
 # GM-3 S1: `issue list --label <l> --state <open|closed|all> --limit <k> --json number,state --jq '.[] | [.number, .state] | @tsv'`, each
 # issue's number and OPEN or CLOSED, in number order, cut at the limit.
 # FB-2 A1: $FAKEGH/no-code stands for a code repository not made yet: `repo view` of it fails as GitHub's does, and one `repo create` of it
@@ -89,6 +94,9 @@ TQ='[.state, ([.assignees[].login] | join(",")), .createdAt] | @tsv'
 AQ='.[] | [.number, ([.labels[].name] | join(",")), ([.comments[].body | split("\n") | .[0]] | join("\u0001")), .title] | @tsv'
 SQ='.[] | [.number, .state, .title, ([.assignees[].login] | join(","))] | @tsv'
 RPL='.state + "\t" + ([.comments[].body | select(startswith("vid: replaced by"))] | length | tostring)'
+CDQ='.state, (.comments[] | select(.body | startswith("vid: decision ")) | [(.body | split("\n") | .[0]), (.body | split("\n") | .[1] // ""), (.author.login // "-"), .createdAt] | @tsv)'
+cdq() { cat "$1/state"; for _j in $(ls "$1/comments" 2>/dev/null | sort -n); do head -n 1 "$1/comments/$_j" | grep -q '^vid: decision ' || continue
+  printf '%s\t%s\t%s\t%s\n' "$(sed -n 1p "$1/comments/$_j" | sed "s/$(printf '\r')\$/\\\\r/")" "$(sed -n 2p "$1/comments/$_j" | sed "s/$(printf '\r')\$/\\\\r/")" "$(cat "$1/cby/$_j" 2>/dev/null || echo toy)" "$(cat "$1/cat/$_j" 2>/dev/null || echo 2026-11-20T09:00:00Z)"; done; }
 rpl() { _k=0; for _j in $(ls "$1/comments" 2>/dev/null); do head -n 1 "$1/comments/$_j" | grep -q '^vid: replaced by' && _k=$((_k + 1)); done; printf '%s\t%s\n' "$(cat "$1/state")" "$_k"; }
 asg() { [ -f "$1/assignees" ] && grep -v '^$' "$1/assignees" | paste -sd ',' - || true; }
 CMD="${1:-} ${2:-}"
@@ -136,13 +144,14 @@ case "$CMD" in
   'issue close') n=$3; wlog "$REPO" "issue close $n"; [ -d "$F/issues/$n" ] || die "no issue $n"; echo CLOSED > "$F/issues/$n/state"; exit 0 ;;
   'issue reopen') n=$3; wlog "$REPO" "issue reopen $n"; [ -d "$F/issues/$n" ] || die "no issue $n"; echo OPEN > "$F/issues/$n/state"; exit 0 ;;
   'issue view')
-    n=$3; shift 3; chkrepo "$@"; d=$F/issues/$n; [ -d "$d" ] || die "no issue $n"; q=$(opt --jq "$@")
+    n=$3; shift 3; chkrepo "$@"; d=$F/issues/$n; [ -d "$d" ] || die "GraphQL: Could not resolve to an issue or pull request with the number of $n. (repository.issue)" 1; q=$(opt --jq "$@")   # FB-3 C3: gh's own words
     case "$q" in
       .id) echo "I_$n" ;;
       .body) cat "$d/body" ;;
       "$TQ") printf '%s\t%s\t%s\n' "$(cat "$d/state")" "$(asg "$d")" "$(cat "$d/created" 2>/dev/null || echo 2026-11-01T09:00:00Z)" ;;
       '.state + "\t" + ([.labels[].name] | join(","))') printf '%s\t%s\n' "$(cat "$d/state")" "$(labels_of "$d")" ;;
       "$RPL") rpl "$d" ;;
+      "$CDQ") cdq "$d" ;;
       .comments*) comments "$d" "$q" ;;
       *) die "unknown --jq for issue view: $q" 64 ;;
     esac; exit 0 ;;
@@ -224,7 +233,21 @@ case "$CMD" in
     [ -d "$F/artifacts/$r/$nm" ] || { echo "no artifact matches any of the names or patterns provided" >&2; exit 1; }
     mkdir -p "${dd:-.}"; cp -R "$F/artifacts/$r/$nm/." "${dd:-.}/"; exit 0 ;;
   'api graphql')
-    shift 2; q=$(opt -f "$@"); case "$q" in *addSubIssue*) ;; *) die 'only addSubIssue is understood' 64 ;; esac
+    shift 2; q=$(opt -f "$@")
+    # FB-3 A2: results-fetch's read, each c<k> (a commit: its id, date and author's name) and f<k> (a folder at a commit: its type and
+    # id), as GitHub answers it, in its --jq's form; $FAKEGH/graphql-fail makes it fail, $FAKEGH/graphql-log counts the folders asked for
+    case "$q" in 'query=query { repository(owner: '?"${REPO%%/*}"?', name: '?"${REPO#*/}"?') { c1: '*) [ ! -f "$F/graphql-fail" ] || die 'HTTP 502: Bad Gateway'
+      printf '%s\n' "$q" | awk '{ while (match($0, /[cf][0-9]+: object\([a-z]+: "[^"]*"/)) { x = substr($0, RSTART, RLENGTH); $0 = substr($0, RSTART + RLENGTH); k = x; sub(/:.*/, "", k); sub(/^[^"]*"/, "", x); sub(/"$/, "", x); print k "|" x } }' | while IFS='|' read -r k x; do
+        case $k in f*) printf '%s\n' "${x#*:}" >> "$F/graphql-log" ;; esac
+        y=$(git -C "$REMOTE" cat-file -t "$x" 2>/dev/null) || { printf '%s\t-\t-\t-\t-\n' "$k"; continue; }
+        case $k in c*) printf '%s\t-\t%s\t%s\t%s\n' "$k" "$x" "$(git -C "$REMOTE" log -1 --format=%cI "$x")" "$(git -C "$REMOTE" log -1 --format=%an "$x")" ;;
+          *) case $y in tree) y=Tree ;; *) y=Blob ;; esac; printf '%s\t%s\t%s\t-\t-\n' "$k" "$y" "$(git -C "$REMOTE" rev-parse "$x")" ;; esac; done; exit 0 ;; esac
+    # FB-3 A1.4: closing-prs' read, each i<k> an issue's closing pull requests, as GitHub keeps them: those whose description says `Closes
+    # #<n>`, in its --jq's form; a number that is no issue fails the whole query, as GitHub does
+    case "$q" in 'query=query { repository(owner: '?"${REPO%%/*}"?', name: '?"${REPO#*/}"?') { i1: issue('*)
+      for n in $(printf '%s\n' "$q" | grep -oE 'issue\(number: [0-9]+\)' | grep -oE '[0-9]+'); do [ -d "$F/issues/$n" ] || die "gh: Could not resolve to an Issue with the number of $n." 1; done
+      for n in $(printf '%s\n' "$q" | grep -oE 'issue\(number: [0-9]+\)' | grep -oE '[0-9]+'); do for d in $(ls -d "$F"/prs/* 2>/dev/null); do [ "$(cat "$d/state")" = MERGED ] && grep -qiE "closes #$n([^0-9]|\$)" "$d/body" || continue; printf '%s\t%s\t%s\n' "$n" "${d##*/}" "$(cat "$d/merge")"; done; done; exit 0 ;; esac
+    case "$q" in *addSubIssue*) ;; *) die 'only addSubIssue and results-fetch'"'"'s read are understood' 64 ;; esac
     p=''; c=''; while [ $# -gt 0 ]; do case "$1" in -f|-F) case "$2" in p=*) p=${2#p=} ;; c=*) c=${2#c=} ;; esac; shift 2 ;; *) shift ;; esac; done
     [ -d "$F/issues/${c#I_}" ] && [ -d "$F/issues/${p#I_}" ] || die 'no such issue for addSubIssue'
     wlog "$REPO" 'api graphql addSubIssue'; printf '%s' "${p#I_}" > "$F/issues/${c#I_}/parent"; echo "{\"data\":{\"addSubIssue\":{\"issue\":{\"number\":${p#I_}}}}}"; exit 0 ;;
@@ -253,6 +276,12 @@ case "$CMD" in
       "repos/$REPO/pulls/"*/files|"repos/$REPO/pulls/"*|"repos/$REPO/contents/"*)   # IR I1: GETs alone
         [ -z "$FLD" ] && { [ -z "$XSET" ] || [ "$X" = GET ]; } || die "$path is read with GET alone" 64
         case "$path" in
+          */files\?per_page=100) n=${path#repos/$REPO/pulls/}; n=${n%/files*}; d=$F/prs/$n; [ -d "$d" ] || die "Not Found (HTTP 404)" 1   # FB-3 A1.4: pr-files, the list, or one file's change
+            h=$(cat "$d/headoid" 2>/dev/null || headsha "$(cat "$d/head")"); if [ -f "$d/merge" ]; then b=$(git -C "$REMOTE" rev-parse "$(cat "$d/merge")^1"); else b=$(headsha "$(cat "$d/base")"); fi; b=$(git -C "$REMOTE" merge-base "$b" "$h")
+            git -C "$REMOTE" diff --no-renames --numstat "$b" "$h" | while IFS='	' read -r x y z; do s=modified; git -C "$REMOTE" cat-file -e "$b:$z" 2>/dev/null || s=added; git -C "$REMOTE" cat-file -e "$h:$z" 2>/dev/null || s=removed; k=patch; [ "$x" != - ] || { k=none; x=0; y=0; }
+              case "$jq" in '.[] | [.filename,'*) printf '%s\t%s\t%s\t%s\t-\t%s\n' "$z" "$s" "$x" "$y" "$k" ;;
+                '.[] | select(.filename == "'"$z"'") |'*) printf '%s\t%s\t%s\t-\t%s\n' "$s" "$x" "$y" "$k"; [ "$k" = none ] || git -C "$REMOTE" diff --no-renames "$b" "$h" -- "$z" | sed '1,/^+++ /d' ;;
+                '.[] | select(.filename == "'*) ;; *) die "unknown --jq for a pull request's files: $jq" 64 ;; esac; done ;;
           */files) n=${path#repos/$REPO/pulls/}; n=${n%/files}; d=$F/prs/$n; [ -d "$d" ] || die "Not Found (HTTP 404)" 1
             [ "$jq" = '.[] | select(.status != "removed") | .filename' ] || die "unknown --jq for a pull request's files: $jq" 64
             h=$(cat "$d/headoid" 2>/dev/null || headsha "$(cat "$d/head")"); if [ -f "$d/merge" ]; then b=$(git -C "$REMOTE" rev-parse "$(cat "$d/merge")^1"); else b=$(headsha "$(cat "$d/base")"); fi
@@ -263,6 +292,13 @@ case "$CMD" in
             q=${path#repos/$REPO/contents/}; r=$(printf '%s' "$q" | sed -n 's/.*[?]ref=\([0-9a-f]*\)$/\1/p'); q=$(printf '%s' "$q" | sed 's/[?]ref=[0-9a-f]*$//; s/%20/ /g; s/%23/#/g; s/%3F/?/g; s/%25/%/g')
             git -C "$REMOTE" cat-file -e "$r:$q" 2>/dev/null || die "Not Found (HTTP 404)" 1; git -C "$REMOTE" show "$r:$q"; echo ;;
         esac ;;
+      "repos/$REPO/git/trees/"*)   # FB-3 B1: a tree's names and ids, a GET alone
+        [ -z "$FLD" ] && [ -z "$IN" ] && { [ -z "$XSET" ] || [ "$X" = GET ]; } || die 'a tree is read with GET alone' 64
+        t=${path#"repos/$REPO/git/trees/"}; case "$t" in
+          *'?recursive=1') t=${t%'?recursive=1'}; [ "$jq" = '(if .truncated then "truncated" else empty end), (.tree[] | select(.type == "blob") | [.sha, .path] | @tsv)' ] || die "unknown --jq for a whole tree: $jq" 64
+            git --git-dir="$REMOTE" ls-tree -r "$t" > "$F/gt" 2>/dev/null || die 'Not Found (HTTP 404)' 1; awk -F'\t' '{ split($1, m, " "); if (m[2] == "blob") print m[3] "\t" $2 }' "$F/gt" ;;
+          *) n=$(printf '%s' "$jq" | sed -n 's/^\.tree\[\] | select(\.path == "\([^"]*\)" and \.type == "tree") | \.sha$/\1/p'); [ -n "$n" ] || die "unknown --jq for a tree: $jq" 64
+            git --git-dir="$REMOTE" ls-tree "$t" > "$F/gt" 2>/dev/null || die 'Not Found (HTTP 404)' 1; awk -F'\t' -v n="$n" '{ split($1, m, " "); if ($2 == n && m[2] == "tree") print m[3] }' "$F/gt" ;; esac ;;
       "repos/$REPO/git/blobs"|"repos/$REPO/git/trees"|"repos/$REPO/git/commits"|"repos/$REPO/git/refs")   # GM-4 K12: spec-publish's git data calls
         [ "$X" = POST ] && [ -n "$XSET" ] && [ -z "$FLD" ] && [ -n "$IN" ] && [ -f "$IN" ] || die "the git data API is written with -X POST and --input <file> alone" 64
         RG() { git --git-dir="$REMOTE" "$@"; }; jv() { sed -n "s/.*\"$1\":\"\\([^\"]*\\)\".*/\\1/p" "$IN" | head -n 1; }
@@ -275,6 +311,8 @@ case "$CMD" in
             if [ -n "$b" ]; then RG ls-tree -r "$b" > "$F/gd.b" || die "no tree $b" 1
               awk -F'\t' 'FILENAME == ARGV[1] { if ($3 == "tree") P[$1] = 1; next } { p = $2; for (x in P) if (p == x || index(p, x "/") == 1) next; print }' "$F/gd.e" "$F/gd.b" | GIT_INDEX_FILE=$ix RG update-index --index-info || die 'the base could not be read' 1; fi
             awk -F'\t' '$3 == "blob" { print $2 " " $4 "\t" $1 }' "$F/gd.e" | GIT_INDEX_FILE=$ix RG update-index --index-info || die 'an entry could not be put' 1
+            for p in $(sed -n 's/^{"path":"\([^"]*\)",.*"sha":null}.*$/\1/p' "$IN"); do   # FB-3 B1: a null sha, a deletion
+              GIT_INDEX_FILE=$ix RG ls-files -s -- "$p" | grep -q . || die "GitRPC::BadObjectState: $p is not there (HTTP 422)" 1; printf '0 0000000000000000000000000000000000000000\t%s\n' "$p" | GIT_INDEX_FILE=$ix RG update-index --index-info || die 'an entry could not be deleted' 1; done
             # a tree entry's files at its path (read-tree --prefix needs a work tree, which the bare remote has none of)
             awk -F'\t' '$3 == "tree" { print $1 "\t" $4 }' "$F/gd.e" | while IFS='	' read -r p s; do RG ls-tree -r "$s" | awk -F'\t' -v P="$p" '{ print $1 "\t" P "/" $2 }' | GIT_INDEX_FILE=$ix RG update-index --index-info || exit 1; done || die 'a tree entry could not be put' 1
             r=$(GIT_INDEX_FILE=$ix RG write-tree) || die 'the tree could not be written' 1 ;;

@@ -4,8 +4,8 @@
 # empty. results-fetch makes .vid/code a partial copy with no stored address and an unborn HEAD: every report reads whole; a commit's presence, ancestry and
 # first-parent count read as in a full copy; a code commit's tree is not there, and a code file's read fails with nothing fetched. A copy in the earlier,
 # full form is replaced, saying so. With no report, the fetch passes and brings the commits. A report holding a file byte for byte a code file's, and an
-# empty file, reads whole; a report pushed again reads its new version and the proof holds. Refused, .vid/code removed: a report branch holding more than
-# its folder, and a server that ignores the filter (a main whose second commit removes every file included). vid-run holds the rule's section, "DevAgent's
+# empty file, reads whole; a report pushed again reads its new version and the proof holds. FB-3 A2: a report branch with no folder of its own is left out. Refused, .vid/code
+# removed: a server that ignores the filter (a main whose second commit removes every file included). vid-run holds the rule's section, "DevAgent's
 # code", once, and vid-tickets and vid-plan point to it. Env: CHECKS.
 set -eu
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
@@ -32,7 +32,7 @@ rep pr-1-aaaaaaaaaaaa-1 root 'results.txt=by: TM'; rep req-5-p1c1-1 "$M" 'result
 rf; [ "$RC" = 0 ] || fail "results-fetch with reports: exit $RC"
 git clone -q --bare "$T/code.git" "$T/full.git"; git --git-dir="$T/full.git" fetch -q "$T/code.git" '+refs/heads/*:refs/heads/*' '+refs/pull/*/head:refs/pull/*/head'
 reads() { D=$1; R() { git --git-dir="$D" "$@" 2>&1 && echo rc=0 || echo "rc=$?"; }
-  R for-each-ref --format='%(refname) %(objectname)' 'refs/heads/vid-results/*'
+  R for-each-ref --format='%(refname) %(tree)' 'refs/heads/vid-results/*'
   for r in $(git --git-dir="$D" for-each-ref --format='%(refname:lstrip=3)' 'refs/heads/vid-results/*'); do R ls-tree -r --name-only "refs/heads/vid-results/$r"
     for f in $(git --git-dir="$D" ls-tree -r --name-only "refs/heads/vid-results/$r"); do R show "refs/heads/vid-results/$r:$f"; done; R log -1 --format=%ct "refs/heads/vid-results/$r"; done
   for c in "$M" "$FE" "$P"; do R rev-parse -q --verify "$c^{commit}"; R cat-file -e "$c^{commit}"; for o in "$M" "$FE" "$P"; do R merge-base --is-ancestor "$c" "$o"; done; done
@@ -55,12 +55,12 @@ git --git-dir="$T/code.git" update-ref refs/heads/ticket-4/vid-results/notes "$M
 # an earlier, full copy is replaced
 rm -rf .vid/code; git clone -q --bare "$T/code.git" .vid/code; rf; [ "$RC" = 0 ] && grep -q '^ViD github: .vid/code held DevAgent.s files, the earlier form — replaced by a copy that holds none' "$T/out" || fail "the earlier form: exit $RC"
 ! $CG cat-file -e "main^{tree}" 2>/dev/null || fail 'the replaced copy holds a code tree'
-# a report holding more than its folder: refused, no copy left
+# a report branch holding the code and no folder of its own: left out (FB-3 A2), the rest fetched
 rep req-5-p1c1-1 "$M" 'results.txt=by: TM'; cd "$T/w"; t=$(git rev-parse "$M^{tree}"); git push -q -f "$T/code.git" "$(echo x | g commit-tree "$t" -p "$M"):refs/heads/vid-results/red-3-1"; cd "$T/v"
-rf; [ "$RC" != 0 ] && grep -q "refused — the fetch brought DevAgent's files (refs/heads/vid-results/red-3-1 holds more than its folder" "$T/out" && [ ! -e .vid/code ] || fail "a report holding the code: exit $RC"
+rf; [ "$RC" = 0 ] && grep -q "^red-3-1	.*	it has no folder red-3-1$" .vid/round/reports-skipped && ! $CG rev-parse -q --verify refs/heads/vid-results/red-3-1 > /dev/null || fail "a report branch with no folder: exit $RC"
 git --git-dir="$T/code.git" update-ref -d refs/heads/vid-results/red-3-1
 # a server that ignores the filter: refused, no copy left; also with a main whose tip's tree is empty
-: > "$T/gh/no-filter"; rf; [ "$RC" != 0 ] && grep -q "refused — the fetch brought DevAgent's files (" "$T/out" && [ ! -e .vid/code ] || fail "a server ignoring the filter: exit $RC"
+: > "$T/gh/no-filter"; rm -rf .vid/code; rf; [ "$RC" != 0 ] && grep -q "refused — the fetch brought DevAgent's files (" "$T/out" && [ ! -e .vid/code ] || fail "a server ignoring the filter: exit $RC"
 cd "$T/w"; git checkout -q main; git rm -rq .; g commit -q -m 'all gone'; git push -q "$T/code.git" main; cd "$T/v"; [ -z "$(git --git-dir="$T/code.git" ls-tree main)" ] || fail 'the fixture: main is not empty'
 rf; [ "$RC" != 0 ] && [ ! -e .vid/code ] || fail "a server ignoring the filter, main's tip empty: exit $RC"
 rm -f "$T/gh/no-filter"; rf; [ "$RC" = 0 ] || fail "the filter honoured again: exit $RC"

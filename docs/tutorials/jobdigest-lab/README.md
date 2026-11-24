@@ -1,6 +1,6 @@
 # The JobDigest lab
 
-Everything you need to work ViD's tickets as the dev side, on a small practice product, without writing any code. You play every role yourself, one after the other: the lead who talks to ViD, and on the dev side the test author, test manager, builder, grader and merger. In real work those are different people; here the point is to learn the contract between the two sides.
+Everything you need to work ViD's tickets as the dev side, on a small practice product, without writing any code. You play every role yourself, one after the other: the lead who talks to ViD, and on the dev side the test author, test manager, builder and merger. A real team shares that work out as it likes; here the point is to learn the contract between the two sides. ViD makes its own review of each ticket, so you grade nothing.
 
 **JobDigest:** two job feeds merged into one list, and a daily email of new matches for each saved search.
 
@@ -9,7 +9,7 @@ Everything you need to work ViD's tickets as the dev side, on a small practice p
 | `spec/` | The starter ViD project: the approved spec of JobDigest. You make it a git repository and start ViD in it |
 | `code/` | The product's tests and code, step by step, to copy into your code repository and commit |
 | `env/` | The test setup: one command runs a commit's tests in Docker, in a real browser, and writes the XML report; one command pushes a report |
-| `reports/` | The few lines of each report you write by hand, and the deliberate breaks as patches |
+| `reports/` | The few lines of each report you write by hand, and, for the two optional kinds of evidence, the lines and the patches they need |
 
 **You need:** Claude Code with ViD installed, git, Docker, and the GitHub command line (`gh`) signed in. Two new private repositories of your own: one for the code (`<your-account>/jobdigest`), one for the spec (`<your-account>/jobdigest-spec`). ViD makes a third, private, for its own records.
 

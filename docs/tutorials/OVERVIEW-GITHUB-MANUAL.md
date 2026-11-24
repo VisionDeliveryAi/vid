@@ -11,7 +11,7 @@ ViD works in three modes. In *local auto*, ViD's own agents build on your machin
 3. How a first spec is written with ViD, and how it is changed later.
 4. What a ticket asks, and what ViD needs back to accept it.
 
-Every example here comes from a real run of a small practice product, **JobDigest**: two job feeds merged into one list, and a daily email of new matches for each saved search. The excerpts are real. Where one is shortened, `…` marks the cut. Repository names are changed. That run was made in this mode's older form, where one long session decided each pull request. GitHub manual keeps its tickets, its reports and its tests; where it shows something else, the text says so.
+Every example here is about a small practice product, **JobDigest**: two job feeds merged into one list, and a daily email of new matches for each saved search. The excerpts come from a real run of it, but for those marked *illustrative*, whose commit ids, names and counts are made up. Where one is shortened, `…` marks the cut. Repository names are changed. That run was made in this mode's older form, where one long session decided each pull request and the dev side sent more evidence. GitHub manual keeps its product, its rows and its tests; where it shows something else, the text says so.
 
 ---
 
@@ -21,9 +21,9 @@ ViD splits building a product into two sides that meet only on GitHub.
 
 ![The product side and the dev side, with GitHub between them](img/two-sides.svg)
 
-**The product side is ViD.** You, the team lead, sit in its seat with a Claude Code session beside you. ViD writes the spec with you, plans the work, writes each ticket you choose to send, reads what comes back, and decides. ViD writes no code, reads none of your code to decide, and runs nothing.
+**The product side is ViD.** You, the team lead, sit in its seat with a Claude Code session beside you. ViD writes the spec with you, plans the work, writes each ticket you choose to send, reads what comes back, and decides. ViD writes no code, keeps no copy of yours and runs none of it. Its one review of a ticket reads what the ticket's pull requests changed, as GitHub shows it.
 
-**The dev side is your team.** Your developers pick up a ticket, build what it asks, test it, and send the results back in a fixed form. How you build, with which tools, in which test environment, is yours. Tickets call your side *DevAgent*; that is only the name ViD uses for "whoever works the ticket".
+**The dev side is your team.** Your developers pick up a ticket, build what it asks, test it, and send the test results back. How you build, with which tools, in which test environment, is yours.
 
 **GitHub is the record.** Tickets are issues. The work is your team's pull requests, merged into `main`. Results are small branches. Claims, questions and decisions are comments; ViD's decisions go on the ticket.
 
@@ -33,7 +33,7 @@ Three rules make the split work:
 
 1. **Every requirement that asks the product to do something says how it could fail.** That sentence is its *fail-if*. It is the requirement's acceptance criterion (requirements engineers say *fit criterion*), written as what would break it.
 2. **Every fail-if becomes one or more rows.** A *row* is one checkable promise with an id, such as `ROW-019`. A tester would call it a *test condition*. A ticket is a handful of rows.
-3. **ViD accepts a row on evidence, not on a report that says "done".** The evidence is a test that failed before the code existed and passes after it: the red and the green of test-driven development.
+3. **ViD accepts a row on evidence, not on a report that says "done".** The evidence is the row's test passing in your team's own results, at a commit of `main`, with ViD's own review of the ticket, made once.
 
 The rest of this overview is those three rules in detail.
 
@@ -58,7 +58,7 @@ ViD keeps its work in a folder of plain text files, under git, on your machine. 
 
 **Two repositories on GitHub.**
 
-- **The spec repository** is private and is ViD's. Its main branch holds the files marked "Yes" above, and `TEST-DIFFERENCES.md`, the list of known differences between tests and production. Your developers read it and never write to it.
+- **The spec repository** is private and is ViD's. Its main branch holds the files marked "Yes" above, and `TEST-DIFFERENCES.md`, the list of known differences between tests and production. Your developers read it and never write to it. With one repository (`layout: one`) there is none: the spec goes into a folder of the code repository, published by ViD's pull request or by your own process, and ViD keeps its own line of exports in the project, saved with its records.
 - **The code repository** is your team's. ViD opens issues and writes comments there, and never pushes code to it.
 - **ViD's own state repository,** a third one, private too, holds ViD's lock and its saved records. It is neither of the other two, and your developers never need it.
 
@@ -171,11 +171,11 @@ You do this once, with ViD, in a Claude Code session in an empty folder.
 | You say | What happens | What you decide |
 |---|---|---|
 | `/vid:vid-init` | ViD asks you about the product in one batch of questions, each of which changes something downstream. It then writes `PRD.md` in three passes, stopping after each for your approval: the summary of the product with its content contract, the answers to the gaps it found, and the final set of requirements with their fail-ifs. Then it asks the technical questions and writes the other files. If the product has screens, it writes a design brief and you bring back the screens. It derives the inventory and shows it to you as one table. Last, it proposes how to cut the product into stages | Product questions only: what the product must do, what it must not, which stage cut you want. Technical choices ViD makes and logs in `DECISIONS.md` |
-| `/vid:vid-next`, the first call | No plan is approved yet, so the call plans first. ViD asks where the code lives (your code repository), where the spec goes (the private spec repository), who is on the team, and who works the tickets. For your own developers that last answer is left open: the switch below gives it. It writes the plan as steps and shows it to you as a page | Whether the plan is right |
-| Your yes, in the same call | The call switches the project to GitHub manual. It takes the plan it just wrote and asks only what it cannot find: GitHub manual's setup, ViD's own state repository among it. It shows the plan page, records the mode on your yes, and makes the repositories you named, private | Your yes, in your words, approves the plan |
+| `/vid:vid-next`, the first call | No plan is approved yet, so the call plans first. ViD asks where the code lives (your code repository), where the spec goes (the private spec repository, or a folder of the code repository), who is on the team, and who works the tickets. For your own developers that last answer is left open: the switch below gives it. It writes the plan as steps and shows it to you as a page | Whether the plan is right |
+| Your yes, in the same call | The call switches the project to GitHub manual. It takes the plan it just wrote and asks only what it cannot find: GitHub manual's setup, ViD's own state repository among it. It shows the plan page, records the mode on your yes, and makes the repositories you named, private. It also writes one page, `.vid/plan/TEAM-REPORTS.md`, that tells your team what to send, and shows it to you | Your yes, in your words, approves the plan. The page for the team is yours to hand over; `/vid:vid-accept-step reports` shows it again |
 | `/vid:vid-next` | Each call reads GitHub, does ViD's own work once you have switched it on, and shows what is new and the moves you may name. `/vid:vid-next <move> "<your words>"` does a move: `publish <the skeleton's step> "<your words>"` sends the first ticket, and the spec reaches the spec repository with it. Between your calls nothing is read, decided or sent | Each move, in your words, and whatever it shows you (section 6) |
 
-**ViD's own work.** At your first call, switch it on: `/vid:vid-next own-work on "<your words>"`. From the next call on, each call decides each ask your team made on a ticket, asks a step's close and a stage's full run, and posts the okays. With it off, a call does none of these: it shows each ask with the command that decides it, `/vid:vid-accept-step <ticket> <commit>`.
+**ViD's own work.** At your first call, switch it on: `/vid:vid-next own-work on "<your words>"`. From the next call on, each call decides each ask your team made on a ticket, making ViD's own review of the ticket when it is due, asks a step's close and a stage's full run, grades the stage, and posts the okays. With it off, a call does none of these: it shows each ask with the command that decides it, `/vid:vid-accept-step <ticket> <commit>`.
 
 Three things to know about approving a spec:
 
@@ -187,7 +187,9 @@ Three things to know about approving a spec:
 
 ## 4. One ticket, start to finish
 
-The example is JobDigest's step `S07`, "a support address in every digest's footer": one row, `ROW-019`. It is an ordinary step ticket. Your very first ticket will be the skeleton, which differs in three ways; read 4.10 before you start it.
+The example is JobDigest's step `S07`, "a support address in every digest's footer": one row, `ROW-019`. It is an ordinary step ticket. Your very first ticket will be the skeleton, which differs a little; read 4.10 before you start it.
+
+**The whole answer:** a ticket is accepted when two things are true at one commit of `main`: every row's test passes in your team's own results there, and ViD's own review of the ticket is in. (GitHub auto's dev side, which is ViD's own, sends more: a failing run first, breaks, a grade and a sort. The results format has its rules.)
 
 ![One ticket from publication to acceptance](img/ticket-loop.svg)
 
@@ -220,54 +222,44 @@ A ticket is long because it carries everything a developer needs and nothing tha
 | The step | The step's line from the plan, and the modules it touches |
 | **Rows** | The rows to build, each with its fail-if. **This is the work** |
 | Requirements, Decisions, Rules, Laws, Non-goals | The parts of the spec these rows rest on, quoted |
-| Engines | Which browsers to run the tests in. The first is the *primary*. Only the primary is asked until some row fails in one browser and passes in another; from then on every browser is asked |
+| Engines | The browsers your team runs, the first the *primary*. Your results need no file for each; the step's close run names them |
 | **Regression rows** | Earlier rows that must still pass when you are done |
-| Faulted rows | Rows for which ViD asks a deliberate break (4.5) |
+| Faulted rows | The rows a deliberate break (4.5) would tell most about. None is required |
 | Rows a ruling reached | Rows whose requirement changed since their tests were written (section 5) |
 | Grading checklist | What a reviewer must look for in this product, and the known test differences |
 | History, Test lessons, Known | What happened to these rows before, mistakes not to repeat, and findings the lead has already ruled known |
-| Roles | The role names, and which roles must not be the same person |
-| **Asks** | The five things to send back, `T1` to `T5` |
+| Roles | The labels the asks use for your team's work (4.2) |
+| **Asks** | What to send back, `T1` to `T4`; `T2` and `T4` are read if you make them |
 
-A ticket never holds code, a file path or a test command. Those are yours. Its asks speak of the pull request's *head*; in GitHub manual the head is the commit of `main` your team names when it asks for the decision (4.5).
+A ticket never holds code, a file path or a test command. Those are yours.
 
-### 4.2 The roles, for a team of people
+### 4.2 Who does what, in a team of people
 
-Every ticket lists ten role names and eight rules about them, because ViD was first built to talk to a team of software agents. A team of people has to keep the same rules. The ones that decide who may do what:
+ViD needs to know only this:
 
-| The rule, in the ticket's own terms | In plain words |
+| Work | Who |
 |---|---|
-| `TA`, `TM` and `GR` are never `BU` or `FX` | Whoever writes the tests, runs the reported test runs, or grades, does not build or fix the product |
-| `BU` and `FX` never write, change or weaken a test | If a test is wrong, the test author corrects it |
-| `GR` is separate from `TA` and `TM`, and comes fresh | A grader reads the code, the tests and the results, and never the reasoning of those who made them |
-| `SR` is fresh, and is none of the ticket's `GR`, `BU`, `FX` or `TA` | The one who sorts the grade's doubts has no stake in them |
+| Writing tests, building, your own code review, merging, running the tests, asking | Your team, shared out as you like |
+| The review that counts for acceptance, the decision, the stage's grade | ViD |
+| Product questions, rulings on a held row | You, the lead |
 
-The roles you will sign reports with:
+The ticket's roles are eight two-letter labels its asks use: `DM` manager, `TA` test author, `TM` test manager, `AN` test analyst, `BU` builder, `FX` fixer, `MR` merger, `DP` deployer. You need not staff them. Each report's first line says who made it, `by:` and a person, a group or an automated build.
 
-| Name | Role | Who can share a head |
-|---|---|---|
-| `TA` | Test author: writes each row's tests before any code | `TA` and `TM` may be one person |
-| `TM` | Test manager: runs every test run that is reported, and plants each deliberate break | |
-| `BU`, `FX` | Builder; fixer | May be one person, never `TA`, `TM` or `GR` |
-| `GR` | Grader: gives each row its verdict, and writes each deliberate break's change | Two of them, each working alone |
-| `SR` | Second reviewer: sorts the grade's doubtful lines | One, fresh |
-| `MR` | Merger: merges your team's pull requests into `main`, and asks ViD for its decision on the ticket | Anyone |
-| `DM`, `AN`, `DP` | Manager, test analyst, deployer | Anyone; they sign only what they report |
+With the labels come four rules, in which ViD takes your word and checks nothing. Two habits sum them up, and make tests worth more:
 
-**So one ticket needs five separate heads:** a test author who also runs the tests, a builder, two graders and a second reviewer. A "head" may be a person, or a new session of your own coding assistant given only what that role may see: for a grader, the ticket, the code, the tests and the results. A team of three people can do it with one person on tests, one building, one merging and overseeing, and three fresh assistant sessions for the two grades and the sort.
+- Someone other than the builder writes a row's test, from the row and its fail-if, before the product code.
+- The builder does not change or weaken a test to make it pass. If a test is wrong, its author corrects it.
 
-ViD takes your word that these rules were kept. It checks the form of what you send, not how you produced it.
+**Your team grades and sorts nothing.** No grade, no second review and no failing run is a condition of acceptance.
 
-### 4.3 Claim it, and write the tests first (T1, T2)
+### 4.3 Claim it, and write the tests (T1)
 
-1. **Claim the ticket** with a comment whose first line is `vid: claimed`.
-2. **`TA` writes at least one test for each row,** from the row and its fail-if, before any product code exists. **A test's name must contain its row's id,** so ViD can match it: `test_ROW_019_footer_one_job` matches `ROW-019` (in a name, `-`, `_` and `.` count as the same character). **A journey needs at least one test for each transition,** named with the transition's id: `test_ROW_004_T1_…`, `test_ROW_004_T2_…`. A single `test_ROW_004_journey` matches no transition.
-3. **`TA` commits the tests alone,** on a branch of your own. No product code in that commit. This is the *tests-first commit*.
-4. **Open a pull request** from that branch. Its description must begin `ticket: #7`, and it holds a Decisions section: a line `Decisions:` and under it one line for each technical decision of the branch, `- <what was chosen> | why: <the reason>`, or the one line `Decisions: none`. A ticket may be worked in several pull requests, units of your own; each names its ticket the same way. ViD decides the ticket, never a pull request.
-5. **`TM` runs the tests** at that commit, in the primary browser. They must fail, and fail on their own assertion: this is the *red run*, the red of red, green, refactor. A test that fails because something is not set up does not count as a red; report such a failure with a message that begins `setup:`.
-6. **`TM` sends the red run back** (the form is in 4.4).
+1. **Claim the ticket** with a comment whose first line is `vid: claimed`. Assigning the issue, or opening a sub-issue under it, says the same.
+2. **Write at least one test for each row,** from the row and its fail-if. **A test's name must contain its row's id,** so ViD can match it: `test_ROW_019_footer_one_job` matches `ROW-019` (in a name, `-`, `_` and `.` count as the same character, and the id has neither a letter nor a digit right before or after it). **A journey needs at least one test for each transition,** named with the transition's id: `test_ROW_004_T1_…`, `test_ROW_004_T2_…`. A single `test_ROW_004_journey` matches no transition.
+3. **Do what the ticket adds for a row.** A *protection row*'s failure message carries a line of its own reading `vid-forbidden-effect: <row id>`, when the forbidden thing itself happened. A *rule row*'s report gives a `covers:` count if you can; zero fails the row.
+4. **Open pull requests** into `main`, as many as you need, from any branch. Each description must begin `ticket: #7` (the ticket's number, or a sub-issue's), and holds a Decisions section: a line `Decisions:` and under it one line for each technical decision of the branch, `- <what was chosen> | why: <the reason>`, or the one line `Decisions: none`. ViD's review (4.6) reads the changes of the pull requests that name the ticket, so one with no such line may not be seen. Do not write "closes #7" for the ticket itself.
 
-Why this matters: a test that has been seen to fail for the right reason is a test that can see the promise. This is from the real red run for `ROW-019`, where three tests failed on their assertion, as they should:
+**Optional: a run that failed first** (T2: "if you make one, it is read"). Commit the tests alone, run them before the product code exists, see them fail on their own assertion, and push that run as the report `red-7-1`, with a `rows: ROW-019` line. It is shown beside the decision, and missing it counts against nothing. A test that has been seen to fail for the right reason is a test that can see the promise. This is from the real failing run for `ROW-019`:
 
 ```
 AssertionError: ROW-019: a digest of one job: the footer names [], not support@jobdigest.example
@@ -275,158 +267,97 @@ AssertionError: ROW-019: a digest of one job: the footer names [], not support@j
 
 ### 4.4 How a report travels
 
-Every report is **one folder, pushed as one branch that holds nothing else**. The branch is named `vid-results/<id>`, and the folder has the same `<id>`. For the red run of ticket 7, first attempt, the id is `red-7-1`:
+A **result report** is **one folder, pushed as a branch of the code repository.** The branch is named `vid-results/<id>`, and the folder has the same `<id>`. ViD reads that folder alone, and downloads nothing else of the branch.
+
+The id is yours to choose, but it must not begin `red-`, `req-`, `grade-`, `sort-`, `deploy-` or `stopped-`. An id that ends with the first 12 characters of its commit and an attempt number, as `step-7-2b90c4e71da5-1`, can be sent again as the next attempt; only the newest is read. Illustrative, with two test suites:
 
 ```
-vid-results/red-7-1          (the branch)
-└── red-7-1/
+vid-results/step-7-2b90c4e71da5-1   (the branch)
+└── step-7-2b90c4e71da5-1/
     ├── results.txt
-    └── cases-chromium.xml    (one file per browser, named cases-<browser>.xml)
+    ├── unit.xml
+    └── screens.xml
 ```
 
-`results.txt` for that real run:
-
 ```
-by: TM
-commit: 899b486c33d11ce283ad1c16872194ff658e0f29
-engines: chromium
-environments: 3
-rows: ROW-019
+by: the main build
+commit: 2b90c4e71da58f3360b7c19e4da25f8817c6e03b
 ```
 
 Every line `results.txt` can hold:
 
 | Line | When | What it says |
 |---|---|---|
-| `by: TM` | Always, first | The role that made the report |
+| `by: <anyone>` | Always, first | Who made the report |
 | `commit: <full id>` | Always | The commit the tests ran on, from a clean checkout of it |
-| `engines: <browser> …` | Every head report of the skeleton ticket; later only when it changes | The browsers you run, the primary first |
+| `covers: <rule row id> <number>` | If you can, one for each rule row | How many places the rule's test covered. Zero means the row fails; no line stops nothing |
+| `stand-in: <what> — <test value> — <production value>` | When the tests use something other than the real thing | For example, a fake mail provider in place of the real one |
+| `engines: <browser> …` | With the skeleton's results (4.10) | The browsers you run, the primary first |
 | `environments: <n>` | With `engines:` | How many test environments your team runs |
-| `rows: <ids>` | In a red run | The rows this red run covers |
-| `covers: <rule row id> <number>` | One line for each rule row that was run | How many places the rule's test covered. Zero means the row fails |
-| `retested: <ids>` | In a head report, when it applies | Rows whose test, or a helper it uses, changed after the red run so that it now checks something different. Such a row needs a deliberate break (4.5) |
-| `stand-in: <what> — <test value> — <production value>` | In a head report, one line for each test difference first used at this head | For example, a fake mail provider in place of the real one |
+| `rows: <ids>` | In a run that failed first | The rows it covers |
 
-`cases-<browser>.xml` is the XML test report most test runners can write (often called JUnit XML): one `testcase` per test, with a `failure` inside it when it failed. You do not write it by hand; you ask your test runner for it. A failure's message should begin with the assertion's own line: what was promised and what was seen.
+A **results file** is any `.xml` file of test cases at the folder's top, of any name, from any suite: the XML test report most test runners can write (often called JUnit XML), one `testcase` per test, with a `failure` inside it when it failed. Put in as many as you have. You do not write it by hand; you ask your test runner for it. A test that could not run at all errors with a message that begins `setup:`.
 
-One way to push a report without touching your working branch. Use a new empty folder for each report: a branch that holds two folders is not read.
+One way to push a report without touching your working branch. Use a new empty folder for each report:
 
 ```bash
-d=$(mktemp -d) && mkdir "$d/red-7-1" && cp results.txt cases-chromium.xml "$d/red-7-1/"
-cd "$d" && git init -q && git add red-7-1 && git commit -qm "red-7-1"
-git push <your code repository's address> HEAD:refs/heads/vid-results/red-7-1
+id=step-7-2b90c4e71da5-1
+d=$(mktemp -d) && mkdir "$d/$id" && cp results.txt *.xml "$d/$id/"
+cd "$d" && git init -q && git add "$id" && git commit -qm "$id"
+git push <your code repository's address> HEAD:refs/heads/vid-results/$id
 ```
 
-The ids of the reports you will send for a ticket:
+A branch that does not hold such a folder is left out, alone: ViD says which and why, to you and in the decision, and reads the others. The full rules are in one document that ships with ViD, **ViD results format 1** (`docs/RESULTS-FORMAT.md`), in its section on GitHub manual. The switch of section 3 writes them for your team in one page, `TEAM-REPORTS.md`.
 
-| Report | Id | Signed |
-|---|---|---|
-| The red run (T2) | `red-<ticket>-<attempt>` | `by: TM` |
-| The head report: the run at the finished code on `main`, with any deliberate breaks (T3, T4) | `step-<ticket>-<first 12 characters of the commit of main>-<attempt>` | `by: TM` |
-| The grade (T5) | `grade-step-<ticket>-<first 12 characters>-<attempt>` | `by: GR` |
-| The sort (T5) | `sort-step-<ticket>-<first 12 characters>-<attempt>` | `by: SR` |
+### 4.5 Build, merge, then run at the commit of main (T3)
 
-A report that is not in this form is not read, and ViD says why in a comment. You then send it again as the next attempt, with the next number. The full rules are in one document that ships with ViD, **ViD results format 1** (`docs/RESULTS-FORMAT.md`). Keep it open beside your first tickets; this overview covers what an ordinary step ticket needs.
+5. **Build** until the ticket's rows and the regression rows pass. **Merge** the ticket's pull requests into `main`, by your own process, with any kind of merge. The merge is your team's; ViD records it, and it decides nothing.
+6. **Run the tests at a commit of `main`** that holds the ticket's work, and push the results as a report. That commit must be on `main`'s own line (its first-parent line): a merge commit, a squashed commit or `main`'s newest is, a pull request's last commit is not.
 
-### 4.5 Build, merge, then run at the commit of main, with deliberate breaks (T3, T4)
+**When a report counts.** You ask about one commit of `main`. A report counts there when its `commit:` is that commit, or holds exactly the same files. So a pull request's last run counts after a squash merge, if nothing else came in. A test that passed at other files is no proof there, and the decision says `passed at <commit12>, not at this commit`.
 
-7. **`BU` builds** until the ticket's rows and the regression rows pass. `BU` does not edit the tests. **`MR` merges** the ticket's pull requests into `main`. The merge is your team's; ViD records it, and it decides nothing.
-8. **`TM` runs every row and every regression row** at the commit of `main` that holds the ticket's work, from a clean checkout, in each browser the ticket asks. That commit must be on `main`'s own line (its first-parent line): a merge commit is, a pull request's last commit is not. It is the ticket's *head*, and this run is the *head report*.
-9. **Deliberate breaks, where they are needed.** This is mutation testing, done one row at a time: change the product so that a promise is broken, and see whether the test notices. A *fault* is a small change that makes one row's fail-if true and nothing else: for `ROW-019`, deleting the address from the footer. `GR` writes that change. `TM` applies it, runs that row's test in the primary browser, and expects it to **fail on its assertion**. `TM` also runs one other test, the *control*, and expects it to still **pass**. Then the change is thrown away.
+**How a row is read.** All the result reports at the commit are read as one, whoever made them. A row passes when at least one file has a test of it, every test of it in that file passed, and no file has a failed or errored one. A test skipped in another file, or one that stopped at `setup:`, stops nothing. No results file per browser is asked.
 
-**A fault is needed for:** a row that had no red run; a row named in a `retested:` line; a row the ticket lists under "Faulted rows"; and a row whose test a grader doubted (4.6). It answers one question: can this test fail at all? A test that still passes with the promise broken sees nothing.
+**Optional: a deliberate break** (T4: "if you make one, it is read"). This is mutation testing, one row at a time: change the product so that a row's fail-if is true (for `ROW-019`, delete the address from the footer), run that row's test and one other that should keep passing (the *control*), and throw the change away. It goes in the report as `faults/ROW-019/`: its results file, and `control.txt` naming the control. A break the test **misses** makes the row `failing, a weak test`. Making none counts against nothing.
 
-**The control** is a row, or another test of the faulted row, that passed in this same head report. `TM` picks it.
+### 4.6 The ask, and ViD's own review
 
-The faults go inside the head report's folder. From the real run, whose folder name was of the older pull request form; GitHub manual names it `step-<ticket>-<commit12>-<attempt>`:
+7. **Ask** once the results are in: one comment on the **ticket's issue**, its first line `vid: decide <the full id of that commit of main>`, and nothing more.
+8. **ViD makes its own review,** the first time every row passes at a commit you ask about. Your team does nothing for it, and it happens once: a later commit of the ticket is not reviewed again.
 
-```
-<the head report's id>/
-├── results.txt
-├── cases-chromium.xml                 (the run at the head)
-└── faults/
-    ├── ROW-003/
-    │   ├── cases-chromium.xml         (the faulted row's test and the control's, with the break in place)
-    │   └── control.txt                (its first line is the control's id, alone: here, ROW-006)
-    └── ROW-004-T3/
-        ├── cases-chromium.xml
-        └── control.txt
-```
+A fresh reviewer, who saw none of the work, reads:
 
-Two more things about faults:
+- the ticket, its rows, and the spec items they cite;
+- the names, results and messages of the test cases at that commit;
+- **what the ticket's merged pull requests changed,** tests and product, as GitHub shows it. ViD keeps no copy of your code, and runs none of it.
 
-- **A protection row** (the ticket marks it) must fail in a particular way: its test's failure message carries a line of its own reading `vid-forbidden-effect: <row id>`. That line says the test saw the forbidden thing itself happen, and not some unrelated error. Without it the fault proves nothing.
-- **A break you could not plant** gets `faults/<row id>/inconclusive.txt` with one line saying why, in place of the cases file.
+When the reviewer doubts a row or a test, a second fresh reader, also ViD's, sorts each doubt once: it is worth a test, it needs a real check on the test site, it goes to the lead as a note, or it is dropped.
 
-### 4.6 The grade, the sort and the ask (T5)
+**A doubt never fails a row by itself.** A row fails only on a run. A doubt worth proving comes to you as a `request` line in that one decision, which then reads `not yet`: add a test with the row's id in its name. If it passes, the doubt is closed. If it fails, the row fails, and you fix the product. A later ask is not held by it.
 
-10. **Two graders grade every row,** once, at the ticket's first head: the commit of `main` its first ask names. A grade is an independent review: of the product and of its tests, against each row. Each works alone, reads the ticket, the code, the tests and the results, and writes one line per row (one per transition for a journey). Their lines are joined into one `grade.txt`: where both keep a row, the first one's line; where one breaches it, that line. From the real one:
-
-```
-by: GR
-commit: 032e923e5dd7bff59e1b2ee6af5209b50d81bc34
-ROW-019 kept — send_digest is the only digest sender … and both parts end with the support address … so a footer without the address, in either part or at either size, fails …
-ROW-003 breached test — "as drawn" is compared only as far as colour, font family, visibility, opacity, the box, the words and stray controls … a state drawn otherwise passes …
-…
-finding: bug medium — Unsubscribing and confirming both act on a plain GET, so a mail scanner that opens links can end a subscription or confirm one nobody asked for — … — Fetch a digest's unsubscribe link with no browser, as a scanner does: the address is unsubscribed.
-```
-
-This excerpt is the practice run's. The lab's own build grades ROW-003 `kept`, so the hands-on tutorial has no sort.
-
-A row's line is the row's id, one of four verdicts, a dash and the reason:
-
-| Verdict | Meaning |
-|---|---|
-| `kept` | The promise holds, and the test would catch its breaking |
-| `breached product` | The product is wrong |
-| `breached test` | The test cannot see the promise |
-| `unclear` | The row cannot be judged as written; the line ends with the question |
-
-After the rows, a `finding:` line is anything the grader noticed outside the rows: `finding: bug <high|medium|low> — <what> — <where it shows> — <how to reproduce>` for one case, or `finding: rule — <one line>` for something that should hold everywhere.
-
-11. **A `breached test` line is settled by a deliberate break.** `TM` plants a break aimed at what the line says, as in 4.5, and sends the head report again as its next attempt, with the fault folder added, before the decision is asked. **Only the newest attempt of a report is read, so a new attempt holds every file again,** not only what is new. If the test fails under the break, the doubt was unfounded. If it still passes, the test is weak. A break that could not be planted is reported as inconclusive (4.5), and that also closes the line. Only a `breached test` line with no fault folder at all, or one on a deploy-owed row, goes to the sort.
-12. **`SR` sorts what the grade left open,** once, at the first head, before the ask: each `breached product` or `unclear` line, and any `breached test` line that step 11 did not close. The report is `sorted.txt`, one line for each such line of the grade:
-
-```
-by: SR
-commit: <the head read>
-ROW-13 test it — <one-line reason> — <the grade line, word for word>
-ROW-14 note it — <one-line reason> — <the grade line, word for word>
-ROW-15 drop it — <one-line reason> — <the grade line, word for word>
-```
-
-   - `test it`: `TA` adds a test under that row's id, in a commit of tests alone, and the head is run again. If the new test fails, the row is failing, a product failure. If it passes, the doubt is closed.
-   - `note it`: the line reaches the lead as a finding.
-   - `drop it`: it stays on the report and goes no further.
-   - A line on a deploy-owed row is never `test it`.
-
-13. **`MR` asks once** the head report, its faults and, where owed, the grade and the sort are in: one comment on the ticket's issue whose first line is `vid: decide <the full id of that commit of main>`, and nothing more.
-
-If the grade leaves no such line open, there is no sort. While a grade or a sort that is owed is missing, the decision reads `not yet` with a line that says so.
-
-**A grader's doubt never fails a row by itself.** A row fails only on a run: a test that fails, or a deliberate break that the tests miss. A doubt becomes a break or a test, and the run decides. This keeps a ticket from going round forever on opinions.
+If no merged pull request names the ticket, there is nothing to review, and the decision says so: add the ticket line to a description, and ask again.
 
 ### 4.7 ViD decides
 
-The ask waits on the ticket until the lead's next `/vid:vid-next`. With ViD's own work on, that call reads the reports and answers on the ticket's issue, for the commit asked. The first real decision on this ticket:
+The ask waits on the ticket until the lead's next `/vid:vid-next`. With ViD's own work on, that call reads the reports, makes the review when it is due, and answers on the ticket's issue, for the commit asked. Illustrative:
 
 ```
-vid: decision 032e923e5dd7bff59e1b2ee6af5209b50d81bc34
+vid: decision 2b90c4e71da58f3360b7c19e4da25f8817c6e03b
 ticket: not yet
 ROW-019 accepted
-ROW-003 failing, a weak test — its fault not proven, … — siblings: ROW-001, ROW-004, ROW-005, ROW-008, ROW-012, and any other test with the same data pattern
+ROW-003 passing
 ROW-004 passing
 ROW-006 passing
+request ROW-019 — a digest sent again after a failed send is a digest, and no test sends one again
+requests open — each request above asks for one added test, this once: a later ask is not held by it
 ```
-
-In the practice run these lines sat under the pull request, at its head. GitHub manual posts the same lines on the ticket's issue, for the commit of `main` asked, and names each report by its `step-` id where the `…` stands.
 
 Read it this way:
 
-- `ROW-019 accepted`: the ticket's own row is done. It had its red run and passes at the head.
-- `ROW-003 failing, a weak test`: a regression row. A grader had doubted its test (the `breached test` line in 4.6), a break was planted, and the test still passed. So the test cannot see what it claims to check. `TA` strengthens it; the row is run again.
-- `siblings:` names rows whose tests may share the weakness. `TA` looks at those too.
-- `ticket: not yet`: fix what is named, merge the fix into `main`, run again at that new commit, and ask for a decision there.
+- `ROW-019 accepted`: the ticket's own row passes in the team's results, at this commit.
+- `ROW-003 passing`: a regression row that still passes.
+- `request ROW-019`: ViD's review asks for one added test.
+- `ticket: not yet`: add the test, fix what it shows, merge into `main`, push the results at that new commit, and ask there.
 
 What a decision can say:
 
@@ -434,11 +365,13 @@ What a decision can say:
 |---|---|---|
 | `accepted` | The row is done | Nothing |
 | `passing` | A regression row that still passes | Nothing |
-| `failing, a product failure` | Its test failed | `FX` fixes the product |
-| `failing, a weak test` | A break was planted and the test missed it | `TA` strengthens the test |
-| `evidence missing — …` | A report or a folder is absent or was not read | Send it |
-| `sort evidence missing — …` (against no row) | The grade or the sort is owed | Send it, then ask again |
-| `no Decisions section — #<pull request>` (against no row) | A pull request merged under the ticket has no Decisions section | Add it to that pull request's description, or `Decisions: none`, and ask again |
+| `failing, a product failure` | Its test failed | Fix the product |
+| `failing, a weak test` | You gave a deliberate break, and the test missed it | Strengthen the test; look at the rows after `siblings:` too |
+| `evidence missing — …` | No result for the row was read at this commit | Send what it names |
+| `request <row> — …`, `requests open` | The review asks for one added test each | Add it, and ask at the new commit |
+| `review missing — …` (against no row) | ViD's review is not in | If it says no merged pull request names this ticket, add the ticket line |
+| `no Decisions section — #<pull request>` (against no row) | The ticket asks for the section, and a pull request merged under it has none | Add it to that pull request's description, or `Decisions: none`, and ask again |
+| `report left out — vid-results/<id>: <why>` (against no row) | That branch could not be read | Put its files in a folder of the branch's own id, and push again |
 | `not on main — <commit>` (against no row) | The commit asked is not on `main`'s own line | Ask again at a commit of `main` |
 | `question open` | A blocking question on this row waits | Wait for the answer |
 | `held` | The row has failed more than once and now waits for the lead | Wait; the lead rules on it (section 6) |
@@ -447,7 +380,7 @@ What a decision can say:
 
 **`ticket: accepted` is the acceptance itself.** Your team's pull requests are in `main` by then, so nothing more is merged for it. ViD records the acceptance at that commit, and when it is the step's last ticket the step's close is owed there (4.9). The next ticket goes out when the lead publishes it.
 
-In the practice run, `ROW-003` failed again at the next head and was held. It was then ruled a known limit, and the ticket was accepted. A held row is how a doubt that runs cannot settle reaches a decision: once, with its record.
+A held row is how something that runs cannot settle reaches a decision: once, with its record. In the practice run one row failed at two heads, was held, was ruled a known limit, and its ticket was accepted.
 
 ### 4.8 Questions
 
@@ -466,7 +399,7 @@ These are good questions. Each names its row, says what the spec does not say, a
 
 ### 4.9 The step close
 
-When every ticket of a step is accepted, the lead's next call (with ViD's own work on) opens one more issue, labelled `run`, that asks your team to run the step's rows and its regression rows again at the commit of the step's last acceptance, in every browser, in small groups called *chunks*. Where a row must be run against the product as it really starts, the issue says so in a line of its own. The real one:
+When every ticket of a step is accepted, the lead's next call (with ViD's own work on) opens one more issue, labelled `run`, that asks your team to run the step's rows and its regression rows again at the commit of the step's last acceptance, in every browser your team named, in small groups called *chunks*. Where a row must be run against the product as it really starts, the issue says so in a line of its own. The real one:
 
 ```
 close: S07
@@ -481,26 +414,23 @@ Run these rows at the commit above, chunk by chunk, in the engines each chunk na
 …
 ```
 
-`TM` comments `vid: started`, sends each chunk as its own report (`req-<this issue's number>-<chunk>-<attempt>`, with `by: TM`, the asked commit, and a cases file for each browser of the chunk), and comments `vid: reported <chunk>-<attempt>` after each. If everything is green, the step is closed at the next call, and each of its tickets still open gets the comment `vid: closed — the step's close passed at <commit12>` and is closed. If a row is red, its fix goes out as **one fix ticket**, on the lead's word, and the close is asked again once the fix is accepted.
+Someone comments `vid: started`, sends each chunk as its own report, and comments `vid: reported <chunk>-<attempt>` after each. The report has the form of 4.4, by anyone and with any results files; its id is fixed here, `req-<this issue's number>-<chunk>-<attempt>`, and its commit is the asked one itself. Run at least the tests your accepted results held for each row. If everything is green, the step is closed at the next call, and each of its tickets still open gets the comment `vid: closed — the step's close passed at <commit12>` and is closed. If a row is red, its fix goes out as **one fix ticket**, on the lead's word, and the close is asked again once the fix is accepted.
 
 ### 4.10 Your first ticket is the skeleton, and it differs
 
-The skeleton ticket builds the thinnest working product and your test setup. Because there is no product yet for a test to fail against in a meaningful way, three things change:
+The skeleton ticket builds the thinnest working product and your test setup. It is accepted as any ticket is (4.5 to 4.7), and differs in two ways:
 
-1. **There is no red run (no T2).** A deliberate break stands in for it.
-2. **Its break has no control.** `GR` writes the change that makes the skeleton's rows' fail-if true; `TM` plants it and runs those rows' tests in the primary browser.
-3. **Its head report declares your setup:** the `engines:` line, with the browsers you run, the primary first, and the `environments:` line. The ticket has no "Engines" section, because you are the one declaring them. A skeleton head report without its `engines:` line is not read.
-
-The grade and the sort are as for any ticket.
+1. **No failing run first is spoken of (no T2),** because there is no product yet for a test to fail against in a meaningful way.
+2. **Its results declare your setup, when they can:** the `engines:` line, with the browsers you run, the primary first, and the `environments:` line. The ticket has no "Engines" section, because you are the one declaring them. Without that line the skeleton is accepted all the same, but the next ticket cannot be written and no close is asked until you, the lead, name the browsers by the move `engines "<primary> <other>…" "<your words>"`.
 
 **What follows the skeleton's acceptance is also different.** The skeleton is a stage of its own, stage 0, so its acceptance completes a stage. Two things follow in turn, each asked on an issue at the lead's calls:
 
-1. **The stage's full run** (label `run`): every row of the stage at the accepted commit, in chunks as in 4.9, with one more chunk for every other test of your suite. When no other test exists, that chunk's report holds no test case, and that is a correct report.
+1. **The stage's full run** (label `run`): every row of the stage at the accepted commit, in chunks as in 4.9, with one more chunk for every other test of your suite. When no other test exists, that chunk's results file holds no test case, its `results.txt` holds the line `none left`, and that is a correct report. While the run is out, ViD grades the stage itself, with one fresh reader of the changes of its tickets' pull requests. Your team is asked for no grade.
 2. **A deploy to your test site** (label `deploy`): ViD gives the okay for that commit; your team deploys and reports it. ViD deploys nothing.
 
 **Nothing is held.** In GitHub manual no stage waits on that deploy: the next ticket goes out when the lead publishes it. A team with no test site yet leaves the deploy issue open.
 
-One more special case you will meet later: a row marked *deploy-owed* can only be proved on the deployed product. For such a row you write the test (T1) and it is graded (T5), with no red run and no break; it is proved later, on the test site.
+One more special case you will meet later: a row marked *deploy-owed* can only be proved on the deployed product. For such a row you write the test (T1), and nothing more is asked on the ticket; it is proved later, on the test site.
 
 ---
 
@@ -526,7 +456,7 @@ This changes 1 row, adds 0, and reaches 2 more: ROW-006, RULE-001. Land it?
    - *Adds*: new rows.
    - *Reaches*: rows whose words stay but whose requirement changed, so their tests must be looked at again (`ROW-006`, `RULE-001`).
 3. **On your yes, ViD lands it:** `/vid:vid-next answer Q<n> yes "<your words>"`. The spec files change, in ViD's folder alone. Before it writes anything ViD tries the change on a scratch copy. If that trial refuses the draft (a new row that is in no step of the plan, for example), nothing is written: ViD makes a corrected draft and asks again as a new question, and your first yes is not carried over.
-4. **You apply it.** A landed change waits for you. Your next call lists the move `planning-analysis`: `/vid:vid-next planning-analysis` writes ViD's proposal for what the change does to the plan and to the published tickets, and shows it as a page, recording and posting nothing. Then `/vid:vid-next implement-replan "<your words>"` applies it as shown: the spec repository gets a new export, and each ticket the change reaches is amended or sent, as below. When the change adds nothing to place, the call lists `implement-replan` at once.
+4. **You apply it.** A landed change waits for you. Your next call lists the move `planning-analysis`: `/vid:vid-next planning-analysis` writes ViD's proposal for what the change does to the plan and to the published tickets, and shows it as a page, recording and posting nothing. Then `/vid:vid-next implement-replan "<your words>"` applies it as shown: the spec repository gets a new export, and each ticket the change reaches is amended or sent, as below. When the change adds nothing to place, no analysis is needed, and the call asks before it makes the proposal (`proposal due`: what it covers, and how long it takes). Your yes is `implement-replan` itself: named once it makes the proposal, shows it and applies nothing; named again, it applies what it showed.
 
 The same words can be drafted in more than one fair way. In a second run of this practice product the same correction was drafted as a new row, proved on production, with no row changed: `This changes 0 rows, adds 1, and reaches 3 more: ROW-006, ROW-019, RULE-001. Land it?` Read the draft, not only the count.
 
@@ -544,7 +474,7 @@ REQ-012 AMENDED | functional | T2 | Every digest footer carries a support contac
 
 - **A ticket not yet published** quotes the new text, and lists the reached rows under their own heading with the new requirement.
 - **A ticket already open** is amended in place: its header gains a line `amended:`, and a comment beginning `vid: amended` says what changed. Earlier results for its changed rows do not count. Read a ticket's comments, not only its first version.
-- **A row already accepted,** in a ticket closed since, goes out again in a *follow-up ticket* of its step: its title begins *Follow-up ticket*, its header names the ticket it follows in a line `follows:`, and it asks no grade (no T5). Its asks say what to send. (The practice run sent such a row in a reached-rows ticket of its own; the apply's follow-up is what GitHub manual sends.)
+- **A row already accepted,** in a ticket closed since, goes out again in a *follow-up ticket* of its step: its title begins *Follow-up ticket*, its header names the ticket it follows in a line `follows:`, and ViD makes no review of it. Its asks say what to send. (The practice run sent such a row in a reached-rows ticket of its own; the apply's follow-up is what GitHub manual sends.)
 
 The section that names such a row, from the practice run's ticket:
 
@@ -555,7 +485,7 @@ The section that names such a row, from the practice run's ticket:
 > REQ-012 | functional | T2 | Every digest footer carries a support contact address that reaches a person within one working day. | fail-if: the footer lacks a support address, or mail to it bounces, or goes unanswered for more than one working day | …
 ```
 
-For a reached row, someone must look at its test against the changed clause, and the ticket's asks say what to send. A rewritten test goes in the head report's `retested:` line and takes a deliberate break (4.5).
+For a reached row, someone must look at its test against the changed clause: keep it when the clause is not one it tests; otherwise, or when unsure, rewrite it. Then results at a commit of `main`, and the ask.
 
 **Rules for a good amendment.**
 
@@ -573,12 +503,14 @@ At each `/vid:vid-next`, ViD shows you a short list of things only you can settl
 |---|---|
 | **A held row.** A row that failed more than once. ViD shows what the row promises, what it still needs, and a recommendation | Accept it (only when its tests pass and only evidence is missing); allow more rounds; rule it a known limit; or amend it (section 5) |
 | **A question from your developers.** In GitHub manual every question is yours, named by its place, `#<issue>:<comment>` | Your answer, in your words: `/vid:vid-next answer "#<issue>:<comment>" "<your answer>"`. ViD posts it on the ticket, begun `RM:` |
-| **Findings** from a grade: things the graders saw outside the rows | For each: fix it, make it a row, mark it known, or no |
+| **Findings** from ViD's review of a ticket or its grade of a stage: things its readers saw outside the rows | For each: fix it, make it a row, mark it known, or no |
 | **A close that could not finish** | Ask again, or rule a limit |
 | **A drafted change** to the spec | Yes or no |
 | **A move:** a step to publish, a ticket to amend or withdraw, a change to apply | Name it in a call, in your words, when you want it done. Left alone, it is shown again |
 
-Each call also writes the plan page: where each step stands, what is left, and what waits on you. There is nothing to pause or to continue: nothing goes out but what a move you name sends, and nothing is read or decided between your calls. Call `/vid:vid-next` whenever you want ViD to read what your team has sent.
+**A ticket your team finished and you accepted outside ViD** is recorded in your words, `/vid:vid-accept-step <ticket> <commit of main> accepted "<your words>"`; ViD posts nothing, and its step's close is owed as any.
+
+Each call also writes the plan page: where each step stands, what is left, and what waits on you. In the Claude desktop app, the panel beside the chat shows one lasting list of everything open, in your order, and the parts of a long call as they happen; `/vid:vid-answer backlog` prints the list anywhere. There is nothing to pause or to continue: nothing goes out but what a move you name sends, and nothing is read or decided between your calls. Call `/vid:vid-next` whenever you want ViD to read what your team has sent.
 
 A session can be closed or lost without harm. ViD keeps its lock and its records in its own state repository, and each call restores them.
 
@@ -587,10 +519,10 @@ A session can be closed or lost without harm. ViD keeps its lock and its records
 ## 7. What to expect, honestly
 
 - **The first ticket takes longest.** The skeleton ticket sets up your test environment, your test runner's XML output and your way of pushing a report. After that, a report is a few commands.
-- **Tests first, the red run and the head run are light.** Most teams that write tests already do most of this. The new habits are: tests in their own commit before the code, the row's id in the test's name, and a report in a fixed form.
-- **Deliberate breaks, the grade and the sort are the heavy part.** Plan for them. A break is a few minutes for a row. A grade is two fresh heads reading a ticket's work with care, and a third to sort what they doubt; it is the step most likely to be skipped under pressure. It is also where doubts about weak tests come from, as with `ROW-003` above.
-- **A ticket needs five separate heads** (4.2). With fewer people than that, plan which heads are fresh sessions of your coding assistant.
-- **Expect "not yet".** A first decision that accepts everything is rare. One or two rounds on a ticket is normal.
+- **The new habits are few.** The row's id in the test's name, the ticket's number and a Decisions section in each pull request's description, and the results pushed as a branch. An automated build that pushes a report for each commit of `main` is always right.
+- **The review costs your team nothing,** but for the tests it asks for. It is where doubts about weak tests come from.
+- **A failing run first and a deliberate break are worth making** for the rows that matter most. Neither is required.
+- **Expect "not yet".** A first decision that accepts everything is rare, and the review may ask for a test once. One or two rounds on a ticket is normal.
 - **Nothing moves between your calls.** A decision, a close or an answer comes at the lead's next `/vid:vid-next`, so the team's pace is the lead's too.
 - **Ask early.** A question with a stated default costs nothing. A product decision buried in code costs a fix ticket later.
 
@@ -615,18 +547,18 @@ A session can be closed or lost without harm. ViD keeps its lock and its records
 | Step | One piece of work in a stage; one ticket | User story; backlog item |
 | Skeleton | The first step: the thinnest working product, with its test setup | Walking skeleton |
 | Ticket | An issue ViD opens, asking for a step's rows | Ticket; issue |
-| Head | In GitHub manual, the commit of `main` a ticket's ask names: every report of that ask is about it | Head commit |
+| Result report | One folder of test results at one commit, pushed as a branch of its own | A test run report |
 | Unit | One pull request of a ticket's work; a ticket may have several | Pull request |
 | Move | One thing a `/vid:vid-next` call does, named by the lead in their words: publish a ticket, answer a line, apply a change | |
 | Engine | A place a test runs; for a web product, a browser | Browser |
-| Red run | The run that shows the new tests failing before the code exists | The "red" of red, green, refactor |
-| Head report | The run of every row at the head, with any deliberate breaks | A test run report |
-| Fault | A deliberate break of one row, to prove its test can fail | Mutation testing; a mutant |
+| Red run | A run that shows the new tests failing before the code exists; optional | The "red" of red, green, refactor |
+| Fault | A deliberate break of one row, to prove its test can fail; optional | Mutation testing; a mutant |
 | Control | A test that must keep passing while a fault is in place | Control |
 | Regression row | An earlier row that must still pass | Regression test |
-| Grade | Two fresh graders' verdict on each row | Independent review |
-| Sort | A second reviewer's ruling on each doubtful grade line: test it, note it or drop it | Triage of review findings |
+| Review | ViD's own reading of a ticket's changes, once, by a fresh reader; a second one sorts its doubts | Independent review |
+| Grade | ViD's own reading of a stage, at its end | Independent review |
+| Request | A test ViD's review asks for, in one decision | |
 | Held | A row that failed more than once and waits for the lead | Escalated |
 | Append | A dated change to the PRD after its approval | Change record; amendment |
-| DevAgent | The name tickets use for the dev side: your team | The development team |
+| DevAgent | ViD's own dev side, in GitHub auto; a command or a record may use the name for your team | The development team |
 | RM | ViD's run manager: the part of ViD that speaks to the lead, and posts the lead's answers begun `RM:` | |

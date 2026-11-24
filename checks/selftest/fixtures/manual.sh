@@ -78,7 +78,7 @@ mn_takeover() {
 #   - S02 posted as #$MN_N2 and S03 as #$MN_N3 (form.sh's fm_post); stage 2's named candidate, its ask the open issue #$MN_NW;
 #   - draft 2, a /vid fix, landed: ROW-012 reworded (a pending reset, in #MN_N2), ROW-021 added ($MN_R21, a pending addition) and
 #     ROW-019 deleted (a pending retirement, in #MN_N3);
-#   - draft 3, a /vid stage re-cut, landed: ROW-002 to stage 2 (STAGES.md's row line, the owner's answer row in PRD.md), a landed
+#   - draft 3, a /vid stage re-cut, landed: ROW-002 to stage 2 (STAGES.md's split line of its REQ-006, a row line alone being refused, the owner's answer row in PRD.md), a landed
 #     re-cut (pending moved-stage ROW-002, spec STAGES.md), which withdraws stage 2's candidate (#MN_NW in .vid/next/withdrawn);
 #   then the call's read kept (next.sh read). MN_AP the applied commit, MN_H HEAD. Returns 1 on the first step that fails, its
 #   output in $T/mr
@@ -100,7 +100,7 @@ mn_replan_toy() {
   MN_R21='ROW-021 | behavior | REQ-001 | anonymous | n/a | A saved search shows the day its last digest went out. Fails if a saved search shows no day. | REQ-001 | owed: spec-only — first stage | origin: REQ-001'
   _mi ROW-020 "$MN_R21"; grep -v '^ROW-019 ' INVENTORY.md > "$T/mi" && cat "$T/mi" > INVENTORY.md
   _ml '/vid fix: the size, the digest day and the footer row, in the owner words' 'Yes, land the fix' || return 1
-  awk '{ print } /^row: ROW-004 -> STAGE-0$/ { print "row: ROW-002 -> STAGE-2" }' STAGES.md > "$T/mi" && cat "$T/mi" > STAGES.md
+  awk '{ print } /^row: ROW-004 -> STAGE-0$/ { print "split: REQ-006 -> STAGE-2" }' STAGES.md > "$T/mi" && cat "$T/mi" > STAGES.md
   { cat PRD.md; printf '\n### 2026-11-20 (the self-test)\n\n```vid-prd-answers\nA-301 | human | 2026-11-20 | Q: how should the product be delivered — in which stages? | A: the digest limit waits for stage 2 | settles: contract\n```\n'; } > "$T/mi" && cat "$T/mi" > PRD.md
   _ml '/vid stage: the digest limit moves to stage 2, in the owner words' 'Yes, move the limit to stage 2' || return 1
   MN_H=$(git rev-parse HEAD); sh "$CHECKS/next.sh" read > "$T/mr" 2>&1 || return 1; gh_wclear; }

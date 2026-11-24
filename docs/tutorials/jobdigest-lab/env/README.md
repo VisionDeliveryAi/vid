@@ -14,7 +14,7 @@ sh <this folder>/run-tests.sh <your clone> <commit> <report folder>
 - It starts the two fakes (a mail provider that records each message, and a job feed), starts the product from its `Procfile` when the commit has one, runs every test in Chromium, and writes `<report folder>/cases-chromium.xml`. Then it removes everything it started.
 - The first run fetches the base image and builds the two images (about 2 minutes). That is the only step that downloads anything: the test network has no way out.
 - Exit 0: every test passed. Exit 1: some failed. Exit 2: the run itself could not be made.
-- At a commit with no product yet (tests only), every test that needs the product fails with a message that begins `setup:`. That is a test that could not run, not a red.
+- At a commit with no product yet (tests only), every test that needs the product fails with a message that begins `setup:`. That is a test that could not run, not one that failed.
 
 Two options:
 
@@ -22,7 +22,7 @@ Two options:
 # only the tests whose names match (pytest's -k)
 sh <this folder>/run-tests.sh <your clone> <commit> <report folder> -k "ROW_006 or ROW_003_S01_saved"
 
-# a deliberate break: apply a patch to the clean copy first, then run
+# a deliberate break, optional evidence: apply a patch to the clean copy first, then run
 sh <this folder>/run-tests.sh <your clone> <commit> <report folder> -k "ROW_006 or ROW_003_S01_saved" --fault <patch>
 ```
 
@@ -32,7 +32,7 @@ sh <this folder>/run-tests.sh <your clone> <commit> <report folder> -k "ROW_006 
 sh <this folder>/push-report.sh <your code repository's address> <report folder>
 ```
 
-The report folder must be named by the report's id (`red-7-1`, `pr-8-032e923e5dd7-1`, …) and hold `results.txt` and its cases files. The script copies it into a new, empty folder, makes one commit there and pushes it as the branch `vid-results/<id>`. Your working branch is never touched, and each branch holds that one folder alone.
+The report folder must be named by the report's id (`step-7-2b90c4e71da5-1`, `req-9-p1c1-1`, …) and hold `results.txt` and its results files. The script copies it into a new, empty folder, makes one commit there and pushes it as the branch `vid-results/<id>`. Your working branch is never touched, and each branch holds that one folder alone.
 
 ## What is in here
 
@@ -49,7 +49,7 @@ The report folder must be named by the report's id (`red-7-1`, `pr-8-032e923e5dd
 
 ## The differences between these tests and production
 
-Each is a `stand-in:` line in the first head report that uses it:
+Each is a `stand-in:` line in the first result report that uses it:
 
 ```
 stand-in: the mail provider — a fake that records each message — the real mail provider

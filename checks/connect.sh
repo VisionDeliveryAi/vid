@@ -11,7 +11,7 @@
 #                   in /vid mode's own call, refused, and in GitHub manual (GM M15) a project
 #                   whose .vid/tw/settings names no state-repo: refused, naming it, so the lock and the saved records never go to the
 #                   spec repository; with --run in GitHub manual refused, naming /vid next (GM-1 S1); the repositories (FB-2 A1): each
-#                   of repo:, spec-repo: (both layouts, GM-4 J5) and state-repo: the settings name, with no `<key> <name> ` line in
+#                   of repo:, spec-repo: (both layouts, GM-4 J5; not with layout: one in GitHub manual, FB-3 B2) and state-repo: the settings name, with no `<key> <name> ` line in
 #                   .vid/tw/log for the name they hold now, made private and empty or checked (github.sh code-setup, spec-setup
 #                   --make-only, GM-2 T10, and state-setup), one `connect <key>:` line each; access checks the spec repository is
 #                   private at every call; the records restored; the lock taken; the read the call
@@ -43,6 +43,9 @@
 #                   cksum, .vid left out>`) then its lines; while
 #                   the key is the same the kept lines are printed and no court runs; a pass removes the file
 #   refresh-no "<the owner's words>"   the owner's no to the refresh, recorded in .vid/next/refresh-no: the one record of it
+#   FB-3 D2, the call's progress beside the chat (lib.sh prog): once the lock is held, start names the call's parts, but /vid run's
+#                   start, which clears an earlier call's, and /vid mode's own call, whose parts mode.sh names; a start that ends after
+#                   it leaves the part stopped, with what it needs; end clears them, a stop apart
 #   end             the call's stage ended (when the start opened it), the records saved and the lock freed, one line each; the lock
 #                   is freed even when the save fails (exit 1)
 # Usage: sh connect.sh start [--yes] [--run] [--state <owner/name>] | hooks | refresh-no "<words>" | end
@@ -56,8 +59,14 @@ say() { echo "connect $1: $(tail -n 1 "$W/o")"; }
 SN=${CLAUDE_CODE_SESSION_ID:-connect-$$-$(date +%s)}; CS=.vid/connect-stage
 # stend: the call's stage, when a connect opened it, ended
 stend() { [ -s "$CS" ] || { rm -f "$CS"; return 0; }; _s=$(head -n 1 "$CS"); sh checks/event.sh "stage name=replan state=end session=$_s" > /dev/null 2>&1 || return 1; rm -f "$CS"; }
+# FB-3 D2: MC, /vid mode's own call; OWN, this start named the parts; pstop [<what it needs>], the running part stopped, once
+MC=''; case ${VID_CALLER:-} in mode|mode-auto) MC=1 ;; esac; OWN=''
+pstop() { [ -z "$OWN" ] || prog stop "${1:-a look at the chat, which says why it stopped}"; OWN=''; }
+pcall() { [ -z "$MC" ] || return 0; if [ -n "$RUN" ]; then [ ! -f .vid/face/wait ] || prog 'done'; return 0; fi
+  set -- 'Connecting and checking the project'; [ "$(sh "$HERE/next.sh" own-work 2>/dev/null)" != on ] || set -- "$@" "ViD's own work"
+  prog parts "$@" 'Reading GitHub' 'Working out what changed' 'Your list and the plan page' 'Saving the records'; OWN=1; prog on 'Connecting and checking the project'; }
 # stop_ <line>: a start ended once the lock is held: the line, the records saved, the lock freed, exit 1
-stop_() { echo "$1"; trap 'rm -rf "$W"' EXIT; gh_ state-save > /dev/null 2>&1 || echo 'connect records: not saved'; gh_ lock-free > /dev/null 2>&1 || echo 'connect lock: could not be freed'; exit 1; }
+stop_() { echo "$1"; pstop; trap 'rm -rf "$W"' EXIT; gh_ state-save > /dev/null 2>&1 || echo 'connect records: not saved'; gh_ lock-free > /dev/null 2>&1 || echo 'connect lock: could not be freed'; exit 1; }
 # hooks_ (FB-1 A1): the commit checks switched on once the project's courts pass on the tree, or what refuses while they do not
 HO=.vid/next/hooks-off
 # hkey: the tree's key, HEAD and a cksum of the status, the diff from HEAD, the staged diff and each untracked, not ignored file's own cksum, .vid
@@ -99,27 +108,33 @@ case ${1:-} in
       [ -n "$(skey state-repo)" ] || { echo "connect mode: GitHub manual keeps ViD's lock and records in its own state repository (GM M15), and .vid/tw/settings names no state-repo: — answer it (sh checks/planner.sh setup state-repo <owner/name> --words \"<their words>\"); nothing restored, taken or saved"; exit 1; }
     fi
     # GM-2 T10, GM-4 F2; FB-2 A1: each repository the settings name and the log has no line for under the name they hold now (a renamed
-    # one made too), made private and empty or checked: the code repository, the spec repository (both layouts, GM-4 J5), the state repository
+    # one made too), made private and empty or checked: the code repository, the spec repository (both layouts, GM-4 J5; none with one repository in GitHub manual, FB-3 B2), the state repository
     for k in repo spec-repo state-repo; do n=$(skey "$k"); [ -n "$n" ] || continue
+      [ "$k" != spec-repo ] || [ "$(skey layout)" != one ] || ! manual || continue   # FB-3 B2: kept in the project
       ! awk -v k="$k" -v n="$n" '$1 == k && $2 == n { f = 1 } END { exit !f }' .vid/tw/log 2>/dev/null || continue
       case $k in repo) a=code-setup ;; spec-repo) a='spec-setup --make-only' ;; *) a=state-setup ;; esac
       sh "$HERE/github.sh" $a > "$W/o" 2>&1 || { sed 's/^/    /' "$W/o" >&2; echo "connect $k: not ready; no lock is held"; exit 1; }; say "$k"; done
+    [ -z "$MC" ] || prog now 'bringing the records up to date'   # before the lock only /vid mode's own call has parts of its own
     sh "$HERE/github.sh" state-restore > "$W/o" 2>&1 || { sed 's/^/    /' "$W/o" >&2; echo 'connect records: not restored; no lock is held'; exit 1; }; say records
     # from before the take, any end but the ready one frees the lock (lock-free frees this session's lock alone)
-    trap 'sh "$HERE/github.sh" lock-free > /dev/null 2>&1; rm -rf "$W"' EXIT; trap 'exit 1' INT TERM
+    trap 'pstop; sh "$HERE/github.sh" lock-free > /dev/null 2>&1; rm -rf "$W"' EXIT; trap 'exit 1' INT TERM
+    [ -z "$MC" ] || prog now 'taking the turn'
     sh "$HERE/github.sh" lock-take > "$W/o" 2>&1 || { sed 's/^/    /' "$W/o" >&2; echo "connect lock: not taken ($(tail -n 1 "$W/o")); the call ends"; exit 1; }; say lock
+    pcall
     # GM-4 F3 (I2): the read the call before ended with, once, before any read of this call
     if [ -f .vid/round/read ]; then put .vid/round/read.prev < .vid/round/read || { echo 'connect read: .vid/round/read.prev could not be written; the lock freed'; exit 1; }; fi
     # the refresh, under the lock: its no or its wait ends the call, the lock freed
-    if [ -z "$Y" ] && [ -f .vid/next/refresh-no ]; then echo "connect refresh: the owner said no to the refresh ($(cat .vid/next/refresh-no)): checks/ needs it, so every call ends here until the owner's yes; the lock freed"; exit 3; fi
+    if [ -z "$Y" ] && [ -f .vid/next/refresh-no ]; then echo "connect refresh: the owner said no to the refresh ($(cat .vid/next/refresh-no)): checks/ needs it, so every call ends here until the owner's yes; the lock freed"; pstop "your yes to update the project's checks"; exit 3; fi
+    prog now "checking the project's rules"
     rc=0; sh "$HERE/refresh.sh" $Y > "$W/o" 2>&1 || rc=$?
-    if [ "$rc" = 3 ]; then sed 's/^/    /' "$W/o"; echo "connect refresh: waits for the owner's yes to the local edits listed above; the lock freed"; exit 3; fi
+    if [ "$rc" = 3 ]; then sed 's/^/    /' "$W/o"; echo "connect refresh: waits for the owner's yes to the local edits listed above; the lock freed"; pstop "your yes to update the project's checks"; exit 3; fi
     [ "$rc" = 0 ] || { sed 's/^/    /' "$W/o" >&2; echo "connect refresh: failed (exit $rc); the lock freed"; exit 1; }
     rm -f .vid/next/refresh-no; say refresh
     [ ! -f "$HERE/lib/wsl.sh" ] || sh "$HERE/lib/wsl.sh" notice 2>&1 || :
     hooks_   # FB-1 A1: the commit checks, on once they pass; it never ends the call
+    prog now 'checking GitHub access'
     gh_ access > "$W/a" 2>&1; sed 's/^/connect /' "$W/a"
-    if ! grep -qx 'access: ok' "$W/a"; then trap 'rm -rf "$W"' EXIT; gh_ lock-free > "$W/o" 2>&1 || { echo "connect lock: could not be freed: $(tail -n 1 "$W/o")"; exit 1; }; echo 'connect: GitHub is not ready; the lock freed, the call ends'; exit 1; fi
+    if ! grep -qx 'access: ok' "$W/a"; then pstop "GitHub ready: the chat says what is missing"; trap 'rm -rf "$W"' EXIT; gh_ lock-free > "$W/o" 2>&1 || { echo "connect lock: could not be freed: $(tail -n 1 "$W/o")"; exit 1; }; echo 'connect: GitHub is not ready; the lock freed, the call ends'; exit 1; fi
     if [ -z "$RUN" ]; then
       # GM-4 F2 (I4): the call's stage, once, unless a stage holds the gate on; one a call that died left open is ended first
       stend || stop_ 'connect stage: the stage an earlier call left open could not be ended (checks/event.sh); the call ends'
@@ -149,8 +164,10 @@ case ${1:-} in
   hooks) hooks_; exit 0 ;;
   refresh-no) [ -n "${2:-}" ] || { echo 'usage: sh connect.sh refresh-no "<the owner'"'"'s words>"' >&2; exit 2; }
     mkdir -p .vid/next; printf '%s at=%s\n' "$2" "$(now)" > "$W/n"; put .vid/next/refresh-no < "$W/n"; echo 'connect refresh: the owner said no; recorded'; exit 0 ;;
-  end) rc=0; if [ -s "$CS" ]; then if stend; then echo "connect stage: the call's stage ended"; else echo "connect stage: the end of the call's stage was not recorded"; rc=1; fi; fi
+  end) rc=0; [ -n "$MC" ] || prog on 'Saving the records'; if [ -s "$CS" ]; then if stend; then echo "connect stage: the call's stage ended"; else echo "connect stage: the end of the call's stage was not recorded"; rc=1; fi; fi
     gh_ state-save > "$W/o" 2>&1 || { sed 's/^/    /' "$W/o" >&2; rc=1; }; say records
-    gh_ lock-free > "$W/o" 2>&1 || rc=1; say lock; exit "$rc" ;;
+    gh_ lock-free > "$W/o" 2>&1 || rc=1; say lock
+    # FB-3 D2: no parts left, a stop apart
+    if [ -z "$MC" ] && [ -f .vid/face/wait ] && ! grep -q "^stop$(printf '\t')" .vid/face/wait; then if [ "$rc" = 0 ]; then prog 'done'; else prog stop 'a look at the chat: the records were not saved, or the lock not freed'; fi; fi; exit "$rc" ;;
   *) sed -n 's/^# Usage: /usage: /p' "$0" >&2; exit 2 ;;
 esac

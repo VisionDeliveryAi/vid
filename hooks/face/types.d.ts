@@ -29,12 +29,17 @@ export type Sitting = {
 }
 // usability (P11): agreed, the line of what was agreed at a done stop ("Done" with none), "" for a stop not done
 export type Stop = { n: number; name: string; state: string; sitting: boolean; agreed: string }
-// usability (P6): the wait's parts, each done, now or to come, and what ViD is doing
+// usability (P6): the wait's parts, each done, now or to come (FB-3 D2: or stopped), and what ViD is doing; FB-3 D2: stop,
+// what a call that stopped needs, "" for none; written, when the parts were last written (UTC), "" where not said
 export type WaitPart = { name: string; state: string }
-export type Wait = { parts: WaitPart[]; now: string }
+export type Wait = { parts: WaitPart[]; now: string; stop: string; written: string }
+// FB-3 D1: an item of the owner's list, its empty fields ""; the list, null outside ticket mode: the open items in order,
+// the newest done and how many are done
+export type BacklogItem = { id: string; state: string; who: string; words: string; next: string; note: string }
+export type Backlog = { items: BacklogItem[]; done: BacklogItem[]; doneCount: number }
 // usability (P9): a page of the pages script's index: its id, title, file's full path, link ("" for none), the stops due
 export type Page = { id: string; title: string; file: string; link: string; stops: number[] }
-export type Standing = { format: number; written: string; current: number; turn: string; sitting: string; session: string; next: string; wait: Wait; pages: Page[]; stops: Stop[] }
+export type Standing = { format: number; written: string; current: number; turn: string; sitting: string; session: string; next: string; wait: Wait; backlog: Backlog | null; pages: Page[]; stops: Stop[] }
 // usability (P4): .vid/face/run.<session id>, as the hooks and the recorder write it
 export type Run = { state: string; since: string; last: string }
 
@@ -65,6 +70,8 @@ export type View = {
   here: string
   version: string
   opened: string
+  // FB-3 D1: the conversation it opened by itself in for the backlog, "" for none
+  ranOpen: string
   minute: number
   // usability (P5): when it was read, in ms, by the engine's clock
   now: number

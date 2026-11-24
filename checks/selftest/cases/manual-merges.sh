@@ -46,6 +46,8 @@ grep -q "^decisions recorded pr=$PD " "$T/out" || fail 'the unit, its issue now 
 # the ticket accepted at a later commit: in merges, its close owed there; the step- line records nothing
 ac_good "$AC_M"; ac_ask "$AC_M"; ac_round accept "$AC_N"; grep -qx "accepted #$AC_N $(printf %s "$AC_M" | cut -c1-12)" "$T/out" || fail 'the ticket was not accepted'
 grep -q "^step-$AC_N-$(printf %s "$AC_M" | cut -c1-12)	$AC_N	$AC_M	$AC_M\$" .vid/decide/merges || fail 'the acceptance is not in merges'
+sh "$CHECKS/close.sh" owed > "$T/out" 2>&1; ! grep -q '^close S02' "$T/out" || fail 'a close is owed with no engines named'   # FB-3 A1.5
+printf 'engines alpha | stand-in: owner at 2026-11-19T09:00:00Z, words "alpha"\n' >> .vid/tw/handed
 sh "$CHECKS/close.sh" owed > "$T/out" 2>&1; grep -q '^close S02' "$T/out" || fail 'the accepted ticket made no close owed'
 sh "$CHECKS/decisions.sh" record > "$T/out" 2>&1 || fail 'decisions.sh record failed'; ! grep -q 'step-' "$T/out" && ! grep -q 'decisions-recorded pr=step-' .vid/metrics-events || fail "the acceptance's step- line was read as a pull request"
 # the accepted ticket, its issue still open until the step's close, reads as closed to the writer: out of the sync's open list, and a

@@ -10,11 +10,16 @@
 #     a helper's included, no longer recomputes it: the step only writes the run file.
 # Its three fields (the event, the session, the helper) are taken in one pass of hooks/agent.sh's reader, whose time
 # grows in step with the input (a Write's whole text is in it); key order does not matter to it.
+#   - FB-3 D1: where .vid/tw/settings is (ticket mode) and no standing yet, it makes the folder and the standing first.
 # An input with no event name is a step (as before). Elsewhere it does nothing. It only rewrites those
 # work-in-progress files; it fails open and always exits 0.
 IN=$(cat 2>/dev/null || true)
 TOP=$(git rev-parse --show-toplevel 2>/dev/null || pwd -P)
-[ -f "$TOP/.vid/face/standing.json" ] || exit 0
+NEW=''   # FB-3 D1: a ticket-mode project's first event makes the standing, so its backlog is in the panel from the first turn
+if [ ! -f "$TOP/.vid/face/standing.json" ]; then
+  [ -f "$TOP/.vid/tw/settings" ] && mkdir -p "$TOP/.vid/face" 2>/dev/null || exit 0
+  NEW=1
+fi
 case $0 in */*) HD=${0%/*} ;; *) HD=. ;; esac
 R=${CLAUDE_PLUGIN_ROOT:-$(cd "$HD/.." && pwd -P)}
 ev=''; sid=''; agent=''
@@ -32,6 +37,7 @@ state=''; since=''; last=''
 [ -n "$sid" ] && [ -f "$RUN" ] && read -r state since last < "$RUN" 2>/dev/null
 put() { [ -n "$sid" ] || return 0; printf '%s %s %s\n' "$1" "$2" "${3:--}" > "$RUN.$$" 2>/dev/null && mv -f "$RUN.$$" "$RUN" 2>/dev/null; return 0; }
 standing() { (cd "$TOP" && sh "$R/checks/face.sh" standing > /dev/null 2>&1) || true; }
+[ -z "$NEW" ] || standing
 case $ev in
   UserPromptSubmit) put running "$now" "$last" ;;
   Stop) put stopped "$now" "$last"; standing ;;

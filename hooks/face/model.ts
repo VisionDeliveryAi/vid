@@ -2,7 +2,7 @@
 // checks/face.sh and the hooks write, and composes the one message a sitting
 // sends. No engine call here: register.tsx reads and draws, this decides.
 
-import type { Act, FaceItem, FaceSection, Kind, Marks, Page, Run, Sitting, Standing, Stop, Wait } from './types'
+import type { Act, Backlog, BacklogItem, FaceItem, FaceSection, Kind, Marks, Page, Run, Sitting, Standing, Stop, Wait } from './types'
 
 // usability (P1): format 2 carries each item's preset; format 1 is read too, with none
 export const FORMAT = 2
@@ -119,14 +119,24 @@ export function parseStanding(text: string): Parsed<Standing> {
       return { name: str(x.name), state: str(x.state) }
     }),
     now: str(w.now),
+    stop: str(w.stop),
+    written: str(w.written),
   }
+  // FB-3 D1: the backlog, null where the standing carries none
+  const items = (v: unknown): BacklogItem[] =>
+    (Array.isArray(v) ? v : []).map(iv => {
+      const x = obj(iv)
+      return { id: str(x.id), state: str(x.state), who: str(x.who), words: str(x.words), next: str(x.next), note: str(x.note) }
+    })
+  const b = obj(o.backlog)
+  const backlog: Backlog | null = Array.isArray(b.items) ? { items: items(b.items), done: items(b.done), doneCount: num(b.doneCount) } : null
   // usability (P9): the pages to read, in the index's order
   const pages: Page[] = (Array.isArray(o.pages) ? o.pages : []).map(pv => {
     const x = obj(pv)
     return { id: str(x.id), title: str(x.title), file: str(x.file), link: str(x.link), stops: (Array.isArray(x.stops) ? x.stops : []).map(num) }
   })
   return {
-    value: { format: num(o.format), written: str(o.written), current: num(o.current), turn: str(o.turn), sitting: str(o.sitting), session: str(o.session), next: str(o.next), wait, pages, stops },
+    value: { format: num(o.format), written: str(o.written), current: num(o.current), turn: str(o.turn), sitting: str(o.sitting), session: str(o.session), next: str(o.next), wait, backlog, pages, stops },
     problem: '',
   }
 }
@@ -141,12 +151,42 @@ export function parseRun(text: string): Run | null {
 export const running = (r: Run | null): boolean => r !== null && r.state === 'running'
 
 // What the panel shows: one of these, from the files and the marks.
-export type Mode = 'sitting' | 'sent' | 'drafting' | 'working' | 'stopped' | 'idle' | 'done' | 'problem' | 'none'
+export type Mode = 'sitting' | 'sent' | 'drafting' | 'run' | 'working' | 'stopped' | 'idle' | 'done' | 'problem' | 'none'
 
 // usability (P4): a waiting sitting is drawn while the standing's current stop is its stop or an earlier one
 export function waits(standing: Standing | null, sitting: Sitting | null): boolean {
   return standing !== null && sitting !== null && sitting.state === 'waiting' && standing.current <= sitting.stop
 }
+
+// FB-3 D1, D2: in ticket mode, the standing holds a backlog, or the parts or the stop of a call
+export function runs(standing: Standing): boolean {
+  const b = standing.backlog, w = standing.wait
+  return b !== null && (b.items.length > 0 || b.doneCount > 0 || w.parts.length > 0 || w.stop !== '')
+}
+
+// FB-3 D2: a call's parts are live while the session runs and they were written in its turn: a killed call's are not
+export function live(standing: Standing, run: Run | null): boolean {
+  if (!running(run)) return false
+  const written = Date.parse(standing.wait.written), since = Date.parse(run!.since)
+  return Number.isNaN(written) || Number.isNaN(since) || written >= since
+}
+
+// FB-3 D1: the list as the panel draws it, each group in the list's own order; and its counts in one line
+export function listed(b: Backlog): { doing: BacklogItem[]; todo: BacklogItem[]; waiting: BacklogItem[]; aside: BacklogItem[]; counts: string } {
+  const of = (s: string) => b.items.filter(i => i.state === s)
+  const g = { doing: of('doing'), todo: of('to do'), waiting: of('waiting'), aside: of('aside') }
+  const counts = [
+    [g.todo.length, 'to do'],
+    [g.doing.length, 'in progress'],
+    [g.waiting.length, 'waiting'],
+    [g.aside.length, 'set aside'],
+  ]
+    .filter(([n]) => n)
+    .map(([n, w]) => `${n} ${w}`)
+    .join(' · ')
+  return { ...g, counts: counts || 'Nothing is open' }
+}
+export const cut = (t: string): string => (t.length > 300 ? t.slice(0, 299).trimEnd() + '…' : t)
 
 export function modeOf(standing: Standing | null, sitting: Sitting | null, marks: Marks, problem: string, project: boolean, run: Run | null): Mode {
   if (problem) return 'problem'
@@ -155,6 +195,8 @@ export function modeOf(standing: Standing | null, sitting: Sitting | null, marks
   if (waits(standing, sitting)) return marks.sentAt ? 'sent' : 'sitting'
   // usability (P13): a draft at the current stop or a later one is shown, never as waiting on the person
   if (sitting !== null && sitting.state === 'drafting' && standing.current <= sitting.stop) return 'drafting'
+  // FB-3 D1, D2: a run: the owner's list, or a long call's parts or stop, whatever stop the map is at
+  if (runs(standing)) return 'run'
   if (standing.current > standing.stops.length) return 'done'
   if (standing.current <= 1) return 'idle'
   return running(run) ? 'working' : 'stopped'

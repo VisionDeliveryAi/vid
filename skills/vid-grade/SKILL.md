@@ -235,9 +235,10 @@ reads it automatically; the owner's adjudication is the only bridge to
 
 ## In ticket mode (v0.26.10.27.2)
 
-When `.vid/RUN-STATE.md` says `mode: tickets`, the code is the dev side's and ViD reads none of it: a grade is GR's, DevAgent's, and
-`/vid grade` is an **ask** for one. Everything else in this file is develop's branch and does not run. In both GitHub modes (GM-4 K8)
-the ask is posted where the owner asks for it, its report is read by `grade.sh step` at the next read of ViD's own work, and its
+When `.vid/RUN-STATE.md` says `mode: tickets`, the code is the dev side's and ViD copies none of it: `/vid grade` is an **ask** for a
+grade. Everything else in this file is develop's branch and does not run. In GitHub auto the grade is GR's, DevAgent's, its ask posted
+where the owner asks for it; in GitHub manual ViD makes it itself, at once, and posts nothing (FB-3 A1.6, "In GitHub manual" below).
+In both GitHub modes (GM-4 K8) its report is read by `grade.sh step` at the next read of ViD's own work, and its
 findings reach the owner as `Q` lines: in GitHub auto in /vid run's round (`round.sh step`), in GitHub manual at the next /vid next
 call's step 2, once the owner's own-work switch is on. /vid run loads this skill at its start and says its lines as it says them.
 
@@ -256,7 +257,9 @@ and nothing is asked.
      with the areas the owner then names;
    - `--visual` has no ticket-mode ask: the screens are the walk's, W1 (v0.26.10.26.4).
 
-   It prints `asked <n> grade ask-<n>`. Tell the owner in one line: the ask's issue, the commit it grades and what it asks.
+   It prints `asked <n> grade ask-<n>`. Tell the owner in one line: the ask's issue, the commit it grades and what it asks. In GitHub
+   manual it prints `review grade-<n> <c12>` too, and what the grade does not read: no issue is posted, and you make it now, as "In
+   GitHub manual" below says.
 2. **The round reads it** (`grade.sh step`, in `round.sh step`: /vid run's round, or /vid next's step 2), saying its lines as the table
    below says: a report refused for its form is posted back; one late is asked again once, then a `Q` line asks the owner `again` or
    `no`.
@@ -267,7 +270,21 @@ and nothing is asked.
 
 | Line | What you do |
 |---|---|
+| `review grade-<n> <c12>` | The grade was asked of ViD itself (in GitHub manual) and is not made yet, whichever mode the project is in now: make it, as "In GitHub manual" below says. It is never posted, asked again or lost |
 | `grade-ask <n> read <k>: …`, `vs <n> <REQ> <word> — <reason>`, `grade-ask-refused <n> <k>`, `grade-again <n>`, `grade-lost <n>` | The owner's grade ask (v0.26.10.27.2): say it read, once, with its counts; a `vs` line is a passing requirement's grade at the second commit, said with it. A refusal is posted back by the round. Its findings, and a lost ask, are `Q` lines for the owner |
+
+**In GitHub manual** (FB-3 A1.6): one fresh grader, as develop has one a pass, reads the changes of the merged pull requests of the
+tickets holding the asked requirements' rows, contained in the commit graded (`--vs`: those each commit holds; robustify: every
+ticket's), through GitHub; ViD keeps and runs none of the code. Its limit, said to the owner with the ask: code no ticket changed is
+not read. At `review grade-<n> <c12>`, at the ask or at a later call's:
+
+1. `CLAUDE_PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT}" sh checks/review.sh prepare <n>`. `recorded <n>`: there was nothing to read, and every
+   requirement reads `absent — unread: …`. A refusal naming no pull request at all (a robustify ask): say it, and the owner may
+   withdraw the ask. `brief <n> <path>`: go on. The brief holds the reviewer's pass, skills/vid-accept-step/passes/review.md.
+2. Spawn one fresh `vid:grader` agent (the Agent tool, no model override, in the foreground) with the repository's path and that brief
+   file, and nothing else. It writes `.vid/round/review/<n>/grade.txt` alone.
+3. `CLAUDE_PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT}" sh checks/review.sh record <n> .vid/round/review/<n>/grade.txt`. `recorded <n>`: run `sh checks/grade.sh step`, then `sh checks/queue.sh sync`, and say what they print
+   as the table above says. Refused, or no file: one fresh agent more with the same brief; failing again, say the line as it stands: it is due at the next call.
 
 An ask out keeps the session from ending at `nothing-left`; a lost one waits on the owner.
 

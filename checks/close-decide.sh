@@ -18,6 +18,7 @@ prior() { if [ -n "$CSM" ]; then for j in $(ls "$SD/$STG" | grep -E '^[0-9]+$' |
   else for j in $(ls "$KD" | grep -E '^[0-9]+$' | sort -n); do [ "$j" -lt "$k" ] && echo "$KD/$j"; done; fi; return 0; }
 # decide_k: the newest ask k of the folder KD, as a step close (STG empty) or a stage's C3 (STG its number)
 decide_k() { K=$KD/$k; [ ! -f "$K/withdrawn" ] || return 0; n=$(akey issue); touch "$K/again" "$K/items" "$K/acted" "$K/lined" "$K/fixes"; : > "$SX/fo"
+  prog now "reading the run report of $([ -z "$STG" ] && echo "step $s's close" || echo "stage $STG")"   # FB-3 D2
   sh "$HERE/results.sh" close $RA > /dev/null 2> .vid/round/ce || die "the close could not be read: $(tail -n 1 .vid/round/ce)"
   # a known limit leaves the close; a chunk's state is that of its other rows: a row not run makes it incomplete, red or not
   awk -F'\t' -v SF="$D/state" -v FO="$SX/fo" "$LIMB"'

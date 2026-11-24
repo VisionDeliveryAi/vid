@@ -16,7 +16,7 @@
 <text x="28" y="186" text-anchor="start" style="fill:#16202a;font-size:14px;font-weight:600;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">ViD, in a Claude Code session</text>
 <text x="28" y="206" text-anchor="start" style="fill:#5a6875;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">Writes the spec with you.</text>
 <text x="28" y="226" text-anchor="start" style="fill:#5a6875;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">Plans steps; writes tickets.</text>
-<text x="28" y="246" text-anchor="start" style="fill:#5a6875;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">Reads results; decides each row.</text>
+<text x="28" y="246" text-anchor="start" style="fill:#5a6875;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">Reads results; reviews; decides.</text>
 <text x="28" y="266" text-anchor="start" style="fill:#5a6875;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">Writes no code. Runs nothing.</text>
 <rect x="350" y="42" width="300" height="110" rx="3" style="fill:#e2eff4;stroke:#0b5c7a" stroke-width="1"/>
 <text x="362" y="64" text-anchor="start" style="fill:#16202a;font-size:14px;font-weight:600;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">The spec repository (private)</text>
@@ -31,8 +31,8 @@
 <text x="362" y="283" text-anchor="start" style="fill:#5a6875;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">Comments: claims, questions, decisions.</text>
 <rect x="684" y="42" width="300" height="110" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
 <text x="696" y="64" text-anchor="start" style="fill:#16202a;font-size:14px;font-weight:600;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">Your developers</text>
-<text x="696" y="84" text-anchor="start" style="fill:#5a6875;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">Write tests first; build; test.</text>
-<text x="696" y="104" text-anchor="start" style="fill:#5a6875;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">Grade each other&#x27;s work, fresh.</text>
+<text x="696" y="84" text-anchor="start" style="fill:#5a6875;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">Write tests; build; test.</text>
+<text x="696" y="104" text-anchor="start" style="fill:#5a6875;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">Push the test results.</text>
 <text x="696" y="124" text-anchor="start" style="fill:#5a6875;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">Merge to main, then ask ViD.</text>
 <rect x="684" y="164" width="300" height="170" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
 <text x="696" y="186" text-anchor="start" style="fill:#16202a;font-size:14px;font-weight:600;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">Your tools and your tests</text>

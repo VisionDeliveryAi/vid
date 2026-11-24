@@ -1,9 +1,9 @@
 #!/bin/sh
-# Purpose: selftest case — the decision at a ticket's end (GM-4 E2, with E12; GM M8: by the existing decision rules, unchanged), through
+# Purpose: selftest case — the decision at a ticket's end (GM-4 E2, with E12; FB-3 A1: from the team's own results and ViD's own review), through
 # round.sh accept on GitHub manual's toy and the fake gh (fixtures/accept.sh). A ticket in accepted-at with no merge on record is
-# decided at the commit asked; a unit merged under it with no Decisions section makes it `not yet`, naming the pull request, beside a
-# row whose head report misses a caught break, named; a row held at the next asked commit is a Q line in RUN-STATE before the answer, and still after a switch to GitHub auto (F13);
-# the owner's answer `a` re-decides that commit and posts once; once the unit's description has `Decisions: none` the ticket asked
+# decided at the commit asked; a unit merged under it with no Decisions section makes it `not yet`, naming the pull request, beside two
+# rows whose results fail, named; a row failing again at the next asked commit is held, a Q line in RUN-STATE before the answer, and still after a switch to GitHub auto (F13);
+# the owner's answer `c` re-decides that commit and posts once; once the unit's description has `Decisions: none` the ticket asked
 # again is accepted, its acceptance in merges; asked again, the one line `ticket: accepted at <c12>; its close runs there` and no row
 # moved; a ruling on a row no decision holds, an amend or more of a row not held and an unknown answer are refused, nothing
 # recorded. A second ticket, decided directly: a test it lists marked retired is not decided, nor read through a retested: line or a fault folder, and (E12) a weak test's siblings are read at
@@ -17,14 +17,14 @@ ac_project "$T/p" || fail 'the toy could not be made'
 mkdir -p .vid/decide; printf '9 %s 0123456789ab at=2026-11-01T00:00:00Z\n' "$AC_N" > .vid/decide/accepted-at   # accepted at a pull request in GitHub auto
 ac_unit unit-1 "$(printf 'ticket: #%s\n\nThe first unit.' "$AC_N")"; UP=$AC_P; C1=$AC_M
 ac_round step; grep -qx "unit-merged $UP $AC_N" "$T/out" || fail 'the unit merge was not recorded'
-# C1: ROW-001's head report fails (a break caught), ROW-012 has no red; the unit has no Decisions section
+# C1: ROW-001's and ROW-012's results fail; the unit has no Decisions section
 _i=red-$AC_N-1; rr_put "$_i" results.txt "$(printf 'by: TM\ncommit: %s\nrows: ROW-001' "$AC_RED")"; rr_put "$_i" cases-alpha.xml "$(rr_cases ROW-001=fail:no\ digest)"; ac_send "$_i"
-ac_head "$C1" 1 ROW-001=fail:a\ second\ digest ROW-012=pass; ac_grade "$C1"; ac_ask "$C1"; n0=$(ac_comments)
+ac_head "$C1" 1 ROW-001=fail:a\ second\ digest ROW-012=fail:no\ page; ac_grade "$C1"; ac_ask "$C1"; n0=$(ac_comments)
 ac_round accept "$AC_N"; [ "$RC" = 0 ] || fail "accept exited $RC"; [ "$(ac_comments)" = $((n0 + 1)) ] || fail 'the decision at C1 was not posted once'
 ac_last > "$T/d1"; grep -qx 'ticket: not yet' "$T/d1" || { cp "$T/d1" "$T/out"; fail 'the ticket in accepted-at with no merge was not decided at the commit asked'; }
 grep -q '^ROW-001 failing, a product failure' "$T/d1" && grep -qx "no Decisions section — #$UP" "$T/d1" || { cp "$T/d1" "$T/out"; fail 'the not yet names neither the caught break nor the unit with no Decisions section'; }
-# C2: ROW-001 passes, ROW-012 still has no red: held, a Q line before any answer
-tk_dev 'the fix'; C2=$(git -C "$T/dev" rev-parse HEAD); ac_head "$C2" 1; ac_ask "$C2"; ac_round accept "$AC_N"; [ "$RC" = 0 ] || fail "accept at C2 exited $RC"
+# C2: ROW-001 passes, ROW-012 fails again: held, a Q line before any answer
+tk_dev 'the fix'; C2=$(git -C "$T/dev" rev-parse HEAD); ac_head "$C2" 1 ROW-001=pass ROW-012=fail:no\ page; ac_ask "$C2"; ac_round accept "$AC_N"; [ "$RC" = 0 ] || fail "accept at C2 exited $RC"
 ac_last | grep -q '^ROW-012 held' || { ac_last > "$T/out"; fail 'ROW-012 is not held at C2'; }
 grep -q 'held ROW-012' .vid/RUN-STATE.md || { cp .vid/RUN-STATE.md "$T/out"; fail 'the held row is no Q line in RUN-STATE before the answer'; }
 # F13 (L3): switched to GitHub auto, the queue still reads the step- decision: the held row stays a Q line; then back to manual
@@ -32,10 +32,10 @@ cp .vid/plan/setup "$T/setup0"; printf 'setup-answered key=github-mode value="au
 sh "$CHECKS/queue.sh" sync > "$T/out" 2>&1 || fail 'the queue did not sync in GitHub auto'; grep -q 'held ROW-012' .vid/RUN-STATE.md || { cp .vid/RUN-STATE.md "$T/out"; fail 'after the switch to auto the held row of a step- decision is no Q line'; }
 cp "$T/setup0" .vid/plan/setup
 QA=$(sh "$CHECKS/queue.sh" list 2>/dev/null | awk -F'\t' '$2 == "held:ROW-012" { print $1; exit }'); [ -n "$QA" ] || fail 'no Q line for the held row'
-sh "$CHECKS/queue.sh" answer "$QA" a 'Yes, accept it' > "$T/out" 2>&1 || fail 'the owner could not answer the held row'
+sh "$CHECKS/queue.sh" answer "$QA" c 'A known limit' > "$T/out" 2>&1 || fail 'the owner could not answer the held row'
 ac_round step; grep -qx "decide #$AC_N $C2" "$T/out" || fail 'the answer did not make the ticket owed a decision'
 n0=$(ac_comments); ac_round accept "$AC_N" "$C2"; [ "$(ac_comments)" = $((n0 + 1)) ] || fail 'the re-decision was not posted once'
-ac_last | grep -q '^ROW-012 accepted by ruling' || { ac_last > "$T/out"; fail 'the re-decision does not read the ruling'; }
+ac_last | grep -q '^ROW-012 known limit' || { ac_last > "$T/out"; fail 'the re-decision does not read the ruling'; }
 ac_round accept "$AC_N" "$C2"; [ "$(ac_comments)" = $((n0 + 1)) ] || fail 'an unchanged re-decision was posted again'
 # the unit's description gains Decisions: none; asked again, accepted, its acceptance its merge
 printf 'ticket: #%s\n\nDecisions: none\n' "$AC_N" > "$FAKEGH/prs/$UP/body"; ac_ask "$C2"; ac_round accept "$AC_N"

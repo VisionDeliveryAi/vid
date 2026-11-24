@@ -1,9 +1,0 @@
-by: GR
-commit: <the head commit, full id>
-ROW-006 kept — one base template frames every page with the header naming JobDigest and the footer giving support@jobdigest.example and the unsubscribe help link, and every error answer renders inside it; the tests reach six pages as a person reaches them (the form, the saved state, the active state from the mail, the unsubscribe answer from the mail, an unknown address, the help page) and each needs exactly one header with the name and one footer with that address and no other, so a page without the frame, or with another address, fails
-ROW-003 kept — the saved state's template is the design's section element for element, with the same ids and the line's exact words; the changed helper now leaves the header and footer out of the stray controls it counts, and the planted break that removes the line still fails the test
-ROW-004-T1 kept — unchanged since the skeleton: saving stores the search and mails one Confirm link before the saved state answers, and its test needs exactly one such message
-ROW-004-T2 kept — unchanged: the Confirm link from the message opens the active state of that search and address, with the word Active
-ROW-004-T3 kept — unchanged: the worker sends the digest, which lists the matching jobs and links each to its own source page, and the test opens the listed job's page
-finding: rule low — the support address support@jobdigest.example is in a reserved domain that can receive no mail, so REQ-012's second arm, mail to it bounces, fails the day it ships; DIF-003 covers the mail provider, not this address
-finding: bug low — "every page" is proved on six pages; the refused form's answer (400) and the unavailable answer (503) are reached by no test, so a frame missing there would pass — jobdigest/web.py — submit the form with empty search words: the answer is not checked for the frame

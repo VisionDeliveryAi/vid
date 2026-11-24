@@ -18,12 +18,21 @@ twkey() { skey "$1"; }
 # before the mode is recorded; never in /vid mode's switch to GitHub auto (GM-4 F13, VID_CALLER=mode-auto), which reads under
 # auto's rules before the mode is recorded. Every script asks these, never the setup or the caller mark itself (GM-4 F10)
 ghmode() { _gm=$(sed -n 's/^setup-answered key=github-mode value="\([a-z]*\)".*/\1/p' .vid/plan/setup 2>/dev/null | tail -n 1); case $_gm in auto|team|manual) echo "$_gm" ;; *) echo none ;; esac; }
+# FB-3 A1.6: ownask <n>, an ask number of ViD's own, ten digits beginning with 0 (a stage's grade 0900<N><c>, an owner's grade ask 091<k>, in
+# GitHub manual): no issue on GitHub has it, by text or by value
+ownask() { case ${1:-} in 0[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]) return 0 ;; esac; return 1; }
 manual() { case ${VID_CALLER:-} in mode) return 0 ;; mode-auto) return 1 ;; esac; [ "$(ghmode)" = manual ]; }
+# onrec (FB-3 C3): the tickets on ViD's record, one number a line: each .vid/tw/log publishes and does not withdraw, whatever its
+# labels on GitHub. A ticket is one of these or an issue labelled <prefix>ticket, in every reader, both modes
+onrec() { awk '$1 == "published" && $2 ~ /^[0-9]+$/ { P[$2] = 1 } $1 == "withdrawn" { delete P[$2] } END { for (n in P) print n }' .vid/tw/log 2>/dev/null | sort -n; }
 # applied (GM-4 F8): the commit the team has, one line, the one reader of it: in GitHub manual the first line of .vid/tw/applied
 # (GM M3: every change reaches the team only through the apply), nothing when none is recorded; in every other mode HEAD, where every
 # commit of ViD's is exported as it is made, so no record is kept there. A reader that must know there is no recorded version in
 # GitHub manual checks manual and an empty applied
 applied() { if manual; then sed -n '1s/[[:space:]]*$//p' .vid/tw/applied 2>/dev/null; else git rev-parse -q --verify HEAD 2>/dev/null; fi; }
+# engnone (FB-3 E2): no engines line on the handed record; ENGASK, the line that says so, with its command (both modes)
+engnone() { [ -z "$(sed -n 's/^engines \(.*\) | stand-in.*/\1/p' .vid/tw/handed 2>/dev/null | tail -n 1)" ]; }
+ENGASK='engines not named — /vid:vid-accept-step engines "<primary> <other>…" "<words>"'
 # plan_block [<RUN-STATE>]: the vid-plan block's lines under "## The plan", strict fence, trailing space trimmed: plan.sh's `block`, whose hash is the plan's
 plan_block() { [ -f "${1:-.vid/RUN-STATE.md}" ] || return 0; awk '/^## The plan/ { s = 1; next } s && /^## / { exit } s && /^```vid-plan[ \t]*$/ { b = 1; next } b && /^```[ \t]*$/ { exit } b { print }' "${1:-.vid/RUN-STATE.md}" | sed 's/[[:space:]]*$//'; }
 # rkey: the round's refusal key: the plan block, the handed record and the newest tw-sync's main (0.26.10.28.2, R4), so a refusal is tried again once one
@@ -47,6 +56,11 @@ epoch() { date -u -j -f '%Y-%m-%dT%H:%M:%SZ' "$1" +%s 2>/dev/null || date -u -d 
 # stamp, now: the UTC time, ISO
 stamp() { date -u '+%Y-%m-%dT%H:%M:%SZ'; }
 now() { stamp; }
+# prog on|now|stop|parts|done [<words>…] (FB-3 D2): the progress of a long call, beside the chat (checks/face.sh wait …); it prints
+# nothing and never fails the call
+prog() { sh "$HERE/face.sh" wait "$@" > /dev/null 2>&1 || :; }
+# pneed <what it needs> (FB-3 D2): a call's running part stopped, where the call named its parts; with none named, nothing is written
+pneed() { ! grep -q "^part$(printf '\t')" .vid/face/wait 2> /dev/null || prog stop "$1"; }
 # notowner (0.26.10.29.5, DP-1 R4): the answers not given by the owner, `<when>\t<key>\t<value>\t<words>\t<by>` a line, from two records
 # with no overlap: the queue's answers (.vid/decide/queue/answers) whose by is not owner, its held rows apart (their rulings are the
 # record) and control:hold apart (the hold's second record of one continue); and each held-row ruling (.vid/decide/rulings) whose who

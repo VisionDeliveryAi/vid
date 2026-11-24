@@ -39,7 +39,7 @@ sh "$CHECKS/stages.sh" scope --upto 1 --reqs 2>/dev/null | grep -qx 'REQ-099' ||
 sh "$CHECKS/stages.sh" scope --upto 1 2>/dev/null | grep -qx 'ROW-099' || fail 'the toy did not put the pending row in stage 1'
 # stage 1's grade ask
 cs ask --stage 1; [ "$RC" = 0 ] || fail "the stage's ask exited $RC"; K=.vid/decide/stage/1/1; G=$(sed -n 's/^issue\t//p' "$K/s1ask"); [ -n "$G" ] || fail 'no grade ask for stage 1'
-RQ=$(sed -n 's/^requirements: //p' "$T/gh/issues/$G/body"); case " $RQ " in *' REQ-001 '*) ;; *) fail "the stage's grade ask names no applied requirement: $RQ" ;; esac
+RQ=$(sed -n 's/^requirements: //p' "$K/s1body"); case " $RQ " in *' REQ-001 '*) ;; *) fail "the stage's grade ask names no applied requirement: $RQ" ;; esac
 case " $RQ " in *' REQ-099 '*) fail "the stage's grade ask names the pending requirement: $RQ" ;; esac
 # the rest chunk: a case named for the pending row is unmatched, the applied inventory holding no ROW-099 (results.sh invids)
 grep -q "^chunk${TAB}p1cx${TAB}" "$K/ask" || fail "stage 1's close ask has no rest chunk: $(cat "$K/ask")"
@@ -53,7 +53,7 @@ grep -qx "unmatched${TAB}ROW-099_names_its_sender${TAB}passed" "$T/out" || fail 
 ! grep -q "^unmatched${TAB}ROW-001_" "$T/out" || fail 'the results reader left an applied row out of its inventory ids'
 # the owner's grade ask: the pending requirement neither asked nor deferred
 RC=0; sh "$CHECKS/grade.sh" ask > "$T/out" 2>&1 || RC=$?; [ "$RC" = 0 ] || fail "the owner's grade ask exited $RC"; GA=$(sed -n 's/^asked \([0-9]*\) grade ask-.*/\1/p' "$T/out")
-! grep -q 'REQ-099' "$T/gh/issues/$GA/body" || fail "the owner's grade ask names the pending requirement: $(grep 'REQ-099' "$T/gh/issues/$GA/body")"
+! grep -q 'REQ-099' ".vid/decide/grade/$GA/body" || fail "the owner's grade ask names the pending requirement: $(grep 'REQ-099' ".vid/decide/grade/$GA/body")"   # FB-3 A1.6: no issue, its body in ViD's records
 # the staging okay: its C3 passed, the applied hosting block quoted
 : > "$K/passed"; : > "$K/done"; cs okay --stage 1; [ "$RC" = 0 ] || fail "the staging okay exited $RC"; O=$(sed -n 's/^asked \([0-9]*\) okay stage-1$/\1/p' "$T/out"); [ -n "$O" ] || fail 'no staging okay'
 grep -qx "> staging: the platform's own address" "$T/gh/issues/$O/body" || fail "the okay does not quote the applied hosting block: $(sed -n '/^The hosting:/,/^$/p' "$T/gh/issues/$O/body")"

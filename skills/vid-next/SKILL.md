@@ -16,7 +16,8 @@ The call's order, nothing more: every tier, warning, count, check and every move
    is not in GitHub manual and the verb that fits, and end: `auto`, /vid:vid-run works its tickets; `team`, an old answer of the
    retired team mode, /vid:vid-mode manual moves it over (FB-1 C1). Nothing is written.
 1. **Connect.** Invoke the `vid-connect` skill (the Skill tool) and do its connect, for every caller. Where it ends the call,
-   end. Its start opens the call's stage: every move below runs in it.
+   end. Its start opens the call's stage: every move below runs in it. The panel beside the chat shows the call's parts as they
+   run; the scripts say them (FB-3 D2).
 2. **ViD's own work by its rules,** behind the owner's switch: `sh "${CLAUDE_PLUGIN_ROOT}/checks/next.sh" own-work`.
    - Unless it prints `on`: say in one line that ViD's own work is off, with the move that turns it on, `own-work on "<your words>"`, and run nothing here. Each `context ask` line step 5 shows is then said with its command, as the vid-accept-step skill says it.
    - With it on, these in order, one line each, every line they print said as its skill says:
@@ -28,9 +29,10 @@ The call's order, nothing more: every tier, warning, count, check and every move
      - `sh "${CLAUDE_PLUGIN_ROOT}/checks/round.sh" asks`: the owed asks, okays and stage close, the step's close among them, each said as its skill says.
 3. **Read.** Invoke the `vid-read` skill.
 4. **Triggers, warnings, moves.** Invoke the `vid-triggers` skill.
-5. **Show.** The lines as `next.sh triggers` printed them. With no move named, `sh "${CLAUDE_PLUGIN_ROOT}/checks/next-move.sh" call`:
+5. **Show.** The lines as `next.sh triggers --short` printed them. With no move named, `sh "${CLAUDE_PLUGIN_ROOT}/checks/next-move.sh" call`:
    it keeps what was shown in the owner's queue and writes the plan page, then prints each open `Q<n>` line with the answers it
-   takes. Say its lines.
+   takes, one line a kind. Say its lines; a `proposal due` line is a question of the owner's, its yes the move it names. End with
+   the `next:` line of `queue.sh backlog` (the vid-answer skill, the backlog).
 6. **The moves named.** With `/vid next <moves>`, in place of step 5's call:
    `sh "${CLAUDE_PLUGIN_ROOT}/checks/next-move.sh" call <move> [-- <move>]…`, each move as the owner named it, in the
    owner's order, `--` between two, one argument each, quoted (a bare `#` would open a shell comment), the owner's words the
@@ -64,6 +66,7 @@ The call's order, nothing more: every tier, warning, count, check and every move
    lock, a failure included.
 
 **After the call: the plan page,** the `vid-triggers` skill's show of it (GM-4 K9), once vid-connect's end has saved the
-records and freed the lock: its section "The plan page", with the page `page <path>` names.
+records and freed the lock: its section "The plan page", with the page `page <path>` names. When the call made a re-plan proposal,
+the `vid-replan` skill's show of it then too: its section "The re-plan page".
 
 Nothing goes to the code repository, the spec repository or Slack but what a move named in the call posts.

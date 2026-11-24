@@ -2,8 +2,8 @@
 # Purpose: selftest case — setup answers recorded (v0.26.10.26.7, R11, W-13), checks/planner.sh setup and check on the planner's toy.
 # Defaults written with no setup-answered line (.vid/plan/setup) raise one `setup` flag a key (layout, team, split, repo, spec-repo, github-mode) before the first
 # ratify, and ratify refuses; `setup` writes each key with the owner's words and a setup-answered line; "not yet" writes no repository key;
-# settings holding layout one (accepted again, GM-4 J5: planner-setup-layout-one) still ask the spec repository, ViD's private
-# one being asked in both layouts; the first team answer replaces a written default; an unknown key and a wrong
+# settings holding layout one (accepted again, GM-4 J5: planner-setup-layout-one) ask no spec repository while the mode is unanswered,
+# and ask it once github-mode is auto (FB-3 B2); the first team answer replaces a written default; an unknown key and a wrong
 # answer are refused, a wrong github-mode answer among them (v0.26.10.28.8, R3). Once all are answered, ratify passes. An existing ratified plan with no setup-answered lines lands a
 # draft. Env: CHECKS.
 set -eu
@@ -21,9 +21,10 @@ pl setup colour blue --words 'blue'; [ "$RC" = 2 ] || fail 'an unknown key was t
 pl setup layout separate --words 'two repositories'; [ "$RC" = 0 ] || fail "setup layout failed ($RC)"; grep -qx 'layout: separate' .vid/tw/settings && [ "$(grep -c '^layout:' .vid/tw/settings)" = 1 ] || fail "layout: $(grep '^layout' .vid/tw/settings)"
 grep -q '^setup-answered key=layout value="separate" words="two repositories" at=' .vid/plan/setup || fail 'no setup-answered line'
 grep -qx 'labels-prefix:' .vid/tw/settings || fail 'no labels-prefix: line written with the setup'   # the walk: the writer refuses without it
-# settings holding layout one: the spec repository still asked (GM-4 J5)
+# settings holding layout one: the spec repository asked in GitHub auto alone (FB-3 B2)
 sed 's/^layout: separate$/layout: one/' .vid/tw/settings > "$T/st"; cat "$T/st" > .vid/tw/settings; printf 'setup-answered key=layout value="one" words="one repository, please" at=2026-11-03T09:00:00Z\n' >> .vid/plan/setup
-pl check; no '^setup layout'; ok '^setup spec-repo'; ok '^setup team'
+pl check; no '^setup layout'; no '^setup spec-repo'; ok '^setup team'
+cp .vid/plan/setup "$T/su"; printf 'setup-answered key=github-mode value="auto" words="DevAgent" at=2026-11-03T09:00:00Z\n' >> .vid/plan/setup; pl check; ok '^setup spec-repo'; cat "$T/su" > .vid/plan/setup
 pl setup spec-repo owner/code-spec --words 'that spec repository'; [ "$RC" = 0 ] || fail "setup spec-repo failed ($RC)"
 pl setup team 'web | the pages | strict | 2' --words 'a web team of two'; [ "$(grep -c '^team:' .vid/tw/settings)" = 1 ] && grep -qx 'team: web | the pages | strict | 2' .vid/tw/settings || fail "the first team answer did not replace the default: $(grep '^team' .vid/tw/settings)"
 pl setup team 'devagent | the whole product | core | 1' --words 'and DevAgent'; [ "$(grep -c '^team:' .vid/tw/settings)" = 2 ] || fail 'a second team answer replaced the first'

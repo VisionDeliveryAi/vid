@@ -2,10 +2,10 @@
 # Purpose: selftest case — a test's evidence counted from the amendment that adds or restates it (GM-4 E3, GM M5), in GitHub manual, on
 # the toy and the fake gh (fixtures/accept.sh), by results.sh read --ticket <n> --at <c> and decide.sh. The ticket's newest `amended`
 # log line restates ROW-012 and adds ROW-020 (a top-up, or a team-added test taken in: the same added= list). Before any report made
-# after it: ROW-012's and ROW-020's red runs before it do not count, nor a head report before it; ROW-001, whose landed change the
-# ticket does not quote, keeps its evidence from the publication. Held at two commits so, ROW-012 is a Q line in RUN-STATE, though
-# a landing names it, and still after a switch to GitHub auto. After it: a red run and a head report made later count for both. A taken-over ticket's row restated by its first
-# amendment, with no landing on the log: only its later red run counts. A fault proof a decision before the amendment read is not carried past it. Env: CHECKS.
+# after it: ROW-012's and ROW-020's red runs before it do not count, nor results made before it; ROW-001, whose landed change the
+# ticket does not quote, keeps its evidence from the publication. With no case since the amendment it is `missing`, counted toward no hold;
+# failing at two commits after it, ROW-012 is held, a Q line in RUN-STATE, though a landing names it, and still after a switch to GitHub auto. After it: a red run and a head report made later count for both. A taken-over ticket's row restated by its first
+# amendment, with no landing on the log: only its later red run counts. A pass a decision before the amendment read is not carried past it. Env: CHECKS.
 set -eu
 unset VID_CALLER 2>/dev/null || true
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
@@ -24,11 +24,13 @@ rr_put "$_i" cases-alpha.xml "$(rr_cases ROW-001=fail:no ROW-012=fail:no ROW-020
 AC_WHEN='2026-11-19 11:00:00 +0000'; ac_head "$AC_C" 1 ROW-001=pass ROW-012=pass ROW-020=pass
 tk_dev 'C2'; C2=$(git -C "$T/dev" rev-parse HEAD); AC_WHEN='2026-11-19 11:30:00 +0000'; ac_head "$C2" 1 ROW-001=pass ROW-012=pass ROW-020=pass
 rd "$AC_N" "$AC_C"; [ "$(row ROW-001)" = 'red passed' ] || fail "ROW-001's evidence from the publication was dropped for a landing it does not quote: $(row ROW-001)"
-[ "$(row ROW-012)" = 'no-red missing' ] || fail "ROW-012's red run or head report before its restatement counted: $(row ROW-012)"
-grep -q '^ROW-012	.*no head report since its amendment' "$T/out" || fail 'the head report before the restatement is not named as such'
-[ "$(row ROW-020)" = 'no-red missing' ] || fail "ROW-020's evidence before the top-up counted: $(row ROW-020)"
+[ "$(row ROW-012)" = 'n/a missing' ] || fail "ROW-012's red run or results before its restatement counted: $(row ROW-012)"
+grep -q '^ROW-012	.*no case since its amendment' "$T/out" || fail 'the results before the restatement are not named as such'
+[ "$(row ROW-020)" = 'n/a missing' ] || fail "ROW-020's evidence before the top-up counted: $(row ROW-020)"
 sh "$CHECKS/decide.sh" decide --ticket "$AC_N" --at "$AC_C" > "$T/out" 2>&1 || fail 'the decision at C failed'
-rd "$AC_N" "$C2"; sh "$CHECKS/decide.sh" decide --ticket "$AC_N" --at "$C2" > "$T/out" 2>&1 || fail 'the decision at C2 failed'; grep -q '^ROW-012 held' "$T/out" || fail 'ROW-012 is not held at C2'
+rd "$AC_N" "$C2"; sh "$CHECKS/decide.sh" decide --ticket "$AC_N" --at "$C2" > "$T/out" 2>&1 || fail 'the decision at C2 failed'; grep -q '^ROW-012 evidence missing' "$T/out" && ! grep -q '^ROW-012 ' .vid/decide/counts || fail 'a row with no case since its amendment is held, or counted'
+# failing in results made after it, at two commits: held
+AC_WHEN='2026-11-19 12:30:00 +0000'; for c in "$AC_C" "$C2"; do ac_head "$c" 2 ROW-001=pass ROW-012=fail:no ROW-020=pass; rd "$AC_N" "$c"; sh "$CHECKS/decide.sh" decide --ticket "$AC_N" --at "$c" > "$T/out" 2>&1 || fail 'a decision failed'; done; sh "$CHECKS/decide.sh" decide --ticket "$AC_N" --at "$C2" > "$T/out" 2>&1 || fail 'the decision at C2 failed'; grep -q '^ROW-012 held' "$T/out" || fail 'ROW-012 is not held at C2'
 sh "$CHECKS/queue.sh" sync > "$T/out" 2>&1 || fail 'the queue did not sync'; grep -q 'held ROW-012' .vid/RUN-STATE.md || { cp .vid/RUN-STATE.md "$T/out"; fail 'the held restated row is no Q line'; }
 cp .vid/plan/setup "$T/setup0"; printf 'setup-answered key=github-mode value="auto" words="auto" at=2026-11-20T09:00:00Z\n' >> .vid/plan/setup
 sh "$CHECKS/queue.sh" sync > "$T/out" 2>&1 || fail 'the queue did not sync in GitHub auto'; grep -q 'held ROW-012' .vid/RUN-STATE.md || { cp .vid/RUN-STATE.md "$T/out"; fail "after the switch to auto the held row of a ticket's decision is dropped for its landing"; }
@@ -44,20 +46,16 @@ N2=$(gh_issue 'Step S03'); { mn_ticket "$N2" S03 step ROW-006; printf '\n## Engi
 printf 'published %s kind=step step=S03 rows=ROW-006 at=2026-11-18T09:00:00Z taken-over=1\namended %s kind=step step=S03 rows=ROW-006 parts=2 at=2026-11-19T12:00:00Z added=- words="yes" restated=ROW-006\n' "$N2" "$N2" >> .vid/tw/log
 AC_WHEN='2026-11-19 10:00:00 +0000'; _i=red-$N2-1; rr_put "$_i" results.txt "$(printf 'by: TM\ncommit: %s\nrows: ROW-006' "$AC_RED")"; rr_put "$_i" cases-alpha.xml "$(rr_cases ROW-006=fail:no)"; ac_send "$_i"
 AC_WHEN='2026-11-19 13:30:00 +0000'; _i=step-$N2-$(printf %s "$C3" | cut -c1-12)-1; rr_put "$_i" results.txt "$(printf 'by: TM\ncommit: %s\nengines: alpha' "$C3")"; rr_put "$_i" cases-alpha.xml "$(rr_cases ROW-006=pass)"; ac_send "$_i"
-rd "$N2" "$C3"; [ "$(row ROW-006)" = 'no-red passed' ] || fail "the taken-over ticket's red run before its first amendment counted: $(row ROW-006)"
+rd "$N2" "$C3"; [ "$(row ROW-006)" = 'n/a passed' ] || fail "the taken-over ticket's red run before its first amendment counted: $(row ROW-006)"
 AC_WHEN='2026-11-19 13:00:00 +0000'; _i=red-$N2-2; rr_put "$_i" results.txt "$(printf 'by: TM\ncommit: %s\nrows: ROW-006' "$AC_RED")"; rr_put "$_i" cases-alpha.xml "$(rr_cases ROW-006=fail:no)"; ac_send "$_i"
 rd "$N2" "$C3"; [ "$(row ROW-006)" = 'red passed' ] || fail "the taken-over ticket's later red run did not count: $(row ROW-006)"
-# a fault proof from a decision before the amendment is not carried past it: ROW-010's proven fault at C, then restated, then a head
-# report after the amendment with no fault folder: evidence missing, never accepted on the earlier proof
+# a pass a decision before the amendment read is not carried past it: ROW-010 accepted at C, then restated; at C4 a report made before the
+# amendment alone leaves it missing, and one made after it counts
 N3=$(gh_issue 'Step S04'); { mn_ticket "$N3" S04 step ROW-010; printf '\n## Engines\n\n- primary: alpha\n'; } > ".vid/tw/out/issue-$N3.md"
-printf 'published %s kind=step step=S04 rows=ROW-010 at=2026-11-18T09:00:00Z\n' "$N3" >> .vid/tw/log
-_i=step-$N3-$(printf %s "$AC_C" | cut -c1-12)-1; rr_put "$_i" results.txt "$(printf 'by: TM\ncommit: %s\nengines: alpha' "$AC_C")"; rr_put "$_i" cases-alpha.xml "$(rr_cases ROW-010=pass)"
-rr_put "$_i" faults/ROW-010/control.txt ROW-010; rr_put "$_i" faults/ROW-010/cases-alpha.xml "$(rr_cases ROW-010=fail:it\ breaks ROW-010-control=pass)"; AC_WHEN=''; ac_send "$_i"
-rd "$N3" "$AC_C"; sh "$CHECKS/decide.sh" decide --ticket "$N3" --at "$AC_C" > "$T/out" 2>&1 || fail 'the decision of ROW-010 at C failed'
-grep -q '^ROW-010 accepted' "$T/out" || fail 'ROW-010 is not accepted on its proven fault at C'
-_e=$(( $(date -u +%s) + 2 )); AT=$(date -u -r "$_e" '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || date -u -d "@$_e" '+%Y-%m-%dT%H:%M:%SZ'); printf 'amended %s kind=step step=S04 rows=ROW-010 parts=2 at=%s added=- words="yes" restated=ROW-010\n' "$N3" "$AT" >> .vid/tw/log
-tk_dev 'C4'; C4=$(git -C "$T/dev" rev-parse HEAD); AC_WHEN="@$(( $(date -u +%s) + 120 )) +0000"; _i=step-$N3-$(printf %s "$C4" | cut -c1-12)-1
-rr_put "$_i" results.txt "$(printf 'by: TM\ncommit: %s\nengines: alpha' "$C4")"; rr_put "$_i" cases-alpha.xml "$(rr_cases ROW-010=pass)"; ac_send "$_i"
-rd "$N3" "$C4"; sh "$CHECKS/decide.sh" decide --ticket "$N3" --at "$C4" > "$T/out" 2>&1 || fail 'the decision of ROW-010 at C4 failed'
-! grep -q '^ROW-010 accepted' "$T/out" && grep -q '^ROW-010 evidence missing' "$T/out" || fail "ROW-010's fault proof from before its amendment was carried past it"
+printf 'published %s kind=step step=S04 rows=ROW-010 at=2026-11-18T09:00:00Z\n' "$N3" >> .vid/tw/log; dc() { rd "$N3" "$1"; sh "$CHECKS/decide.sh" decide --ticket "$N3" --at "$1" > "$T/out" 2>&1 || fail "the decision of ROW-010 at $1 failed"; }
+AC_WHEN='2026-11-19 10:00:00 +0000'; ac_report run-10 'A. Person' "$AC_C" 'r.xml=ROW-010=pass'; dc "$AC_C"; grep -q '^ROW-010 accepted' "$T/out" || fail 'ROW-010 is not accepted on its results at C'
+printf 'amended %s kind=step step=S04 rows=ROW-010 parts=2 at=2026-11-20T12:00:00Z added=- words="yes" restated=ROW-010\n' "$N3" >> .vid/tw/log
+tk_dev 'C4'; C4=$(git -C "$T/dev" rev-parse HEAD); ac_report run-11 'A. Person' "$C4" 'r.xml=ROW-010=pass'; dc "$C4"
+! grep -q '^ROW-010 accepted' "$T/out" && grep -q '^ROW-010 evidence missing' "$T/out" || fail "ROW-010's pass from before its amendment was carried past it"
+AC_WHEN='2026-11-20 13:00:00 +0000'; ac_report run-12 'A. Person' "$C4" 'r.xml=ROW-010=pass'; dc "$C4"; grep -q '^ROW-010 accepted' "$T/out" || fail 'results made after the amendment did not count'
 exit 0

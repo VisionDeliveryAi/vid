@@ -8,7 +8,7 @@
 # tiers are printed as they stand.
 #   write <triggers file>   the page: one self-contained HTML file that opens offline, plan.html in the folder /vid view writes to
 #                      (viewer/view.sh: ~/ViD Viewer/<the repository's folder name>/), beside its pages; prints `page <path>`.
-#                      In order: what is new since the last call, the to-do list, what is not yet with the team counted by
+#                      In order: what could not be read, the report branches left out (FB-3 A2), what is new since the last call, the to-do list, what is not yet with the team counted by
 #                      kind, the triggers by tier, then the plan by team, stage and track.
 # The to-do list (GM-4 F4) is the owner's queue: each open `Q<n>` line, in its order, a move or a trigger the last call raised by
 # its kind and subject, with the command that does it, answers it or takes it off the list (/vid next done), and when it was
@@ -119,6 +119,7 @@ write() {
     $1 == "X" { t = $2
       if (t == "count") { if (!($3 in CNT)) CK[++ncnt] = $3; CNT[$3] = $4 }
       else if (t == "unread") { UNX[++nux] = $3 " " $4 ": " $5 }
+      else if (t == "context" && $3 == "report") RPX[++nrp] = $5   # FB-3 A2
       else if (t == "trigger") TRG[++ntr] = $3 SUBSEP $4 SUBSEP $5 SUBSEP $6
       else if (t == "tiers") { HASTIERS = 1; for (i = 3; i <= NF; i++) { split($i, kv, "="); TIER[kv[1]] = kv[2]; TIO[++nti] = kv[1] } }
       else if (t == "move") { MV[++nmv] = $3 SUBSEP $4 SUBSEP $5 SUBSEP $6; if ($3 == "publish") PM[$4] = 1
@@ -184,6 +185,8 @@ write() {
       o("<header><h1>" esc(TITLE) ": the plan</h1><div class=\"meta\"><span>Mode <b>GitHub manual</b></span><span>Written <b>" NOWT "</b></span><span>Applied spec <b class=\"mono\">" (APL == "" ? "none recorded" : esc(APL)) "</b></span></div></header>")
       if (ANYU) { s = ""; for (i = 1; i <= nux; i++) s = s "<li>" esc(UNX[i]) "</li>"; if (!nux) for (i = 1; i <= NUN["C"]; i++) { split(UNL["C", i], a, SUBSEP); s = s "<li>" esc(a[1] " " a[2] ": " a[3]) "</li>" }
         o("<section class=\"warnbox\" id=\"unread\"><b>Not all of it could be read at this call.</b> Nothing unread is counted, and no to-do leaves the list for it.<ul>" s "</ul></section>") }
+      # FB-3 A2: the report branches left out
+      if (nrp) { s = ""; for (i = 1; i <= nrp; i++) s = s "<li>" esc(RPX[i]) "</li>"; o("<section class=\"warnbox\" id=\"reports\"><b>Some of the team\047s report branches were left out.</b> Nothing of them is counted.<ul>" s "</ul></section>") }
       # what is new
       o("<section class=\"summary\"><div class=\"panel\" id=\"new\"><h2>New since your last call<span class=\"n\">" (PREV ? nn + 0 : "") "</span></h2>")
       if (PFAIL) o("<p class=\"muted\" data-new=\"none\">The read at your last call failed whole: there is nothing to compare with.</p>")

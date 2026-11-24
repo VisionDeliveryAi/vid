@@ -43,7 +43,7 @@ Run `round.sh wait` and `round.sh step` yourself, in the foreground, in this tur
 | `door: /vid fix — …` | The door, the vid-fix skill's ticket-mode branch, run here on the words the line gives |
 | `landed <n> at <commit>: …`, `reopened <step>`, `withdrawn <step> <k>`, `withdrawn stage-<N> <c>`, `ask-open stage-<N> <i>`, `stage <k>` | The vid-fix skill's line for them, in /vid run |
 | `plan-refused <step>: <why>` | The vid-replan skill's line for it, in /vid run |
-| `update` | Print `sh checks/queue.sh status` unchanged |
+| `update` | Print `sh checks/queue.sh status` unchanged, then the `next:` line of `sh checks/queue.sh backlog` (the vid-answer skill, the backlog) |
 | `flag devagent-quiet <n>` (v0.26.10.28.3) | Tell the owner once, in one line: `No dev side has answered for <h> hours: <n> tickets open, none claimed. Start it with /vid:vid-devagent <job note> in a new conversation in its work folder, or in the background with dm.sh up <job note>, or check that it runs.`, `<h>` the whole hours since the newest `published` line of `.vid/tw/log`. It stops nothing |
 | `flag devagent-stopped <id>: <why>` (v0.26.10.28.6) | Tell the owner once, in one line: `The dev side stopped: <why>. Start it again with /vid:vid-devagent <job note> in a new conversation in its work folder, or in the background with dm.sh up <job note>.` Its newest report is a stopped one; a later report clears it. It stops nothing, and ViD starts nothing |
 | `flag ticket-left <n>: <why>` (FB-2 A3) | Tell the owner once, in one line: `DevAgent left ticket #<n>: <why>. When what it needs is in place, /vid:vid-tickets reopen #<n> "<your words>" has it taken up again.` It stops nothing |
@@ -74,7 +74,7 @@ The owner's "pause" is `sh checks/queue.sh control pause "<their words>"`, and "
 
 ## DevAgent's code
 
-ViD never writes, reads or runs DevAgent's code (0.26.10.28.4, M5). From DevAgent's side it reads only: the results reports; issues, pull requests, their comments and labels; whether a commit is in the code repository and what it descends from; the deploy reports; and, for the walk, the running product on staging. `.vid/code`, made by `sh checks/github.sh results-fetch`, holds the reports and the commits, with no file of the code: each fetch proves it, and a copy that holds a code file is removed and the fetch refused. A merge is read through its pull request: title, body, comments and ViD's decision; never its files or its diff.
+ViD never writes, reads or runs DevAgent's code (0.26.10.28.4, M5). From DevAgent's side it reads only: the results reports; issues, pull requests, their comments and labels; whether a commit is in the code repository and what it descends from; the deploy reports; and, for the walk, the running product on staging. `.vid/code`, made by `sh checks/github.sh results-fetch`, holds the reports and the commits, with no file of the code: each fetch proves it, and a copy that holds a code file is removed and the fetch refused. Of a report branch ViD reads and fetches its own folder alone, whatever else the branch holds; a branch with no such folder is left out and flagged (`flag report-skipped`). A merge is read through its pull request: title, body, comments and ViD's decision; never its files or its diff.
 
 ## The only stops
 

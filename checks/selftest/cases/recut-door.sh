@@ -14,8 +14,10 @@ T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 . "$CHECKS/selftest/fixtures/tw-toy.sh"
 fail() { echo "recut-door: $*" >&2; cat "$T/out" >&2 2>/dev/null; exit 1; }
 tw_toy "$T/toy"
-# the base cut already holds an empty stage 3, which the re-cut below never touches (it does not block the re-cut)
-awk '{ print } /^STAGE-2 \| Synonym-aware search/ { print "STAGE-3 | Later | features: -" }' STAGES.md > "$T/s" && cp "$T/s" STAGES.md; g add STAGES.md && g commit -qm 'the cut, with an empty stage 3'; tw_ratify 'Yes, publish it' || fail 'the toy was not ratified again'
+# the base cut already holds a stage 3 whose one feature has nothing in it yet, so it holds no row (FB-3 C2: the stage court takes it),
+# which the re-cut below never touches (it does not block the re-cut)
+awk '{ print } /^FEAT-03 \|/ { print "FEAT-04 | G1 | later work" }' PRD.md > "$T/p" && cp "$T/p" PRD.md
+awk '{ print } /^STAGE-2 \| Synonym-aware search/ { print "STAGE-3 | Later | features: FEAT-04" }' STAGES.md > "$T/s" && cp "$T/s" STAGES.md; g add PRD.md STAGES.md && g commit -qm 'the cut, with an empty stage 3'; tw_ratify 'Yes, publish it' || fail 'the toy was not ratified again'
 tw_skel || fail "the skeleton round failed: $(cat "$T/werr" "$T/sk" 2>/dev/null | tail -n 3)"
 LS=$CHECKS/land.sh; QS=$CHECKS/queue.sh
 gate() { sh "$CHECKS/plan.sh" gate > "$T/g" 2>&1 || fail "the run's gate is off $1: $(cat "$T/g")"; }

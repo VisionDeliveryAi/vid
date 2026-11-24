@@ -54,7 +54,7 @@ grep -q "^report head pr-4-$RR_H12-6 refused " "$T/out" || fail 'the newest atte
 # R2, on the fake gh
 mkdir -p "$T/q/.vid/tw"; cd "$T/q"; : > .vid/RUN-STATE.md; printf 'repo: owner/code\n' > .vid/tw/settings
 git clone -q --bare "$T/p/.vid/code" "$T/code.git"; gh_fake; sh "$CHECKS/github.sh" results-fetch > "$T/out" 2>&1 || fail 'results-fetch failed'
-[ "$(git --git-dir=.vid/code rev-parse "vid-results/$A")" = "$(git --git-dir="$T/code.git" rev-parse "vid-results/$A")" ] && git --git-dir=.vid/code cat-file -e "$RR_H2^{commit}" || fail 'no report or head fetched'
+[ "$(git --git-dir=.vid/code rev-parse "vid-results/$A^{tree}")" = "$(git --git-dir="$T/code.git" rev-parse "vid-results/$A^{tree}")" ] && git --git-dir=.vid/code cat-file -e "$RR_H2^{commit}" || fail 'no report or head fetched'
 # a new report, built on main with its folder alone (0.26.10.28.4: a branch holding the code is refused, results-copy.sh)
 rb=$(printf 'by: TM\n' | git --git-dir="$T/code.git" hash-object -w --stdin); rt=$(printf '100644 blob %s\tresults.txt\n' "$rb" | git --git-dir="$T/code.git" mktree); rt=$(printf '040000 tree %s\tred-3-7\n' "$rt" | git --git-dir="$T/code.git" mktree)
 git --git-dir="$T/code.git" update-ref refs/heads/vid-results/red-3-7 "$(git --git-dir="$T/code.git" -c user.name=t -c user.email=t@t commit-tree "$rt" -p main -m red-3-7)"; sh "$CHECKS/github.sh" results-fetch > "$T/out" 2>&1 || fail 'the second results-fetch failed'

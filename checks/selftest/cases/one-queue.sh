@@ -9,6 +9,7 @@
 set -eu
 unset CLAUDE_CODE_SESSION_ID VID_CALLER 2>/dev/null || true
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
+HOME=$T/home; export HOME; mkdir -p "$HOME"   # the plan page goes under HOME
 . "$CHECKS/selftest/fixtures/planner-toy.sh"; . "$CHECKS/selftest/fixtures/tickets.sh"; . "$CHECKS/selftest/fixtures/manual.sh"
 fail() { echo "one-queue: $*" >&2; cat "$T/out" >&2 2>/dev/null; exit 1; }
 TB=$(printf '\t')

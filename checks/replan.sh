@@ -12,12 +12,13 @@
 #              <place> <words>` (.vid/tw/to-place); `team-in #<n> <id> <evidence>`, each team addition next.sh changes lists
 #              pending-only (U5) that the analysis takes into ticket n's step, and `team-out #<n> <id>` for one the owner names
 #              without; `trigger <tier> <what> <subject> <evidence>` for each trigger covered: by default every critical and
-#              important one not declined (next.sh triggers' trigger and quiet lines), else those of the kinds named (a subject
+#              important one, and to-place-active and stage-to-correct, not declined (next.sh triggers' trigger and quiet lines), else those of the kinds named (a subject
 #              given narrows a kind to it; a kind named that no trigger raises refuses); `ticket #<n> <step> <rows>` for each open
 #              published ticket (its newest log line's step= and rows=, not withdrawn, not CLOSED in the call's read). GM M16:
 #              an `unread` line of any part but due, in the call's read, next.sh changes or next.sh triggers, refuses,
 #              naming it, and no read kept refuses as `unread read`, so an addition a ticket's body holds is never left out unseen. `review
-#              needed|none`, needed when `planner.sh rows --added --at HEAD` prints rows. The pending changes and the to-place
+#              needed|none`, needed when `planner.sh rows --added --at HEAD` prints rows; `needs engines — named before the apply`
+#              (FB-3 E2) with no engines on the handed record, told here, before any candidate, and refusing nothing. The pending changes and the to-place
 #              rows are always covered: the apply makes HEAD the applied version, so each is placed or left either way
 #   check <block>   the candidate against the newest spec (HEAD), one line a breach, `<rule> <id> — <why>`, rule-1, rule-2,
 #              rule-4 and rule-6; then the warnings, never refusals, `size <#n or step> — <why>` and `builds <row> — <why>`. The
@@ -93,9 +94,12 @@
 #              kept as .vid/next/applied-proposal
 #   ready      for the call's listing (U6): `apply\t<analysis|own|analyse|none>\t<the block hash, the pending lines, why, or ->`
 #              (analysis: a fresh analysis to apply; own: the apply's own proposal, nothing pending adding a test; analyse: the
-#              analysis is needed first, why; none: nothing pending), then `review\t<needed|none>`. Records nothing
-#   own        the apply's own proposal written into .vid/next/proposal/ (as analyse writes one, made: own); refused when anything
-#              pending adds a test, or nothing is pending. Records and posts nothing
+#              analysis is needed first, why; none: nothing pending), with own `own\t<fresh|due|refused>\t<why or ->` (FB-3 C5: its
+#              proposal made and fresh; not made, or stale; not to be made, .vid/next/own-refused's reason while what the making read
+#              stands), then `review\t<needed|none>`. Records nothing
+#   own        the apply's own proposal written into .vid/next/proposal/ (as analyse writes one, made: own; took: the seconds it
+#              took, FB-3 C5); refused when anything pending adds a test, or nothing is pending, or it cannot be made (its first
+#              refusal line, kept in .vid/next/own-refused with a hash of what the making read). Records and posts nothing
 #   The proposal gains (GM-3 U4) made (`analysis` or `own`), review-hash (git hash-object of review, as the page shows it), followup (`<step>\t<rows,>`: each follow-up of a closed ticket the
 #   apply will publish, writer.sh due --why's followup lines at the target), and amend lines of kind reached and quoted (its why
 #   lines at the target: a reset row as restated, a reached row, a retired one, a writing whose quoted text changed)
@@ -314,7 +318,7 @@ scope_() {
   [ ! -s "$T/wbad" ] || ref "without $(head -n 1 "$T/wbad"): no test the team added to that ticket is in the pending spec alone"
   awk -F'\t' -v OFS='\t' -v K="$T/kinds" 'BEGIN { while ((getline l < K) > 0) { split(l, a, "\t"); nk++; KW[nk] = a[1]; KS[nk] = a[2] } }
     $1 == "trigger" || $1 == "quiet" { t = $2; w = $3; s = $4; ev = $5
-      if (!nk) { if ((t == "critical" || t == "important") && !($1 == "quiet" && $6 == "declined")) print t, w, s, ev; next }
+      if (!nk) { if ((t == "critical" || t == "important" || w ~ /^(to-place-active|stage-to-correct)$/) && !($1 == "quiet" && $6 == "declined")) print t, w, s, ev; next }
       for (i = 1; i <= nk; i++) if (KW[i] == w && (KS[i] == "" || KS[i] == s)) { print t, w, s, ev; HIT[i] = 1; break } }
     END { for (i = 1; i <= nk; i++) if (!(i in HIT)) print "unraised\t" KW[i] (KS[i] == "" ? "" : " " KS[i]) > "/dev/stderr" }' "$T/tg" > "$T/trg" 2> "$T/unr"
   [ ! -s "$T/unr" ] || ref "no trigger is raised now of $(cut -f2 "$T/unr" | tr '\n' ',' | sed 's/,$//; s/,/, /g'): the analysis covers only what the call raises"
@@ -357,11 +361,22 @@ adds_() { : > "$T/adds"
 # fresh_: 0 when .vid/next/proposal is fresh: its hash the one hash_ prints now, its target HEAD
 fresh_() { [ -f .vid/next/proposal/hash ] && [ "$(cat .vid/next/proposal/hash)" = "$(hash_)" ] && [ "$(cat .vid/next/proposal/target 2>/dev/null)" = "$HD" ]; }
 made_() { if [ -f .vid/next/proposal/made ]; then cat .vid/next/proposal/made; elif [ -d .vid/next/proposal ]; then echo analysis; else echo none; fi; }
+# ownkey_ (FB-3 C5): what a refused making of the own proposal read that a refusal can come from: HEAD, the applied commit, the plan,
+# the tickets' log lines and exports, the handed record, the settings and setup, the to-place list, the team's answers, the recorded
+# writings, the tickets GitHub shows closed, ViD's copy of the spec repository and the scripts themselves; never a ticket's body, which the team edits
+ownkey_() { { echo "$HD"; applied; grep '^plan-change ' .vid/metrics-events 2>/dev/null | tail -n 1; awk '$1 ~ /^(published|amended|withdrawn|export)$/' .vid/tw/log 2>/dev/null || :
+    cat .vid/tw/handed .vid/tw/settings .vid/plan/setup .vid/tw/to-place .vid/next/team-answers 2>/dev/null || :
+    for _f in .vid/tw/out/issue-*.md "$HERE/replan.sh" "$HERE/writer.sh" "$HERE/next.sh" "$HERE/planner.sh"; do [ ! -f "$_f" ] || git hash-object "$_f"; done
+    awk -F'\t' '$1 == "ticket" && $3 == "CLOSED" { print $2 }' .vid/round/read 2>/dev/null || :; git --git-dir=.vid/spec.git for-each-ref --format='%(objectname) %(refname)' 2>/dev/null || :; } | git hash-object --stdin; }
 # own_: the apply's own proposal (GM-3 U4, no analysis): the plan as ratified, the retired rows taken out, each changed step's change,
 # written through analyse itself, so it has every file of the proposal's form; made own; its review `pending` while one is needed
 own_() { [ -s "$T/oc/block" ] || ownblock_ "$T/oc/block" || ref 'a step would hold no row once its retired rows leave: the plan needs the analysis'
   S12=$(printf %.12s "$HD"); : > "$T/oc/changes"; for s in $(grep -v '^empty ' "$T/ochg"); do printf '%s\tscope-change\tcommit:%s\tthe retired tests %s leave the plan; each ticket keeps them listed, marked retired\n' "$s" "$S12" "$(paste -sd ' ' "$T/oret")" >> "$T/oc/changes"; done
-  printf 'none\n' > "$T/oc/review"; sh "$0" analyse --candidate "$T/oc" > "$T/oa" 2>&1 || { sed 's/^/    /' "$T/oa" >&2; ref "the apply's own proposal could not be made (the lines above)"; }
+  printf 'none\n' > "$T/oc/review"; S0=$(date -u +%s); sh "$0" analyse --candidate "$T/oc" > "$T/oa" 2>&1 || { sed 's/^/    /' "$T/oa" >&2; _w=$(grep -v '^[[:space:]]*$' "$T/oa" | head -n 1 | sed 's/^[[:space:]]*//' | tr '\t' ' ')
+    # FB-3 C5 (e): kept, with what it read, so the call leaves the move out while the same reason stands
+    [ -z "$_w" ] || { mkdir -p .vid/next; printf '%s\t%s\n' "$(ownkey_)" "$_w" | put .vid/next/own-refused || :; }
+    ref "the apply's own proposal could not be made: ${_w:-it was stopped}"; }
+  rm -f .vid/next/own-refused; echo "$(( $(date -u +%s) - S0 ))" > .vid/next/proposal/took   # FB-3 C5 (g): the seconds it took
   printf 'own\n' > .vid/next/proposal/made; [ "$REV" != needed ] || { printf 'pending\n' > .vid/next/proposal/review; git hash-object .vid/next/proposal/review > .vid/next/proposal/review-hash; }; }
 # rpage_: the page's review section written again from the proposal's review, the page rendered, and the review's hash kept as shown
 rpage_() { _p=.vid/next/proposal; awk '/^## The review of the tests ViD adds/ { exit } { print }' "$_p/REPLAN-PAGE.md" > "$T/rp" || return 0
@@ -489,7 +504,11 @@ ready_() { reads_
   if [ "$(made_)" = analysis ] && fresh_; then printf 'apply\tanalysis\t%s\n' "$(cat .vid/next/proposal/block-hash)"
   elif [ "$(made_)" = analysis ]; then printf 'apply\tanalyse\tthe proposal is stale: HEAD or what it reads changed since the analysis\n'
   else scope_; adds_; if [ -s "$T/adds" ]; then printf 'apply\tanalyse\t%s\n' "$(paste -sd ';' "$T/adds" | sed 's/;/; /g')"
-    elif [ ! -s "$T/pend" ]; then printf 'apply\tnone\t-\n'; else printf 'apply\town\t%s\n' "$(cut -f2,3 "$T/pend" | tr '\t' ' ' | paste -sd ',' - | sed 's/,/, /g')"; fi; fi
+    elif [ ! -s "$T/pend" ]; then printf 'apply\tnone\t-\n'; else printf 'apply\town\t%s\n' "$(cut -f2,3 "$T/pend" | tr '\t' ' ' | paste -sd ',' - | sed 's/,/, /g')"
+      # FB-3 C5 (e, g): its own proposal fresh, due, or not to be made for a reason that stands
+      if [ "$(made_)" = own ] && fresh_; then printf 'own\tfresh\t-\n'
+      elif [ -s .vid/next/own-refused ] && [ "$(cut -f1 .vid/next/own-refused)" = "$(ownkey_)" ]; then printf 'own\trefused\t%s\n' "$(cut -f2- .vid/next/own-refused)"
+      else printf 'own\tdue\t-\n'; fi; fi; fi
   lread "$T/added" planner rows --added --at HEAD || exit 2; if grep -q '[^[:space:]]' "$T/added"; then echo 'review	needed'; else echo 'review	none'; fi; }
 
 sub=${1:-}; [ $# -gt 0 ] && shift || usage
@@ -505,7 +524,7 @@ case $sub in
     awk -F'\t' -v OFS='\t' '{ print "team-in", "#" $1, $2, $3 }' "$T/tin"; awk -F'\t' -v OFS='\t' '{ print "team-out", "#" $1, $2 }' "$T/tout"
     awk -F'\t' -v OFS='\t' '{ print "trigger", $1, $2, $3, $4 }' "$T/trg"
     awk -F'\t' -v OFS='\t' '{ r = $3; gsub(/ /, ",", r); print "ticket", "#" $1, $2, (r == "" ? "-" : r) }' "$T/tk"
-    printf 'review\t%s\n' "$REV"; exit 0 ;;
+    printf 'review\t%s\n' "$REV"; ! engnone || printf 'needs\tengines — named before the apply\n'; exit 0 ;;
 
   analyse) ;;
   apply) parseargs; apply_ "$@" ;;
@@ -545,6 +564,7 @@ if grep -q '^rule-' "$T/jo" || [ -s "$T/bad" ]; then grep '^rule-' "$T/jo" >&2 |
 
 # the proposal, built beside its place, then put in whole
 mkdir -p .vid/next .vid/pages; PD=.vid/next/.proposal.$$; rm -rf "$PD"; mkdir "$PD"
+trap 'rm -rf "$T" "$PD"' EXIT   # FB-3 C5 (e): a read that dies half way leaves no folder (once put in place, it is there no more)
 fail_() { rm -rf "$PD"; ref "$1"; }
 cp "$C/block" "$PD/block"; cp "$T/cpm" "$PD/PLAN.md"; cp "$T/c-changes" "$PD/changes"
 if [ "$REV" = needed ]; then tr -d '\r' < "$C/review" > "$PD/review"; else printf 'none\n' > "$PD/review"; fi
@@ -603,19 +623,24 @@ BH=$(cat "$PD/block-hash"); PH=$(cat "$PD/hash")
   printf -- '- **The plan block:** %s (its hash; the apply'"'"'s page shows it too)\n- **The proposal:** %s (if anything it reads changes before the apply, analyse again)\n' "$BH" "$PH"
   printf -- '- **The spec the team would get:** %s; **the team has now:** %s\n\n' "$(printf %.12s "$HD")" "$(printf %.12s "$A")"
   printf '## Each ticket'"'"'s top-ups\n\n'
-  if [ -s "$PD/amend" ]; then awk -F'\t' -v TK="$T/tk" 'BEGIN { while ((getline l < TK) > 0) { split(l, a, "\t"); st[a[1]] = a[2]; t[a[1]] = a[3] } }
-      { k = $1; O[k] = 1; if ($2 == "added") A[k] = A[k] ", " $3; else if ($2 == "restated") R[k] = R[k] ", " $3; else if ($2 == "reached") H[k] = H[k] ", " $3; else if ($2 == "quoted") Q[k] = 1; else X[k] = X[k] ", " $3 }
+  # FB-3 E3: each added test's promise, the inventory's own words at the target ($T/rh), a line each after its ticket's or its step's line
+  if [ -s "$PD/amend" ]; then awk -F'\t' -v TK="$T/tk" -v RH="$T/rh" 'BEGIN { while ((getline l < TK) > 0) { split(l, a, "\t"); st[a[1]] = a[2]; t[a[1]] = a[3] } while ((getline l < RH) > 0) { split(l, a, "\t"); PR[a[1]] = (a[8] != "" ? a[8] : a[9]) } }
+      { k = $1; O[k] = 1; if ($2 == "added") { A[k] = A[k] ", " $3; WD[k] = WD[k] "\t  - " $3 ": " PR[$3] } else if ($2 == "restated") R[k] = R[k] ", " $3; else if ($2 == "reached") H[k] = H[k] ", " $3; else if ($2 == "quoted") Q[k] = 1; else X[k] = X[k] ", " $3 }
       END { for (k in O) { l = "- **#" k "** (step " st[k] "):"; if (A[k] != "") l = l " adds " substr(A[k], 3) ";"; if (R[k] != "") l = l " restates " substr(R[k], 3) ";"; if (H[k] != "") l = l " reaches " substr(H[k], 3) " (a requirement they check changed);"; if (Q[k]) l = l " its quoted text changes;"; if (X[k] != "") l = l " marks retired " substr(X[k], 3) ";"
-        sub(/;$/, ".", l); m = split(t[k], r, " "); nx = split(substr(X[k], 3), xr, ", "); if (m && nx == m) l = l " Only retired tests are left in it: it stays; withdrawing it is the withdraw move, in your words."; print l } }' "$PD/amend" | sort
+        sub(/;$/, ".", l); m = split(t[k], r, " "); nx = split(substr(X[k], 3), xr, ", "); if (m && nx == m) l = l " Only retired tests are left in it: it stays; withdrawing it is the withdraw move, in your words."; print l WD[k] } }' "$PD/amend" | sort | tr '\t' '\n'
   else printf 'No published ticket changes.\n'; fi
   [ ! -s "$PD/followup" ] || { printf '\n## Follow-ups of closed tickets\n\nA reset or reached test of a closed ticket goes out in a follow-up ticket of its step holding exactly those tests; the apply publishes it.\n\n'
     awk -F'\t' '{ r = $2; gsub(/,/, ", ", r); print "- **" $1 "**: " r }' "$PD/followup"; }
   printf '\n## New or split steps\n\n'
-  awk -F'\t' -v RS_="$T/rs" -v PB="$PD/publish" -v W="$PD/warnings" -v WO="$T/wo" 'BEGIN { while ((getline l < RS_) > 0) { split(l, a, "\t"); rn[a[1]] = a[3]; RO[++nr] = a[1] }
+  awk -F'\t' -v RS_="$T/rs" -v PB="$PD/publish" -v W="$PD/warnings" -v WO="$T/wo" -v RH="$T/rh" -v PE="$T/pend" -v AM="$PD/amend" '
+    function words(all,   i) { for (i = 1; i <= m; i++) if (all || ((w[i] in AD) && !(w[i] in TU))) print "  - " w[i] ": " PR[w[i]] }
+    BEGIN { while ((getline l < RH) > 0) { split(l, a, "\t"); PR[a[1]] = (a[8] != "" ? a[8] : a[9]) }
+      while ((getline l < PE) > 0) { split(l, a, "\t"); if (a[1] == "pending" && a[2] == "added") AD[a[3]] = 1 } while ((getline l < AM) > 0) { split(l, a, "\t"); if (a[2] == "added") TU[a[3]] = 1 }
+      while ((getline l < RS_) > 0) { split(l, a, "\t"); rn[a[1]] = a[3]; RO[++nr] = a[1] }
       while ((getline l < PB) > 0) P[l] = 1; while ((getline l < W) > 0) { split(l, a, "\t"); WW[a[2]] = WW[a[2]] " " a[1] ": " a[3] "." }
       while ((getline l < WO) > 0) { split(l, a, "\t"); if (a[1] == "step") X[a[2]] = 1 } }
-    $1 !~ /:$/ { C[$1] = 1; r = $2; gsub(/ /, ", ", r); if (!($1 in rn)) { print "- **" $1 "** (new" (($1 in P) ? "; the apply publishes it" : (($1 in X) ? "; not published by the apply: you left it out" : "; published later, by its publish move")) "): its tests " r "." (WW[$1] != "" ? " Warnings:" WW[$1] : ""); n++ }
-      else if (rn[$1] != $3) { print "- **" $1 "** (changed): its tests " r "."; n++ } }
+    $1 !~ /:$/ { C[$1] = 1; r = $2; m = split(r, w, " "); gsub(/ /, ", ", r); if (!($1 in rn)) { print "- **" $1 "** (new" (($1 in P) ? "; the apply publishes it" : (($1 in X) ? "; not published by the apply: you left it out" : "; published later, by its publish move")) "): its tests " r "." (WW[$1] != "" ? " Warnings:" WW[$1] : ""); words(1); n++ }
+      else if (rn[$1] != $3) { print "- **" $1 "** (changed): its tests " r "."; words(0); n++ } }
     END { for (i = 1; i <= nr; i++) if (!(RO[i] in C) && RO[i] !~ /:$/) { print "- **" RO[i] "** (no longer in the plan)"; n++ } if (!n) print "No step is new, split or changed." }' "$T/cs"
   printf '\n## What moves\n\n'
   if [ -s "$PD/moves" ]; then awk -F'\t' '{ if ($2 == "-") print "- " $1 ": into " $3 " (new to the plan)"; else if ($3 == "-") print "- " $1 ": out of " $2 ", into no step"; else print "- " $1 ": from " $2 " to " $3 }' "$PD/moves"; else printf 'No test moves.\n'; fi

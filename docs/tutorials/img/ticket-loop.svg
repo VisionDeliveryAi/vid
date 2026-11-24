@@ -22,45 +22,45 @@
 <line x1="662" y1="124" x2="632" y2="124" style="stroke:#0b5c7a" stroke-width="1.5" marker-end="url(#ah)"/>
 <rect x="664" y="160" width="320" height="48" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
 <text x="674" y="179" text-anchor="start" style="fill:#0b5c7a;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">3</text>
-<text x="698" y="179" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">T1, T2. The test author writes the rows&#x27;</text>
-<text x="698" y="196" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">tests, alone in a commit; they are run and</text>
-<text x="500.0" y="187" text-anchor="middle" style="fill:#16202a;font-size:12px;font-weight:400;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">report: red-7-1</text>
+<text x="698" y="179" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">T1. The rows&#x27; tests are written, each</text>
+<text x="698" y="196" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">named with its row&#x27;s id</text>
+<text x="500.0" y="187" text-anchor="middle" style="fill:#16202a;font-size:12px;font-weight:400;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">pull request: ticket: #7</text>
 <line x1="662" y1="182" x2="632" y2="182" style="stroke:#0b5c7a" stroke-width="1.5" marker-end="url(#ah)"/>
 <rect x="664" y="218" width="320" height="48" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
 <text x="674" y="237" text-anchor="start" style="fill:#0b5c7a;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">4</text>
-<text x="698" y="237" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">The builder builds until the rows and the</text>
+<text x="698" y="237" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">The team builds until the rows and the</text>
 <text x="698" y="254" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">regression rows pass</text>
 <rect x="664" y="276" width="320" height="48" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
 <text x="674" y="295" text-anchor="start" style="fill:#0b5c7a;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">5</text>
-<text x="698" y="295" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">The merger merges the pull requests into</text>
+<text x="698" y="295" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">The team merges the pull requests into</text>
 <text x="698" y="312" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">main</text>
 <text x="500.0" y="303" text-anchor="middle" style="fill:#16202a;font-size:12px;font-weight:400;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">the merge</text>
 <line x1="662" y1="298" x2="632" y2="298" style="stroke:#0b5c7a" stroke-width="1.5" marker-end="url(#ah)"/>
 <rect x="664" y="334" width="320" height="48" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
 <text x="674" y="353" text-anchor="start" style="fill:#0b5c7a;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">6</text>
-<text x="698" y="353" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">T3, T4, T5. Every row is run at that</text>
-<text x="698" y="370" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">commit of main, with breaks; then graded</text>
-<text x="500.0" y="361" text-anchor="middle" style="fill:#16202a;font-size:12px;font-weight:400;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">reports: step-7-&lt;commit&gt;-1, grade</text>
+<text x="698" y="353" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">T3. The tests are run at that commit of</text>
+<text x="698" y="370" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">main, and the results pushed</text>
+<text x="500.0" y="361" text-anchor="middle" style="fill:#16202a;font-size:12px;font-weight:400;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">report: step-7-&lt;commit&gt;-1</text>
 <line x1="662" y1="356" x2="632" y2="356" style="stroke:#0b5c7a" stroke-width="1.5" marker-end="url(#ah)"/>
 <rect x="664" y="392" width="320" height="48" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
 <text x="674" y="411" text-anchor="start" style="fill:#0b5c7a;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">7</text>
-<text x="698" y="411" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">The merger asks on the ticket for the</text>
+<text x="698" y="411" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">The team asks on the ticket for the</text>
 <text x="698" y="428" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">decision</text>
 <text x="500.0" y="419" text-anchor="middle" style="fill:#16202a;font-size:12px;font-weight:400;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">comment: vid: decide &lt;commit&gt;</text>
 <line x1="662" y1="414" x2="632" y2="414" style="stroke:#0b5c7a" stroke-width="1.5" marker-end="url(#ah)"/>
 <rect x="16" y="450" width="320" height="48" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
 <text x="26" y="469" text-anchor="start" style="fill:#0b5c7a;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">8</text>
-<text x="50" y="469" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">At your next call, ViD reads the reports</text>
-<text x="50" y="486" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">and gives each row a state</text>
+<text x="50" y="469" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">At your next call, ViD reads the results,</text>
+<text x="50" y="486" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">makes its review once, and decides</text>
 <text x="500.0" y="477" text-anchor="middle" style="fill:#16202a;font-size:12px;font-weight:400;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">the decision, on the ticket</text>
 <line x1="338" y1="472" x2="368" y2="472" style="stroke:#0b5c7a" stroke-width="1.5" marker-end="url(#ah)"/>
 <rect x="664" y="508" width="320" height="48" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
 <text x="674" y="527" text-anchor="start" style="fill:#0b5c7a;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">9</text>
-<text x="698" y="527" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">Not yet: fix what the decision names, and</text>
-<text x="698" y="544" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">merge the fix into main</text>
+<text x="698" y="527" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">Not yet: fix what it names, add a test it</text>
+<text x="698" y="544" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">requests, and merge into main</text>
 <rect x="664" y="566" width="320" height="48" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
 <text x="674" y="585" text-anchor="start" style="fill:#0b5c7a;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">10</text>
-<text x="698" y="585" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">Run the head report again at the new</text>
+<text x="698" y="585" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">Run the tests again at the new</text>
 <text x="698" y="602" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">commit, and ask again there</text>
 <text x="500.0" y="593" text-anchor="middle" style="fill:#16202a;font-size:12px;font-weight:400;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">a new report and a new ask</text>
 <line x1="662" y1="588" x2="632" y2="588" style="stroke:#0b5c7a" stroke-width="1.5" marker-end="url(#ah)"/>

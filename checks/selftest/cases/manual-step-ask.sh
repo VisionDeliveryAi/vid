@@ -18,7 +18,7 @@ n0=$(ac_comments); ac_round accept "$AC_N" "$AC_OFF"; [ "$RC" = 0 ] || fail "acc
 ac_last | grep -qx 'ticket: not yet' && ac_last | grep -qx "not on main — $AC_OFF" || { ac_last > "$T/out"; fail 'the answer off main is not `not yet` with `not on main`'; }
 [ ! -s .vid/decide/state ] || fail 'an ask off main moved a row'
 # an ask at a commit of main: step decides nothing; accept reads every report under the ticket's ids and posts once
-ac_good "$AC_C"; S=sort-step-$AC_N-$(printf %s "$AC_C" | cut -c1-12)-1; rr_put "$S" sorted.txt "$(printf 'by: SR\ncommit: %s\nROW-001 note it — a note — ROW-001 kept' "$AC_C")"; ac_send "$S"
+ac_good "$AC_C"; S=sort-step-$AC_N-$(printf %s "$AC_C" | cut -c1-12)-1; ac_sort "$AC_C" 'ROW-001 note it — a note — ROW-001 kept'
 ac_ask "$AC_C"; n0=$(ac_comments); ac_round step; [ "$RC" = 0 ] || fail "round.sh step exited $RC"
 grep -qx "decide #$AC_N $AC_C" "$T/out" || fail 'the ask at main is no decide line'
 ! grep -q '^decided' "$T/out" && [ "$(ac_comments)" = "$n0" ] || fail 'round.sh step decided or posted in GitHub manual'

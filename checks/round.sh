@@ -23,7 +23,8 @@
 #          a line once, tried again only after the plan or the handed record changed.
 #   read   (GM-4 F3) the one read of GitHub, github.sh round-read, written whole to .vid/round/read (lib.sh put); in GitHub manual with
 #          --bodies, the ticket bodies, sub-issues and assignees after it, as /vid next reads them. A read that fails leaves the file as it
-#          was, names the failure and exits 1. It prints nothing when the read succeeds, and writes nothing under .vid/ but .vid/round/.
+#          was, names the failure and exits 1. It prints nothing when the read succeeds, and writes nothing under .vid/ but .vid/round/
+#          (FB-3 D2: and its part in .vid/face, where a call named its parts; the read done, the next part, for next.sh triggers writes nothing).
 #   asks   (GM-4 E5) next's first part alone: renews the lock, reads, the export, then the owed asks, okays and stage close; next calls it,
 #          so GitHub auto is unchanged (a stage close ends next there). In GitHub manual no export (a write to the spec repository, done only
 #          inside a move the owner names, GM-2 T1); the owed asks, okays and stage close as in GitHub auto (GM-4 K11: the stage's too).
@@ -31,8 +32,10 @@
 #   accept <ticket> [<commit>]   (GM-4 E13) the one entry of every GitHub manual decision, /vid:vid-accept-step's: renews the lock;
 #          the read and results-fetch first, so a report just pushed is seen; the commit checked on the code repository's main, its
 #          first-parent line (git rev-list --first-parent refs/heads/main in .vid/code): one off it is answered `ticket: not yet` with
-#          the one line `not on main — <commit>`, no row moved; with no commit, the newest commit of that line holding a head report
-#          of the ticket (`refused #<n> no head report on main` with none, nothing posted); results.sh read --ticket <n> --at <c>,
+#          the one line `not on main — <commit>`, no row moved; with no commit, the newest commit of that line at which a result report holds a case of one of
+#          the ticket's rows (`refused #<n> no results on main` with none, nothing posted; FB-3 A1.3: at a commit named with none, `refused #<n> no
+#          results at <c12>`; FB-3 A4: either ends naming the command that records it accepted outside ViD; after either, each of the ticket's report branches left out or refused, `report left out — …`); when the decision
+#          would be accepted but for ViD's own review, `review #<n> <c12>`, nothing decided or posted and the ask still owed; results.sh read --ticket <n> --at <c>,
 #          decide.sh decide --ticket <n> --at <c> --post (an unanswered ask at c always answered, else posted only when changed), the
 #          queue synced and the records saved. On `ticket: accepted` the acceptance is the ticket's merge (E4): decide.sh merged
 #          --ticket <n>, `step-<n>-<c12> <n> <c> <c>` in .vid/decide/merges and its id in merged-prs. An accepted ticket asked again
@@ -41,6 +44,14 @@
 #          `accepted #<n> <c12>`, `refused #<n> <why>`; FB-1 C2: after each `decided` line, in step and accept alike, one `weak <row>
 #          <#n or pull request> <head 12> — <the row's text>` line for each row of that decision reading `failing, a weak test`. In GitHub auto it decides the open pull request naming the ticket at its
 #          head, as step does, at the owner's word (`decided <p> <head12> …`)
+#   accept <ticket> <commit> --outside "<words>" | accept --rows "<ids>" --outside "<words>"   FB-3 A4, both modes: what the owner accepted outside
+#          ViD, recorded by their words (decide.sh outside): a ticket, at a commit of main's first-parent line, its merge line as an
+#          acceptance's; or rows of no published ticket, with no commit. Nothing posted. `left <row>: <why>`, `recorded <k> rows …`,
+#          `accepted #<n> <c12>, outside ViD, by the owner's words`, `refused [#<n>] <why>`
+#   accept --tickets "<n>[@<commit>] …" --outside "<words>"   FB-3 E1: several tickets so, one lock, read and save; each at the commit named, else
+#          its accepting decision comment's (github.sh ticket-decided), when main's first-parent line holds it, else at main's newest, its
+#          line and its record saying so; one refused stops no other. FB-3 E2: after a record, with no engines on the handed record,
+#          `engines not named — /vid:vid-accept-step engines "<primary> <other>…" "<words>"`
 # GM-4 E5, in GitHub manual: step, asks and accept run; wait and next (its publishing on its own) refuse at the start (GM-1 S1), in one
 # line naming /vid next, exit 2, writing nothing. step there, by GM M8 (only a ticket is decided, at a commit of main): the asks are
 # the tickets' (a `vid: decide <a full commit>` comment on a published ticket's issue, unanswered while no `vid: decision <it>` follows),
@@ -48,7 +59,7 @@
 # newest asked commit), for accept; a unit's pull request asking `vid: decide` is never answered, listed once a head, `context
 # unit-ask #<p> <its ticket line's number or -> <head12>`; each merge not recorded goes to .vid/decide/unit-merges (`<p> <ticket line's
 # number or -> <head> <merge>`), deciding and closing nothing, `unit-merged <p> <ticket or ->`; a published ticket closed on GitHub, not
-# withdrawn and not accepted, is told at every call, `closed #<n> not accepted — …` naming K1's two commands (E6), never withdrawn, no
+# withdrawn and not accepted, is told at every call, `closed #<n> not accepted — …` naming K1's two commands (E6) and A4's record (FB-3 E1), never withdrawn, no
 # step reopened; no stray stop (it guards the round's own publishing); the alarms ticket-hours, ticket-quiet, devagent-quiet,
 # devagent-stopped and ticket-left (FB-2 A3) not raised; no `update`. GM-4 K4: `summary <N>` writes no facts (the move write-summary does), and the step's walk,
 # walk-read and summary lines are kept in .vid/next/stage-moves for the call to list as the owner's moves.
@@ -70,7 +81,10 @@ D=.vid/decide; L=.vid/round; LOG=.vid/tw/log; HAND=.vid/tw/handed; mkdir -p "$L"
 TAB=$(printf '\t'); DID=''
 gh_() { VID_CALLER=round sh "$HERE/github.sh" "$@"; }; dec() { sh "$HERE/decide.sh" "$@"; }; wr() { sh "$HERE/writer.sh" "$@"; }   # 0.26.10.29.2 (R12): the round marks its own calls
 PX=$(skey labels-prefix)
-fail() { n=$(($(cat .vid/round-errors 2>/dev/null || echo 0) + 1)); echo "$n" > "$L/re" || exit 1; put .vid/round-errors < "$L/re" || exit 1; ev "round-error step=$1 count=$n"; echo "error $1 ($n running): $2"; exit 1; }
+fail() { n=$(($(cat .vid/round-errors 2>/dev/null || echo 0) + 1)); echo "$n" > "$L/re" || exit 1; put .vid/round-errors < "$L/re" || exit 1; ev "round-error step=$1 count=$n"; rneed; echo "error $1 ($n running): $2"; exit 1; }
+# FB-3 D2: a call that ends here leaves its part stopped, with what it needs; not one marked as another script's (VID_CALLER: /vid mode
+# says its own stop, and next-move.sh goes on after a read that fails)
+rneed() { [ -n "${VID_CALLER:-}" ] || pneed "${1:-a look at the chat, which says why it stopped}"; }
 stray() { for n in $(tickets); do grep -qE "^(published|asked) $n " "$LOG" 2>/dev/null || { ev "round-stop stray=$n"; echo "stop stray: #$n is an open ticket the log does not hold: a publication's save was lost, so nothing more is published"; exit 4; }; done; }
 renew() { rc=0; gh_ lock-renew > "$L/e" 2>&1 || rc=$?; [ "$rc" != 3 ] || { echo 'lock-lost'; exit 3; }; [ "$rc" = 0 ] || fail lock-renew "$(tail -n 1 "$L/e")"; }
 # GM-4 F3: rd_, the one read into .vid/round/read, with --bodies in GitHub manual (E4: the sub-issues a merge there is mapped by); read_, the
@@ -85,7 +99,9 @@ sig_() { { [ -z "$(man_)" ] || tasks_ | sed 's/^/ask #/; s/\t/ /'; }; awk -F'\t'
   $1 == "issue" && (index("," $3 ",", RUN) || index("," $3 ",", GRD) || index("," $3 ",", DPL)) { print "reported", $2, cnt($4, "^vid: reported ") }
   $1 == "issue" { q = cnt($4, "^(Question:|[A-Z][A-Z]: [Qq]uestion)"); if (q) print "qs", $2, q } $1 == "open" { q = cnt($10, "^(Question:|[A-Z][A-Z]: [Qq]uestion)"); if (q) print "qs", $2, q }
   $1 == "main" { print "main", $2 }
-  $1 == "result" && ($2 ~ /^stopped-/ || ST) { print "result", $2, $3 }' RUN=",${PX}run," GRD=",${PX}grade," DPL=",${PX}deploy," ST="$(grep -q '^devagent-stopped ' "$D/flags" 2>/dev/null && echo 1)" "$L/read"; }   # v0.26.10.28.2 (R4): the code repository's main, so a wait notices it
+  NR == 1 { while ((getline l < RSK) > 0) { split(l, x, "\t"); RS_[x[1]] = 1 } }
+  $1 == "result" && ($2 ~ /^stopped-/ || ST || ($2 in RS_)) { print "result", $2, $3 }' RUN=",${PX}run," GRD=",${PX}grade," DPL=",${PX}deploy," RSK="$L/reports-skipped" ST="$(grep -q '^devagent-stopped ' "$D/flags" 2>/dev/null && echo 1)" "$L/read"; }   # v0.26.10.28.2 (R4): the code repository's main, so a wait notices it
+# FB-3 A2: a left-out report branch's newest commit too, so one put right is fetched
 # v0.26.10.28.6 (R3): the dev side's stopped reports, and while devagent-stopped stands every report, so a stop, and the report that clears it, end a wait
 man_() { ! manual || echo 1; }
 # GM-4 E1: tasks_, each published ticket not withdrawn whose newest `vid: decide <a full commit>` comment no `vid: decision <it>` follows:
@@ -95,7 +111,7 @@ tasks_() { awk -F'\t' -v L="$LOG" 'BEGIN { while ((getline l < L) > 0) { split(l
     if (a == "") next; for (i = k + 1; i <= n; i++) if (c[i] ~ ("^vid: decision " a)) next; print $2 "\t" a }' "$L/read"; }
 # GM-4 E2: accepted <n>, the ticket's merge on record in merges (E4's acceptance line, or a merge recorded in GitHub auto): its commit
 accepted() { awk -F'\t' -v n="$1" '$2 == n { c = $4 } END { if (c != "") print c }' "$D/merges" 2>/dev/null; }
-tickets() { awk -F'\t' -v T=",${PX}ticket," -v U=",${PX}run," -v G=",${PX}grade," -v P=",${PX}deploy," '$1 == "issue" && (index("," $3 ",", T) || index("," $3 ",", U) || index("," $3 ",", G) || index("," $3 ",", P)) { print $2 }' "$L/read"; }
+tickets() { awk -F'\t' -v O=" $(onrec | tr '\n' ' ') " -v T=",${PX}ticket," -v U=",${PX}run," -v G=",${PX}grade," -v P=",${PX}deploy," '$1 == "issue" && (index(O, " " $2 " ") || index("," $3 ",", T) || index("," $3 ",", U) || index("," $3 ",", G) || index("," $3 ",", P)) { print $2 }' "$L/read"; }
 open_() { if manual; then for n in $(tickets); do [ -n "$(accepted "$n")" ] || echo "$n"; done; return 0; fi
   # GM-4 E2, F13: in GitHub auto too, a ticket whose merge is on record (a GitHub manual acceptance's step- line) is not open
   for n in $(tickets); do [ -z "$(accepted "$n")" ] || continue; m=$(awk -F'\t' -v n="$n" '$1 == "merged" && $3 == n { print $2 }' "$L/read" | head -n 1); [ -n "$m" ] && grep -qx "$m" "$D/merged-prs" || echo "$n"; done; }
@@ -150,10 +166,10 @@ merged_() { awk -F'\t' '$1 == "merged"' "$L/read" | sort -t"$TAB" -k2,2n > "$L/m
 umerged_() { awk -F'\t' '$1 == "merged"' "$L/read" | sort -t"$TAB" -k2,2n > "$L/m"; while IFS=$TAB read -r x p t H M _r <&3; do grep -qx "$p" "$D/merged-prs" && continue
     cut -f1 "$D/unit-merges" | grep -qx "$p" && continue; printf '%s\t%s\t%s\t%s\n' "$p" "$t" "$H" "$M" >> "$D/unit-merges"; echo "unit-merged $p $t"; DID=1; done 3< "$L/m"; }
 # GM-4 E6 (GitHub manual): told_, each published ticket not withdrawn, closed on GitHub (no issue line in the read) and not accepted,
-# told at every call with K1's two commands; nothing withdrawn, nothing reopened
+# told at every call with K1's two commands and the record of an acceptance outside ViD (FB-3 E1); nothing withdrawn, nothing reopened
 told_() { awk '$1 == "published" { p[$2] = 1 } $1 == "withdrawn" { delete p[$2] } END { for (n in p) print n }' "$LOG" 2>/dev/null | sort -n > "$L/pub"
   awk -F'\t' '$1 == "issue" { print $2 }' "$L/read" | sort -u > "$L/oi"; for n in $(cat "$L/pub"); do grep -qx "$n" "$L/oi" && continue; [ -z "$(accepted "$n")" ] || continue
-    echo "closed #$n not accepted — closed on GitHub before its acceptance: /vid:vid-tickets reopen #$n \"<your words>\" reopens it, /vid:vid-tickets withdraw #$n \"<your words>\" withdraws it"; done; }
+    echo "closed #$n not accepted — closed on GitHub before its acceptance: /vid:vid-tickets reopen #$n \"<your words>\" reopens it, /vid:vid-tickets withdraw #$n \"<your words>\" withdraws it, /vid:vid-accept-step $n <commit> accepted \"<your words>\" records it as accepted outside ViD"; done; }
 # GM-4 E13 (GitHub manual): mdec_, `decide #<n> <commit>` for each ticket owed a decision: an unanswered ask (tasks_), or a ruling or
 # answer since the last step touching its newest asked commit (last-step-<n>): its rows, its ticket, its evidence
 mdec_() { tasks_ > "$L/ta"; awk -F'\t' '{ print "decide #" $1 " " $2 }' "$L/ta"
@@ -203,12 +219,14 @@ stopped_() { s=$(git --git-dir=.vid/code for-each-ref --sort=-refname --sort=-co
   case $s in stopped-*) w=$(git --git-dir=.vid/code show "refs/heads/vid-results/$s:$s/results.txt" 2>/dev/null | sed -n 's/^stopped: *//p' | head -n 1); printf '%s\t%s\n' "$s" "${w:-no reason given}" ;; esac; }
 # R10: each once until it clears
 alarms() { F=''; N=$(date +%s); H1=$(($(skey ticket-hours | grep . || echo 8) * 3600)); Q1=$(($(skey quiet-hours | grep . || echo 2) * 3600))
+  # FB-3 A2: a report branch left out, in both modes: flagged to the owner until it is put right, or gone
+  if [ -s "$L/reports-skipped" ]; then sh "$HERE/results.sh" skipped > "$L/sk" || exit 1; while IFS=$TAB read -r i w; do flag report-skipped "$i" "$w"; done < "$L/sk"; fi
   # GM-4 E5: in GitHub manual ticket-hours, ticket-quiet, devagent-quiet, devagent-stopped and ticket-left watch no DevAgent of ViD's: not raised
   if ! manual; then
   for n in $(open_); do a=$(awk -v n="$n" '$1 == "published" && $2 == n' "$LOG" | tail -n 1 | tr ' ' '\n' | sed -n 's/^at=//p'); [ -z "$a" ] || [ $((N - $(epoch "$a"))) -le "$H1" ] || flag ticket-hours "$n"
     u=$(awk -F'\t' -v n="$n" '$1 == "issue" && $2 == n { print $5 } $1 == "open" && $3 == n { print $9 }' "$L/read" | sort | tail -n 1); [ -z "$u" ] || [ $((N - $(epoch "$u"))) -le "$Q1" ] || flag ticket-quiet "$n"; done
   # v0.26.10.28.3 (R2): no dev side answers: work tickets open (<prefix>ticket alone), none with a `vid: claimed` comment or a pull request naming it, and the newest `published` line older than quiet-hours
-  q=$(awk -F'\t' -v T=",${PX}ticket," -v O=" $(open_ | tr '\n' ' ') " '$1 == "issue" && index("," $3 ",", T) && index(O, " " $2 " ") { t[$2] = 1; m = split($4, c, "\001"); for (i = 1; i <= m; i++) if (c[i] == "vid: claimed") s = 1 }
+  q=$(awk -F'\t' -v T=",${PX}ticket," -v R=" $(onrec | tr '\n' ' ') " -v O=" $(open_ | tr '\n' ' ') " '$1 == "issue" && (index(R, " " $2 " ") || index("," $3 ",", T)) && index(O, " " $2 " ") { t[$2] = 1; m = split($4, c, "\001"); for (i = 1; i <= m; i++) if (c[i] == "vid: claimed") s = 1 }
     $1 == "open" || $1 == "merged" { p[$3] = 1 } END { for (x in t) { k++; if (x in p) s = 1 } if (k && !s) print k }' "$L/read")
   a=$(awk '$1 == "published"' "$LOG" | tail -n 1 | tr ' ' '\n' | sed -n 's/^at=//p'); [ -z "$q" ] || [ -z "$a" ] || [ $((N - $(epoch "$a"))) -le "$Q1" ] || flag devagent-quiet "$q"
   # v0.26.10.28.6 (R3): the dev side stopped, its newest report a stopped one; a later report of any kind clears it
@@ -233,7 +251,7 @@ state_() { H=$(held_ | sort -u | paste -sd ' ' -); NW="accepted=$A open=$(open_ 
 # one a signal ends may leave it, and the watcher reads it as nothing past the limit and its margin
 cmd_wait() { M=${VID_WAIT_MAX:-540}; T=${VID_WAIT_TICK:-60}; t0=$(date +%s); printf 'start=%s\nmax=%s\n' "$t0" "$M" > "$L/wait" || exit 1; trap 'rm -f "$L/wait"' EXIT; while :; do read_; sig_ > "$L/now"; if ! cmp -s "$L/now" "$L/seen"; then r=new; break; fi; [ $(($(date +%s) - t0 + T)) -le "$M" ] || { r=timeout; break; }; sleep "$T"; done; renew; echo "$r"; }
 fetch_() { gh_ results-fetch > /dev/null 2> "$L/e" || fail results-fetch "$(tail -n 1 "$L/e")"; FT=1; }
-cmd_step() { FT=''; renew; read_; sig_ > "$L/now"; cmp -s "$L/now" "$L/seen" || fetch_
+cmd_step() { prog on "ViD's own work"; FT=''; renew; read_; sig_ > "$L/now"; cmp -s "$L/now" "$L/seen" || fetch_
   manual || stray   # GM-4 E5: it guards the round's own publishing, which GitHub manual's call does not do
   # v0.26.10.28.2 (R4): `main-changed` when the code repository's main differs from the last step's (never at the first), so vid-run runs next
   MN=$(grep '^main ' "$L/now" || true); MS=$(grep '^main ' "$L/seen" 2>/dev/null || true); [ -z "$MN" ] || [ -z "$MS" ] || [ "$MN" = "$MS" ] || { ev "round-main-changed main=${MN#main }"; echo main-changed; DID=1; }
@@ -312,12 +330,41 @@ cmd_next() { renew; read_; stray; case $(sed -n 's/^run:[[:space:]]*//p' .vid/RU
       3) grep -v '^ViD github: held — ' "$L/o" > "$L/oh" || true; refuse "start $s" "$(tr '\n' ' ' < "$L/oh" | cut -c1-200)" "$(grep -q 'holds rows outside stages' "$L/oh" && echo stage)" ;;   # low-1 (R3): a stage refusal waits for its stage
       4) due_; O=$((O + 1)) ;;
       *) fail post "$(tail -n 1 "$L/o")" ;; esac; done; }
+# FB-3 A4: outs --ticket <n> --at <commit> | --rows "<ids>": the record (decide.sh outside), a ticket's merge lines as an acceptance writes
+# them; OD, something was recorded. outf: then the queue and the records saved, once, and (FB-3 E2) the engines asked when none is named
+OD=''; NT=''; outs() { r=0; dec outside "$@" --words "$OW" > "$L/o" 2> "$L/e" || r=$?; case $r in 0) ;; 1) grep -q '^ViD decide: refused — ' "$L/e" || fail outside "$(tail -n 1 "$L/e")"; echo "refused ${n:+#$n }$(sed -n 's/^ViD decide: refused — //p' "$L/e" | head -n 1)"; return 0 ;; *) fail outside "$(tail -n 1 "$L/e")" ;; esac
+  cat "$L/o"; OD=1; if [ -n "$n" ]; then printf 'step-%s-%s\t%s\t%s\t%s\n' "$n" "$h" "$n" "$C" "$C" >> "$D/merges"; echo "step-$n-$h" >> "$D/merged-prs"; echo "accepted #$n $h, outside ViD, by the owner's words${NT:+, $NT}"; fi; }
+outf() { [ -n "$OD" ] || return 0
+  dec queue > /dev/null 2>&1; sh "$HERE/queue.sh" sync > /dev/null 2> "$L/e" || fail queue "$(tail -n 1 "$L/e")"; gh_ state-save > /dev/null 2> "$L/e" || fail state-save "$(tail -n 1 "$L/e")"; DID=1; ! engnone || echo "$ENGASK"; }
 # GM-4 E13: accept <ticket> [<commit>], the one entry of every decision in GitHub manual; in GitHub auto a pull request's head
 mpost() { printf '%s\n' "$2" > "$L/mp" || exit 1; gh_ comment "$1" --body-file "$L/mp" > /dev/null 2> "$L/e" || fail post "$(tail -n 1 "$L/e")"; }
-cmd_accept() { n=${1:-}; n=${n#\#}; c=${2:-}; case $n in ''|*[!0-9]*) echo 'usage: sh checks/round.sh accept <ticket> [<commit>]' >&2; exit 2 ;; esac; [ $# -le 2 ] || { echo 'usage: sh checks/round.sh accept <ticket> [<commit>]' >&2; exit 2; }
+acuse() { echo 'usage: sh checks/round.sh accept <ticket> [<commit>] | accept <ticket> <commit> --outside "<words>" | accept --rows "<ids>" --outside "<words>" | accept --tickets "<n>[@<commit>] …" --outside "<words>"' >&2; exit 2; }
+# outfp: main's first-parent line, the newest first, in $L/fp. outp <n>: ticket n is published and not withdrawn
+outfp() { git --git-dir=.vid/code rev-list --first-parent refs/heads/main > "$L/fp" 2>/dev/null || : > "$L/fp"; }
+outp() { awk -v n="$1" '$1 == "published" && $2 == n { p = 1 } $1 == "withdrawn" && $2 == n { p = 0 } END { exit !p }' "$LOG" 2>/dev/null; }
+cmd_accept() { OS=''; OW=''; RS=''; RW=''; TS=''; TL=''; n=''; c=''; k=0; while [ $# -gt 0 ]; do case $1 in --outside) [ $# -ge 2 ] || acuse; OS=1; OW=$2; shift 2 ;; --rows) [ $# -ge 2 ] || acuse; RS=1; RW=$2; shift 2 ;; --tickets) [ $# -ge 2 ] || acuse; TS=1; TL=$2; shift 2 ;; -*) acuse ;; *) k=$((k + 1)); case $k in 1) n=${1#\#} ;; 2) c=$1 ;; *) acuse ;; esac; shift ;; esac; done
+  # FB-3 A4: rows in no published ticket, accepted outside ViD: the owner's words alone, no commit
+  if [ -n "$RS" ]; then [ -n "$OS" ] && [ "$k$TS" = 0 ] || acuse; renew; outs --rows "$RW"; outf; return 0; fi
+  # FB-3 E1: several tickets accepted outside ViD, each at its commit of main, in one read and one save
+  if [ -n "$TS" ]; then [ -n "$OS" ] && [ "$k" = 0 ] || acuse; printf '%s\n' "$TL" | tr ' \t,' '\n\n\n' | sed 's/^#//' | grep . > "$L/tl" || acuse
+    ! grep -vqE '^[0-9]+(@[0-9a-f]{7,40})?$' "$L/tl" || acuse; renew; read_; fetch_; ! manual || umerged_; outfp; : > "$L/td"
+    while IFS= read -r x <&4; do n=${x%%@*}; c=''; case $x in *@*) c=${x#*@} ;; *) if outp "$n" && [ -z "$(accepted "$n")" ]; then gh_ ticket-decided "$n" > "$L/o" 2> "$L/e" || fail ticket-decided "$(tail -n 1 "$L/e")"; c=$(cut -f2 "$L/o"); [ "$c" != - ] || c=''; fi ;; esac; printf '%s\t%s\n' "$n" "$c" >> "$L/td"; done 4< "$L/tl"
+    while IFS=$TAB read -r n c <&4; do outp "$n" || { echo "refused #$n no published ticket that is not withdrawn"; continue; }
+      M=$(accepted "$n"); [ -z "$M" ] || { echo "refused #$n accepted already, at $(printf %.12s "$M")"; continue; }
+      NT=''; C=''; [ -z "$c" ] || C=$(git --git-dir=.vid/code rev-parse -q --verify "$c^{commit}" 2>/dev/null || echo "$c")
+      if [ -z "$C" ] || ! grep -qxF -e "$C" "$L/fp"; then NT="at main's newest commit ($([ -n "$C" ] && echo "$(printf %.12s "$C") is not on main" || echo 'no commit was named'))"; C=$(head -n 1 "$L/fp"); fi
+      [ -n "$C" ] || { echo "refused #$n main holds no commit"; continue; }
+      h=$(printf %.12s "$C"); if [ -n "$NT" ]; then outs --ticket "$n" --at "$C" --note "$NT"; else outs --ticket "$n" --at "$C"; fi; done 4< "$L/td"
+    outf; return 0; fi
+  case $n in ''|*[!0-9]*) acuse ;; esac; [ -z "$OS" ] || [ -n "$c" ] || acuse
   renew; read_; fetch_
   ! manual || umerged_   # GM-4 E4: the units merged since the last step, so the Decisions-section gate reads them
-  awk -v n="$n" '$1 == "published" && $2 == n { p = 1 } $1 == "withdrawn" && $2 == n { p = 0 } END { exit !p }' "$LOG" 2>/dev/null || { echo "refused #$n no published ticket that is not withdrawn"; return 0; }
+  outp "$n" || { echo "refused #$n no published ticket that is not withdrawn"; return 0; }
+  # FB-3 A4: the ticket accepted outside ViD, at a commit of main, by the owner's words, in both modes; nothing is posted
+  if [ -n "$OS" ]; then outfp
+    M=$(accepted "$n"); [ -z "$M" ] || { echo "refused #$n accepted already, at $(printf %.12s "$M")"; return 0; }
+    C=$(git --git-dir=.vid/code rev-parse -q --verify "$c^{commit}" 2>/dev/null || echo "$c"); h=$(printf %.12s "$C"); grep -qxF -e "$C" "$L/fp" || { echo "refused #$n $h is not on main"; return 0; }
+    outs --ticket "$n" --at "$C"; outf; return 0; fi
   if ! manual; then   # GitHub auto: the open pull request naming the ticket, at its head, as step decides it
     awk -F'\t' -v n="$n" '$1 == "open" && $3 == n { print $2 "\t" $4 "\t" (($7 + 0 > $8 + 0) ? "ask" : "re"); exit }' "$L/read" > "$L/ap"; [ -s "$L/ap" ] || { echo "refused #$n no open pull request names it"; return 0; }
     IFS=$TAB read -r p H am < "$L/ap"; [ -z "$c" ] || case $H in "$c"*) ;; *) echo "refused #$n $c is not the head of pull request $p, $(printf %s "$H" | cut -c1-12)"; return 0 ;; esac
@@ -331,24 +378,28 @@ cmd_accept() { n=${1:-}; n=${n#\#}; c=${2:-}; case $n in ''|*[!0-9]*) echo 'usag
   M=$(accepted "$n"); if [ -n "$M" ]; then m12=$(printf %s "$M" | cut -c1-12); C=$AQ
     if [ -n "$C" ]; then mpost "$n" "$(printf 'vid: decision %s\nticket: accepted at %s; its close runs there' "$C" "$m12")"; : > "$D/posted-step-$n-$(printf %s "$C" | cut -c1-12)"; fi
     echo "accepted #$n at $m12; its close runs there"; return 0; fi
-  # a ticket closed on GitHub before its acceptance: K1's two commands (E6)
-  awk -F'\t' -v n="$n" '$1 == "issue" && $2 == n { f = 1 } END { exit !f }' "$L/read" || { echo "refused #$n closed on GitHub before its acceptance: /vid:vid-tickets reopen #$n \"<your words>\" reopens it, /vid:vid-tickets withdraw #$n \"<your words>\" withdraws it"; return 0; }
-  # E13: with no commit, the newest commit of main's first-parent line holding a head report, an unanswered ask or not; the
+  # a ticket closed on GitHub before its acceptance: K1's two commands (E6), and FB-3 E1's third
+  awk -F'\t' -v n="$n" '$1 == "issue" && $2 == n { f = 1 } END { exit !f }' "$L/read" || { echo "refused #$n closed on GitHub before its acceptance: /vid:vid-tickets reopen #$n \"<your words>\" reopens it, /vid:vid-tickets withdraw #$n \"<your words>\" withdraws it, /vid:vid-accept-step $n <commit> accepted \"<your words>\" records it as accepted outside ViD"; return 0; }
+  # E13: with no commit, the newest commit of main's first-parent line at which a result report holds a case of one of the ticket's
+  # rows (FB-3 A1.3, results.sh at), an unanswered ask or not; the
   # round's own decide lines name their commit
-  if [ -z "$c" ]; then while read -r x; do [ -z "$(G for-each-ref "refs/heads/vid-results/step-$n-$(printf %s "$x" | cut -c1-12)-*" 2>/dev/null)" ] || { c=$x; break; }; done < "$L/fp"
-    [ -n "$c" ] || { echo "refused #$n no head report on main"; return 0; }; fi
+  if [ -z "$c" ]; then c=$(sh "$HERE/results.sh" at "$n" 2> "$L/e") || fail results "$(tail -n 1 "$L/e")"
+    [ -n "$c" ] || { echo "refused #$n no results on main; accepted outside ViD: /vid:vid-accept-step $n <commit> accepted \"<your words>\""; sh "$HERE/results.sh" skipped --ticket "$n"; return 0; }; fi
   C=$(G rev-parse -q --verify "$c^{commit}" 2>/dev/null || true); [ -n "$C" ] || C=$c; h=$(printf %s "$C" | cut -c1-12)
   # E1: a commit off main's first-parent line moves no row
   # answered only to the ticket's unanswered ask at it; a direct call names it and posts nothing
   if ! grep -qx "$C" "$L/fp"; then [ "$C" = "$AQ" ] || { echo "refused #$n $h is not on main"; return 0; }
     mpost "$n" "$(printf 'vid: decision %s\nticket: not yet\nnot on main — %s' "$C" "$C")"; : > "$D/posted-step-$n-$h"
     echo "decided #$n $h ticket: not yet — not on main"; DID=1; return 0; fi
-  [ -n "$(G for-each-ref "refs/heads/vid-results/step-$n-$h-*" 2>/dev/null)" ] || { echo "refused #$n no head report at $h"; return 0; }
+  sh "$HERE/results.sh" at "$n" "$C" > "$L/at" 2> "$L/e" || fail results "$(tail -n 1 "$L/e")"; [ -s "$L/at" ] || { echo "refused #$n no results at $h; accepted outside ViD: /vid:vid-accept-step $n $h accepted \"<your words>\""; sh "$HERE/results.sh" skipped --ticket "$n" --at "$C"; return 0; }
   sh "$HERE/results.sh" read --ticket "$n" --at "$C" > /dev/null 2> "$L/e" || fail results "$(tail -n 1 "$L/e")"
+  # FB-3 A1.3: a decision that would be accepted but for ViD's own review: nothing decided, nothing posted, the ask still owed
+  dec decide --ticket "$n" --at "$C" --dry > "$L/dry" 2> "$L/e" || fail decide "$(tail -n 1 "$L/e")"; ! grep -qx review "$L/dry" || { echo "review #$n $h"; return 0; }
   dec decide --ticket "$n" --at "$C" > /dev/null 2> "$L/e" || fail decide "$(tail -n 1 "$L/e")"; dec queue > /dev/null 2>&1
   gh_ state-save > /dev/null 2> "$L/e" || fail state-save "$(tail -n 1 "$L/e")"; [ "$C" != "$AQ" ] || rm -f "$D/posted-step-$n-$h"   # an ask always gets its answer
   b=''; [ ! -f "$D/posted-step-$n-$h" ] || b=$(cksum < "$D/posted-step-$n-$h")
   dec decide --ticket "$n" --at "$C" --post > /dev/null 2> "$L/e" || fail post "$(tail -n 1 "$L/e")"
+  [ "$(cat "$D/review/none-step-$n" 2>/dev/null)" != "$C" ] || rm -f "$D/review/none-step-$n"   # the review that found no pull request is answered: the next ask looks again
   a=$(cksum < "$D/posted-step-$n-$h"); TL=$(sed -n 2p "$D/posted-step-$n-$h")
   if [ "$TL" = 'ticket: accepted' ]; then dec merged --ticket "$n" > "$L/o" 2>&1 || fail merged "$(tail -n 1 "$L/o")"   # E4: the acceptance is its merge
     printf 'step-%s-%s\t%s\t%s\t%s\n' "$n" "$h" "$n" "$C" "$C" >> "$D/merges"; echo "step-$n-$h" >> "$D/merged-prs"; fi
@@ -356,5 +407,5 @@ cmd_accept() { n=${1:-}; n=${n#\#}; c=${2:-}; case $n in ''|*[!0-9]*) echo 'usag
   gh_ state-save > /dev/null 2> "$L/e" || fail state-save "$(tail -n 1 "$L/e")"
   [ "$a" = "$b" ] && [ "$C" != "$AQ" ] || { echo "decided #$n $h $TL"; weak_ "$D/posted-step-$n-$h" "#$n" "$h"; }; [ "$TL" != 'ticket: accepted' ] || echo "accepted #$n $h"; DID=1; }
 CMD=${1:-}
-cmd_read() { [ $# -eq 0 ] || { echo 'usage: sh checks/round.sh read' >&2; exit 2; }; rd_ || { sed 's/^/    /' "$L/e" >&2; echo 'ViD round: the read failed (the lines above) — .vid/round/read is as it was' >&2; exit 1; }; }
-case $CMD in wait) cmd_wait ;; step) cmd_step ;; next) cmd_next ;; asks) cmd_asks ;; accept) shift; cmd_accept "$@" ;; read) shift; cmd_read "$@" ;; *) echo 'usage: sh checks/round.sh wait|step|next|asks|accept <ticket> [<commit>]|read' >&2; exit 2 ;; esac
+cmd_read() { [ $# -eq 0 ] || { echo 'usage: sh checks/round.sh read' >&2; exit 2; }; prog on 'Reading GitHub'; rd_ || { rneed 'a look at the chat: GitHub could not be read'; sed 's/^/    /' "$L/e" >&2; echo 'ViD round: the read failed (the lines above) — .vid/round/read is as it was' >&2; exit 1; }; prog on 'Working out what changed'; }
+case $CMD in wait) cmd_wait ;; step) cmd_step ;; next) cmd_next ;; asks) cmd_asks ;; accept) shift; cmd_accept "$@" ;; read) shift; cmd_read "$@" ;; *) echo 'usage: sh checks/round.sh wait|step|next|asks|accept <ticket> [<commit>]|accept <ticket> <commit> --outside "<words>"|accept --rows "<ids>" --outside "<words>"|accept --tickets "<n>[@<commit>] …" --outside "<words>"|read' >&2; exit 2 ;; esac

@@ -12,7 +12,8 @@
 #     --devagent  the owner's words that DevAgent is stopped, needed coming from GitHub auto alone
 #     --to-place  the owner's words accepting the rows to place: the check's `place` flags, in no step or in another stage's step
 #     --review    the fresh-agent review of the rows ViD added (planner.sh review --in), recorded when no review has this hash
-#     --words     the owner's yes to the ratification; without it the call stops, refused, once the page is written
+#     --words     the owner's yes to the ratification; without it the call stops, refused, once the page is written (FB-3 C4: but a
+#                 take-stock whose ratification stands, the spec files and the plan those ratified: nothing is asked, `ratified-kept <at>`)
 #     --refresh-yes  the owner's yes to the local edits the refresh of checks/ lists (connect.sh start --yes)
 #   auto [--register <file>] [--plan <file>] [--plan-md <file>] [--review <file>] [--words "<words>"] [--refresh-yes]   (GM-4 F13,
 #     GM M2) from GitHub manual the switch to GitHub auto; in GitHub auto its take-stock; from any other mode refused. Steps 1 to 6
@@ -28,13 +29,14 @@
 #     .vid/tw/applied.log stays, its history), and what the last /vid next raised, .vid/decide/queue/raised, removed (F4). In GitHub auto (a take-stock) every step reads under auto's rules and nothing
 #     is refused but by the check and the words: `mode-retake` recorded, the mode unchanged
 #   GM-3 S1: --register, --plan, --plan-md and --applied are optional; each given overrides what is found. At step 4, after the
-#   records are restored: the register, every issue labelled <prefix>ticket, open or closed, its step from its newest writing's header
-#   (github.sh tickets; a list that may be cut is not found); PLAN.md, HEAD's, refused when it has changes not committed; the plan block, RUN-STATE's when it holds one, else
+#   records are restored: the register, every issue labelled <prefix>ticket and (FB-3 C3) every ticket on record whatever its labels,
+#   open or closed, its step from its newest writing's header
+#   (github.sh tickets; a list that may be cut is not found, and one on record GitHub no longer has is `not-found <n>`, kept); PLAN.md, HEAD's, refused when it has changes not committed; the plan block, RUN-STATE's when it holds one, else
 #   .vid/plans/<plan>.plan for the newest published ticket's `- plan:` (the newest by the order of .vid/metrics-events' plan-change
 #   lines, then the highest issue number); the applied version, the one recorded (.vid/tw/applied), else the H of the newest
 #   published ticket's export, or (GM-4 K13, with layout: one) the export the code repository's folder's stamp names (github.sh
 #   spec-stamp; a candidate as a ticket's export is, losing a tie to one) (the newest by .vid/tw/log's export lines when it pushed each, else the one the others are ancestors of in ViD's copy of the
-#   spec repository, .vid/spec.git, else the highest issue number's), read from the log's `export <C> from=<H> state=pushed` line (never an unchanged one), else from that
+#   spec repository, .vid/spec.git, else the highest issue number's), read from the log's `export <C> from=<H> state=pushed` line, or `state=local` (FB-3 B2; never an unchanged one), else from that
 #   copy's commit message (`from: <H>`), the copy first fetched from the spec repository (github.sh spec-fetch, read only), and only when H is a commit of this repository. Each found is printed `found <register|plan|
 #   plan-md|applied> <what> — <where it came from>` before it is used; each not found is a line `need <--register|--plan|--plan-md|
 #   --applied> — <where ViD looked>`, all of them, then a refusal naming them, exit 5. Each ticket's writing is read once. A read of
@@ -76,8 +78,10 @@
 #   once taken. A refused switch changes no mode; the next call goes on from what it wrote.
 # Prints one line per thing recorded: taken-over <n> <step> <body|comments>, from-body <n>, not-taken-over <n> <why>, newer <n>
 #   <hash>, kept <n> not in the register, register <n> <its step> writing <its step>, differs <n> <row>, to-place <row> <kind>;
+#   looks-accepted #<n> <step> <commit or -> <why> (FB-3 E1, GitHub manual alone: a closed ticket on record, not accepted; it ends nothing),
 #   (GM-3 S2) take-over-row <row> #<n> — <where>, take-over-refused <row> #<n> — <why>, take-over <commit> on <commit> — <ref>,
 #   at-head <commit> <row>…, held <row> — <why>, dropped <row> <step>, dropped-step <step>;
+#   `engines not named — <the command>` (FB-3 E2, GitHub manual alone, with no engines on the handed record);
 #   then `mode: GitHub manual, recorded` or `mode: GitHub manual, re-taken` (auto: `mode: GitHub auto, recorded` or `… re-taken`).
 #   GM-4 F4 (I3, D6): every switch to or re-take of GitHub manual writes `owner-questions: all` in .vid/tw/settings: every question
 #   is the owner's; the switch to auto takes it out. Exit 0; 1 refused; 2 usage; 3 setup keys to ask; 4 the
@@ -94,13 +98,17 @@ VID_CALLER=mode; export VID_CALLER
 W=$(mktemp -d); LK=''
 usage() { sed -n 's/^# Usage: /usage: /p' "$0" >&2; exit 2; }
 gh_() { sh "$HERE/github.sh" "$@"; }; pl() { sh "$HERE/planner.sh" "$@"; }
+# FB-3 D2: the take-stock's progress beside the chat (lib.sh prog): PN, its parts are named; PST, what a stop needs
+PN=''; PST='a look at the chat, which says why it stopped'
 # done_ <rc>: the end of every path once the lock is taken: the records saved, the lock freed and the call's stage ended (connect.sh end)
 done_() { rc=$1; trap - EXIT INT TERM
   [ "$rc" = 0 ] || [ ! -f "$W/tp0" ] || put .vid/tw/to-place < "$W/tp0"
+  [ "$rc" != 0 ] || prog on 'Saving the records'
   if [ -n "$LK" ]; then
     sh "$HERE/connect.sh" end > "$W/lf" 2>&1 || { sed 's/^/    /' "$W/lf" >&2; echo 'ViD mode: the records could not be saved or the lock freed (the lines above)' >&2; [ "$rc" != 0 ] || rc=1; }
   # stopped while connect.sh held a lock it had taken for this call (its lock-session written since), that lock is freed
   elif [ -n "${LS0+x}" ] && [ "$(cat .vid/lock-session 2>/dev/null || true)" != "$LS0" ] && [ -s .vid/lock-session ]; then sh "$HERE/github.sh" lock-free > /dev/null 2>&1 || :; fi
+  [ -z "$PN" ] || if [ "$rc" = 0 ]; then prog 'done'; else prog stop "$PST"; fi
   rm -rf "$W"; exit "$rc"; }
 ref() { echo "ViD mode: refused — $*" >&2; done_ 1; }
 trap 'done_ 1' INT TERM; trap 'done_ $?' EXIT
@@ -127,16 +135,21 @@ else grep -q '^mode:[[:space:]]*tickets[[:space:]]*$' .vid/RUN-STATE.md || ref "
 
 # 2. the setup
 : > "$W/ask"; for k in layout team split repo spec-repo slack-channels state-repo issue-form issue-parent plan-page; do   # GM-2 (§5): the form's keys; GM-4 J5: spec-repo in both layouts
+  # FB-3 B2: but with one repository it is GitHub auto's alone, asked again at the switch to auto when dropped or become the state repository
+  if [ "$k" = spec-repo ] && [ "$(skey layout)" = one ]; then [ "$TG" = auto ] || continue; [ -n "$SWA" ] && { [ -z "$(skey spec-repo)" ] || [ "$(skey spec-repo)" = "$(skey state-repo)" ]; } && { echo "ask $k" >> "$W/ask"; continue; }; fi
   grep -q "^setup-answered key=$k " .vid/plan/setup 2>/dev/null || echo "ask $k" >> "$W/ask"; done
-if [ -s "$W/ask" ]; then cat "$W/ask"; echo "ViD mode: the setup keys above have no answer of the owner's: ask each, record it (sh checks/planner.sh setup <key> <answer> --words \"<their words>\"), then run this again" >&2; trap - EXIT; rm -rf "$W"; exit 3; fi
-[ "$TG" = auto ] || [ "$FROM" != auto ] || [ -n "$DW" ] || ref "a switch from GitHub auto needs the owner's words that DevAgent is stopped (--devagent \"<their words>\")"
+if [ -s "$W/ask" ]; then cat "$W/ask"; echo "ViD mode: the setup keys above have no answer of the owner's: ask each, record it (sh checks/planner.sh setup <key> <answer> --words \"<their words>\"), then run this again" >&2; trap - EXIT; rm -rf "$W"; prog 'done'; prog stop 'your answers to the setup'; exit 3; fi
+PN=1; prog parts 'Connecting and checking the project' 'Finding the published tickets' 'Reading each ticket' 'Comparing their tests with the spec' 'Writing the plan down' 'Checking the plan' 'Recording your approval' 'Saving the records'
+prog on 'Connecting and checking the project'
+[ "$TG" = auto ] || [ "$FROM" != auto ] || [ -n "$DW" ] || { PST='your words that DevAgent is stopped'; ref "a switch from GitHub auto needs the owner's words that DevAgent is stopped (--devagent \"<their words>\")"; }
 # 3. vid-connect's start (connect.sh): the refresh, the records restored, the lock and GitHub's access check
 LS0=$(cat .vid/lock-session 2>/dev/null || true); rc=0; sh "$HERE/connect.sh" start $RY > "$W/cn" 2>&1 || rc=$?
-case $rc in 0) LK=1; cat "$W/cn" ;; 3) cat "$W/cn"; echo "ViD mode: the refresh of checks/ waits for the owner: on a yes run this again with --refresh-yes; on a no, sh checks/connect.sh refresh-no \"<their words>\"" >&2; trap - EXIT; rm -rf "$W"; exit 4 ;;
+case $rc in 0) LK=1; cat "$W/cn" ;; 3) cat "$W/cn"; echo "ViD mode: the refresh of checks/ waits for the owner: on a yes run this again with --refresh-yes; on a no, sh checks/connect.sh refresh-no \"<their words>\"" >&2; trap - EXIT; rm -rf "$W"; prog stop "your yes to update the project's checks"; exit 4 ;;
   *) sed 's/^/    /' "$W/cn" >&2; ref 'the connection is not ready (the lines above); no lock is held' ;; esac
 [ -z "$DW" ] || [ "$TG" = auto ] || [ "$FROM" != auto ] || ev "mode-devagent words=\"$(printf %s "$DW" | tr '"' "'")\""
 
 # 4. the inputs not given, found (GM-3 S1): each printed `found …` before it is used, each not found a `need …` line, then exit 5
+prog on 'Finding the published tickets'
 mkdir -p "$W/tk"; : > "$W/need"; FA=''; PX=$(skey labels-prefix); GL="GitHub, the code repository's issues labelled ${PX}ticket, open or closed"
 nd() { echo "need $1 — $2" >> "$W/need"; }
 hv() { awk -v k="$2" '/^## / { s = substr($0, 4); next } s == "Header" && index($0, "- " k ": ") == 1 { print substr($0, length(k) + 5); exit }' "$1" 2>/dev/null; }
@@ -159,8 +172,8 @@ if [ -z "$PM" ]; then
 if [ -z "$RG" ]; then
   if gh_ tickets "$W/tk" > "$W/tl" 2> "$W/te"; then
     if grep -q '^cut ' "$W/tl"; then nd --register "$GL: $(sed -n 's/^cut [0-9]* //p' "$W/tl")"
-    else awk '$1 == "ticket" { print $2, $4 }' "$W/tl" > "$W/rgf"; RG=$W/rgf; grep '^not-taken-over ' "$W/tl" || :
-      echo "found register $(grep -c . "$W/rgf" | tr -d ' ') tickets, $(grep -c '^ticket [0-9]* open ' "$W/tl" | tr -d ' ') open and $(grep -c '^ticket [0-9]* closed ' "$W/tl" | tr -d ' ') closed — $GL, each its step from its newest writing's header (github.sh tickets)"; fi
+    else awk '$1 == "ticket" { print $2, $4 }' "$W/tl" > "$W/rgf"; RG=$W/rgf; grep -E '^(not-taken-over|not-found) ' "$W/tl" || :
+      echo "found register $(grep -c . "$W/rgf" | tr -d ' ') tickets, $(grep -c '^ticket [0-9]* open ' "$W/tl" | tr -d ' ') open and $(grep -c '^ticket [0-9]* closed ' "$W/tl" | tr -d ' ') closed — $GL, and the tickets on record in .vid/tw/log whatever their labels, each its step from its newest writing's header (github.sh tickets)"; fi
   else sed 's/^/    /' "$W/te" >&2; ref "the published tickets could not be read from GitHub (the lines above): run this again"; fi; fi   # a failed read is no need
 if [ -z "$PB" ]; then
   if [ -n "$(plan_block)" ]; then plan_block > "$W/pbf"; PB=$W/pbf; echo "found plan the plan block, $(grep -c . "$W/pbf" | tr -d ' ') lines — RUN-STATE.md's plan, the newest recorded"
@@ -184,19 +197,19 @@ elif [ -z "$AP" ]; then heads; SG=.vid/spec.git; SF=''
   if [ -n "$STX" ]; then SPX=$(awk -v x="$STX" '$1 == "export" && index($2, x) == 1 { print $2; exit }' .vid/tw/log 2> /dev/null)
     [ -n "$SPX" ] || { sf; SPX=$(git --git-dir="$SG" rev-parse -q --verify "$STX^{commit}" 2> /dev/null) || SPX=$STX; }; echo "0 - $SPX" >> "$W/hd"; fi
   set -- $(newest 3 .vid/tw/log export - | tr ' ' '\n')
-  # the log's order decides only when it holds a pushed line for every export the tickets name; else the export the
+  # the log's order decides only when it holds a pushed (FB-3 B2: or local) line for every export the tickets name; else the export the
   # others are ancestors of in ViD's copy of the spec repository, read first, when it holds them all; else the highest issue number's
-  MX=$(awk -v E=.vid/tw/log 'BEGIN { while ((getline l < E) > 0) if (l ~ /^export / && l ~ / state=pushed( |$)/) { split(l, a, " "); P[a[2]] = 1 } } $3 != "-" && !($3 in P) { m = 1 } END { print m + 0 }' "$W/hd")
+  MX=$(awk -v E=.vid/tw/log 'BEGIN { while ((getline l < E) > 0) if (l ~ /^export / && l ~ / state=(pushed|local)( |$)/) { split(l, a, " "); P[a[2]] = 1 } } $3 != "-" && !($3 in P) { m = 1 } END { print m + 0 }' "$W/hd")
   [ $# -lt 3 ] || [ "$MX" = 0 ] || sf
   if [ $# -ge 3 ] && [ "$MX" = 1 ]; then AX=''; [ ! -d "$SG" ] || for x in $(awk '$3 != "-" { print $3 }' "$W/hd" | sort -u); do o=1
       for y in $(awk '$3 != "-" { print $3 }' "$W/hd" | sort -u); do git --git-dir="$SG" merge-base --is-ancestor "$y" "$x" 2>/dev/null || { o=''; break; }; done
       [ -z "$o" ] || { AX=$x; break; }; done
     if [ -n "$AX" ]; then set -- $(awk -v x="$AX" '$3 == x { l = $0 } END { print l }' "$W/hd" | tr ' ' '\n'); else set -- $(newest 3 /dev/null export - | tr ' ' '\n'); fi; fi
   if [ $# -lt 3 ]; then nd --applied ".vid/tw/applied (none recorded), then the published tickets' headers ($TH)"
-  else XN=$1; XC=$3; XD="#$XN, the newest published ticket's"; [ "$XN" != 0 ] || XD="the stamp $(skey spec-path | grep . || echo docs/specs)/$(skey spec-stamp) on the code repository's main"; XH=$(awk -v c="$XC" '$1 == "export" && $2 == c && h == "" { p = ""; f = ""; for (i = 3; i <= NF; i++) { if (index($i, "from=") == 1) f = substr($i, 6); if ($i == "state=pushed") p = 1 } if (p) h = f } END { print h }' .vid/tw/log 2>/dev/null)
-    XW=".vid/tw/log's line export $XC from=$XH state=pushed"   # its push's line, never a later unchanged export's
+  else XN=$1; XC=$3; XD="#$XN, the newest published ticket's"; [ "$XN" != 0 ] || XD="the stamp $(skey spec-path | grep . || echo docs/specs)/$(skey spec-stamp) on the code repository's main"; XH=$(awk -v c="$XC" '$1 == "export" && $2 == c && h == "" { p = ""; f = ""; for (i = 3; i <= NF; i++) { if (index($i, "from=") == 1) f = substr($i, 6); if ($i == "state=pushed" || $i == "state=local") p = 1 } if (p) h = f } END { print h }' .vid/tw/log 2>/dev/null)
+    XW=".vid/tw/log's line export $XC from=$XH $(grep "^export $XC " .vid/tw/log 2>/dev/null | grep -oE 'state=(pushed|local)' | head -n 1)"   # its push's line, never a later unchanged export's
     [ -n "$XH" ] || sf
-    if [ -z "$XH" ] && git --git-dir="$SG" cat-file -e "$XC^{commit}" 2>/dev/null; then XH=$(git --git-dir="$SG" log -1 --format=%B "$XC" | sed -n 's/^from: //p' | head -n 1); XW="the export's message, from the spec repository read into ViD's copy, $SG (from: $XH)"; fi
+    if [ -z "$XH" ] && git --git-dir="$SG" merge-base --is-ancestor "$XC" refs/heads/main 2>/dev/null; then XH=$(git --git-dir="$SG" log -1 --format=%B "$XC" | sed -n 's/^from: //p' | head -n 1); XW="the export's message, from the spec repository read into ViD's copy, $SG (from: $XH)"; fi
     if [ -z "$XH" ]; then nd --applied ".vid/tw/applied (none recorded), then the export $XC of $XD: .vid/tw/log has no export line for it, and the spec repository, read into ViD's copy ($SG), does not hold it"
     elif FA=$(git rev-parse -q --verify "$XH^{commit}" 2>/dev/null); then echo "found applied $FA — the export $XC of $XD: $XW"
     else FA=''; nd --applied "the export $XC of $XD, names $XH ($XW), no commit of this repository"; fi; fi; fi
@@ -216,7 +229,9 @@ if [ -z "$RT" ] && [ -n "$RG" ]; then
     i=0; for n in $(grep -v '^[[:space:]]*\(#\|$\)' "$RG" | awk '$1 ~ /^[0-9]+$/ { print $1 }' | sort -un); do i=$((i + 1)); [ $((i % 5)) != 0 ] || gh_ lock-renew > /dev/null 2>&1 || ref 'the lock could not be renewed'; grep -q "^published $n " .vid/tw/log 2>/dev/null || { rd "$n"; [ "$(cut -d' ' -f1 "$W/tk/$n.line")" = writing ] || continue; }
       awk '$0 == "## Rows" { on = 1; next } on && /^## / { exit } on' "$(wf "$n")" 2>/dev/null | sed -n 's/^> \{0,1\}//p' | awk "$IK"' { k = key($0); if (k != "" && !(k in s)) { s[k] = 1; print k } }' | while read -r r; do grep -qxF "$r" "$W/lbk" || echo "$r $n"; done; done >> "$W/lk"
     [ ! -s "$W/lk" ] || [ -n "$TF" ] || nd --from "the copy the published tickets were written from: they quote rows INVENTORY.md at $(git rev-parse --short "$LB") lacks, $(awk '{ print $1 " (#" $2 ")" }' "$W/lk" | paste -sd ',' - | sed 's/,/, /g')"; fi; fi
-if [ -s "$W/need" ]; then cat "$W/need"; echo "ViD mode: refused — not found, so asked of the owner: $(awk '{ print $2 }' "$W/need" | paste -sd ' ' - | sed 's/ /, /g') (where ViD looked, each line above); run this again with them" >&2; done_ 5; fi
+if [ -s "$W/need" ]; then PST="what ViD could not find: $(awk 'BEGIN { W["--register"] = "the register of the published tickets"; W["--plan"] = "the plan"; W["--plan-md"] = "PLAN.md"; W["--applied"] = "the commit the tickets were written from"; W["--from"] = "the copy they were written from" }
+    ($2 in W) && !s[$2]++ { K[$2] = 1 } END { n = split("--register --plan --plan-md --applied --from", o, " "); for (i = 1; i <= n; i++) if (o[i] in K) { printf "%s%s", p, W[o[i]]; p = ", " } }' "$W/need")"
+  cat "$W/need"; echo "ViD mode: refused — not found, so asked of the owner: $(awk '{ print $2 }' "$W/need" | paste -sd ' ' - | sed 's/ /, /g') (where ViD looked, each line above); run this again with them" >&2; done_ 5; fi
 # GM-3 S2: the take-over. ins <inventory> <lines>: the inventory with each `<block>\t<line>` at the end of that ```vid-inventory block
 # (the last, past their count)
 ins() { awk -v L="$2" -v nb="$(grep -c '^```vid-inventory' "$1")" 'BEGIN { while ((getline x < L) > 0) { t = index(x, "\t"); o = substr(x, 1, t - 1) + 0; if (o > nb) o = nb; A[o] = A[o] substr(x, t + 1) "\n" } }
@@ -233,7 +248,7 @@ if [ -s "$W/lk" ]; then
       else echo "take-over-row $r #$n — the copy's line ($TF/INVENTORY.md), as the ticket quotes it" >> "$W/tkr"; fi; done; done
   [ ! -s "$W/tkx" ] || { cat "$W/tkx"; ref "$(grep -c . "$W/tkx" | tr -d ' ') rows the published tickets quote have no line in the copy matching the quote (above): none is written into the spec"; }
   cat "$W/tkr"; TR=$(awk '{ print $2 }' "$W/tkr" | awk '!s[$0]++' | paste -sd ' ' -)
-  [ -n "$TO" ] || ref "the rows above, $TR, are to be written into the spec on the commit the tickets were written from: the owner's yes, --take-over \"<their words>\""
+  [ -n "$TO" ] || { PST="your yes to write $(grep -c . "$W/tkr" | tr -d ' ') rows into the spec"; ref "the rows above, $TR, are to be written into the spec on the commit the tickets were written from: the owner's yes, --take-over \"<their words>\""; }
   # the take-over commit: the tickets' commit with those rows and, when HEAD holds no PLAN.md, the copy's; made off the branch
   # each row's block and its whole line, the line all that follows ikeys' second tab (a tab inside it kept)
   for r in $(echo "$TR" | tr ' ' '\n'); do awk -F'\t' -v r="$r" '$1 == r { l = $0; sub(/^[^\t]*\t[^\t]*\t/, "", l); print $2 "\t" l; exit }' "$W/ck"; done > "$W/tl"
@@ -277,6 +292,7 @@ if [ -z "$RT" ] && tko "$AC"; then B=$(git rev-parse "$AC^1") || ref "the take-o
     echo "at-head $(git rev-parse HEAD)$HR"; fi; fi
 
 # 5. the tickets
+prog on 'Reading each ticket'
 mkdir -p .vid/tw/out; touch .vid/tw/log; [ -f .vid/tw/handed ] || : > .vid/tw/handed; : > "$W/new"   # GM-2 lane B review: an empty handed record, so writer.sh due runs on a switched project
 hdr() { awk -v k="$2" '/^## / { s = substr($0, 4); next } s == "Header" && index($0, "- " k ": ") == 1 { v = substr($0, length(k) + 5); print v; exit }' "$1"; }
 take() { # take <n> <file> <hash> <src> <parts> <published|amended>: the writing recorded, its hash kept on its log line
@@ -290,6 +306,7 @@ whash() { _wh=$(awk -v n="$1" '($1 == "published" || $1 == "amended") && $2 == n
 grep -v '^[[:space:]]*\(#\|$\)' "$RG" > "$W/rg" || :
 i=0; while IFS=' ' read -r n s _; do case "$n" in ''|*[!0-9]*) ref "the register's line \"$n $s\" is not <issue number> <step id>" ;; esac; [ -n "$s" ] || ref "the register's line for #$n names no step"
   i=$((i + 1)); [ $((i % 5)) != 0 ] || gh_ lock-renew > /dev/null 2>&1 || ref 'the lock could not be renewed'
+  prog now "ticket $i of $(grep -c . "$W/rg" | tr -d ' '), $(grep -c . "$W/new" | tr -d ' ') new so far"
   if grep -q "^published $n " .vid/tw/log; then
     [ -n "$RT" ] || continue
     rd "$n"; cp "$W/tk/$n.line" "$W/wl"; [ ! -f "$W/tk/$n.md" ] || cp "$W/tk/$n.md" "$W/tw"
@@ -302,8 +319,19 @@ done < "$W/rg"
 awk '$1 == "published" { print $2 }' .vid/tw/log | sort -un | while read -r n; do grep -q "^withdrawn $n " .vid/tw/log && continue; awk -v n="$n" '$1 == n { f = 1 } END { exit !f }' "$W/rg" || echo "kept $n not in the register"; done
 
 # 6. the rows each ticket taken over here quotes, at the applied commit
+prog on 'Comparing their tests with the spec'
 for n in $(cat "$W/new"); do sh "$HERE/next.sh" differ "$n" "$AC" > "$W/df" 2> "$W/de" || { sed 's/^/    /' "$W/de" >&2; ref "the rows of #$n could not be read at the applied commit"; }
   awk '$1 == "differ" { print "differs " $2 " " $3 }' "$W/df"; done
+
+# FB-3 E1: at a switch to or take-stock in GitHub manual, each ticket on record, not withdrawn and not accepted (round.sh accepted's own
+# test), whose issue is closed: one line each, which ends nothing and records nothing; one read a ticket, none for one found open above
+if [ "$TG" = manual ]; then i=0; for n in $(onrec); do
+    [ -z "$(awk -F'\t' -v n="$n" '$2 == n { c = $4 } END { if (c != "") print c }' .vid/decide/merges 2>/dev/null)" ] || continue
+    ! grep -q "^ticket $n open " "$W/tl" 2>/dev/null || continue
+    i=$((i + 1)); [ $((i % 5)) != 0 ] || gh_ lock-renew > /dev/null 2>&1 || ref 'the lock could not be renewed'
+    gh_ ticket-decided "$n" > "$W/td" 2> "$W/te" || { sed 's/^/    /' "$W/te" >&2; ref "#$n could not be read for its acceptance: run this again"; }
+    LS_=$(awk -v n="$n" '($1 == "published" || $1 == "amended") && $2 == n { for (i = 3; i <= NF; i++) if ($i ~ /^step=/) s = substr($i, 6) } END { print (s == "" ? "-" : s) }' .vid/tw/log)
+    awk -F'\t' -v n="$n" -v s="$LS_" '$1 == "closed" { print "looks-accepted #" n " " s " " $2 " " ($2 == "-" ? "closed, no decision comment" : "ticket: accepted, by " $3 " on " $4) }' "$W/td"; done; fi
 
 # GM-4 F13 (GM M2): the switch to auto's refusals, each listed, then steps 7 and 8 under GitHub auto's rules
 if [ -n "$SWA" ]; then : > "$W/no"; WA='the switch to GitHub auto'
@@ -321,9 +349,12 @@ if [ -n "$SWA" ]; then : > "$W/no"; WA='the switch to GitHub auto'
   { awk -F'\t' 'NF { print $1 }' .vid/tw/to-place 2>/dev/null; pl check 2>/dev/null | awk '$1 == "place" { print $2 }'; } | awk '!s[$0]++' > "$W/tpa"
   [ ! -s "$W/tpa" ] || echo "no-auto to-place — $WA is refused while any row is to place: $(paste -sd ' ' - < "$W/tpa") (place each in a step: /vid next's re-plan)" >> "$W/no"
   [ ! -s "$W/no" ] || { cat "$W/no"; ref "$WA is refused (the lines above): the mode stays GitHub manual"; }
+  # FB-3 C3: the switch posts nothing, so a ticket on record without the label is one DevAgent will not see: said, one line each
+  for n in $(onrec); do awk -F'\t' -v n="$n" -v T=",${PX}ticket," -v L="${PX}ticket" '$1 == "issue" && $2 == n && !index("," $3 ",", T) { print "unlabelled #" n " — an open ticket on record without the label " L ": DevAgent works only issues labelled " L }' .vid/round/read; done
   VID_CALLER=mode-auto; export VID_CALLER; fi
 
 # 7. the plan, in a planning sitting
+prog on 'Writing the plan down'
 if grep -q '^```vid-plan' "$PB"; then awk '/^```vid-plan[ \t]*$/ { b = 1; next } b && /^```[ \t]*$/ { exit } b' "$PB"; else cat "$PB"; fi > "$W/blk"
 # GM-3 S2: at a switch, a row a step not yet published names that the applied inventory lacks is taken out of the block (and out of
 # its needs line), since such a step may change freely (GM M10, rule 3); a range <PREFIX>-a..<PREFIX>-b holding such a row is
@@ -391,20 +422,38 @@ H=$(pl hash) || ref 'the spec could not be read at the applied commit'
 if [ -z "$RV" ] && [ -z "$(pl rows --added)" ]; then printf 'none\n' > "$W/rv0"; RV=$W/rv0; fi
 if [ -n "$RV" ] && ! grep -qs "^review [0-9]* hash=$H " .vid/plan/review; then pl review --in "$RV" > "$W/rv" 2>&1 || { sed 's/^/    /' "$W/rv" >&2; ref 'the review was refused'; }; fi
 
+prog on 'Checking the plan'
 # 8. the ratification: the list of rows to place written whole, so the check first sees every place flag
 # the list as last ratified kept aside, and put back by done_ on any refusal
+# FB-3 C4: on a take-stock (never at a switch, which asks), what the owner accepted stands while it is unchanged. KR: the newest
+# ratification's time, while planner.sh ratified holds and its plan= is the block's, with no --words given: nothing is asked or written
+# again but the page. Else each no-step row of the list is kept, its time and words, while the check flags it so and its inventory line
+# is the one at the commit in force when last ratified (.vid/tw/applied.log); the rest are listed and asked
+KR=''; if [ -n "$RT" ] && [ -z "$SWA" ] && [ -z "$WD" ] && pl ratified > "$W/rk" 2>/dev/null; then
+  KR=$(tail -n 1 .vid/plan/ratified | awk -v p="plan=$(sed -n 's/.*, plan //p' "$W/rk")" '$3 == p && $4 ~ /^at=/ { print substr($4, 4) }'); fi
+if [ -z "$KR" ]; then
 [ ! -f .vid/tw/to-place ] || { cp .vid/tw/to-place "$W/tp0" && : > .vid/tw/to-place; }
 pl check > "$W/ck" 2>&1; grep -v '^planner: clean' "$W/ck" | grep -v '^place ' > "$W/of" || :
-[ ! -s "$W/of" ] || { sed 's/^/    /' "$W/of" >&2; pl page > /dev/null 2>&1; ref "the check flags the plan beyond the rows to place (the lines above): change the plan or the spec, then run this again"; }
+[ ! -s "$W/of" ] || { sed 's/^/    /' "$W/of" >&2; pl page > /dev/null 2>&1; ref "the check flags the plan beyond the rows to place (the lines above): change the plan or the spec, then run this again$(! grep -q '^stages STAGES' "$W/of" || echo "; a STAGES.md the stage court refuses: fix it in a commit and give it with --applied")"; }
 awk '$1 == "place" { print $2 "\t" (index($0, " — in no step") ? "no-step" : "other-stage") }' "$W/ck" > "$W/pf"
-if [ -s "$W/pf" ]; then [ -n "$TW" ] || { sed 's/^/    place /' "$W/pf" >&2; pl page > /dev/null 2>&1; ref "$(grep -c . "$W/pf" | tr -d ' ') rows are to place (above): the owner's words accepting them, --to-place \"<their words>\""; }
-  awk -F'\t' -v t="$(now)" -v w="$TW" -v OFS='\t' '{ print $1, $2, t, w }' "$W/pf" > "$W/tp"; put .vid/tw/to-place < "$W/tp" || ref '.vid/tw/to-place could not be written'
-  awk -F'\t' '{ print "to-place " $1 " " $2 }' "$W/pf"
+# kept: $W/kp, the list's lines that stand; asked: $W/nw, the rest of the flagged rows
+: > "$W/kp"; if [ -n "$RT" ] && [ -z "$SWA" ] && [ -s "$W/tp0" ]; then RA=$(tail -n 1 .vid/plan/ratified 2>/dev/null | awk '$4 ~ /^at=/ { print substr($4, 4) }')
+  C0=$(awk -F'\t' -v t="$RA" 't != "" && $2 <= t { c = $1 } END { print c }' .vid/tw/applied.log 2>/dev/null)
+  if [ -n "$C0" ] && git show "$C0:INVENTORY.md" > "$W/iv0" 2>/dev/null && git show "$AC:INVENTORY.md" > "$W/iv1" 2>/dev/null; then
+    ikeys < "$W/iv0" | cut -f1,3- > "$W/ik0"; ikeys < "$W/iv1" | cut -f1,3- > "$W/ik1"
+    awk -F'\t' -v I0="$W/ik0" -v I1="$W/ik1" -v PF="$W/pf" 'BEGIN { while ((getline l < I0) > 0) { k = l; sub(/\t.*/, "", k); A[k] = l } while ((getline l < I1) > 0) { k = l; sub(/\t.*/, "", k); B[k] = l } while ((getline l < PF) > 0) F[l] = 1 }
+      $2 == "no-step" && (($1 "\t" $2) in F) && ($1 in A) && A[$1] == B[$1]' "$W/tp0" > "$W/kp"; fi; fi
+awk -F'\t' -v K="$W/kp" 'BEGIN { while ((getline l < K) > 0) { split(l, x, "\t"); S[x[1]] = 1 } } !($1 in S)' "$W/pf" > "$W/nw"
+if [ -s "$W/pf" ]; then [ -n "$TW" ] || [ ! -s "$W/nw" ] || { n=$(grep -c . "$W/nw" | tr -d ' '); PST="your words for $n $([ "$n" = 1 ] && echo test || echo tests) to place"; sed 's/^/    place /' "$W/nw" >&2; pl page > /dev/null 2>&1; ref "$(grep -c . "$W/nw" | tr -d ' ') rows are to place (above): the owner's words accepting them, --to-place \"<their words>\""; }
+  { cat "$W/kp"; awk -F'\t' -v t="$(now)" -v w="$TW" -v OFS='\t' '{ print $1, $2, t, w }' "$W/nw"; } > "$W/tp"; put .vid/tw/to-place < "$W/tp" || ref '.vid/tw/to-place could not be written'
+  awk -F'\t' '{ print "to-place " $1 " " $2 }' "$W/nw"; [ ! -s "$W/kp" ] || echo "to-place-kept $(grep -c . "$W/kp" | tr -d ' ') — accepted before, unchanged"
   pl check > "$W/ck2" 2>&1 || { sed 's/^/    /' "$W/ck2" >&2; ref 'the check still flags the plan with the rows to place recorded'; }
-else : > "$W/tp"; [ ! -f .vid/tw/to-place ] || put .vid/tw/to-place < "$W/tp"; fi
+else : > "$W/tp"; [ ! -f .vid/tw/to-place ] || put .vid/tw/to-place < "$W/tp"; fi; fi
 pl page > "$W/pg" 2>&1 || { sed 's/^/    /' "$W/pg" >&2; ref 'the page could not be written'; }
-[ -n "$WD" ] || ref "the page is written (.vid/plan/PLAN-PAGE.md, .vid/pages/PLAN-PAGE.html): show it to the owner, then run this again with their yes, --words \"<their words>\"$([ -z "$SWA" ] || echo "; $WA is refused until the plan is ratified again in auto, in the owner's words")"
-pl ratify --words "$WD" > "$W/ra" 2>&1 || { sed 's/^/    /' "$W/ra" >&2; ref 'the ratification was refused (the lines above)'; }
+[ -z "$KR" ] || echo "ratified-kept $KR — the spec and the plan are as ratified then; $({ cat .vid/tw/to-place 2>/dev/null || :; } | grep -c . || :) rows to place stay accepted: nothing asked"
+prog on 'Recording your approval'
+[ -n "$WD$KR" ] || { PST='your yes to the plan'; ref "the page is written (.vid/plan/PLAN-PAGE.md, .vid/pages/PLAN-PAGE.html): show it to the owner, then run this again with their yes, --words \"<their words>\"$([ -z "$SWA" ] || echo "; $WA is refused until the plan is ratified again in auto, in the owner's words")"; }
+[ -n "$KR" ] || pl ratify --words "$WD" > "$W/ra" 2>&1 || { sed 's/^/    /' "$W/ra" >&2; ref 'the ratification was refused (the lines above)'; }
 
 # 9. the mode, last; GM-4 F4 (I3, D6): GitHub manual's owner-questions: all written, the switch to auto's taking it out
 oq() { { grep -v '^owner-questions:' .vid/tw/settings 2>/dev/null || :; [ "$1" = off ] || echo 'owner-questions: all'; } > "$W/oq"; cmp -s "$W/oq" .vid/tw/settings || put .vid/tw/settings < "$W/oq"; }
@@ -416,9 +465,14 @@ if [ -n "$SWA" ]; then pl setup github-mode auto --words "$WD" > "$W/su" 2>&1 ||
   # GM-4 F4: what the last /vid next raised (its moves and triggers) is GitHub manual's call's alone, so no open Q line keeps it in auto
   rm -f .vid/decide/queue/raised || ref '.vid/decide/queue/raised could not be removed'
   echo 'mode: GitHub auto, recorded'
-elif [ "$TG" = auto ]; then ev "mode-retake words=\"$(printf %s "$WD" | tr '"' "'")\""; ev "publish-approved words=\"$WD\""; echo 'mode: GitHub auto, re-taken'   # GM-4 proof D5: the take-stock ratified again
+elif [ "$TG" = auto ]; then ev "mode-retake words=\"$(printf %s "$WD" | tr '"' "'")\"${KR:+ ratified-kept=$KR}"; [ -n "$KR" ] || ev "publish-approved words=\"$WD\""; echo 'mode: GitHub auto, re-taken'   # GM-4 proof D5: the take-stock ratified again
 elif [ -z "$RT" ]; then pl setup github-mode manual --words "$WD" > "$W/su" 2>&1 || { sed 's/^/    /' "$W/su" >&2; ref 'github-mode manual could not be recorded'; }
   oq all || ref ".vid/tw/settings could not be written (owner-questions)"
   ev "mode name=manual from=$FROM words=\"$(printf %s "$WD" | tr '"' "'")\""; echo 'mode: GitHub manual, recorded'
-else oq all || ref ".vid/tw/settings could not be written (owner-questions)"; ev "mode-retake words=\"$(printf %s "$WD" | tr '"' "'")\""; echo 'mode: GitHub manual, re-taken'; fi
+else oq all || ref ".vid/tw/settings could not be written (owner-questions)"; ev "mode-retake words=\"$(printf %s "$WD" | tr '"' "'")\"${KR:+ ratified-kept=$KR}"; echo 'mode: GitHub manual, re-taken'; fi
+# FB-3 E2: the engines asked, in GitHub manual, while none is named; it ends nothing
+[ "$TG" = auto ] || ! engnone || echo "$ENGASK"
+# FB-3 A3: the text telling the team what its reports hold, written for the owner to hand over, with what differs from the one handed
+if [ "$TG" != auto ]; then F=.vid/plan/TEAM-REPORTS.md; w=new; [ ! -f "$F" ] || { w=unchanged; sh "$HERE/results.sh" team 2> /dev/null | cmp -s - "$F" || w=changed; }
+  if sh "$HERE/results.sh" team --hand > /dev/null 2> "$W/tr"; then echo "team-reports $F $w"; else sed 's/^/    /' "$W/tr" >&2; echo "ViD mode: the text for the team could not be written; /vid:vid-accept-step reports writes it" >&2; fi; fi
 done_ 0

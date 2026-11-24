@@ -56,7 +56,9 @@ owed1() { WHY='closed already'; closed "$1" && return 1; k=$(nk "$1"); [ -z "$k"
   WHY="no step ticket of $1 is published"; printf '%s\n' "$t" | grep -qE ' (step|skeleton)$' || return 1
   u=$(printf '%s\n' "$t" | while read -r n x; do [ -n "$(mrg "$n")" ] || echo "$n"; done | sort -n | sed 's/^/#/' | paste -sd ' ' -)
   WHY="$u has no merge on record"; case $u in *' '*) WHY="$u have no merge on record" ;; esac; [ -z "$u" ] || return 1
-  WHY='a ticket holding its reached rows has no merge on record'; ! rwait "$1" || return 1; WHY="the ticket writer owes $1 a ticket"; ! wdue "$1" || return 1; WHY=''; }
+  WHY='a ticket holding its reached rows has no merge on record'; ! rwait "$1" || return 1; WHY="the ticket writer owes $1 a ticket"; ! wdue "$1" || return 1
+  # FB-3 A1.5: in GitHub manual no close is owed while no engines are named, so round.sh asks never stops on it
+  if manual; then WHY='the handed record names no engines yet'; [ -n "$(sed -n 's/^engines \(.*\) | stand-in.*/\1/p' "$HAND" 2>/dev/null | tail -n 1)" ] || return 1; fi; WHY=''; }
 # lwait <withdrawn file> (GM-4 K3, GM M3): in GitHub manual, the landing that withdrew the ask (its first word, a commit of this
 # repository) is pending: the applied commit does not hold it. LW, that landing. A closed-outside withdrawal waits on nothing
 lwait() { manual || return 1; LW=$(head -n 1 "$1" 2>/dev/null | cut -d' ' -f1); [ -n "$LW" ] && git cat-file -e "$LW^{commit}" 2>/dev/null || return 1
@@ -128,6 +130,8 @@ secs() { l=$(awk -F'\t' -v r="$1" '$4 == r { p = $2; h = $3 } END { if (p != "")
   git --git-dir=.vid/code show "refs/heads/vid-results/$_sk-$3-$k:$_sk-$3-$k/cases-$P1.xml" 2>/dev/null | awk -v id="$1" 'BEGIN { RS = "<"; gsub(/[-_.]/, "-", id) }
     /^testcase[ \t\n]/ { n = $0; sub(/.*[ \t\n]name="/, "", n); sub(/".*/, "", n); gsub(/[-_.]/, "-", n); p = index(n, id); if (!p || substr(n, p + length(id), 1) ~ /[A-Za-z0-9]/) next
       t = $0; if (sub(/.*[ \t\n]time="/, "", t)) { sub(/".*/, "", t); s += (t + 0 > 0) ? t : 30 } else s += 30; c++ } END { print (c ? int(s + 0.999) : 30) }'; }
+# FB-3 A1.5: crep, how a chunk's report is made, in its ask: in GitHub manual by anyone, its results files of any name
+crep() { if manual; then printf 'its results.txt beginning by: and the name of whoever made it, its commit the one above, with one results file or more (.xml), of any name'; else printf 'by: TM, its commit the one above, a cases-<engine>.xml for each engine of the chunk'; fi; }
 cmd_ask() { s=$1; owed1 "$s" || die "no close is owed for $s"; E=$(sed -n 's/^engines \(.*\) | stand-in.*/\1/p' "$HAND" | tail -n 1); [ -n "$E" ] || die 'the handed record names no engines yet'
   set -- $E; P1=$1; shift; P2=$*; M=$(skey close-chunk-minutes); M=${M:-20}; p=$(nk "$s"); k=$(( ${p:-0} + 1 )); K=$C/$s/$k
   # the commit: the merge of the step's tickets, its fix tickets too, that holds every other's, whatever order they were read in
@@ -146,7 +150,7 @@ cmd_ask() { s=$1; owed1 "$s" || die "no close is owed for $s"; E=$(sed -n 's/^en
   awk -v m=$((M * 60)) '{ if (n && t + $2 > m) { n++; t = 0 } else if (!n) n = 1; t += $2; c[n] = c[n] (c[n] == "" ? "" : " ") $1 } END { for (i = 1; i <= n; i++) print i "\t" c[i] }' "$K/rows" > "$K/packed"
   name=$(plan_block | awk -F' [|] ' -v s="step $s" '$1 == s { sub(/^name: /, "", $2); print $2 }')
   { printf 'close: %s\ncommit: %s\nengines: %s\n\n' "$s" "$last" "$E"
-    printf 'Run these rows at the commit above, chunk by chunk, in the engines each chunk names: phase 1, the primary engine, first, then phase 2. Report each chunk as its own results report, vid-results/req-<this issue>-<chunk>-<k>, by: TM, its commit the one above, a cases-<engine>.xml for each engine of the chunk, then comment `vid: reported <chunk>-<k>` here. Comment `vid: started` when the first chunk starts. Run a chunk again only after a comment `vid: again <chunk>`. A chunk may wait while a ticket'"'"'s run needs the slot.\n\n'
+    printf 'Run these rows at the commit above, chunk by chunk, in the engines each chunk names: phase 1, the primary engine, first, then phase 2. Report each chunk as its own results report, vid-results/req-<this issue>-<chunk>-<k>, %s, then comment `vid: reported <chunk>-<k>` here. Comment `vid: started` when the first chunk starts. Run a chunk again only after a comment `vid: again <chunk>`. A chunk may wait while a ticket'"'"'s run needs the slot.\n\n' "$(crep)"
     while IFS=$TAB read -r c rows; do printf -- '- chunk p1c%s, %s: %s\n' "$c" "$P1" "$rows"; done < "$K/packed"
     [ -z "$P2" ] || while IFS=$TAB read -r c rows; do printf -- '- chunk p2c%s, %s: %s\n' "$c" "$P2" "$rows"; done < "$K/packed"
     w=''; for r in $(cut -d' ' -f1 "$K/rows"); do procs "$r" && w="$w $r"; done; [ -z "$w" ] || printf -- '- with the product'"'"'s own declared processes:%s\n' "$w"; } > "$K/body"

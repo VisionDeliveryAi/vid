@@ -95,7 +95,7 @@ The three commands in the Install section above.
 An install is checked the way ViD checks anything: the judges prove they
 convict, and one real init completes. Three steps, in order:
 
-1. **Version.** Type `/vid:vid-help`. It shows the installed version, which must be **0.26.11.1.7**.
+1. **Version.** Type `/vid:vid-help`. It shows the installed version, which must be **0.26.11.1.8**.
 2. **Court self-test.** Ask Claude: *"Run ViD's court self-test suite —
    `checks/selftest/run.sh` under the installed plugin root — and report
    the verdict line."* Expected: every case that ran convicts, `selftest:
@@ -290,7 +290,10 @@ in the chat as before, the answer is your message in the chat, and the
 PRD stays the only record. It sends only into the conversation that asked;
 anywhere else it puts your answers in the message box for you to send.
 The other stops (the technical hints, the design, the test list, the
-releases) are answered in the chat for now. The terminal, VS Code and the
+releases) are answered in the chat for now. In ticket mode it shows the
+project's list instead, in your order: what is in progress, what comes next,
+what waits on whom, what you set aside and what was done last, and the steps
+of a long call as they happen; it opens once a conversation. The terminal, VS Code and the
 mobile app show no panel and nothing changes there.
 
 ## What's in the box

@@ -6,6 +6,7 @@
 set -eu
 unset VID_CALLER 2>/dev/null || true
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
+HOME=$T/home; export HOME; mkdir -p "$HOME"   # the plan page goes under HOME
 . "$CHECKS/selftest/fixtures/accept.sh"
 fail() { echo "manual-engines-declare: $*" >&2; cat "$T/out" >&2 2>/dev/null; exit 1; }
 ac_project "$T/p" || fail 'the toy could not be made'; sh "$CHECKS/next.sh" read > "$T/out" 2>&1 || fail 'the read failed'

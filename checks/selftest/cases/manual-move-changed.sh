@@ -57,7 +57,7 @@ fm_team_edit "$N1" 's/^The toy team.s own checklist line\.$/&\
 - ROW-017/'
 call publish S04 'Yes, publish S04'; [ "$RC" = 0 ] || fail "the call exited $RC"
 grep -q '^done publish S04' "$T/out" || fail 'S04 was not done'
-sed -n '/^after the moves:$/,$p' "$T/out" | grep -q "^trigger${TB}important${TB}team-added${TB}#$N1 ROW-017${TB}" || fail "the team's addition, first raised at this call, is not shown in the lines after the moves"
+sed -n '/^after the moves:$/,$p' "$T/out" | grep -q "^trigger${TB}important${TB}team-added${TB}[0-9]*${TB}.*#$N1 ROW-017[:,]" || fail "the team's addition, first raised at this call, is not shown in the lines after the moves"
 # done and decline are checked against the listing too. S01's ticket turns 8 days old untaken, so
 # S05's publish gains a not-taken warning; the team adds ROW-019 too, a subject of team-added the listing never showed
 gh_attr "$N1" created "$(date -u -v-8d '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || date -u -d '8 days ago' '+%Y-%m-%dT%H:%M:%SZ')"

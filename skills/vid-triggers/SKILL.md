@@ -5,9 +5,10 @@ description: A ViD call's lines in ticket mode, in both GitHub modes: what is no
 
 # /vid:vid-triggers
 
-One job: `sh checks/next.sh triggers`, and show its lines as it prints them. The count, the tiers, the warnings and the
-moves are its own; a publish's warnings are `plan.sh warnings`' lines, printed after its move (GM-4 K9). This skill adds none and
-drops none. It reads ViD's records and `.vid/round/read` (vid-read's), and writes nothing. Its lines name their evidence: say them
+One job: `sh checks/next.sh triggers --short`, and show its lines as it prints them: one line a kind, with its count, every
+subject and its evidence in it (FB-3 C5; the full lines, one each, are `sh checks/next.sh triggers`). The count, the tiers, the
+warnings and the moves are its own; a publish's warnings are `plan.sh warnings`' lines, after the moves (GM-4 K9). This skill adds
+none and drops none. It reads ViD's records and `.vid/round/read` (vid-read's), and writes nothing. Its lines name their evidence: say them
 in plain words, keeping each number as printed.
 
 **Called by the owner** as `/vid:vid-triggers`, in either GitHub mode: inside /vid run's own conversation it uses the run's lock and

@@ -9,7 +9,8 @@
 #     ViD's id, the acts a person may take and the answer it starts at.
 #   .vid/face/standing.json — the nine stops of defining a project, which
 #     is current, which are done, whose turn it is, and the wait's parts;
-#     computed from disk.
+#     FB-3 D1: and, in ticket mode, the backlog (checks/queue.sh's), its open
+#     items in order, the newest ten done and how many are; computed from disk.
 # Usage:
 #   sh checks/face.sh write <sitting> [<lines file>|-]   the session's lines
 #       for what no script prints; prd.sh --pause (and scorecard.sh where a
@@ -29,6 +30,12 @@
 #   sh checks/face.sh wait at <n> ["<what ViD is doing, in plain words>"]
 #       part n is running; the parts before it are done
 #   sh checks/face.sh wait done         clears the parts (write and end do too)
+#   sh checks/face.sh wait on "<part>"  FB-3 D2, for the scripts of a long call: the part of that
+#       name is running, those before it done; where no parts are named, or none of that name,
+#       nothing is done or written, so a script run on its own writes nothing
+#   sh checks/face.sh wait now "<what ViD is doing>"   that sentence alone; nothing where no parts are named
+#   sh checks/face.sh wait stop "<what it needs>"      the running part stopped, and what the call
+#       needs, kept through every on and now until the next parts or done; with no parts too
 #   sh checks/face.sh waiting           usability (P9): the sitting that waits, for
 #       the book: `<name><TAB><stop><TAB><title>`, then `<item id><TAB><its words>`
 #       a line; nothing when none waits. A read: it writes and removes nothing
@@ -92,7 +99,7 @@ say() { echo "ViD face: $*" >&2; }
 die() { say "refused — $*"; exit 1; }
 now() { date -u '+%Y-%m-%dT%H:%M:%SZ'; }
 sittings() { table | awk -F'\t' '$1 == "sitting" { s = s (s ? ", " : "") $2 } END { print s }'; }
-usage() { echo "ViD face: usage — sh checks/face.sh write <$(sittings | sed 's/, /|/g')> [<lines file>|-] | draft <sitting> [<lines file>|-] | end <sitting> | wait parts <name>… | wait at <n> [<words>] | wait done | waiting | standing" >&2; exit 2; }
+usage() { echo "ViD face: usage — sh checks/face.sh write <$(sittings | sed 's/, /|/g')> [<lines file>|-] | draft <sitting> [<lines file>|-] | end <sitting> | wait parts <name>… | wait at <n> [<words>] | wait on <part> | wait now <words> | wait stop <words> | wait done | waiting | standing" >&2; exit 2; }
 
 # The sittings: id, the stop it is, its title, the send button's words, the
 # closing line the person's message ends with (from the panel's design),
@@ -252,7 +259,10 @@ standing_json() {
   af=''; [ -f "$F/agreed" ] && af=$F/agreed
   # usability (P9): what there is to read, from the pages script's index
   pf=''; [ -f "$TOP/.vid/pages/index" ] && pf=$TOP/.vid/pages/index
-  VID_PF="$pf" VID_AF="$af" VID_WF="$wf" awk -v marks="$marks" -v sst="${sst:-0}" -v scl="$scl" -v sit="$sit" -v sstate="$sstate" -v ses="$ses" -v stops="$STOPS" -v sitstops="$sitstops" -v fmt="$FORMAT" -v at="$(now)" "$JS"'
+  # FB-3 D1: the backlog, in ticket mode alone (null elsewhere); a file not there yet is an empty one
+  bf=''; [ ! -f "$TOP/.vid/tw/settings" ] || bf=$TOP/.vid/decide/queue/backlog
+  VID_BF="$bf" VID_PF="$pf" VID_AF="$af" VID_WF="$wf" awk -v marks="$marks" -v sst="${sst:-0}" -v scl="$scl" -v sit="$sit" -v sstate="$sstate" -v ses="$ses" -v stops="$STOPS" -v sitstops="$sitstops" -v fmt="$FORMAT" -v at="$(now)" "$JS"'
+  function bit(b) { return "{\"id\":" js(b[1]) ",\"state\":" js(b[3]) ",\"who\":" js(b[4] == "-" ? "" : b[4]) ",\"words\":" js(b[5]) ",\"next\":" js(b[6] == "-" ? "" : b[6]) ",\"note\":" js(b[7] == "-" ? "" : b[7]) ",\"since\":" js(b[8]) ",\"ended\":" js(b[9] == "-" ? "" : b[9]) "}" }
   BEGIN {
     # usability (P9): the paths by the environment, so a backslash in the path of the checkout is kept as written
     pf = ENVIRON["VID_PF"]; af = ENVIRON["VID_AF"]; wf = ENVIRON["VID_WF"]
@@ -265,11 +275,12 @@ standing_json() {
     if (sstate == "ended" && sst > 0 && scl == "yes") done[sst] = 1
     cur = n + 1; for (i = 1; i <= n; i++) if (!done[i]) { cur = i; break }
     turn = (sstate == "waiting" && sst == cur) ? "person" : "vid"
-    np = 0; wat = 0; wnow = ""
-    if (wf != "") while ((getline l < wf) > 0) { t = index(l, "\t"); kk = substr(l, 1, t - 1); v = substr(l, t + 1); if (kk == "part") pn[++np] = v; else if (kk == "at") wat = v + 0; else if (kk == "now") wnow = v }
+    np = 0; wat = 0; wnow = ""; wst = ""; wwh = ""
+    if (wf != "") while ((getline l < wf) > 0) { t = index(l, "\t"); kk = substr(l, 1, t - 1); v = substr(l, t + 1); if (kk == "part") pn[++np] = v; else if (kk == "at") wat = v + 0; else if (kk == "now") wnow = v; else if (kk == "stop") wst = v; else if (kk == "when") wwh = v }
+    if (wst != "") wnow = wst
     w = "{\"parts\":["
-    for (i = 1; i <= np; i++) w = w (i > 1 ? "," : "") "{\"name\":" js(pn[i]) ",\"state\":" js(i < wat ? "done" : i == wat ? "now" : "to come") "}"
-    w = w "],\"now\":" js(wnow) "}"
+    for (i = 1; i <= np; i++) w = w (i > 1 ? "," : "") "{\"name\":" js(pn[i]) ",\"state\":" js(i < wat ? "done" : i == wat ? (wst != "" ? "stopped" : "now") : "to come") "}"
+    w = w "],\"now\":" js(wnow) ",\"stop\":" js(wst) ",\"written\":" js(wwh) "}"
     if (af != "") while ((getline l < af) > 0) { t = index(l, "\t"); if (t) agl[substr(l, 1, t - 1) + 0] = substr(l, t + 1) }
     pg = "["; npg = 0
     if (pf != "") while ((getline l < pf) > 0) {
@@ -281,7 +292,19 @@ standing_json() {
       pg = pg (npg++ ? "," : "") "{\"id\":" js(pfd[1]) ",\"title\":" js(pfd[2]) ",\"file\":" js(pfd[3]) ",\"link\":" js(pfd[4] == "-" ? "" : pfd[4]) ",\"stops\":" st "]}"
     }
     pg = pg "]"
-    s = "{\"format\":" fmt ",\"written\":" js(at) ",\"current\":" cur ",\"turn\":" js(turn) ",\"sitting\":" js(turn == "person" ? sit : "") ",\"session\":" js(turn == "person" ? ses : "") ",\"next\":" js(cur < n ? name[cur + 1] : "") ",\"wait\":" w ",\"pages\":" pg ",\"stops\":["
+    # FB-3 D1: the open items in order; the newest ten done, the newest first (a later line before an earlier one of one second)
+    bl = "null"; bf = ENVIRON["VID_BF"]
+    if (bf != "") {
+      nb = 0; nd = 0; bl = ""
+      while ((getline l < bf) > 0) {
+        if (split(l, bx, "\t") != 9) continue
+        if (bx[3] != "done") { bl = bl (nb++ ? "," : "") bit(bx); continue }
+        nd++; for (q = nd; q > 1 && de[q - 1] <= bx[9]; q--) { de[q] = de[q - 1]; dj[q] = dj[q - 1] } de[q] = bx[9]; dj[q] = bit(bx)
+      }
+      bl = "{\"items\":[" bl "],\"done\":["; for (q = 1; q <= nd && q <= 10; q++) bl = bl (q > 1 ? "," : "") dj[q]
+      bl = bl "],\"doneCount\":" nd "}"
+    }
+    s = "{\"format\":" fmt ",\"written\":" js(at) ",\"current\":" cur ",\"turn\":" js(turn) ",\"sitting\":" js(turn == "person" ? sit : "") ",\"session\":" js(turn == "person" ? ses : "") ",\"next\":" js(cur < n ? name[cur + 1] : "") ",\"wait\":" w ",\"backlog\":" bl ",\"pages\":" pg ",\"stops\":["
     for (i = 1; i <= n; i++) s = s (i > 1 ? "," : "") "{\"n\":" i ",\"name\":" js(name[i]) ",\"state\":" js(done[i] ? "done" : i == cur ? "here" : "todo") ",\"sitting\":" (hassit[i] ? "true" : "false") ",\"agreed\":" js(!done[i] ? "" : (i in agl) ? agl[i] : "Done") "}"
     print s "]}"
     printf "standing: stop %d of %d (%s), turn %s\n", cur, n, (cur <= n ? name[cur] : "all done"), turn > "/dev/stderr"
@@ -305,7 +328,7 @@ wait_parts() {
         [ "$(chars "$p")" -le 60 ] || { rm -f "$W"; die "the part '$p' is longer than 60 characters"; }
         printf 'part\t%s\n' "$p" >> "$W"
       done
-      printf 'at\t0\n' >> "$W"
+      printf 'at\t0\nwhen\t%s\n' "$(now)" >> "$W"
       mv -f "$W" "$F/wait" ;;
     at)
       [ $# -ge 2 ] && [ $# -le 3 ] || usage
@@ -315,9 +338,23 @@ wait_parts() {
       [ "$2" -ge 1 ] && [ "$2" -le "$np" ] || die "there is no part $2 (1 to $np)"
       words=$(printf '%s' "${3:-}" | tr '\t\n\r' '   ')
       W=$F/.wait.$$
-      { grep '^part	' "$F/wait"; printf 'at\t%s\n' "$2"; [ -z "$words" ] || printf 'now\t%s\n' "$words"; } > "$W"
+      { grep '^part	' "$F/wait"; printf 'at\t%s\n' "$2"; [ -z "$words" ] || printf 'now\t%s\n' "$words"; printf 'when\t%s\n' "$(now)"; } > "$W"
       mv -f "$W" "$F/wait" ;;
     done) [ $# -eq 1 ] || usage; rm -f "$F/wait" ;;
+    # FB-3 D2: on, now and stop, for the scripts of a long call
+    on|now|stop)
+      [ $# -eq 2 ] || usage
+      words=$(printf '%s' "$2" | tr '\t\n\r' '   ' | sed 's/^ *//; s/ *$//')
+      [ -n "$words" ] || die "wait $1 has no words"
+      if [ "$1" != stop ]; then grep -q '^part	' "$F/wait" 2>/dev/null && ! grep -q '^stop	' "$F/wait" || exit 0; fi
+      [ "$1" != on ] || grep -qxF "part	$words" "$F/wait" || exit 0
+      mkdir -p "$F"
+      W=$F/.wait.$$
+      { if [ -f "$F/wait" ]; then case $1 in
+          on) awk -F'\t' '$1 == "part"' "$F/wait"; printf 'at\t%s\n' "$(grep '^part	' "$F/wait" | grep -nxF "part	$words" | head -n 1 | cut -d: -f1)" ;;
+          *) awk -F'\t' '$1 == "part" || $1 == "at"' "$F/wait" ;; esac; fi
+        case $1 in now|stop) printf '%s\t%s\n' "$1" "$words" ;; esac; printf 'when\t%s\n' "$(now)"; } > "$W"
+      mv -f "$W" "$F/wait" ;;
     *) usage ;;
   esac
   standing
@@ -755,7 +792,8 @@ end_sitting() {
 
 [ $# -ge 1 ] || usage
 if [ ! -d "$TOP/.vid" ]; then say "no .vid/ in $TOP: not a ViD project, so no sitting is written (the chat goes on as before)"; exit 0; fi
-[ "$1" = waiting ] || mkdir -p "$F"   # usability (P9): waiting is a read
+# usability (P9): waiting is a read; FB-3 D2: on, now and stop make the folder only when they write
+case "$1 ${2:-}" in 'waiting '*|'wait on'|'wait now'|'wait stop') ;; *) mkdir -p "$F" ;; esac
 case $1 in
   write) [ $# -ge 2 ] && [ $# -le 3 ] || usage; write_sitting "$2" "${3:--}" ;;
   draft) [ $# -ge 2 ] && [ $# -le 3 ] || usage; DRAFT=1; write_sitting "$2" "${3:--}" ;;

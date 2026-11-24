@@ -8,7 +8,7 @@
 # commit from the newest export's message after a fetch (the second's, not the highest issue number's, nor the first's whose
 # pushed line alone is in the log) and takes all three over, the
 # plan from .vid/plans/ and PLAN.md from HEAD, each printed with where it came from before the tickets are taken over. With the
-# export lines back and no applied version recorded, it finds it from the log line, and the mode is recorded. PLAN.md
+# export lines back and no applied version recorded, it finds it from the log line (a line of an export kept in the project, FB-3 B2, too), and the mode is recorded. PLAN.md
 # changed and not committed is refused, never overwritten (fix 6); the H is the export's pushed line's, never an unchanged one's
 # (fix 1); a re-take with no input flag prints the recorded applied commit and RUN-STATE's plan with where each is recorded (fix 5); a list at its limit is read again, larger, and only past the cap
 # is it a need. A failed read of the labelled issues or of the spec repository is a refusal to run
@@ -106,6 +106,11 @@ for k in 1 2 3; do eval "n=\$N$k"; grep -q "^taken-over $n " "$T/mo" && grep -q 
   cmp -s ".vid/tw/out/issue-$n.md" "$T/t$k" || fail "#$n is not recorded at its newest writing"; done
 grep -q "^not-taken-over $N5 " "$T/mo" || fail "#$N5, labelled but with no writing, is not listed as not taken over"
 grep -q "^[a-z-]* $N4 " "$T/mo" && fail "#$N4, an issue with no ticket label, is listed"
+
+# 2b. the newest export's line one kept in the project (FB-3 B2, state=local), the first's a pushed one: both read, the line named
+grep -v '^export ' .vid/tw/log > "$T/lg2" || :; { cat "$T/lg2"; sed "/^export $X2 /s/ state=pushed / state=local /" "$T/xl"; } > .vid/tw/log; rm -f .vid/tw/applied
+RC=0; sh "$CHECKS/mode.sh" manual --review "$T/review" > "$T/mo" 2>&1 || RC=$?
+grep -q "^found applied $H2 — .*$X2.*\.vid/tw/log's line export $X2 from=$H2 state=local" "$T/mo" || fail "the applied commit is not found from an export kept in the project ($RC)"
 
 # 3. the export lines back and no applied version recorded: the applied commit found from the newest export's log line
 grep -v '^export ' .vid/tw/log > "$T/lg2" || :; cat "$T/lg2" "$T/xl" > .vid/tw/log; rm -f .vid/tw/applied

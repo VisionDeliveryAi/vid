@@ -10,6 +10,7 @@
 set -eu
 unset CLAUDE_CODE_SESSION_ID VID_CALLER 2>/dev/null || true
 T0=$(mktemp -d); trap 'rm -rf "$T0"' EXIT; T=$T0/auto-t; mkdir -p "$T"; MO=auto
+HOME=$T/home; export HOME; mkdir -p "$HOME"   # the plan page goes under HOME
 . "$CHECKS/selftest/fixtures/tw-toy.sh"
 fail() { echo "stage-close-verb: $*" >&2; cat "$T/out" >&2 2>/dev/null; exit 1; }
 GS=$CHECKS/github.sh; CS=$CHECKS/close.sh; WS=$CHECKS/walk.sh; R=owner/code; TAB=$(printf '\t')
@@ -37,7 +38,8 @@ proj() { MO=$2; tw_toy "$1"; sh "$GS" spec-setup > "$T/out" 2>&1 || fail 'spec-s
 verb() { proj "$T/$1" "$1"; n0=$(nis); K=.vid/decide/stage/1/1; VID_WALKER=$T/walker VID_WALK_TMP=$T/wk WALK_ARGS=$T/args; export VID_WALKER VID_WALK_TMP WALK_ARGS
   tw_hand 'row ROW-006 failing'; cs stage 1; [ "$RC" = 1 ] || fail "$MO: a stage not due exited $RC"; ok '^refused stage 1: no candidate is due: .*row ROW-006 failing'
   [ "$(nis)" = "$n0" ] && [ ! -d "$K" ] || fail "$MO: a refused stage close posted or wrote an ask"
-  tw_hand 'row ROW-006 accepted'; cs stage 1; [ "$RC" = 0 ] || fail "$MO: the due stage exited $RC"; ok '^asked [0-9]* close stage-1$'; ok '^asked [0-9]* grade stage-1$'; ok '^candidate 1 1$'
+  tw_hand 'row ROW-006 accepted'; cs stage 1; [ "$RC" = 0 ] || fail "$MO: the due stage exited $RC"; ok '^asked [0-9]* close stage-1$'; ok '^candidate 1 1$'
+  if [ "$MO" = auto ]; then ok '^asked [0-9]* grade stage-1$'; else ok '^review stage-1 [0-9a-f]*$'; fi   # FB-3 A1.6: ViD's own grade in GitHub manual
   n1=$(nis); cs stage 1; [ "$RC" = 1 ] || fail "$MO: a stage with its runs out exited $RC"; ok '^refused stage 1: .*C3 not passed'; [ "$(nis)" = "$n1" ] || fail "$MO: a refused stage close posted"
   # its runs passed, its grade read, the seam row paid: the walk next
   mkdir -p "$K/d1" "$K/cs"; : > "$K/passed"; : > "$K/done"; : > "$K/d1/passed"; printf 'staging\thttp://127.0.0.1:5001\n' > "$K/d1/read"; : > "$K/cs/passed"; : > "$K/cs/ask"; tw_hand 'row SEAM-001 paid'

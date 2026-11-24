@@ -37,8 +37,9 @@ K=$CHECKS/../skills; [ -d "$K/vid-plan" ] && [ -d "$K/vid-view" ] || { echo 'nee
 P=$K/vid-plan/SKILL.md
 # FB-1 C1: vid-plan's mode question changed on purpose (team retired), so its sentence moved down two lines and the sums are new;
 # FB-2 A1 and A2: its setup's repository sentence and its hand-back changed on purpose, so the sentence moved down one line more
-[ "$(sed -n '1,264p' "$P" | cksum)" = '3527999900 24717' ] && [ "$(sed -n '270,$p' "$P" | cksum)" = '1354024254 1774' ] || fail "vid-plan changed outside its sentence on the page"
-sed -n '263,267p' "$P" | tr '\n' ' ' > "$T/s"
+# FB-3 B1 and B2: its setup's repository keys changed on purpose, so the sentence moved down three lines, its own words the same
+[ "$(sed -n '1,267p' "$P" | cksum)" = '3231625854 25111' ] && [ "$(sed -n '273,$p' "$P" | cksum)" = '1354024254 1774' ] || fail "vid-plan changed outside its sentence on the page"
+sed -n '266,270p' "$P" | tr '\n' ' ' > "$T/s"
 grep -qF 'sh "${CLAUDE_PLUGIN_ROOT}/checks/pages.sh" plan' "$T/s" && grep -qF 'do what its lines say' "$T/s" || fail "vid-plan's sentence does not send the page through pages.sh plan"
 grep -qiE 'publish it|private artifact' "$T/s" && fail 'vid-plan still tells the session to publish by itself'
 V=$K/vid-view/SKILL.md

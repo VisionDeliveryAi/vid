@@ -9,8 +9,8 @@
 # /vid:vid-run, and both name /vid:vid-next; no decision on a pull request (no report id of the pull request form, no `gh pr
 # comment`, no `vid: decide` or `vid: decision` beside a pull request, no decision said to be on one); no acceptance before the
 # merge (a `gh pr merge` after a `vid: decide` in one stop, or an accepted ticket the team then merges); and the overview's 4.6
-# has SR's sort before the one ask, a single numbered step holding `vid: decide`, and, beside the excerpt's `breached test` on
-# ROW-003, a sentence naming the lab's `kept`. FB-2 A1: neither GitHub tutorial has the person run `gh repo create`; A2: nor type
+# has a single numbered step holding `vid: decide`, and, after it, ViD's own review (FB-3 A1), and neither has the team grade or
+# sort: no `grade-step-` or `sort-step-` id, no `GR` or `SR`, no grade.txt or sorted.txt. FB-2 A1: neither GitHub tutorial has the person run `gh repo create`; A2: nor type
 # `/vid:vid-plan` or `/vid:vid-mode` (a line that opens with it), and GitHub manual's first typed ViD command is `/vid:vid-next`. Every lab file a tutorial cites
 # ships, and nothing ships that is not cited: a document cites a path by naming it in backticks or as a link, relative to its own folder; a
 # tutorial cites a lab folder beside it and the paths inside it; a lab's README.md and any README.md inside it that names its folder's own
@@ -109,6 +109,7 @@ for my $f ('OVERVIEW-GITHUB-MANUAL.md', 'TUTORIAL-GITHUB-MANUAL.md') { my $s = s
     if ($l =~ /^#{2,3} /) { $sec = $l; $ask = 0 }
     fault("$f:$n names /vid:vid-run") if $l =~ m{/vid:vid-run\b};
     fault("$f:$n a report id of the pull request form") if $l =~ /\b(?:grade-|sort-)?pr-(?:<|\$|[0-9])/;
+    fault("$f:$n a grade or a sort of the team's") if $l =~ /\b(?:grade|sort)-step-|\b(?:GR|SR)\b|\bgrade\.txt|\bsorted\.txt/;   # FB-3 A1
     fault("$f:$n a comment on a pull request: gh pr comment") if $l =~ /\bgh pr comment\b/;
     fault("$f:$n a decision beside a pull request") if $l =~ /vid: decid/ && $l =~ /pull request/i;
     fault("$f:$n a decision on a pull request") if $l =~ /\b(?:decides?|decided|decision|answers)\b[^.|]*\bon the pull request/i;
@@ -125,13 +126,11 @@ for my $f ('TUTORIAL-GITHUB-AUTO.md', 'TUTORIAL-GITHUB-MANUAL.md') { my $s = slu
 my $o = slurp("$top/OVERVIEW-GITHUB-MANUAL.md");
 if (defined $o) { my ($s46) = $o =~ /^### 4\.6 [^\n]*\n(.*?)(?=^### |\z)/ms;
   if (!defined $s46) { fault('OVERVIEW-GITHUB-MANUAL.md has no section 4.6') }
-  else { my @st = grep { /^\d+\. / } split /\n/, $s46; my ($i, $so, $as, $na) = (0, -1, -1, 0);
-    for my $l (@st) { $i++; $so = $i if $so < 0 && $l =~ /`SR`/ && $l =~ /\bsort/i; if ($l =~ /vid: decide/) { $na++; $as = $i if $as < 0 } }
-    fault('4.6: no numbered step where SR sorts') if $so < 0; fault('4.6: no numbered step that asks with vid: decide') if $as < 0;
-    fault('4.6: the ask comes before the sort') if $so > 0 && $as > 0 && $as < $so;
-    fault("4.6: $na numbered steps ask with vid: decide, not one") if $na > 1;
-    if ($s46 =~ /ROW-003 breached test/) { fault("4.6: the excerpt's breached test on ROW-003, and no sentence naming the lab's kept")
-      unless grep { /ROW-003/ && /`kept`/ && /\blab\b/ } split /\n/, $s46 } } }
+  else { my @st = grep { /^\d+\. / } split /\n/, $s46; my ($i, $rv, $as, $na) = (0, -1, -1, 0);
+    for my $l (@st) { $i++; $rv = $i if $l =~ /ViD makes its own review/; if ($l =~ /vid: decide/) { $na++; $as = $i if $as < 0 } }
+    fault('4.6: no numbered step of ViD\'s own review') if $rv < 0; fault('4.6: no numbered step that asks with vid: decide') if $as < 0;
+    fault("4.6: the review comes before the ask") if $rv > 0 && $as > $rv;
+    fault("4.6: $na numbered steps ask with vid: decide, not one") if $na > 1 } }
 exit $bad;
 PL
 flow() { perl "$T/flow.pl" "$1"; }
@@ -145,7 +144,7 @@ copy() { rm -rf "$T/c"; cp -R "$TU" "$T/c"; }
 expect() { what=$1; pat=$2; shift 2; if "$@" "$T/c" > "$T/out" 2>&1; then fail "$what passed"; fi; grep -qF "$pat" "$T/out" || { cat "$T/out" >&2; fail "$what failed for another reason"; }; }
 copy; rm "$T/c/local-auto-lab/seed.md"; expect 'the local lab without seed.md' 'lists seed.md, which does not ship' cites
 copy; rm -r "$T/c/local-auto-lab/ten-requirements"; expect 'the local lab without ten-requirements' 'lists ten-requirements, which does not ship' cites
-copy; rm "$T/c/jobdigest-lab/reports/1-skeleton/grade.txt"; expect 'the team lab without a hand-written grade' 'cites 1-skeleton/grade.txt, which does not ship' cites
+copy; rm "$T/c/jobdigest-lab/reports/1-skeleton/head-results.txt"; expect 'the team lab without a hand-written report' 'cites 1-skeleton/head-results.txt, which does not ship' cites
 copy; rm "$T/c/jobdigest-lab/env/push-report.sh"; expect 'the team lab without push-report.sh' 'push-report.sh, which does not ship' cites
 copy; rm -r "$T/c/local-auto-lab"; expect 'the folder without the local lab' 'cites no lab folder beside it' cites
 copy; printf 'x\n' > "$T/c/local-auto-lab/notes.md"; expect 'an uncited file in the local lab' 'local-auto-lab/notes.md ships and nothing cites it' cites
@@ -172,7 +171,7 @@ copy; printf 'ViD reads the reports and answers on the pull request.\n' >> "$T/c
 copy; printf 'The head report is `pr-<pull request>-<head12>-<k>`.\n' >> "$T/c/OVERVIEW-GITHUB-MANUAL.md"; expect 'a pull request report id' 'a report id of the pull request form' flow
 copy; printf 'On `ticket: accepted`, for that exact head, your team merges the pull request.\n' >> "$T/c/OVERVIEW-GITHUB-MANUAL.md"; expect 'an acceptance before the merge' 'an acceptance before the merge' flow
 copy; printf '### Stop 99. Late\n\nAsk with `vid: decide $SHA`, then:\n\n```bash\ngh pr merge $P --merge\n```\n' >> "$T/c/TUTORIAL-GITHUB-MANUAL.md"; expect 'a merge after the ask' 'gh pr merge after vid: decide' flow
-copy; perl -0pi -e 's/(^### 4\.6 [^\n]*\n)/$1\n1. **`MR` asks first** with `vid: decide <the commit>`.\n/m' "$T/c/OVERVIEW-GITHUB-MANUAL.md"; expect 'an ask before the sort in 4.6' '4.6: the ask comes before the sort' flow
+copy; perl -0pi -e 's/(^### 4\.6 [^\n]*\n)/$1\n1. **ViD makes its own review first.**\n/m; s/^8\. \*\*ViD makes its own review,/8. **It is made,/m' "$T/c/OVERVIEW-GITHUB-MANUAL.md"; expect 'a review before the ask in 4.6' '4.6: the review comes before the ask' flow
+copy; printf 'Push it as `grade-step-7-<commit12>-1`, signed `by: GR`.\n' >> "$T/c/TUTORIAL-GITHUB-MANUAL.md"; expect 'a grade asked of the team' "a grade or a sort of the team's" flow
 copy; perl -0pi -e 's/(^### 4\.6 [^\n]*\n.*?)(^### )/$1\n99. **`MR` asks again**: the same `vid: decide <commit>` comment.\n\n$2/ms' "$T/c/OVERVIEW-GITHUB-MANUAL.md"; expect 'two asks in 4.6' 'numbered steps ask with vid: decide, not one' flow
-copy; perl -ni -e 'print unless /ROW-003/ && /`kept`/ && /\blab\b/' "$T/c/OVERVIEW-GITHUB-MANUAL.md"; expect 'the excerpt without the lab'"'"'s kept' 'no sentence naming the lab'"'"'s kept' flow
 echo 'tutorials: ok'

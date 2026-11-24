@@ -84,13 +84,13 @@ findhome() {
 
 # walk <root> <bundle prefix> <class> <records|logs>: every file under root into the list, the leave-outs listed.
 # Left out by name at any depth: .git, *.git, worktrees, node_modules, __pycache__, clones, blind, trees, checkout,
-# runs/*/c, and any folder holding a .git (a clone or a worktree); in .vid/ also code, code.*, spec.git, exports,
+# runs/*/c, and any folder holding a .git (a clone or a worktree); in .vid/ also code, code.*, spec.git, spec-out (FB-3 B1), exports,
 # shares and net.* (the plugin's marker). Links and special files are left out and listed.
 walk() {
   _r=$1; _p=$2; _c=$3
   # _pf <find's actions>: find over the root with the left-out names as one test
   if [ "$4" = records ]; then
-    _pf() { find . \( -path ./code -o -path './code.*' -o -path ./spec.git -o -path ./exports -o -path ./shares -o -name 'net.*' \
+    _pf() { find . \( -path ./code -o -path './code.*' -o -path ./spec.git -o -path ./spec-out -o -path ./exports -o -path ./shares -o -name 'net.*' \
       -o -name .git -o -name '*.git' -o -name worktrees -o -name node_modules -o -name __pycache__ -o -name clones -o -name blind \
       -o -name trees -o -name checkout -o -path './runs/*/c' \) "$@"; }
   else
@@ -673,6 +673,7 @@ findings_md() {
 run_md() {
   _kv() { sed -n "s/^$1:[[:space:]]*//p" "$2" 2>/dev/null | head -n 1; }
   REPO=$(_kv repo "$H/.vid/tw/settings"); SREPO=$(_kv spec-repo "$H/.vid/tw/settings")
+  if [ "$MODE" = github-manual ] && [ "$(_kv layout "$H/.vid/tw/settings")" = one ]; then SREPO=$(_kv spec-path "$H/.vid/tw/settings"); SREPO="none: the spec is in the code repository's folder ${SREPO:-docs/specs}, ViD's export in the project"; fi   # FB-3 B2
   RID=$(sed -n 's/^id=//p' "$H/.vid/run" 2>/dev/null | head -n 1)
   RV=$(_kv records "$H/checks/records-version"); [ -n "$RV" ] || RV=$(_kv records "$(dirname "$0")/records-version")
   OUTC=$(_kv run "$H/.vid/RUN-STATE.md")

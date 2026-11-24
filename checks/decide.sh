@@ -6,6 +6,8 @@
 # code, runs nothing and starts no agent. A decision names reports, never their words, so no comment cites a file of the code.
 #   decide --ticket <n> --pr <p> --head <commit> [--post]   writes .vid/decide/pr-<p>-<head12>.txt, the comment, and prints it;
 #       with --post it posts that once a head, and again only if it changed. Refused, exit 1, with no evidence file for that head
+#       FB-3 A1.3: --dry, in place of --post: decides nothing and writes nothing; prints `review` when the decision would be `accepted` but for
+#       ViD's own review of the ticket, else nothing
 #   merged --pr <p>                                         that pull request's merge: its rows enter .vid/tw/handed
 #   umap [--withdrawn]   (GM-4 E4, E9) each line of .vid/decide/unit-merges with its ticket as E4 maps it, `<p> TAB <ticket or -> TAB
 #       <head> TAB <merge>`; --withdrawn keeps a withdrawn ticket as the unit's. Reads only
@@ -18,6 +20,13 @@
 #       `no Decisions section — #<p>` each, against no row; the descriptions read again at each decision
 #   merged --ticket <n>                                     GM-4 E4: the ticket's acceptance as its merge, from its newest decision:
 #       its rows enter .vid/tw/handed as a pull request's do, and a skeleton's head report's engines (results.sh declare)
+#   outside --ticket <n> --at <commit> --words "<w>" [--note "<why this commit>"] | outside --rows "<ids and ranges>" --words "<w>"   FB-3 A4, both modes: rows the owner
+#       accepted outside ViD, a published ticket's or ones no published ticket holds, by their words alone: each, and each transition,
+#       `accepted by ruling` in rulings and state, and in .vid/tw/handed, labelled with the words (FB-3 E1: and the note, ending
+#       `; evidence: none, accepted outside ViD`); a deploy-owed one `owed`, with no ruling;
+#       a known limit, a retired one, a record and one accepted already left, `left <row>: <why>`; each on the record; for a ticket its
+#       accepted-at line; one `accepted-outside` event. Refused, nothing written: no words, no row, a row not in the inventory, and, of --rows, one
+#       of a published ticket. It reads the plan's rows (planner.sh rows) and the log, and posts nothing; round.sh accept writes the merge lines
 #   queue                                                   .vid/decide/queue.html: the headline, each held row with its record
 #       and the four answers, the findings ranked
 #   rule <row> accept|limit|amend|more <n> [--by <who>]   records the owner's answer for a held row; limit takes any row a decision has read
@@ -35,6 +44,13 @@
 # a decision file is overwritten at each decision, so this line alone keeps the time.
 # v0.26.10.25.5 (R4): an id landed after a ticket was published (.vid/decide/landed) is decided from none of its evidence, and a merge takes
 # nothing for it from a decision made before its landing. A `reset` ruling, the landing's, reads as none.
+# FB-3 A1 (GitHub manual): a row passed in the team's own results at the commit is accepted: no red, no break, no covers: line is asked; a row with no
+# case there is `evidence missing`, with no count, and the commit it passed at elsewhere named. The grade and the sort are ViD's own review's, one
+# a ticket (none for a reached ticket or one that follows another): without it alone, `review missing — …`. Each `test it` line of its sort is a
+# `request <row> — <its words>` line of the ticket's first decision after the review, held by `requests open` that once
+# (requested-step-<n>, the commit12); a reviewer's words may name a file, the one exception to a decision's naming reports alone. The Decisions
+# section holds a ticket whose published writing asks for it; another is told.
+# FB-3 A2: a decision that reads `not yet` names each report branch of the ticket's left out, `report left out — vid-results/<id>: <why>`.
 # 0.26.10.29.5 (DP-1 R8): it reads the pull request's description too, through github.sh pr-body: with no Decisions section (neither the
 # line `Decisions: none` nor a `Decisions:` line with a `- ` line under it) the decision reads `ticket: not yet` with the one line
 # `decisions missing — the pull request's description has no Decisions section, nor Decisions: none`, against no row; no row's state,
@@ -49,9 +65,9 @@ ref() { echo "ViD decide: refused — $*" >&2; exit 1; }
 D=.vid/decide; mkdir -p "$D/rows"; T=$(mktemp -d "$PWD/$D/tmp.XXXXXX"); trap 'rm -rf "$T"' EXIT
 TAB=$(printf '\t')
 touch "$D/counts" "$D/limits" "$D/rulings" "$D/log" "$D/state" "$D/record" "$D/halted" "$D/analyst" "$D/accepted-at"
-# hset <row> <word> [fault-proven]: the row's one line in the handed record, its mark kept; held keeps its row, whatever a transition's answer
-hset() { mkdir -p .vid/tw; touch .vid/tw/handed; m=${3:-}; [ -n "$m" ] || m=$(sed -n "s/^row $1 [^ ]* \(fault-proven\).*/\1/p" .vid/tw/handed | tail -n 1)
-  { grep -v "^row $1 " .vid/tw/handed || true; printf 'row %s %s%s | stand-in: decision\n' "$1" "$2" "${m:+ $m}"; } > "$T/h" || exit 1; put .vid/tw/handed < "$T/h" || exit 1; }
+# hset <row> <word> [fault-proven] [<label>]: the row's one line in the handed record, its mark kept; held keeps its row, whatever a transition's answer
+hset() { mkdir -p .vid/tw; touch .vid/tw/handed; m=${3:-}; l=${4:-decision}; [ -n "$m" ] || m=$(sed -n "s/^row $1 [^ ]* \(fault-proven\).*/\1/p" .vid/tw/handed | tail -n 1)
+  { grep -v "^row $1 " .vid/tw/handed || true; printf 'row %s %s%s | stand-in: %s\n' "$1" "$2" "${m:+ $m}" "$l"; } > "$T/h" || exit 1; put .vid/tw/handed < "$T/h" || exit 1; }
 word() { sed -n "s/^row $1 \([^ |]*\).*/\1/p" .vid/tw/handed 2>/dev/null | tail -n 1; }
 hdrop() { { grep -v "^row $1 " .vid/tw/handed || true; } > "$T/h" || exit 1; put .vid/tw/handed < "$T/h" || exit 1; }
 onrec() { grep -qxF "$1" "$D/record"; }
@@ -75,7 +91,9 @@ DE='function why(a, b) { return (a == "") ? b : (b == "") ? a : a "; " b }
     while ((getline l < PF) > 0) { split(l, x, "\t"); b1 = x[1]; sub(/-T[0-9]+$/, "", b1); pf[x[1]] = x[3]; pv[x[1]] = ((x[1] in noc) || (b1 in noc)) ? "" : x[5]; sb[x[1]] = (PH == H) ? x[11] : x[9]; if (x[10] == 1) { was[x[1]] = 1; nw++ } }
     while ((getline l < IF) > 0) { split(l, x, "\t"); ni++; irow[ni] = x[1]; item[ni] = x[2]; own[x[1], x[2]] = 1 } while ((getline l < OWF) > 0) cfl[l] = 1; while ((getline l < STF) > 0) stl[l] = 1 }
   /^ticket [0-9]+, pull request / { HEAD = $0; sub(/^.* head /, "", HEAD); next } /^ticket [0-9]+, at / { HEAD = $0; sub(/^.* at /, "", HEAD); next }
-  /^report / { split($0, w, " "); st = w[4]; sub(/:$/, "", st); if (w[2] == "T2") { if (w[3] == "none") t2 = "red-" N; else t2 = w[3] } else if (w[2] == "head") { hs = (w[3] == "none") ? "none" : st; hid = (w[3] == "none") ? KP "-" H : w[3] } else if (w[2] == "sort") { gs = (w[3] == "none") ? "none" : st; gid = w[3] } else if (w[2] == "grade") { gg = (w[3] == "none") ? "none" : st; ggid = w[3] } next }
+  /^request: / { RQL[++nrq] = substr($0, 10); next }
+  $1 == "near" && NF == 3 { NE[$2] = $3; next } $1 == "fin" && NF == 3 { FN[$2] = $3; gsub(/ /, ", ", FN[$2]); next }
+  /^report / { split($0, w, " "); st = w[4]; sub(/:$/, "", st); if (w[2] == "T2") { if (w[3] == "none") t2 = "red-" N; else t2 = w[3] } else if (w[2] == "head") { nhd++; hs = (w[3] == "none") ? "none" : st; hid = (w[3] == "none") ? KP "-" H : w[3] } else if (w[2] == "sort") { gs = (w[3] == "none") ? "none" : st; gid = w[3] } else if (w[2] == "grade") { gg = (w[3] == "none") ? "none" : st; ggid = w[3] } else if (w[2] == "skipped") SKL[++nsk] = w[3] ": " substr($0, 17 + length(w[3])); next }
   /^open grade line: / { if (rul[substr($0, 18)] != "limit") ol = 1; next }
   /^list: / { ls[substr($0, 7)] = 1; next }
   /^retested: / { for (j = 2; j <= split($0, w, " "); j++) { sent[w[j]] = 1; rt[w[j]] = 1 } next }
@@ -83,24 +101,26 @@ DE='function why(a, b) { return (a == "") ? b : (b == "") ? a : a "; " b }
   $1 == "split" && NF == 4 { print $2 "\t" $3 " " $4 > SPF; nsp++; ns2 = split($3 " " $4, w, " "); for (j = 1; j <= ns2; j++) if (!(w[j] in se)) { se[w[j]] = 1; SE = SE (SE == "" ? "" : " ") w[j] } next }
   /^setup errors [^ ]+: [0-9]+ cases over [0-9]+ runs$/ { split($0, w, " "); if (w[4] + 0 > an) { an = w[4] + 0; ae = w[3]; sub(/:$/, "", ae); ak = w[7] } next }
   NF == 6 { b0 = $1; sub(/-T[0-9]+$/, "", b0); if (($1 in stl) || (b0 in stl)) next; i = ++n; r[i] = $1; ki[i] = $2; rd[i] = $3; t[i] = $4; f[i] = $5; re[i] = $6; next }
-  END { if (hid == "") { hid = KP "-" H }
-    for (i = 1; i <= n; i++) { R = r[i]; B = R; sub(/-T[0-9]+$/, "", B); if (t[i] == "failed" && ki[i] == "regression") { nl = split(re[i], w, /; /); ok = 1; hl = 0; for (j = 1; j <= nl; j++) if (w[j] ~ /^T[0-9]+: no case( in [^ ]+)?$/ && rul[R "-" substr(w[j], 1, index(w[j], ":") - 1)] == "limit") hl = 1; else if (w[j] !~ /^no case( in [^ ]+)?$/) ok = 0; if (ok && hl) t[i] = "passed" }
+  END { if (hid == "") { hid = KP "-" H } if (MAN != "" && nhd > 1) hid = "results-at-" H
+    for (i = 1; i <= n; i++) { R = r[i]; B = R; sub(/-T[0-9]+$/, "", B); if ((t[i] == "failed" || (MAN != "" && t[i] == "missing")) && ki[i] == "regression") { nl = split(re[i], w, /; /); ok = 1; hl = 0; for (j = 1; j <= nl; j++) if (w[j] ~ /^T[0-9]+: no case( in [^ ]+)?$/ && rul[R "-" substr(w[j], 1, index(w[j], ":") - 1)] == "limit") hl = 1; else if (w[j] !~ /^no case( in [^ ]+)?$/) ok = 0; if (ok && hl) t[i] = "passed" }
       rc = (pf[R] == "failing" || pf[R] == "evidence missing" || (R in sent) || (B in sent) || t[i] == "failed" || t[i] == "setup"); if (pv[R] ~ /^proven/ ? (!(R in rt) && !(B in rt) && f[i] !~ /^(proven|not-proven)/ && (!rc || f[i] ~ /^(n\/a|waits|inconclusive)/)) : (pv[R] ~ /^inconclusive/ && !rc && f[i] ~ /^(n\/a|missing|waits)/)) f[i] = pv[R]; else if (pv[R] ~ /^proven/ && f[i] ~ /^missing/ && !(R in rt) && !(B in rt)) kp[i] = pv[R]; if (f[i] ~ /^proven/) anyp = 1 }
     for (i = 1; i <= n; i++) { R = r[i]; B = R; sub(/-T[0-9]+$/, "", B); fe = (f[i] ~ / extra$/); fv = f[i]; sub(/ extra$/, "", fv); ih = 0
       prod = 0; weak = 0; fr = ""; mr = ""; K = ""
-      if (t[i] == "failed") { prod = 1; fr = why(fr, "its test failed, " hid) }
+      if (t[i] == "failed") { prod = 1; fr = why(fr, "its test failed, " ((R in FN) ? FN[R] : hid)) }
       if (fv == "not-proven") { weak = 1; fr = why(fr, "its fault not proven, " hid) }
       if (rd[i] == "missing") { tk = (match(re[i], /T2 [^ ,:]+/) ? substr(re[i], RSTART + 3, RLENGTH - 3) : t2); mr = why(mr, "T2 refused, " tk); K = K " " tk }
       if (t[i] == "setup") { mr = why(mr, "its test could not run, " hid); K = K " " hid }
-      if (t[i] == "missing") { w0 = index(re[i], "no covers:") ? "no covers: line, " : (hs == "refused") ? "report refused, " : "no head report, "; mr = why(mr, w0 hid); K = K " " hid }
+      # FB-3 A1.2 (GitHub manual): a row with no case in the results at the commit is not tested yet: no count is spent on it
+      if (MAN != "" && t[i] == "missing") { w0 = (hs != "read") ? "no results at this commit" : index(re[i], "since its amendment") ? "no case in results sent since its amendment" : index(re[i], "no case ran") ? "no case of it ran at this commit" : "no case of it in the results at this commit"; mr = why(mr, w0 ((R in NE) ? "; passed at " NE[R] ", not at this commit" : "")) }
+      else if (t[i] == "missing") { w0 = index(re[i], "no covers:") ? "no covers: line, " : (hs == "refused") ? "report refused, " : "no head report, "; mr = why(mr, w0 hid); K = K " " hid }
       if (!fe && fv == "missing" && !(KD == "skeleton" && anyp)) { mr = why(mr, "no fault folder, " hid); if (!index(K, " " hid)) K = K " " hid }
       S = ""; undo = 0
       if (rul[R] == "limit") S = "known limit"; else if (rul[R] == "accept") { if (t[i] == "failed" || t[i] == "setup") undo = 1; else S = "accepted by ruling" }
-      if (S == "" && ki[i] == "regression" && (B in cfl) && (t[i] == "failed" || t[i] == "setup")) { S = "its state stands"; prod = 0; weak = 0 }
+      if (S == "" && ki[i] == "regression" && (B in cfl) && (t[i] == "failed" || t[i] == "setup" || (MAN != "" && t[i] == "missing"))) { S = "its state stands"; prod = 0; weak = 0 }
       if (S == "") { if (prod || weak) S = "failing"; else if (mr != "") S = "evidence missing"; else if (BL != "") S = "question open"
         else if (t[i] == "owed") S = (ki[i] != "regression" || index(re[i], "retested")) ? "owed" : "its state stands"
         else if (ki[i] == "regression" || ki[i] == "retested") S = "passing"
-        else if (rd[i] == "red" || fv == "proven" || (KD == "skeleton" && anyp)) S = "accepted"; else { S = "evidence missing"; if (fv == "inconclusive") { ih = 1; mr = "fault inconclusive, " hid } else mr = "no red and no proven fault" } }
+        else if (MAN != "" || rd[i] == "red" || fv == "proven" || (KD == "skeleton" && anyp)) S = "accepted"; else { S = "evidence missing"; if (fv == "inconclusive") { ih = 1; mr = "fault inconclusive, " hid } else mr = "no red and no proven fault" } }
       L = (R in lim) ? lim[R] : 2; wash = (cnt[R] + 0 >= L && sf[R] == "held"); ruled = (S == "known limit" || S == "accepted by ruling"); s0 = sb[R]; fst = (S == "failing" && (s0 == "" || (prod && !index(s0, "p")))); fp = (fst && sf[R] != "held")
       if (!ruled) { if (S == "failing") { if (!(R " " H in have)) { have[R " " H] = 1; cnt[R]++; ad[++na] = R " " H } } else if (S == "evidence missing") { nk = split(K, kk, " "); for (j = 1; j <= nk; j++) if (!(R " " kk[j] in have)) { have[R " " kk[j]] = 1; cnt[R]++; ev[R]++; ad[++na] = R " " kk[j] } } }
       if ((S == "accepted" || S == "passing") && (R in hal) && hal[R] == 2) { delete hal[R]; print R > HX }   # 0.26.11.1.4 (R3): a head that proves the row releases its inconclusive halt
@@ -117,15 +137,19 @@ DE='function why(a, b) { return (a == "") ? b : (b == "") ? a : a "; " b }
       LN[i] = R " " TX; JB[i] = (R != B) ? B : ""; if (R != B && FI !~ /^(accepted|accepted by ruling|owed|known limit|passing|its state stands)$/) JN[B] = 1
       f2 = RD "/" R ".txt"; o = 0; dup = 0; while ((getline l < f2) > 0) { split(l, a, "\t"); o = (a[3] != "answered"); if (a[2] == H && a[4] == TX) dup = 1 } close(f2)
       if ((S == "failing" || S == "evidence missing") && !dup) { print NOWT "\t" H "\t" S "\t" TX >> f2; close(f2) } else if ((S == "accepted" || S == "passing" || S == "owed") && o) { print NOWT "\t" H "\tanswered" >> f2; close(f2) } }
-    if (KD != "reached" && FW == "") { if (gg != "read") SL = "sort evidence missing — " ((gg == "refused") ? "grade report refused, " ggid : "no grade report"); else if (ol && gs != "read") SL = "sort evidence missing — " ((gs == "refused") ? "sort report refused, " gid : "no sort report"); if (SL != "") NOT = 1 } if (BL != "" || n == 0) NOT = 1
+    # FB-3 A1.4 (GitHub manual): the review is ViD own, once; RVF, for --dry, says the decision lacks it alone. A `test it` line of its sort asks an added test, once
+    if (MAN != "") { if (KD != "reached" && FW == "") { if (gg != "read") SL = "review missing — " ((NONE != "") ? "no merged pull request names this ticket" : (gg == "refused") ? "ViD\047s own review could not be read, " ggid : "ViD\047s own review of this ticket is not made yet"); else if (ol && gs != "read") SL = "review missing — the lines ViD\047s own review left open are not sorted yet" }
+      if (RQH != "" && nrq) NOT = 1 }
+    else if (KD != "reached" && FW == "") { if (gg != "read") SL = "sort evidence missing — " ((gg == "refused") ? "grade report refused, " ggid : "no grade report"); else if (ol && gs != "read") SL = "sort evidence missing — " ((gs == "refused") ? "sort report refused, " gid : "no sort report"); if (SL != "") NOT = 1 } if (BL != "" || n == 0) NOT = 1
     if (DMS != "") NOT = 1   # 0.26.10.29.5 (DP-1 R8): a description with no Decisions section: a line of the ticket, against no row
-    while ((getline l < DMF) > 0) { DML[++ndm] = l; NOT = 1 }   # GM-4 E2: a unit merged under the ticket with no section, a line each
+    while ((getline l < DMF) > 0) { DML[++ndm] = l; if (DMT == "") NOT = 1 }   # GM-4 E2: a unit merged under the ticket with no section, a line each
+    if (MAN != "" && SL != "") { if (NOT) SL = ""; else { if (NONE == "") print "review" > RVF; NOT = 1 } }   # not yet for another reason: no review is asked
     printf "vid: decision %s\nticket: %s\n", HEAD, (NOT ? "not yet" : "accepted") > CO
     for (i = 1; i <= n; i++) { print LN[i] >> CO; if (JB[i] != "" && JB[i + 1] != JB[i]) print JB[i] " " ((JB[i] in JN) ? "not accepted, by a transition above" : "accepted") >> CO }
     for (i = 1; i <= neg; i++) print eg[i] >> CO
     if (KD != "skeleton" && (nsp || (SPH + 0 && NASK + 0 < split(DECL, w, " ")))) { AL = DECL; nd = split(SE, w, " "); for (j = 1; j <= nd; j++) if (index(" " DECL " ", " " w[j] " ") == 0) AL = AL (AL == "" ? "" : " ") w[j]; print "split — every engine is now asked: " AL >> CO }
     if (an >= 5 && (AH == "" || AH == H)) { print "analyst due — " ae ", " an " cases could not run over " ak " runs" >> CO; if (AH == "") print N "\t" H > ANF }
-    if (SL != "") print SL >> CO; if (DMS != "") print "decisions missing — the pull request\047s description has no Decisions section, nor Decisions: none" >> CO; for (i = 1; i <= ndm; i++) print DML[i] >> CO; if (SP) print "Fix the whole harm, not the instance named: name what must not happen, find every other way to it, and fix those too." >> CO
+    if (SL != "") print SL >> CO; if (DMS != "") print "decisions missing — the pull request\047s description has no Decisions section, nor Decisions: none" >> CO; for (i = 1; i <= ndm; i++) print DML[i] >> CO; if (RQH != "" && nrq) { for (i = 1; i <= nrq; i++) print "request " RQL[i] >> CO; print "requests open — each request above asks for one added test, this once: a later ask is not held by it" >> CO } if (NOT) for (i = 1; i <= nsk; i++) print "report left out — vid-results/" SKL[i] >> CO; if (SP) print "Fix the whole harm, not the instance named: name what must not happen, find every other way to it, and fix those too." >> CO
     for (i = 1; i <= n0; i++) { split(c0[i], x, " "); if (!(x[1] in drop)) print c0[i] > CN } for (i = 1; i <= na; i++) { split(ad[i], x, " "); if (!(x[1] in drop)) print ad[i] >> CN } close(CN)
     for (k in drop) print k > DR }'
 # GM-4 E4: umap, each line of .vid/decide/unit-merges with its ticket: `<p> TAB <ticket or -> TAB <head> TAB <merge>`. Its ticket is
@@ -134,9 +158,9 @@ DE='function why(a, b) { return (a == "") ? b : (b == "") ? a : a "; " b }
 # [--withdrawn]` prints these lines and writes nothing under .vid/decide but its own scratch
 umap() { _rd=.vid/round/read; [ -f "$_rd" ] || _rd=/dev/null; awk -F'\t' -v L=.vid/tw/log -v KW="${1:-}" 'BEGIN { while ((getline l < L) > 0) { split(l, x, " "); if (x[1] == "published") P[x[2]] = 1; else if (x[1] == "withdrawn" && KW != "--withdrawn") delete P[x[2]] } }
     FILENAME == ARGV[1] { if ($1 == "sub") S[$4] = $2; next } { t = $2; if (!(t in P)) t = (t in S) ? S[t] : "-"; print $1 "\t" t "\t" $3 "\t" $4 }' "$_rd" "$D/unit-merges"; }
-cmd_decide() { N=''; P=''; HD=''; POST=''; AT=''; while [ $# -gt 0 ]; do case $1 in --post) POST=1; shift ;; --ticket) N=$2; shift 2 ;; --pr) P=$2; shift 2 ;; --head) HD=$2; shift 2 ;; --at) AT=$2; shift 2 ;; *) die "unknown $1" ;; esac; done
+cmd_decide() { N=''; P=''; HD=''; POST=''; AT=''; DRY=''; while [ $# -gt 0 ]; do case $1 in --post) POST=1; shift ;; --dry) DRY=1; shift ;; --ticket) N=$2; shift 2 ;; --pr) P=$2; shift 2 ;; --head) HD=$2; shift 2 ;; --at) AT=$2; shift 2 ;; *) die "unknown $1" ;; esac; done
   if [ -n "$AT" ]; then [ -n "$N" ] && [ -z "$P$HD" ] || die 'usage — sh checks/decide.sh decide --ticket <n> --at <commit> [--post]'; HD=$AT; P=step-$N; KP=step-$N
-  else [ -n "$N" ] && [ -n "$P" ] && [ -n "$HD" ] || die 'usage — sh checks/decide.sh decide --ticket <n> --pr <p> --head <commit> [--post] | --ticket <n> --at <commit> [--post]'; KP=pr-$P; fi
+  else [ -n "$N" ] && [ -n "$P" ] && [ -n "$HD" ] && [ -z "$DRY" ] || die 'usage — sh checks/decide.sh decide --ticket <n> --pr <p> --head <commit> [--post] | --ticket <n> --at <commit> [--post]'; KP=pr-$P; fi
   H=$(printf %s "$HD" | cut -c1-12); E=.vid/results/$KP-$H.txt; [ -f "$E" ] || ref "no evidence file at $E: read the reports first"
   F=.vid/tw/out/issue-$N.md; [ -f "$F" ] || die "no published ticket at $F"; KD=$(sed -n 's/^- kind: //p' "$F" | head -n 1); FW=$(sed -n 's/^- follows: //p' "$F" | head -n 1)   # FW: a follow-up's (0.26.10.28.10, R1)
   # 0.26.10.29.5 (DP-1 R8): the description read as the blocked label is, through github.sh; no Decisions section (decisions.sh section's
@@ -150,17 +174,23 @@ cmd_decide() { N=''; P=''; HD=''; POST=''; AT=''; while [ $# -gt 0 ]; do case $1
       [ "$(sh "$HERE/decisions.sh" section "$T/ub" | head -n 1)" != missing ] || echo "no Decisions section — #$up" >> "$T/dms"; done
     [ -f .vid/round/read ] || die "no read of this call (.vid/round/read): the ticket's labels come from it"
     BL=$(awk -F'\t' -v n="$N" -v B=",$(skey labels-prefix)blocked," '$1 == "issue" && $2 == n && index("," $3 ",", B) { print "blocked"; exit }' .vid/round/read); fi
+  # FB-3 A1 (GitHub manual): MAN; DMT, the ticket as published asks for no Decisions section, so a unit without one is told and holds nothing;
+  # NONE, the review found no merged pull request of the ticket (review.sh prepare's none-step-<n>, at this commit); RQH, the review's requests hold this decision:
+  # never posted yet, or posted at this commit and no ask since (round.sh accept drops posted- at an ask); rows/ a copy for --dry
+  MAN=''; DMT=''; NONE=''; RQH=''; RDD=$D/rows; : > "$T/rv"; if [ -n "$AT" ] && manual; then MAN=1; grep -q '^Decisions: ' "$F" || DMT=1; [ "$(cat "$D/review/none-step-$N" 2>/dev/null || true)" != "$HD" ] || NONE=1
+    RQ=$(cat "$D/requested-step-$N" 2>/dev/null || true); if [ -z "$RQ" ] || { [ "$RQ" = "$H" ] && [ -f "$D/posted-$KP-$H" ]; }; then RQH=1; fi; fi
+  [ -z "$DRY" ] || { cp -R "$D/rows" "$T/rows" && RDD=$T/rows; } || exit 1
   items "$F" > "$T/items"; : > "$T/new" ; : > "$T/dr"; : > "$T/ro"; : > "$T/co"; : > "$T/hn"; : > "$T/hx"; PH=$(cut -c1-12 "$D/last-$KP" 2>/dev/null || true)
   DECL=$(sed -n 's/^engines \([^|]*\)|.*/\1/p' .vid/tw/handed 2>/dev/null | tail -n 1 | sed 's/ *$//'); SPH=$(grep -c '^engine-split ' .vid/tw/handed 2>/dev/null || true); : > "$T/sp"; : > "$T/an"
   NASK=$(awk '/^## / { s = substr($0, 4); next } s == "Engines" && /^- (primary|also): / { n++ } END { print n + 0 }' "$F"); AH=$(awk -F'\t' -v n="$N" '$1 == n { print $2; exit }' "$D/analyst")
-  # GM-4 E3: in GitHub manual nothing is dropped for a landing; the results reader's one list (results.sh amends) holds what is
+  # GM-4 E3: in GitHub manual nothing is dropped for a landing; the results reader's one list (results.sh amends) leaves out what does not count
   : > "$T/stale"; manual || [ ! -f .vid/tw/log ] || awk -v n="$N" '$1 == "published" && $2 == n { p = 1; next } p && $1 == "landed" { for (i = 2; i <= NF; i++) if ($i ~ /^ids=/) { m = split(substr($i, 5), a, ","); for (j = 1; j <= m; j++) print a[j] } }' .vid/tw/log > "$T/stale"   # R4 (v0.26.10.25.5): no evidence from a ticket published before a landing, by the log's order
   sh "$HERE/close.sh" owned > "$T/ow" 2>/dev/null || : > "$T/ow"; OWN=" $(sed -n 's/^- rows: //p' "$F" | head -n 1) "
   # GM-4 E3 (GitHub manual): the tests the newest amendment naming them (added= or restated=) made after the decision before (PH's), so
   # nothing that decision proved is carried past the amendment
   : > "$T/noc"; if manual && [ -n "$PH" ] && [ -f .vid/tw/log ]; then PW=$(awk -F'\t' -v p="$P" -v h="$PH" '$2 == p && $3 == h { t = $1 } END { print t }' "$D/log")
     [ -z "$PW" ] || awk -v n="$N" -v w="$PW" '$1 == "amended" && $2 == n { a = ""; for (i = 3; i <= NF; i++) if ($i ~ /^at=/) a = substr($i, 4); if (a <= w) next; for (i = 3; i <= NF; i++) if ($i ~ /^(added|restated)=/) { m = split(substr($i, index($i, "=") + 1), q, ","); for (j = 1; j <= m; j++) if (q[j] != "" && q[j] != "-") print q[j] } }' .vid/tw/log > "$T/noc"; fi
-  W=$(now); awk -v N="$N" -v P="$P" -v KP="$KP" -v NCF="$T/noc" -v DMF="$T/dms" -v H="$H" -v KD="$KD" -v FW="$FW" -v BL="$BL" -v DMS="$DMS" -v DECL="$DECL" -v SPH="$SPH" -v NASK="$NASK" -v AH="$AH" -v SPF="$T/sp" -v ANF="$T/an" -v NOWT="$W" -v RD="$D/rows" -v CF="$D/counts" -v LF="$D/limits" -v UF="$D/rulings" -v IF="$T/items" -v SF="$D/state" -v PF="$D/$KP-$PH.rows" -v PH="$PH" -v HF="$D/halted" -v OWF="$T/ow" -v STF="$T/stale" -v HN="$T/hn" -v HX="$T/hx" -v CO="$T/co" -v RO="$T/ro" -v CN="$T/new" -v DR="$T/dr" "$DE" "$E"; cat "$T/hn" >> "$D/halted"; cat "$T/an" >> "$D/analyst"
+  W=$(now); awk -v N="$N" -v P="$P" -v KP="$KP" -v NCF="$T/noc" -v DMF="$T/dms" -v MAN="$MAN" -v DMT="$DMT" -v NONE="$NONE" -v RQH="$RQH" -v RVF="$T/rv" -v H="$H" -v KD="$KD" -v FW="$FW" -v BL="$BL" -v DMS="$DMS" -v DECL="$DECL" -v SPH="$SPH" -v NASK="$NASK" -v AH="$AH" -v SPF="$T/sp" -v ANF="$T/an" -v NOWT="$W" -v RD="$RDD" -v CF="$D/counts" -v LF="$D/limits" -v UF="$D/rulings" -v IF="$T/items" -v SF="$D/state" -v PF="$D/$KP-$PH.rows" -v PH="$PH" -v HF="$D/halted" -v OWF="$T/ow" -v STF="$T/stale" -v HN="$T/hn" -v HX="$T/hx" -v CO="$T/co" -v RO="$T/ro" -v CN="$T/new" -v DR="$T/dr" "$DE" "$E"; [ -z "$DRY" ] || { cat "$T/rv"; return 0; }; cat "$T/hn" >> "$D/halted"; cat "$T/an" >> "$D/analyst"
   [ ! -s "$T/hx" ] || { awk -F'\t' 'FILENAME == ARGV[1] { x[$1] = 1; next } !(($2 in x) && $3 == "i")' "$T/hx" "$D/halted" > "$T/h3" || exit 1; put "$D/halted" < "$T/h3" || exit 1; }   # 0.26.11.1.4 (R3): the released rows' i lines, as rule drops a line
   while IFS=$TAB read -r r e; do mkdir -p .vid/tw; grep -q "^engine-split $r " .vid/tw/handed 2>/dev/null || printf 'engine-split %s | stand-in: %s\n' "$r" "$e" >> .vid/tw/handed; done < "$T/sp"   # R11: once a row, never unwritten
   put "$D/counts" < "$T/new" || exit 1; for r in $(cat "$T/dr"); do grep -v "^$r " "$D/limits" > "$T/l" || true; put "$D/limits" < "$T/l" || exit 1; done
@@ -175,7 +205,8 @@ cmd_decide() { N=''; P=''; HD=''; POST=''; AT=''; while [ $# -gt 0 ]; do case $1
       *) [ "$w" = failing ] || continue; if ! onrec "$b"; then hdrop "$b"; else case $ss in *owed*) [ "$w" = paid ] || hset "$b" owed ;; *) hset "$b" accepted ;; esac; fi ;; esac; done
   if [ -n "$POST" ] && ! cmp -s "$D/posted-$KP-$H" "$T/co"; then
     if [ -n "$AT" ]; then sh "$HERE/github.sh" comment "$N" --body-file "$T/co" > /dev/null || die 'the decision could not be posted'   # GM-4 E2: on the ticket's issue
-    else sh "$HERE/github.sh" decide-post "$P" "$T/co" > /dev/null || die 'the decision could not be posted'; fi; put "$D/posted-$KP-$H" < "$T/co" || exit 1; fi
+    else sh "$HERE/github.sh" decide-post "$P" "$T/co" > /dev/null || die 'the decision could not be posted'; fi; put "$D/posted-$KP-$H" < "$T/co" || exit 1
+    [ -z "$MAN" ] || ! grep -q '^requests open — ' "$T/co" || { printf '%s\n' "$H" > "$T/rq" && put "$D/requested-step-$N" < "$T/rq"; } || exit 1; fi   # FB-3 A1.4
   cat "$T/co"; }
 cmd_merged() { P=''; KP=''; NT=''; case ${1:-} in --pr) P=${2:-}; KP=pr-$P ;; --ticket) NT=${2:-}; P=step-$NT; KP=$P ;; esac; [ -n "${2:-}" ] || die 'usage — sh checks/decide.sh merged --pr <p> | --ticket <n>'
   [ -f "$D/last-$KP" ] || ref "no decision for ${NT:+ticket }${NT:-pull request $P}"
@@ -207,9 +238,37 @@ cmd_queue() { Q=$D/queue.md; { printf '# ViD: what waits on the owner\n\n'
       printf '\nAnswers: accept it by ruling, only if its tests pass and its evidence is what is missing; rule it a known limit; amend it; allow it N more counts.\n\n'; done
     printf '\n## Findings\n\n| Severity | Tag | Finding |\n|---|---|---|\n'; awk -F'\t' '{ print $2 "\t" $3 }' "$D/log" | sort -u | while IFS=$TAB read -r p h; do case $p in step-*) cat ".vid/results/$p-$h.txt" 2>/dev/null || true ;; *) cat ".vid/results/pr-$p-$h.txt" 2>/dev/null || true ;; esac; done | awk '/^finding: / && !seen[$0]++ { t = $2; s = $3; r = $0; sub(/^finding: [a-z]+ /, "", r); if (s ~ /^(high|medium|low)$/) sub(/^[a-z]+ /, "", r); else s = "-"; sub(/^— /, "", r); gsub(/\|/, "/", r); print ((s == "high") ? 1 : (s == "medium") ? 2 : (s == "low") ? 3 : 4) "\t" ((t == "bug") ? 1 : 2) "\t| " s " | " t " | " r " |" }' | sort -t"$TAB" -s -k1,1n -k2,2n | cut -f3-; } > "$T/q" || exit 1; put "$Q" < "$T/q" || exit 1
   sh "$HERE/page.sh" "$Q" --out "$D/queue.html"; }
+# FB-3 A4: outside, rows accepted outside ViD by the owner's words (the header)
+cmd_outside() { N=''; AT=''; WD=''; IDS=''; RW=''; NT=''; u='usage — sh checks/decide.sh outside --ticket <n> --at <commit> --words "<w>" [--note "<why this commit>"] | --rows "<ids>" --words "<w>"'
+  while [ $# -ge 2 ]; do case $1 in --ticket) N=$2 ;; --at) AT=$2 ;; --note) NT=$(printf %s "$2" | tr '\t\n|"' "  /'") ;; --rows) IDS=$2; RW=1 ;; --words) WD=$2 ;; *) die "$u" ;; esac; shift 2; done; [ $# -eq 0 ] || die "$u"
+  if [ -n "$RW" ]; then [ -z "$N$AT$NT" ] || die "$u"; else [ -n "$N" ] && [ -n "$AT" ] || die "$u"; fi
+  WD=$(printf %s "$WD" | tr '\t\n|"' "  /'" | sed 's/^ *//; s/ *$//'); [ -n "$WD" ] || ref "no words: an acceptance outside ViD goes on record only in the owner's words"
+  mustread "$T/pr" planner rows
+  # the published tickets not withdrawn, each row of their newest log line: `<row> TAB <ticket>`
+  awk '$1 == "withdrawn" { delete R[$2]; next } ($1 == "published" || ($1 == "amended" && ($2 in R))) { x = ""; for (i = 3; i <= NF; i++) if ($i ~ /^rows=/) x = substr($i, 6); if (x != "" || $1 == "published") R[$2] = x } END { for (n in R) { m = split(R[n], a, ","); for (i = 1; i <= m; i++) if (a[i] != "" && a[i] != "-") print a[i] "\t" n } }' .vid/tw/log > "$T/tkr" 2>/dev/null || : > "$T/tkr"
+  : > "$T/rtd"; if [ -n "$N" ]; then awk -F'\t' -v n="$N" '$2 == n { print $1 }' "$T/tkr" > "$T/ids"
+    # GM-3 U4: the tests the ticket lists retired
+    { sed -n 's/^- \([^ ]*\) marks: retired;.*/\1/p' ".vid/tw/out/issue-$N.md" 2>/dev/null; awk -v n="$N" '($1 == "published" || $1 == "amended") && $2 == n { l = $0 } END { k = split(l, w, " "); for (i = 3; i <= k; i++) if (w[i] ~ /^retired=/) { m = split(substr(w[i], 9), q, ","); for (j = 1; j <= m; j++) if (q[j] != "" && q[j] != "-") print q[j] } }' .vid/tw/log; } | sort -u > "$T/rtd"; awk 'FILENAME == ARGV[1] { s[$1] = 1; next } !($1 in s)' "$T/ids" "$T/rtd" > "$T/rt2"; cat "$T/rt2" >> "$T/ids"
+  else printf '%s\n' "$IDS" | awk "$RNG"'{ n = split($0, t, /[ ,\t]+/); for (i = 1; i <= n; i++) if (t[i] != "") { m = split(rng(t[i]), e, " "); for (j = 1; j <= m; j++) if (!(e[j] in s)) { s[e[j]] = 1; print e[j] } } }' > "$T/ids"
+    [ -s "$T/ids" ] || ref 'no row is named'
+    x=$(awk -F'\t' 'FILENAME == ARGV[1] { if ($2 == "row" || $2 == "record") K[$1] = 1; next } !($1 in K) { print $1 }' "$T/pr" "$T/ids" | paste -sd ' ' -); [ -z "$x" ] || ref "not in the inventory: $x"
+    x=$(awk -F'\t' 'FILENAME == ARGV[1] { W[$1] = 1; next } $1 in W { printf "%s%s (ticket #%s)", (n++ ? ", " : ""), $1, $2 }' "$T/ids" "$T/tkr"); [ -z "$x" ] || ref "in a published ticket: $x; /vid:vid-accept-step <ticket> <commit> accepted \"<your words>\" records a ticket's"; fi
+  W=$(now); L="owner at $W, words \"$WD\"${NT:+, $NT}; evidence: none, accepted outside ViD"; P=${N:+step-$N}; P=${P:--}; H=$(printf %s "${AT:--}" | cut -c1-12); DONE=''
+  # its rows as they read now: the row, what it becomes or why it is left, and its transitions
+  awk -F'\t' -v HF=.vid/tw/handed -v UF="$D/rulings" -v RF="$T/rtd" -v PF="$T/pr" 'BEGIN { while ((getline l < HF) > 0) { split(l, w, " "); if (w[1] == "row") S[w[2]] = w[3] } while ((getline l < UF) > 0) { split(l, x, "\t"); U[x[2]] = x[3] } while ((getline l < RF) > 0) R[l] = 1
+      while ((getline l < PF) > 0) { split(l, x, "\t"); if (x[2] == "tr") { if (U[x[1]] != "limit") T[x[3]] = T[x[3]] " " x[1] } else { K[x[1]] = x[2]; C[x[1]] = x[6]; M[x[1]] = x[7] } } }
+    { r = $1; z = S[r]; v = "ok"; if (r in R) v = "retired"; else if (z == "known-limit" || C[r] == "limit" || U[r] == "limit") v = "a known limit"; else if (K[r] == "record") v = "a record, not a test"; else if (z ~ /^(accepted|accepted-by-ruling|paid)$/) v = "accepted already"; else if (z == "owed") v = "owed already"; else if (M[r] ~ /(^| )(owed-[a-z]+|seam)( |$)/) v = "owed"; print r "\t" v "\t" T[r] }' "$T/ids" > "$T/od" || exit 1
+  while IFS=$TAB read -r r v tr <&7; do case $v in ok) s='accepted by ruling'; hset "$r" accepted-by-ruling '' "$L" ;; owed) s=owed; hset "$r" owed '' "$L" ;; *) echo "left $r: $v"; continue ;; esac
+    DONE="$DONE${DONE:+,}$r"; for x in $r $tr; do [ "$v" = owed ] || printf '%s\t%s\taccept\t%s\towner\n' "$W" "$x" "$WD" >> "$D/rulings"; done
+    # as a decision's lines are: a journey's transitions, else the row itself; nothing it was counted or held for stands
+    for x in ${tr:-$r}; do printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$x" "$s" "$s" "$P" "$H" "$W"; done >> "$T/os"; for x in $r $tr; do echo "$x"; done >> "$T/ox"; onrec "$r" || echo "$r" >> "$D/record"; done 7< "$T/od"
+  if [ -n "$DONE" ]; then awk -F'\t' 'FILENAME == ARGV[1] { n[$1] = 1; next } !($1 in n)' "$T/os" "$D/state" > "$T/s" && cat "$T/os" >> "$T/s" && put "$D/state" < "$T/s" || exit 1
+    awk 'FILENAME == ARGV[1] { n[$1] = 1; next } !($1 in n)' "$T/ox" "$D/counts" > "$T/c" && put "$D/counts" < "$T/c" || exit 1; awk -F'\t' 'FILENAME == ARGV[1] { n[$1] = 1; next } !($2 in n)' "$T/ox" "$D/halted" > "$T/h2" && put "$D/halted" < "$T/h2" || exit 1; fi
+  [ -z "$N" ] || awk -v n="$N" '$2 == n { f = 1 } END { exit !f }' "$D/accepted-at" || printf '%s %s %s at=%s\n' "$P" "$N" "$H" "$W" >> "$D/accepted-at"
+  ev "accepted-outside ticket=${N:--} rows=${DONE:--} commit=$H words=\"$WD\"${NT:+ note=\"$NT\"}"; n=$(printf '%s' "$DONE" | awk -F, '{ print NF }'); echo "recorded ${n:-0} rows accepted outside ViD, by the owner's words${DONE:+ — $DONE}"; }
 CMD=${1:-}; [ $# -gt 0 ] && shift
 case $CMD in
-  decide) cmd_decide "$@" ;; merged) cmd_merged "$@" ;; rule) cmd_rule "$@" ;; queue) cmd_queue "$@" ;;
+  decide) cmd_decide "$@" ;; merged) cmd_merged "$@" ;; rule) cmd_rule "$@" ;; outside) cmd_outside "$@" ;; queue) cmd_queue "$@" ;;
   umap) case ${1:-} in ''|--withdrawn) [ ! -f "$D/unit-merges" ] || umap "${1:-}" ;; *) die 'usage — sh checks/decide.sh umap [--withdrawn]' ;; esac ;;   # GM-4 E9
-  *) die 'usage — sh checks/decide.sh decide|merged|queue|rule|umap …' ;;
+  *) die 'usage — sh checks/decide.sh decide|merged|outside|queue|rule|umap …' ;;
 esac

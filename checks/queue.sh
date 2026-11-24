@@ -34,6 +34,14 @@
 #                                              lines hold an unread line (but due's) keeps what it no longer raises
 #   list                                       (GM-4 K6, I6) sync, then each open `Q<n>` line: `Q<n> TAB <key> TAB <the answers it takes>
 #                                              TAB <its words>`, in the section's order
+#   list --short                               (FB-3 C5) the same lines as shown, one line a trigger kind and a move kind
+#   backlog                                    (FB-3 D1) the owner's one list, .vid/decide/queue/backlog, in their order: each open
+#                                              item `<id> TAB <state> TAB <who> TAB <words> TAB <next action> TAB <note>`, then
+#                                              `next: <id> · <words> · <next action> · <who>`, the top one neither waiting nor aside.
+#                                              It reads that file alone; no lock of GitHub's and no read
+#   backlog add "<words>" [--who <who>] [--next "<…>"] [--note "<…>"]   an item of the owner's or the session's own, a B<n>, at the end
+#   backlog set <id> [--state to do|doing|waiting|aside|done] [--who <who>] [--next "<…>"] [--note "<…>"] [--place top|after <id>]
+#                                              one item doing at most; done is refused on a Q<n>, which its answer closes
 #   closes                                     (GM-4 F10) read only: each open close item of kind twice or shrink, `close-<kind> TAB <key>`
 #   control pause|continue "<words>"           `run: stopped owner asked to pause` or `run: active`, recorded
 #   control seed production|synthetic "<words>" (0.26.11.1.1, R6) the owner's word for staging's data, theirs alone (no --by), with who
@@ -61,7 +69,7 @@
 # answered again (another fix ticket) or limit; the status's fix line. 0.26.10.29.2 (R7): a close asked again after its fix whose red
 # rows did not shrink, `shrink <the close before it>@<rows now,> <rows now> · before: <rows then>` (keyed by its rows, so a later one is
 # its own question), answered the same way.
-# Records: .vid/decide/queue/ (ids, answers, questions, own, recommend, seen, updated), .vid/tw/known-findings.
+# Records: .vid/decide/queue/ (ids, answers, questions, own, recommend, seen, updated, backlog), .vid/tw/known-findings.
 # serves: tickets (0.26.10.28.4, M9)
 set -u
 LC_ALL=C; export LC_ALL
@@ -224,7 +232,75 @@ questions: $k open · next Q$nq" "$Q/rs" > "$Q/rs2" && mv "$Q/rs2" "$Q/rs" 2>/de
   for f in "$Q"/f.*; do [ -f "$f" ] || continue; p=${f##*.}; t=$(awk -F'\t' -v p="$p" '($1 == "open" || $1 == "merged") && $2 == p { print $3; exit }' "$RD"); awk -v t="$t" '{ s = ($2 ~ /^(high|medium|low)$/) ? $2 : "low"; w = $0; sub(/^[^—]*— /, "", w); print "finding " t " " s " " substr(w, 1, 60) }' "$f"; done | while IFS= read -r l; do grep -qxF "$l" "$Q/seen" || { echo "$l" >> "$Q/seen"; echo "$l"; }; done
   # an answer the owner gave on a held row that the next decision still holds (but amend)
   awk -F'\t' '$5 == "owner" && $2 ~ /^held:/ && $3 != "d" { sub(/^held:/, "", $2); print $2 "\t" $1 }' "$Q/answers" | while IFS=$TAB read -r r when; do
-    grep -q "^held:$r$TAB" "$Q/items" && awk -F'\t' -v r="$r" -v w="$when" '$4 == r && $1 > w && $5 == "held" { f = 1 } END { exit !f }' "$D/log" && echo "unreleased $r"; done; return 0; }
+    grep -q "^held:$r$TAB" "$Q/items" && awk -F'\t' -v r="$r" -v w="$when" '$4 == r && $1 > w && $5 == "held" { f = 1 } END { exit !f }' "$D/log" && echo "unreleased $r"; done; bl_sync; return 0; }
+# --- FB-3 D1: the backlog, the owner's one list, in their order. $Q/backlog, tab-separated: `<id> <key> <state> <who> <words> <next
+# action> <note> <since> <ended or ->`, saved with .vid/decide in both GitHub modes. Ids: Q<n>, a queue line; B<n>, an item of the
+# owner's or the session's own. This script is its one writer, under a lock of this machine (.vid/backlog.lock); the panel's
+# standing is computed again after each write that changed it
+BL=$Q/backlog; BLW=''
+bl_on() { [ -f .vid/tw/settings ]; }
+bl_lock() { lock_take .vid/backlog.lock 60 || { echo "ViD queue: the backlog's lock is held by a live process ($(cut -d' ' -f1 .vid/backlog.lock/h 2>/dev/null)); the backlog was not written" >&2; return 1; }; }
+bl_put() { if [ -s "$1" ] && ! cmp -s "$1" "$BL"; then put "$BL" < "$1" || { lock_free .vid/backlog.lock; exit 1; }; BLW=1; fi; lock_free .vid/backlog.lock; [ -z "$BLW" ] || sh "$HERE/face.sh" standing > /dev/null 2>&1 || :; BLW=''; }
+# bl_sync, the end of every sync: each item of the queue not in the file is added at its end, `to do`, the owner's, its next action
+# the answers it takes; compared by its stable part (trigger:<what>:<subject>, move:<kind>:<subject>, else its key), so one whose
+# evidence changed keeps its place and its marks, its Q number and words fresh (its next action too, unless it was set). A line of the
+# queue gone is done, its note the answer's words, or `no longer there`. In GitHub manual each issue the read shows assigned to the
+# owner, with no question of the queue on it, is an item, closed by a whole read without it; one the owner ended is added again only
+# once a whole read lacked it
+bl_sync() { bl_on && bl_lock || return 0; cat "$BL" 2>/dev/null > "$Q/bo" || :
+  { cut -f1 "$Q/items"; awk -F'\t' '$1 ~ /^Q/ && $3 != "done" { print $2 }' "$Q/bo"; } | sort -u | while IFS= read -r k; do printf '%s\t' "$k"; ans "$k"; done > "$Q/ba"
+  awk -F'\t' -v OFS='\t' -v IT="$Q/items" -v ID="$Q/ids" -v AF="$Q/answers" -v BA="$Q/ba" -v RD="$(manual && [ -f "$RD" ] && echo "$RD")" -v NOW="$(stamp)" '
+    function stab(k,   a) { if (k ~ /^trigger:/) { split(k, a, ":"); sub(/^[^:]*:[^:]*:[^:]*:[^:]*:/, "", k); sub(/@[0-9]+$/, "", k); return "trigger:" a[2] ":" k }
+      if (k ~ /^move:/) { split(k, a, ":"); sub(/^[^:]*:[^:]*:[^:]*:/, "", k); sub(/@[0-9]+$/, "", k); return "move:" a[2] ":" k } return k }
+    function why(k, since) { return (k in AW) && AA[k] >= since ? AW[k] : "no longer there" }
+    BEGIN { while ((getline l < ID) > 0) { split(l, x, "\t"); I[x[1]] = x[2] } while ((getline l < BA) > 0) { split(l, x, "\t"); N[x[1]] = x[2] }
+      while ((getline l < AF) > 0) { split(l, x, "\t"); k = x[2]; w = (x[4] != "" && x[4] != "-") ? x[4] : (x[3] != "" && x[3] != "-") ? x[3] : "answered"
+        AW[k] = w; AA[k] = x[1]; if (k ~ /^finding:[0-9]+:/) { split(k, a, ":"); AW["findings:" a[2]] = w; AA["findings:" a[2]] = x[1] } }
+      while ((getline l < IT) > 0) { split(l, x, "\t"); k = x[1]; if (k ~ /^question:/) { split(k, a, ":"); QN[a[2]] = 1 } s = stab(k); if (s in K) continue
+        sub(/^[^\t]*\t[^\t]*\t/, "", l); gsub(/\t/, " ", l); K[s] = k; W[s] = l; O[++no] = s }
+      if (RD != "") { whole = 1; while ((getline l < RD) > 0) { n = split(l, x, "\t"); if (x[1] == "unread") whole = 0; if (x[1] == "assigned" && !(x[2] in AS)) { AS[x[2]] = "#" x[2] " " x[5]; AO[++na] = x[2] } } close(RD) } }
+    { if ($1 ~ /^B[0-9]+$/ && substr($1, 2) + 0 > mb) mb = substr($1, 2) + 0
+      if ($3 != "done" && $1 ~ /^Q/) { s = stab($2)
+        if (s in K) { if (K[s] != $2) { if ($6 == N[$2]) $6 = N[K[s]]; $2 = K[s]; $1 = I[$2] } $5 = W[s]; U[s] = 1 }
+        else { $3 = "done"; $7 = why($2, $8); $9 = NOW } }
+      if ($2 ~ /^assigned:/) { n = substr($2, 10)
+        if (n in AS) { U["assigned:" n] = 1; $5 = AS[n] } else if (whole) { $2 = "assigned-over:" n; if ($3 != "done") { $3 = "done"; $7 = "no longer assigned to you"; $9 = NOW } } }
+      print }
+    END { for (i = 1; i <= no; i++) { s = O[i]; if (!(s in U)) print I[K[s]], K[s], "to do", "you", W[s], N[K[s]], "-", NOW, "-" }
+      for (i = 1; i <= na; i++) { n = AO[i]; if (!(("assigned:" n) in U) && !(n in QN)) print "B" ++mb, "assigned:" n, "to do", "you", AS[n], "look at #" n " on GitHub", "-", NOW, "-" } }' "$Q/bo" > "$Q/bn" || { lock_free .vid/backlog.lock; exit 1; }
+  bl_put "$Q/bn"; }
+bl_next() { awk -F'\t' '$3 == "done" { next } { o++ } $3 != "waiting" && $3 != "aside" { printf "next: %s · %s · %s · %s\n", $1, $5, $6, $4; f = 1; exit }
+  END { if (!f) print "next: none · " (o ? "every open item is waiting or set aside" : "nothing is open") }' "$BL" 2>/dev/null || echo 'next: none · nothing is open'; }
+bl_w() { printf '%s' "$1" | tr '\t\n\r' '   ' | sed 's/^ *//; s/ *$//'; }
+cmd_backlog() { bl_on || die 'the backlog is ticket mode'"'"'s: there is no .vid/tw/settings here'
+  v=${1:-}; [ $# -eq 0 ] || shift
+  case $v in
+    '') [ ! -f "$BL" ] || awk -F'\t' -v OFS='\t' '$3 != "done" { print $1, $3, $4, $5, $6, $7 }' "$BL"; bl_next; return 0 ;;
+    add) w=$(bl_w "${1:-}"); [ -n "$w" ] || die 'usage — backlog add "<words>" [--who <who>] [--next "<…>"] [--note "<…>"]'; shift; id='' ;;
+    set) id=${1:-}; [ $# -ge 3 ] || die 'usage — backlog set <id> [--state <state>] [--who <who>] [--next "<…>"] [--note "<…>"] [--place top|after <id>]'; shift; w='' ;;
+    *) die 'backlog, backlog add "<words>" or backlog set <id> …' ;; esac
+  bs=''; bw=''; bx=''; bn=''; bp=''
+  while [ $# -gt 0 ]; do [ $# -ge 2 ] || die "$1 has no value"; case $1 in
+    --who) bw=$(bl_w "$2"); bw=${bw:--} ;; --next) bx=$(bl_w "$2"); bx=${bx:--} ;; --note) bn=$(bl_w "$2"); bn=${bn:--} ;;
+    --state) [ "$v" = set ] || die 'an item is added to do'; case $2 in 'to do'|doing|waiting|aside|'done') bs=$2 ;; *) die "'$2' is no state: to do, doing, waiting, aside or done" ;; esac ;;
+    --place) [ "$v" = set ] || die 'an item is added at the end'; case $2 in top) bp=top ;; after) [ $# -ge 3 ] || die '--place after <id>'; bp="after $3"; shift ;; *) die '--place top, or after <id>' ;; esac ;;
+    *) die "unknown $1" ;; esac; shift 2; done
+  bl_lock || exit 1; cat "$BL" 2>/dev/null > "$Q/bo" || :
+  if [ "$v" = add ]; then id=B$(awk -F'\t' '$1 ~ /^B[0-9]+$/ && substr($1, 2) + 0 > m { m = substr($1, 2) + 0 } END { print m + 1 }' "$Q/bo")
+    { cat "$Q/bo"; printf '%s\town:%s\tto do\t%s\t%s\t%s\t%s\t%s\t-\n' "$id" "$id" "${bw:-you}" "$w" "${bx:--}" "${bn:--}" "$(stamp)"; } > "$Q/bn"; bl_put "$Q/bn"; echo "added $id"; bl_next; return 0; fi
+  # the open item of that id, else the newest done one; its line's number in the file
+  bi=$(awk -F'\t' -v i="$id" '$1 == i { d = NR; if ($3 != "done") { o = NR } } END { print (o ? o : d) + 0 }' "$Q/bo"); bk=$(sed -n "${bi}p" "$Q/bo" 2>/dev/null)
+  br() { lock_free .vid/backlog.lock; die "$*"; }
+  [ "$bi" != 0 ] || br "no item $id in the backlog"
+  case $id in Q*) [ "$(printf '%s' "$bk" | cut -f3)" != 'done' ] || br "$id is done: its line was closed"
+      [ "$bs" != 'done' ] || br "$id is closed by its answer: sh checks/queue.sh answer $id $(ans "$(printf '%s' "$bk" | cut -f2)")" ;; esac
+  ba=0; case $bp in after*) x=${bp#after }; [ "$x" != "$id" ] || br "$id cannot stand after itself"; ba=$(awk -F'\t' -v i="$x" '$1 == i && $3 != "done" { n = NR } END { print n + 0 }' "$Q/bo"); [ "$ba" != 0 ] || br "no open item $x in the backlog" ;; esac
+  BS=$bs BW=$bw BX=$bx BN=$bn awk -F'\t' -v OFS='\t' -v i="$bi" -v p="${bp%% *}" -v a="$ba" -v NOW="$(stamp)" 'BEGIN { S = ENVIRON["BS"]; W = ENVIRON["BW"]; X = ENVIRON["BX"]; N = ENVIRON["BN"] }
+    { if (NR == i) { if (W != "") $4 = W; if (X != "") $6 = X; if (N != "") $7 = N; if (S != "") { if (S == "done") { if ($3 != "done") $9 = NOW } else $9 = "-"; $3 = S } me = $0 }
+      else if (S == "doing" && $3 == "doing") $3 = "to do"
+      R[NR] = $0 }
+    END { R[i] = me; if (p == "top") print me; for (j = 1; j <= NR; j++) { if (j != i || p == "") print R[j]; if (p == "after" && j == a) print me } }' "$Q/bo" > "$Q/bn" || br 'the backlog could not be written'
+  bl_put "$Q/bn"; echo "set $id"; bl_next; }
 # v0.26.10.26.7 (R2, R13): the hold's and the compaction question's lines, once; only the sync verb prints them, so a silent
 # sync inside ask or answer never marks one seen unprinted
 announce() { awk -F'\t' '$1 ~ /^hold:/ { k = $1; sub(/^hold:/, "", k); print "hold " k }' "$Q/items" | while IFS= read -r l; do grep -qxF "$l" "$Q/seen" || { echo "$l" >> "$Q/seen"; echo "$l $(num "hold:${l#hold }")"; }; done
@@ -315,7 +391,7 @@ cmd_answer() { [ $# -ge 2 ] || die 'usage — answer <Q<n>|<n>:<k>|<key>> [--by 
         sfile PRD.md > "$Q/prd"; LV=$(sh "$HERE/prd.sh" --effective "$Q/prd" 2>/dev/null | awk -F'|' '{ k = $1; gsub(/[ \t]/, "", k); l = 0; for (i = 3; i <= NF; i++) if ($i ~ /phase:[ \t]*later/) l = 1 } k ~ /^REQ-[0-9]/ && !l { print k }' | sort -u | paste -sd ' ' -)
         # the ask at the item's own candidate
         PC=$(cat "$D/stage/$(echo "$k" | cut -d: -f2)/$(echo "$k" | cut -d: -f3)/commit" 2>/dev/null); sh "$HERE/grade.sh" ask --reqs "$LV" ${PC:+--commit "$PC"} > "$Q/ga" 2>&1 || die "the grade could not be asked: $(tail -n 1 "$Q/ga")"; n=$(sed -n 's/^asked \([0-9]*\) grade .*/\1/p' "$Q/ga")
-        echo "grade $n" > "$Q/offer"; rec "$k" grade "$*" "$BY" "grade ask #$n"; ev "production-grade ask=$n"; echo "asked $n grade before the first go-live"
+        echo "grade $n" > "$Q/offer"; rec "$k" grade "$*" "$BY" "grade ask #$n"; ev "production-grade ask=$n"; echo "asked $n grade before the first go-live"; grep '^review ' "$Q/ga" || :   # FB-3 A1.6: in GitHub manual ViD makes it
       else if [ "$v" = yes ]; then ! ohold || die "the production yes waits: the grade before the first go-live, ask #$(sed -n 's/^grade //p' "$Q/offer"), is out or has findings unruled"; [ -f "$Q/offer" ] || ! oopen || echo yes > "$Q/offer"; fi
       rec "$k" "$v" "$*" "$BY" "$([ "$v" = yes ] && echo approved || echo declined)"; [ "$v" != yes ] || ev "production-yes stage=$(echo "$k" | cut -d: -f2) candidate=$(echo "$k" | cut -d: -f3)"; fi ;;
     production-lost:*) [ "$BY" = owner ] || die 'what production runs is the owner'"'"'s word, or DevAgent'"'"'s'; i=${k#production-lost:}; v=${1:-}; [ "$v" = known ] || die 'known "<commit>" or known none'; shift; cm=${1:?}; shift
@@ -466,7 +542,7 @@ st_lines() { rjoin; tix; P0=$(plan_block "$RS"); BF=$(sed -n 's/^strategy:[[:spa
       { l = $0; sub(/^[ \t]*/, "", l) } l ~ /^step[ \t]/ { n = split(l, a, "|"); id = a[1]; sub(/^step[ \t]+/, "", id); gsub(/[ \t]+$/, "", id); nm = ""; kd = "-"; rw = ""
       for (i = 2; i <= n; i++) { f = a[i]; gsub(/^[ \t]+|[ \t]+$/, "", f); if (f ~ /^name:/) { nm = f; sub(/^name:[ \t]*/, "", nm) } else if (f ~ /^kind:/) { kd = f; sub(/^kind:[ \t]*/, "", kd) } else if (f ~ /^rows:/) { sub(/^rows:[ \t]*/, "", f); m = split(f, w, " "); for (k = 1; k <= m; k++) rw = rw (rw == "" ? "" : " ") ex(w[k]) } }
       print id "\t" nm "\t" kd "\t" rw }' "$Q/plr" - > "$Q/steps"
-  awk -F'\t' -v T=",${PX}ticket," '$1 == "issue" && index("," $3 ",", T) { print $2 }' "$RD" 2>/dev/null > "$Q/open"
+  awk -F'\t' -v R=" $(onrec | tr '\n' ' ') " -v T=",${PX}ticket," '$1 == "issue" && (index(R, " " $2 " ") || index("," $3 ",", T)) { print $2 }' "$RD" 2>/dev/null > "$Q/open"   # FB-3 C3
   awk -F'\t' 'FILENAME == ARGV[1] { S[$1] = $2; next } FILENAME == ARGV[2] { N[$1] = $2; next } FILENAME == ARGV[3] { T[$1] = $0; next }
     ($1 in T) { split(T[$1], x, "\t"); m = split(x[5], r, " "); a = 0; for (i = 1; i <= m; i++) if (S[r[i]] ~ /^(accepted|accepted-by-ruling|owed|passing|paid)$/) a++
       o = o (o == "" ? "" : " · ") "#" $1 " " x[3] (x[3] in N ? " " N[x[3]] : "") ": " a " of " m " rows accepted" } END { print "now: " (o == "" ? "no open ticket" : o) }' "$Q/rst" "$Q/steps" "$Q/tix" "$Q/open"
@@ -527,7 +603,7 @@ mline() { if [ "$(sed -n 's/^mode:[[:space:]]*//p' .vid/RUN-STATE.md | head -n 1
   case $(ghmode) in auto) echo 'mode: GitHub auto' ;; team) echo 'mode: GitHub team (retired: /vid mode manual)' ;; manual) echo 'mode: GitHub manual' ;; *) echo 'mode: GitHub, who works the tickets not recorded' ;; esac; }
 cmd_status() { E=$(sed -n 's/^run-start //p' .vid/decide/queue/started 2>/dev/null); [ -n "$E" ] || { E=$(date +%s); echo "run-start $E" > "$Q/started"; }
   L=$(cat "$Q/updated" 2>/dev/null || echo 0); mline; echo '== where things stand'
-  echo "tickets: open $(awk -F'\t' -v T=",${PX}ticket," '$1 == "issue" && index("," $3 ",", T)' "$RD" 2>/dev/null | grep -c .) · merged $(cat "$D/merged-prs" 2>/dev/null | grep -c . || true) · items for the owner $(cat "$Q/items" 2>/dev/null | grep -c . || true) · steps waiting $(orn "$(c=$(rkey); k=$(stkey); awk -v c="$c" -v k="$k" '$1 == "start" && ($NF == c || $NF == k) { print $2 }' "$D/refused" 2>/dev/null | sort -u | paste -sd ' ' -)")"
+  echo "tickets: open $(awk -F'\t' -v R=" $(onrec | tr '\n' ' ') " -v T=",${PX}ticket," '$1 == "issue" && (index(R, " " $2 " ") || index("," $3 ",", T))' "$RD" 2>/dev/null | grep -c .) · merged $(cat "$D/merged-prs" 2>/dev/null | grep -c . || true) · items for the owner $(cat "$Q/items" 2>/dev/null | grep -c . || true) · steps waiting $(orn "$(c=$(rkey); k=$(stkey); awk -v c="$c" -v k="$k" '$1 == "start" && ($NF == c || $NF == k) { print $2 }' "$D/refused" 2>/dev/null | sort -u | paste -sd ' ' -)")"
   echo "rows: $(orn "$(awk -F'\t' '{ c[$2]++ } END { for (s in c) printf "%s%s %d", (n++ ? " · " : ""), s, c[s] }' "$D/state" 2>/dev/null)")"
   echo "steps closed: $(orn "$(sed -n 's/^closed \([^ ]*\) .*/\1/p' "$HAND" 2>/dev/null | paste -sd ' ' -)") · closes out: $(orn "$(sh "$HERE/close.sh" out 2>/dev/null | cut -d' ' -f2 | paste -sd ' ' -)")"
   fo=0; fm=0; for t in $(awk '$1 == "published" && / kind=fix / { print $2 }' .vid/tw/log 2>/dev/null | sort -u); do if awk -F'\t' -v t="$t" '$2 == t { f = 1 } END { exit !f }' "$D/merges" 2>/dev/null; then fm=$((fm + 1)); elif ! grep -q "^withdrawn $t " .vid/tw/log; then fo=$((fo + 1)); fi; done
@@ -681,11 +757,23 @@ ans() { case $1 in held:*) echo 'a | b <N> | c | d "<words>"' ;; question:*) ech
     stage:*) echo 'row|fix|no|known "<words>" | later <M> "<words>"' ;; context:window|draft:*) echo 'yes|no "<words>"' ;; hold:*) echo 'continue "<words>"' ;; pduty:*) echo 'known "<words>"' ;;
     close:*/cs:stand-in:*) echo 'limit|again "<words>"' ;; close:*/d1:notreal:*) echo 'again|known|row "<words>"' ;; close:*/d1:notdone:*) echo 'again|known "<words>"' ;;
     close:*/w1:*) echo 'again "<words>" | close without the walk' ;; close:*) echo 'again|limit "<words>"' ;; trigger:*:critical:*) echo 'decline|done "<words>"' ;; trigger:*) echo 'decline "<words>"' ;; move:*) echo 'done "<words>"' ;; specpr:*) echo 'none: merged on GitHub' ;; *) echo '"<words>"' ;; esac; }
-cmd_list() { cmd_scan; cmd_sync > /dev/null; while IFS=$TAB read -r k g w; do printf '%s\t%s\t%s\t%s\n' "$(num "$k")" "$k" "$(ans "$k")" "$w"; done < "$Q/items"; }
+# FB-3 C5: list --short, the same lines as shown: the open lines of one trigger kind, or of one move kind, on one line, `<Q numbers> TAB
+# trigger:<what>|move:<kind> TAB <the one answer> TAB <count>: <Q n> <subject>, …: <evidence>; …`; a kind of one line as list prints it
+cmd_list() { [ $# -eq 0 ] || { [ $# -eq 1 ] && [ "$1" = --short ]; } || die 'usage — list [--short]'; cmd_scan; cmd_sync > /dev/null
+  while IFS=$TAB read -r k g w; do printf '%s\t%s\t%s\t%s\n' "$(num "$k")" "$k" "$(ans "$k")" "$w"; done < "$Q/items" > "$Q/ls"; [ $# -gt 0 ] || { cat "$Q/ls"; return 0; }
+  awk -F'\t' '
+    { O[++n] = $0; split($2, a, ":"); if (a[1] != "trigger" && a[1] != "move") next
+      x = (a[1] == "move") ? 3 : 4; s = $2; for (i = 1; i <= x; i++) sub(/^[^:]*:/, "", s); sub(/@[0-9]+$/, "", s); k = a[1] ":" a[2]; K[n] = k; C[k]++
+      p = (a[1] == "move") ? "the move " a[2] " " s ": " : a[3] " trigger " a[2] " " s ": "; e = $4; if (index(e, p) == 1) e = substr(e, length(p) + 1); sub(/ · (answer|name it in) [^·]*$/, "", e)
+      Q[k] = Q[k] (Q[k] == "" ? "" : " ") $1; if (a[3] == "critical") CR[k] = 1; if ((k, e) in G) G[k, e] = G[k, e] ", " $1 " " s; else { G[k, e] = $1 " " s; M[k]++; E[k, M[k]] = e } }
+    END { for (i = 1; i <= n; i++) { k = K[i]; if (k == "" || C[k] == 1) { print O[i]; continue } if (k in D) continue; D[k] = 1; w = k; sub(/^[a-z]*:/, "", w)
+        o = ""; for (j = 1; j <= M[k]; j++) o = o (j > 1 ? "; " : "") G[k, E[k, j]] ": " E[k, j]
+        print Q[k] "\t" k "\t" (k ~ /^move:/ ? "done \"" w " <subject>\" \"<words>\"" : "decline " w " \"<words>\"" ((k in CR) ? " | done \"" w " <subject>\" \"<words>\"" : "")) "\t" C[k] ": " o } }' "$Q/ls"; }
 # v0.26.10.27.4 (R2): keys, what waits, read only: `<key> TAB <Q n> TAB <words>` a line
 CMD=${1:-}; [ $# -eq 0 ] || shift
 case $CMD in
-  sync) cmd_scan; cmd_sync; announce ;; raise) cmd_raise "$@" ;; list) cmd_list ;;
+  sync) cmd_scan; cmd_sync; announce ;; raise) cmd_raise "$@" ;; list) cmd_list "$@" ;;
+  backlog) cmd_backlog "$@" ;;   # FB-3 D1
   closes) c_items | awk -F'\t' '{ split($1, a, ":"); if (a[3] == "twice" || a[3] == "shrink") print "close-" a[3] "\t" $1 }' ;;
   keys) items > "$Q/ky" || exit 1; while IFS=$TAB read -r k g w; do printf '%s\t%s\t%s\n' "$k" "$(num "$k" | grep . || echo -)" "$w"; done < "$Q/ky" ;; cost) cmd_cost "$@" ;; answer) cmd_answer "$@" ;; status) cmd_status ;; addresses) case ${1:-} in ''|*[!0-9]*) die 'usage — addresses <stage>' ;; esac; c=$(snc "$1"); if [ -n "$c" ]; then addrs "$D/stage/$1/$c" "$1"; else echo 'test site: not known yet'; fi ;; control) cmd_control "$@" ;; blockers) cmd_blockers "$@" ;; defect) cmd_defect "$@" ;; lesson) cmd_lesson "$@" ;;
   recommend) k=$(qn "${1:-}"); case $k in held:*|stage:*) printf '%s\t%s\t%s\n' "$k" "${2:-}" "${3:-}" >> "$Q/recommend"; echo "recommended ${2:-} for $1" ;; *) die "${1:-} is no held row's or stage finding's line" ;; esac ;;
@@ -703,4 +791,4 @@ case $CMD in
     # GM-4 F4 (D6): none when every question is the owner's
     if ! ownerq && ! grep -qxF "$i" "$Q/waited" 2>/dev/null; then printf 'RM: this question waits on the lead (%s); go on with what it does not block.\n' "$m" > "$Q/post"
       if sh "$HERE/github.sh" comment "${i%%:*}" --body-file "$Q/post" > /dev/null 2>&1; then echo "$i" >> "$Q/waited"; ev "queue-waiting n=${i%%:*} q=$m"; else echo "waiting-comment-failed ${i%%:*}"; fi; fi ;;
-  *) echo 'usage: sh checks/queue.sh sync|raise|list|closes|recommend|ask|answer|control|status|addresses|cost|defect|lesson' >&2; exit 2 ;; esac
+  *) echo 'usage: sh checks/queue.sh sync|raise|list|backlog|closes|recommend|ask|answer|control|status|addresses|cost|defect|lesson' >&2; exit 2 ;; esac

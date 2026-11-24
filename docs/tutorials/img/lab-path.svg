@@ -33,8 +33,8 @@
 <rect x="664" y="292" width="320" height="52" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
 <text x="674" y="311" text-anchor="start" style="fill:#0b5c7a;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">5</text>
 <text x="698" y="311" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">The skeleton ticket: tests, build, the</text>
-<text x="698" y="328" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">merge, the run, two breaks, the grade</text>
-<text x="500.0" y="322" text-anchor="middle" style="fill:#16202a;font-size:12px;font-weight:400;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">merge, 2 reports, decide</text>
+<text x="698" y="328" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">merge, the run. ViD reviews it</text>
+<text x="500.0" y="322" text-anchor="middle" style="fill:#16202a;font-size:12px;font-weight:400;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">merge, 1 report, decide</text>
 <line x1="662" y1="306" x2="612" y2="306" style="stroke:#0b5c7a" stroke-width="1.5" marker-end="url(#ah)"/>
 <rect x="664" y="354" width="320" height="52" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
 <text x="674" y="373" text-anchor="start" style="fill:#0b5c7a;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">6</text>
@@ -49,10 +49,10 @@
 <line x1="338" y1="430" x2="388" y2="430" style="stroke:#0b5c7a" stroke-width="1.5" marker-end="url(#ah)"/>
 <rect x="664" y="478" width="320" height="52" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
 <text x="674" y="497" text-anchor="start" style="fill:#0b5c7a;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">8</text>
-<text x="698" y="493" text-anchor="start" style="fill:#16202a;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">An ordinary ticket: a question, the red</text>
-<text x="698" y="508" text-anchor="start" style="fill:#16202a;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">run, build, the merge, a break, the</text>
-<text x="698" y="523" text-anchor="start" style="fill:#16202a;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">grade, decide; its step&#x27;s close</text>
-<text x="500.0" y="508" text-anchor="middle" style="fill:#16202a;font-size:12px;font-weight:400;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">question, merge, 4 reports, decide</text>
+<text x="698" y="493" text-anchor="start" style="fill:#16202a;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">An ordinary ticket: the tests, a</text>
+<text x="698" y="508" text-anchor="start" style="fill:#16202a;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">question, build, the merge, the run,</text>
+<text x="698" y="523" text-anchor="start" style="fill:#16202a;font-size:12.5px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">decide; its step&#x27;s close</text>
+<text x="500.0" y="508" text-anchor="middle" style="fill:#16202a;font-size:12px;font-weight:400;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">question, merge, 2 reports, decide</text>
 <line x1="662" y1="492" x2="612" y2="492" style="stroke:#0b5c7a" stroke-width="1.5" marker-end="url(#ah)"/>
 <rect x="16" y="540" width="320" height="52" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
 <text x="26" y="559" text-anchor="start" style="fill:#0b5c7a;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">9</text>
@@ -68,9 +68,9 @@
 <line x1="662" y1="616" x2="612" y2="616" style="stroke:#0b5c7a" stroke-width="1.5" marker-end="url(#ah)"/>
 <rect x="664" y="664" width="320" height="52" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
 <text x="674" y="683" text-anchor="start" style="fill:#0b5c7a;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">11</text>
-<text x="698" y="683" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">The amended ticket: the red run, build,</text>
-<text x="698" y="700" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">the merge, the grade</text>
-<text x="500.0" y="694" text-anchor="middle" style="fill:#16202a;font-size:12px;font-weight:400;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">merge, 3 reports, decide</text>
+<text x="698" y="683" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">The amended ticket: the tests, build,</text>
+<text x="698" y="700" text-anchor="start" style="fill:#16202a;font-size:13px;font-weight:400;font-family:system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">the merge, the run</text>
+<text x="500.0" y="694" text-anchor="middle" style="fill:#16202a;font-size:12px;font-weight:400;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">merge, 1 report, decide</text>
 <line x1="662" y1="678" x2="612" y2="678" style="stroke:#0b5c7a" stroke-width="1.5" marker-end="url(#ah)"/>
 <rect x="664" y="726" width="320" height="52" rx="3" style="fill:#ffffff;stroke:#d6dce2" stroke-width="1"/>
 <text x="674" y="745" text-anchor="start" style="fill:#0b5c7a;font-size:12px;font-weight:500;font-family:ui-monospace, 'SF Mono', Menlo, Consolas, monospace">12</text>

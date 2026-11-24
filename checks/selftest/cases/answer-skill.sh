@@ -7,7 +7,9 @@
 # sends it to the vid-fix skill's door, keeps the delegation (`--by delegate`), takes the lock as vid-connect's start does
 # outside /vid run's own conversation, holds the answer and decline moves' forms, and says GitHub manual makes no compaction
 # question. vid-fix's GitHub manual branch asks a draft through the queue (`queue.sh ask draft`), landed by the owner's yes
-# through vid-answer, and no longer asks it outside the queue. Env: CHECKS.
+# through vid-answer, and no longer asks it outside the queue. FB-3 D1: vid-answer holds the backlog: `/vid:vid-answer backlog` with no
+# lock and no read, `queue.sh backlog add` and `set`, order and aside on the owner's say, every answer ending with the next: line;
+# vid-next and vid-run point to it. Env: CHECKS.
 set -eu
 unset CLAUDE_CODE_SESSION_ID VID_CALLER 2>/dev/null || true
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
@@ -46,4 +48,10 @@ F=$S/vid-fix/SKILL.md; grep '^\*\*Ticket mode (v0.26.10.25.5, R1)' "$F" > "$T/f"
 grep -qF 'queue.sh ask draft <n>' "$T/f" && grep -qF 'vid-answer' "$T/f" || fail "vid-fix's ticket-mode branch does not ask the draft through the queue, landed through vid-answer"
 ! grep -qF 'never through the queue' "$T/f" || fail "vid-fix's GitHub manual branch still asks a draft outside the queue"
 ! grep -qF '(the vid-run skill, the owner'"'"'s queue)' "$F" || fail 'vid-fix still sends the yes to the run skill'"'"'s queue'
+# FB-3 D1: the backlog, in vid-answer alone; vid-next and vid-run point to it
+awk '/^## The backlog/ { on = 1; print; next } on && /^## / { exit } on' "$A" > "$T/bs"; [ -s "$T/bs" ] || fail 'vid-answer has no section The backlog'
+fl "$T/bs" > "$T/b"
+for x in '/vid:vid-answer backlog' 'no lock and no read' 'sh checks/queue.sh backlog add' 'sh checks/queue.sh backlog set' "on the owner's say" 'at the end' '`next:`'; do grep -qF -- "$x" "$T/b" || fail "vid-answer's backlog section lacks: $x"; done
+grep -q 'backlog' "$T/fm" || fail "vid-answer's description does not name the backlog"
+for s in vid-next vid-run; do fl "$S/$s/SKILL.md" | grep -qF 'queue.sh backlog' || fail "$s does not point to the backlog"; done
 echo 'answer-skill: ok'

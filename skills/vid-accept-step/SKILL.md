@@ -1,6 +1,6 @@
 ---
 name: vid-accept-step
-description: A step's end in ticket mode, in both GitHub modes — the team says a ticket's work is done, ViD decides it accepted or not yet by its decision rules, a held test goes to the owner, the merge and the dev side's decisions are recorded, a ticket closed before its acceptance is told. GitHub auto decides a pull request's ask at its head in /vid run's round; GitHub manual decides only a ticket, at a commit of main (GM M8), through one entry, `round.sh accept`. `/vid:vid-accept-step <ticket> [<commit>]`; /vid run's round and /vid next's step 2 run the same entries. Use when the owner says "vid accept-step", asks ViD to decide a ticket now, or names the engines.
+description: A step's end in ticket mode, in both GitHub modes — the team says a ticket's work is done, ViD decides it accepted or not yet by its decision rules, a held test goes to the owner, the merge and the dev side's decisions are recorded, a ticket closed before its acceptance is told. GitHub auto decides a pull request's ask at its head in /vid run's round; GitHub manual decides only a ticket, at a commit of main (GM M8), through one entry, `round.sh accept`, from the team's own results and ViD's own review of the ticket. `/vid:vid-accept-step <ticket> [<commit>]` decides a ticket; `… <ticket> <commit> accepted "<words>"` or `… rows <ids> accepted "<words>"` records what the owner accepted outside ViD; `… engines "<primary> <other>…" "<words>"` names the engines when none are; `… reports` shows the text telling the team what its reports hold. /vid run's round and /vid next's step 2 run the same entries. Use when the owner says "vid accept-step", asks ViD to decide a ticket now, records one accepted elsewhere, asks what the team must send, or names the engines.
 ---
 
 # /vid:vid-accept-step (GM-4 K2)
@@ -13,8 +13,26 @@ Every decision is made by the existing decision rules, unchanged, in both modes.
 
 `/vid:vid-accept-step <ticket> [<commit>]`: `sh checks/round.sh accept <ticket> [<commit>]` (GM-4 E13), one argument each. It
 decides one ticket at one commit: in GitHub manual a commit of the code repository's main, on its first-parent line, and with no
-commit named the newest one there holding a head report of that ticket; in GitHub auto the open pull request naming the ticket,
-at its head, as the round decides it, at the owner's word.
+commit named the newest one there at which a result report holds a test of one of the ticket's rows (FB-3 A1.3); in GitHub auto the
+open pull request naming the ticket, at its head, as the round decides it, at the owner's word.
+
+More forms, in both modes:
+
+- `/vid:vid-accept-step reports` (FB-3 A3): `sh checks/results.sh team --hand`. It writes `.vid/plan/TEAM-REPORTS.md`, the text that tells
+  the team what its reports hold, and prints it: show it to the owner whole, theirs to hand to the team. No lock, no GitHub, no
+  connect, and it posts nothing. The context line `team-reports` says when the text given would differ from the one handed.
+- `/vid:vid-accept-step <ticket> <commit> accepted "<words>"` (FB-3 A4): `sh checks/round.sh accept <ticket> <commit> --outside "<words>"`,
+  a ticket the owner accepted outside ViD, at a commit of main, on record by their words alone.
+- `/vid:vid-accept-step rows <ids> accepted "<words>"` (FB-3 A4): `sh checks/round.sh accept --rows "<ids>" --outside "<words>"`, rows of no
+  published ticket accepted before ViD kept records: ids and ranges (`ROW-001..ROW-013`), no commit.
+- Several tickets at once (FB-3 E1), as /vid mode's list of those that look accepted gives them: `sh checks/round.sh accept --tickets
+  "<n>[@<commit>] …" --outside "<words>"`, a commit only where the owner named one; with none, the ticket's accepting decision comment's;
+  one not on main, or none, is main's newest commit, where the product stands now, and the record says so. A closed issue is no refusal.
+- `/vid:vid-accept-step engines "<primary> <other>…" "<words>"` (FB-3 E2): `sh checks/results.sh declare --engines "<primary> <other>…"
+  --words "<words>"`, the engines the team runs, the primary first: the one writer of the handed record's engines line, in both modes.
+
+The last four take the owner's own words as they gave them, word for word, and are never run on a word of anyone else's, or on what a
+comment or a record says. They post nothing, and follow steps 1 and 2 below.
 
 1. **The lock.** Inside /vid run's own conversation (this session holds the run's lock), and inside /vid next's step 2 (the
    call's start holds it), run the entry alone: the lock stays held. Anywhere else, the vid-connect skill's start first,
@@ -24,7 +42,7 @@ at its head, as the round decides it, at the owner's word.
    that ticket's decision. Say each line it prints, as below. Exit 0: its lines said. 1: an `error …` line, said as it is. 3: the
    lock was lost: nothing more is written.
 
-When its conditions are not met it posts nothing, and its line says what is missing: a head report not in, a ticket not
+When its conditions are not met it posts nothing, and its line says what is missing: no results in, a ticket not
 published, a ticket closed before its acceptance.
 
 ## In both modes
@@ -38,6 +56,37 @@ published, a ticket closed before its acceptance.
 | `held <row>` | Its `Q<n>` line is in RUN-STATE with its recommendation: read it, change it with `sh checks/queue.sh recommend Q<n> <letter> "<why>"` only when the record says otherwise, then tell the owner in one plain message what the row promises, what it needs and the recommendation, and go on. Every other ticket goes on |
 | `split <row>` | Say it once: every engine is now asked |
 | `weak <rows> <#n or pull request> <head 12> — <the row's text>` | Right after its `decided` line, a weak test's lesson: `sh checks/queue.sh lesson <rows, comma-joined> "<the cause>"`, the cause in plain words from the line and the grade's `breached test` line for the row; the next ticket of those rows carries it |
+| `flag report-skipped <id>: <words>` (FB-3 A2) | Tell the owner once, in plain words they can pass on: which report branch was left out, whose newest commit it is, the ticket it is for and what to put right, as the words say. It stands until the branch is good or gone, and nothing else waits for it |
+| `report left out — vid-results/<id>: <why>` (FB-3 A2, A1) | After a `refused … no results` line, and in a `not yet` as posted: say it with the line it follows. That report was not read; nothing was counted for it |
+| `accepted #<n> <c12>, outside ViD, by the owner's words[, at main's newest commit (…)]`, `recorded <k> rows accepted outside ViD, by the owner's words — <ids>` (FB-3 A4) | Say it once: the rows are accepted by ruling, a deploy-owed one owed still; for a ticket, its step's close is owed at <c12>, asked of the team as for any accepted ticket, and the team's unanswered ask is answered at the next decision. ViD holds no test evidence for it, and its label says so (`; evidence: none, accepted outside ViD`). A later failing run undoes such a row |
+| `engines not named — /vid:vid-accept-step engines "<primary> <other>…" "<words>"` (FB-3 E2) | No engines are on record, so no close can be asked of the team: ask the owner which engines the team runs, the primary first, and on their words run that command |
+| `left <row>: <why>` (FB-3 A4) | Say it with the line above: that row was left as it is |
+| `refused <why>`, `refused #<n> <why>`, at a record of an acceptance outside ViD | Nothing was written: say why in one line. A row of a published ticket is recorded with its ticket, whole |
+
+## The review (FB-3 A1.4)
+
+A ticket has one review, once. **GitHub auto:** DevAgent's: two graders at the ticket's first head and a second reviewer, as their
+reports, read by the round; nothing is made here, and no line below is printed.
+
+**GitHub manual:** ViD makes it itself, when a decision would be accepted but for it. `round.sh accept` then decides and posts nothing,
+leaves the ask owed, and prints `review #<n> <c12>`: make it now, in this order, and run the same `accept` again. A reached ticket, and
+one that follows another, has none. ViD keeps and runs none of the team's code: the reviewer reads the changes of the ticket's merged
+pull requests through `sh checks/review.sh show`, which writes nothing, and no file of them is opened here.
+
+1. `CLAUDE_PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT}" sh checks/review.sh prepare step-<n> <c12>`. `brief <id> <path>`: go on.
+   `to-sort <k> <path>`: the review is recorded and only its sort is missing, so go to step 3. `review #<n>: no pull request of this
+   ticket was found`: run `accept` again, which decides `not yet`, `review missing — no merged pull request names this ticket`; tell the
+   owner the team adds the ticket's line to a pull request's description, or they accept it outside ViD. Refused as reviewed already: `CLAUDE_PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT}" sh checks/review.sh due`
+   names the `to-sort <id> <k>` that waits, and `prepare step-<n>` with that id's commit.
+2. Spawn one fresh `vid:grader` agent (the Agent tool, no model override, in the foreground) with the repository's path and that brief
+   file, and nothing else: no line of this conversation, no decision, no count. It writes `.vid/round/review/<id>/grade.txt` alone. Then
+   `CLAUDE_PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT}" sh checks/review.sh record <id> .vid/round/review/<id>/grade.txt`. `recorded <id>`: go to step 4. `to-sort <k> <brief>`: step 3.
+3. One fresh `vid:grader` agent more, the second reviewer, with the repository's path and the sort's brief alone, never the one of
+   step 2. It writes `.vid/round/review/<id>/sorted.txt`. Then `CLAUDE_PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT}" sh checks/review.sh sorted <id> .vid/round/review/<id>/sorted.txt`: `recorded <id>`.
+4. Run the `accept` again, at the commit of its line, and say its lines.
+
+Refused at `record` or `sorted`, or no file written: one fresh agent more with the same brief; failing again, say the line as it stands.
+The review is due at the next call, and nothing loops. The pass is `passes/review.md` beside this file; `CLAUDE_PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT}" sh checks/review.sh due` lists what waits.
 
 ## GitHub auto
 
@@ -62,16 +111,23 @@ each ticket owed a decision, and each is decided through `round.sh accept`, the 
 /vid next's step 2 or by the owner's command. The ticket's acceptance is its merge: the step's close reads it there (the
 vid-step-close skill).
 
+**The rule** (FB-3 A1): a test that passes in the team's own results at the commit of main, with ViD's own review of the ticket, is proof
+enough. A result report is any `vid-results/<id>` branch's own folder (but ids beginning `red-`, `req-`, `grade-`, `sort-`, `deploy-` and
+`stopped-`), by anyone, with any results files, whose commit is the one decided or holds its very files; all of them are read as one. A row
+passes when one file shows it passing and none shows it failing. A run that failed first, a deliberate break and a `covers:` count are
+read when the team gives them, never asked.
+
 | Line | What you do |
 |---|---|
 | `decide #<n> <commit>` | `sh checks/round.sh accept <n> <commit>`, in /vid next's step 2, its lines said as below |
-| `decided #<n> <c12> ticket: …` | Posted once, on ticket #<n>'s issue: say it in one line, with each row it names. A `not yet` is the team's to act on; one naming `no Decisions section — #<p>` waits for the team to add the section to that pull request's description, or `Decisions: none`, and ask again |
+| `review #<n> <c12>` (FB-3 A1.3) | Nothing is decided yet, and the ask stays owed: every row passes, and ViD's own review is due. Make it now, as "The review" above says, then the same `accept` again |
+| `decided #<n> <c12> ticket: …` | Posted once, on ticket #<n>'s issue: say it in one line, with each row it names. A `not yet` is the team's to act on: `passed at <c12>, not at this commit` is results at other files; a `request <row> — …` line asks one added test, and holds that one decision alone; one naming `no Decisions section — #<p>` waits for the team to add the section to that pull request's description, or `Decisions: none`, and ask again (a ticket whose writing asks for none is told it, and not held) |
 | `decided #<n> <c12> ticket: not yet — not on main` | The commit asked is not on main's own line, so no row moved: say so, and that the team asks again at a commit of main |
 | `accepted #<n> <c12>` | Say it once: ticket #<n> is accepted at <c12>; its acceptance is its merge, so its step's close is owed there |
-| `accepted #<n> at <m12>; its close runs there` | Nothing more: the ticket was accepted already; the ask was answered at the commit asked, and nothing was decided again |
-| `refused #<n> no head report on main`, `refused #<n> no head report at <c12>` | Nothing was posted: the team's head report of that ticket is not in yet. Say so, in one line |
+| `accepted #<n> at <m12>; its close runs there` | Nothing more: the ticket was accepted already, and nothing was decided again. An open ticket's ask was answered at the commit asked; on a ticket closed on GitHub no ask is read and nothing was posted |
+| `refused #<n> no results on main; …`, `refused #<n> no results at <c12>; …` (FB-3 A1.3, A4) | Nothing was posted: no result report that counts there is in yet. Say so in one line, with each `report left out` line after it, and the command it names for a ticket the owner accepted outside ViD; never run that command unasked |
 | `refused #<n> no published ticket that is not withdrawn` | Nothing was posted: say which number was named |
-| `closed #<n> not accepted — …`, `refused #<n> closed on GitHub before its acceptance: …` | Tell the owner, at every call, as the line names it: ticket #<n> was closed on GitHub before ViD accepted it, and stays told until they choose one of the ticket writer's two commands, `/vid:vid-tickets reopen #<n> "<their words>"` or `/vid:vid-tickets withdraw #<n> "<their words>"` (GM-4 E6). A ticket closed after its acceptance is not told |
+| `closed #<n> not accepted — …`, `refused #<n> closed on GitHub before its acceptance: …` | Tell the owner, at every call, as the line names it: ticket #<n> was closed on GitHub before ViD accepted it, and stays told until they choose: `/vid:vid-accept-step <n> <commit> accepted "<their words>"`, when they accepted it outside ViD (FB-3 E1), or one of the ticket writer's two commands, `/vid:vid-tickets reopen #<n> "<their words>"` or `/vid:vid-tickets withdraw #<n> "<their words>"` (GM-4 E6). A ticket closed after its acceptance is not told |
 | `context ask #<n> <c12> /vid:vid-accept-step <n> <c12>` | With own work off, say it with its command: the team asks ViD to decide ticket #<n> at <c12>, and `/vid:vid-accept-step <n> <c12>` decides it |
 | `unit-merged <p> <ticket or ->` | Nothing: the unit's merge is on record, under the ticket its ticket line names; it decides and closes nothing |
 | `context unit-ask #<p> <ticket or -> <h12>` | Say it once: pull request #<p> asks ViD to decide, which is never answered on a unit; the owner tells the team that the ask belongs on its ticket |
@@ -84,8 +140,8 @@ Named in the call and passed to `next-move.sh call` as the vid-next skill's step
 
 - `engines "<primary> <other>…" "<words>"`: the engines the team runs, the primary first, recorded through the one writer of the
   handed record's engines line, `sh checks/results.sh declare --engines "<them>" --words "<words>"` (GM-4 F16), the owner its
-  stand-in (GM-2 T4): for a project with no skeleton ticket decided, since the skeleton's head report declares them at its
-  acceptance (GM-4 E4).
+  stand-in (GM-2 T4): for a project with no skeleton ticket decided, or one whose results named none, since the skeleton's results
+  declare them at its acceptance, when they name them (GM-4 E4, FB-3 A1.3). No close is owed while none is named.
 - `own-work on|off "<words>"`: the owner's switch of /vid next's step 2, ViD's own work (GM §6: the phase's first write is one the
   owner names), recorded in the setup; it holds from the next call.
 

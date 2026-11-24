@@ -4,7 +4,8 @@
 # upstream/vid` and `spec-stamp: STAMP`, no applied version recorded, no published ticket and no --applied: the team's main
 # holds upstream/vid/STAMP naming the export X, whose push .vid/tw/log records from the spec's commit. `/vid mode manual` finds
 # the applied version from the stamp, `found applied <that commit> — … the stamp upstream/vid/STAMP …`, and asks no --applied;
-# the stamp read through github.sh spec-stamp, which prints X. With no stamp file on main it asks --applied, as before. Env: CHECKS.
+# the stamp read through github.sh spec-stamp, which prints X. With no stamp file on main it asks --applied, as before. An export kept
+# in the project (`state=local`, FB-3 B2) is read as a pushed one is, and its line named. Env: CHECKS.
 set -eu
 unset CLAUDE_CODE_SESSION_ID VID_CALLER 2>/dev/null || true
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
@@ -23,4 +24,7 @@ RC=0; sh "$CHECKS/github.sh" spec-stamp > "$T/mo" 2>&1 || RC=$?
 mn_switch
 grep -q "^found applied $AP — .*the stamp upstream/vid/STAMP" "$T/mo" || fail 'the applied version was not found from the folder'"'"'s stamp, named with where it came from'
 ! grep -q '^need --applied' "$T/mo" || fail 'the switch still asked --applied with the stamp on main'
+# FB-3 B2: the export's line a local one
+sed 's/ state=pushed / state=local /' .vid/tw/log > "$T/lg"; cat "$T/lg" > .vid/tw/log; rm -f .vid/tw/applied; mn_switch
+grep -q "^found applied $AP — .*the stamp upstream/vid/STAMP.* state=local" "$T/mo" || fail 'the applied version was not found from an export kept in the project'
 echo 'mode-spec-stamp: ok'

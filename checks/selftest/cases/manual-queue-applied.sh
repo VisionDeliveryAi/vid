@@ -28,7 +28,8 @@ sh "$CHECKS/prd.sh" --effective 2>/dev/null | grep -q '^REQ-099 ' || fail 'the t
 sh "$QS" sync > /dev/null 2>&1; QY=$(sed -n 's/^- \(Q[0-9]*\) · .*Rehearsal of stage 1.*/\1/p' .vid/RUN-STATE.md | head -n 1); [ -n "$QY" ] || fail "no production item: $(grep '^- Q' .vid/RUN-STATE.md)"
 sh "$QS" answer "$QY" grade 'grade it first — the owner' > "$T/out" 2>&1 || fail "the offered grade was refused: $(cat "$T/out")"
 GA=$(sed -n 's/^asked \([0-9]*\) grade before the first go-live$/\1/p' "$T/out"); [ -n "$GA" ] || fail 'no grade ask'
-RQ=$(sed -n 's/^requirements: //p' "$T/gh/issues/$GA/body"); case " $RQ " in *' REQ-001 '*) ;; *) fail "the ask names no applied requirement: $RQ" ;; esac
+[ "$(grep -cx "review grade-$GA $(printf %.12s "$X")" "$T/out")" = 1 ] || fail "the answer does not print the ask's own review line, once"   # FB-3 A1.6
+RQ=$(sed -n 's/^requirements: //p' ".vid/decide/grade/$GA/body"); case " $RQ " in *' REQ-001 '*) ;; *) fail "the ask names no applied requirement: $RQ" ;; esac
 case " $RQ " in *' REQ-099 '*) fail "the ask names the pending requirement: $RQ" ;; esac
 # the status line: stage 1, the current stage, as applied
 if grep -q '^stage:' .vid/RUN-STATE.md; then sed 's/^stage:.*/stage: 1/' .vid/RUN-STATE.md > R.x; else awk '{ print } /^run:/ && !d { print "stage: 1"; d = 1 }' .vid/RUN-STATE.md > R.x; fi; cat R.x > .vid/RUN-STATE.md; rm -f R.x

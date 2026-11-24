@@ -33,7 +33,8 @@
 #                      as writer.sh rowsec writes them) quotes whose text differs from that row's inventory line at the commit,
 #                      the working tree by default; a quoted row the inventory there lacks differs too. The inventory line is
 #                      first cut as rowsec cuts it (proved-red:, golden:, module:, match:, an evidence: path, a row's test path,
-#                      an `owed: prerequisite` note, a rule's or hostility row's one-path field), and a field the writing holds
+#                      an `owed: prerequisite` note, cut from the quote too (FB-3 C1: older writers quoted it), a rule's or
+#                      hostility row's one-path field), and a field the writing holds
 #                      the field's pointers into ViD's records written "(ViD's records)" as writer.sh A1's unptr writes them
 #                      (PTR), and a word lib.sh's PROF blanks read "(a word)", so those alone never read as a difference, and
 #                      any other change, a pointer's included, does; spaces are compared collapsed
@@ -49,6 +50,7 @@
 #   triggers           (GM-1 S8, S4) the call's lines, from the records, .vid/round/read and the pending changes; GM-2 T9, GM-4 F4:
 #                      each raised trigger shown or counted by what the last call raised and the owner's answers (queue.sh raise:
 #                      .vid/decide/queue/raised and answers), which it reads and never writes
+#   triggers --short, short <file>   (FB-3 C5) the lines, or a file of them, as shown: one line a kind (short_)
 #   own-work           (GM-4 K11, L1) `on` or `off`: the newest `setup-answered key=own-work` line of .vid/plan/setup, the owner's
 #                      words of the move own-work on|off; off when none is recorded. /vid next's step 2 writes nothing until on
 #   evkeys <file>      (GM-4 F4) for each trigger and quiet line of the call's lines in the file, `<what> TAB <subject> TAB <tier>
@@ -74,12 +76,13 @@
 #                  (GM-3 U4, U6: apply-owed, a post the newest apply left owed, subject #<n> or <step>, or, GM-4 K13, spec-publish, the
 #                  folder's publish it left owed with one repository: see AO below; it never
 #                  counts toward planning-analysis, which can post nothing)
-#       important: to-place-active added-active stage-to-correct reset-not-taken reached-closed team-added team-dropped
+#       important: added-active reset-not-taken reached-closed team-added team-dropped
 #                  not-taken team-no-lane step-slow
 #                  (GM-4 E10, GM M11: step-slow <step>, its published step ticket open and not accepted, out longer than twice the
 #                  median time from publish to first acceptance (.vid/decide/accepted-at) of the step tickets accepted, once three
 #                  have one; its evidence the ticket, its days out and the median, in whole days)
-#       minor:     reached-open added-inactive reset-inactive record
+#       minor:     reached-open added-inactive reset-inactive record, and (FB-3 C5) to-place-active stage-to-correct, each of a row the
+#                  owner accepted as to place in their words, so it asks nothing; planning-analysis takes each in
 #     quiet <tier> <what> <subject> <evidence> <unchanged|declined|minor>   raised, counted, not shown (GM-2 T9)
 #     tiers critical=<n> important=<n> unchanged=<n> minor=<n> declined=<n>   every raised trigger counted once
 #     withdrawn <#n> <why>               (GM-3 U2) an ask a landing in GitHub manual withdrew (.vid/next/withdrawn, written by
@@ -90,6 +93,9 @@
 #     context ask <#n> <commit12> <the command that decides it>   (GM-4 K11, E1) each published ticket's unanswered `vid: decide`
 #                                         ask in the read, /vid:vid-accept-step <n> <commit12>
 #     context assigned <#n> <labels> <title>
+#     context report <id> <words>         (FB-3 A2) in GitHub manual, a report branch left out, its words what to do
+#     context team-reports <why>          (FB-3 A3) in GitHub manual, the text telling the team what its reports hold is not the one handed
+#     context proposal due <what it covers and touches, by count>   (FB-3 C5) implement-replan's own proposal due and not made (or stale)
 #     move <kind> <subject> <hash> <what it needs or does>   (GM-2 T10) named by kind and subject: publish <step>, amend #<n> and
 #                                         withdraw #<n> (writer.sh due's lines as it gives them), team-change #<n> <id>,
 #                                         planning-analysis -, implement-replan -; the hash
@@ -99,7 +105,9 @@
 #                                         (`apply analysis`, a fresh proposal; `apply own`, its own, nothing pending adding a test;
 #                                         each line carries the proposal's fingerprint, rpfp_, so its hash changes
 #                                         with what the apply would do;
-#                                         else not listed, and planning-analysis says why), read when anything is pending or
+#                                         else not listed, and planning-analysis says why; FB-3 C5: its own proposal due and not
+#                                         made, the same words at every call, naming it makes and shows it; one that could not be made
+#                                         is not listed while the same reason stands), read when anything is pending or
 #                                         .vid/next/proposal is kept, never beneath replan.sh (VID_NEXT_NOREADY). GM-4 F9 (I5): a draft
 #                                         of the door is the owner's queue's (queue.sh ask draft), never a move here
 #                                         GM-4 K4 (GM M16): walk-stage <N>, read-walk <N> and write-summary <N>, while own
@@ -116,7 +124,7 @@
 # there differs from the working tree's (differ); reset, pending, in no published ticket; unpublished, in no published ticket
 # (its step, or `in no step`). A test is a row of the working tree's rows table (planner.sh rows --newest) of kind row and
 # class planned, moved or owed, its handed state not known-limit; a retired row counts only when the applied commit's rows
-# table (planner.sh rows in a scratch copy of the spec there) gives it the same; known limits, records and later-phase rows
+# table (planner.sh rows in a scratch copy of the spec there) gives it the same; a row accepted by ruling in no ticket (FB-3 A4), known limits, records and later-phase rows
 # are not counted. A stage is active while it has an open published ticket (the read's ticket lines). A ticket's stage, and a
 # step's, is the stage most of its rows of class planned, moved or owed are in, the earliest on a tie, as the planner reads
 # a step's. Taken: a `vid: claimed` comment on it, an assignee, or any sub-issue. A row's state reads .vid/decide/state then
@@ -191,7 +199,7 @@ differ_() {
     # cut: the line split on |, each field trimmed, less what rowsec leaves out; the fields in C[1..], their count returned
     function cut(l, C, inv,   f, m, i, x, y, k, c) { m = split(l, f, "|"); k = tr(f[1]); c = 0
       for (i = 1; i <= m; i++) { x = tr(f[i]); y = x; sub(/[ \t].*/, "", y)
-        if (inv && (x ~ /^(proved-red|golden|module|match):/ || (x ~ /^evidence:/ && x !~ /^evidence:[ \t]*owed$/) || (k ~ /^ROW-/ && i == 8 && x !~ /^owed:/ && y ~ /\//) || x ~ /^owed:[ \t]*prerequisite/ || (k ~ /^(rule|hostility)$/ && i >= 4 && x !~ /[ \t:]/ && x ~ /\//))) continue
+        if (x ~ /^owed:[ \t]*prerequisite/ || inv && (x ~ /^(proved-red|golden|module|match):/ || (x ~ /^evidence:/ && x !~ /^evidence:[ \t]*owed$/) || (k ~ /^ROW-/ && i == 8 && x !~ /^owed:/ && y ~ /\//) || (k ~ /^(rule|hostility)$/ && i >= 4 && x !~ /[ \t:]/ && x ~ /\//))) continue
         C[++c] = norm(x) }
       while (c > 0 && C[c] == "") c--; return c }
     # same <quoted field> <inventory field>: equal as it stands, or as the writer writes it (unptr), its words blanked or not (profx)
@@ -363,6 +371,15 @@ triggers_() {
   if manual && [ "$(ownwork_)" = on ]; then awk '$1 ~ /^(walk|walk-read|summary)$/ && $2 ~ /^[0-9]+$/ { print $1 "\t" $2 }' .vid/next/stage-moves 2> /dev/null |
     while IFS="$TAB" read -r _k _n; do _c=''; for _d in $(ls ".vid/decide/stage/$_n" 2> /dev/null | grep -E '^[0-9]+$' | sort -n); do [ -f ".vid/decide/stage/$_n/$_d/ask" ] && _c=$_d; done
       printf 'SM\t%s\t%s\t%s\n' "$_k" "$_n" "${_c:--}"; done >> "$T/f"; fi
+  # FB-3 A2: in GitHub manual each report branch left out (.vid/round/reports-skipped, `<id> <commit> <author> <date> <why>`, results-fetch's),
+  # its ticket its id's first number. FB-3 A3: and the text for the team while it is not the one handed over (.vid/plan/TEAM-REPORTS.md);
+  # nothing where results.sh does not print one
+  if [ -n "$MN" ]; then
+    { awk -F'\t' 'NF >= 5 { n = ""; m = ($1 ~ /^stopped-/) ? 0 : split($1, p, "-"); for (i = 1; i <= m; i++) if (p[i] ~ /^[0-9]+$/) { n = p[i]; break }
+        print "RSK\t" $1 "\tthe branch vid-results/" $1 " (its newest commit " substr($2, 1, 12) " by " $3 ", " $4 ")" (n == "" ? "" : " reports on #" n) ": " $5 ". Put the report\047s files in a folder named " $1 " on that branch and push it again; whatever else the branch holds is not read." }' .vid/round/reports-skipped 2> /dev/null || true; } >> "$T/f"
+    if sh "$HERE/results.sh" team > "$T/team" 2> /dev/null && [ -s "$T/team" ]; then _tr='/vid:vid-accept-step reports writes it to .vid/plan/TEAM-REPORTS.md and shows it, for you to hand to the team'
+      if [ ! -f .vid/plan/TEAM-REPORTS.md ]; then printf 'TRP\tthe text telling the team what its reports hold was never handed over: %s\n' "$_tr" >> "$T/f"
+      elif ! cmp -s "$T/team" .vid/plan/TEAM-REPORTS.md; then printf 'TRP\tthe text telling the team what its reports hold changed since it was handed over: %s\n' "$_tr" >> "$T/f"; fi; fi; fi
   printf 'PX\t%s\nNOW\t%s\n' "$(twkey labels-prefix)" "$(date -u +%s)" >> "$T/f"
   if [ -f "$RD" ]; then
     awk -F'\t' -v OFS='\t' '$1 == "unread" { print "U", $2, $3, substr($0, length($1 $2 $3) + 4) } $1 == "issue" { print "ISS", $2, $3, $4 } $1 == "open" { print "OPR", $2, $10 }
@@ -399,6 +416,7 @@ triggers_() {
   else printf 'U\tread\t-\tno read kept (.vid/round/read): run next.sh read\n' >> "$T/f"; fi
   awk -F'\t' -v OFS='\t' -v WR="$HERE/writer.sh" -v MN="$MN" '
     function num(s) { return s ~ /^[0-9]+$/ }
+    function abr(r) { return ST[r] ~ /^accepted[- ]by[- ]ruling$/ }   # FB-3 A4
     function add(a, x) { return a == "" ? x : a "," x }
     function trig(t, w, s, e) { TG[t] = TG[t] "trigger\t" t "\t" w "\t" s "\t" e "\n"; if (t != "minor") CI++ }
     $1 == "U" { print "unread", $2, $3, $4; UN[$2, $3] = 1; UP[$2] = 1; next }
@@ -409,7 +427,7 @@ triggers_() {
     $1 == "C" { REC[++nc] = $2; next }
     $1 == "SP" { NSP++; next }
     $1 == "TP" { TP[$2] = $3; ntp++; if (!($2 in PO)) { PO[$2] = ++np; PL[np] = $2 } next }
-    $1 == "RDY" { if ($2 == "apply") { RYS = $3; RYW = $4 } else if ($2 == "review") RYV = $3; else if ($2 == "failed") RYF = $3; else if ($2 == "fp") RYP = $3; else if ($2 == "ph") RYH = $3; next }
+    $1 == "RDY" { if ($2 == "apply") { RYS = $3; RYW = $4 } else if ($2 == "review") RYV = $3; else if ($2 == "failed") RYF = $3; else if ($2 == "fp") RYP = $3; else if ($2 == "ph") RYH = $3; else if ($2 == "own") { RYO = $3; RYX = $4 } next }
     $1 == "HS" { HS[$2] = $3; next } $1 == "PST" { PSTG[$2] = $3; next }
     $1 == "ST" { SO[++ns] = $2; SL[$2] = (MN ? tolower($3) : $3); SR[$2] = $4; m = split($4, a, " "); for (i = 1; i <= m; i++) if (!(a[i] in STEP)) STEP[a[i]] = $2; next }
     $1 == "PUB" { TO[++nt] = $2; TS[$2] = $3; TR[$2] = $4; PS[$3] = 1; m = split($4, a, " "); for (i = 1; i <= m; i++) IN[a[i]] = add(IN[a[i]], $2); next }
@@ -427,6 +445,7 @@ triggers_() {
     $1 == "DIF" { DIF[$3] = add(DIF[$3], $2); next }
     $1 == "WD" { if (!($2 in WDS)) WDO[++nwd] = $2; WDS[$2] = $3; next }
     $1 == "OW" { OWK = $2; next } $1 == "CA" { CAO[++nca] = $2; CAC[$2] = substr($3, 1, 12); next } $1 == "SS" { SSO[++nss] = $2 "\t" $3; next }
+    $1 == "RSK" { RSO[++nrs] = $2 "\t" $3; next } $1 == "TRP" { TRP = $2; next }
     $1 == "SM" { if (!(($2, $3) in SMS)) { SMS[$2, $3] = 1; SMK[++nsm] = $2; SMN[nsm] = $3; SMC[nsm] = $4 } next }
     END {
       # with exactly one lane, a step naming none is that lane'"'"'s, as the planner reads it
@@ -442,6 +461,8 @@ triggers_() {
       # the count (N8)
       split("to-place added retired restated reset unpublished", KN, " "); for (i = 1; i <= nu; i++) { r = U[i]; it = (r in IN); d = (r in DIF); k = ""; e = ""
         if (!P[r, "retired"] && it && !d) continue
+        # FB-3 A4: a row accepted by ruling in no published ticket is with no team to come, unless the spec changed it since
+        if (!it && abr(r) && !P[r, "retired"] && !P[r, "added"] && !P[r, "reset"]) continue
         if ((r in TP) && !it) { k = "to-place"; e = "to-place " TP[r] }
         else if (P[r, "added"]) { k = "added"; e = "pending added" }
         else if (P[r, "retired"]) { k = "retired"; e = "pending retired" (it ? ", in #" IN[r] : "") }
@@ -456,9 +477,9 @@ triggers_() {
         g = RG[r]; ac = num(g) && (g in ACT)
         if (P[r, "reset"] && tk != "") trig("critical", "reset-taken", r, "pending reset; in " tk)
         else if (P[r, "retired"] && tk != "") trig("critical", "retired-taken", r, "pending retired; in " tk)
-        else if ((r in TP) && !it && ac) trig("important", "to-place-active", r, "to-place " TP[r] "; stage " g " has an open ticket")
+        else if ((r in TP) && !it && ac && !abr(r)) trig("minor", "to-place-active", r, "to-place " TP[r] "; stage " g " has an open ticket")
         else if (P[r, "added"] && ac) trig("important", "added-active", r, "pending added; stage " g " has an open ticket")
-        else if ((r in TP) && it) trig("important", "stage-to-correct", r, "to-place " TP[r] "; in #" IN[r] ((r in STEP) ? ", step " STEP[r] : "") (num(g) ? " of stage " g : ""))
+        else if ((r in TP) && it) trig("minor", "stage-to-correct", r, "to-place " TP[r] "; in #" IN[r] ((r in STEP) ? ", step " STEP[r] : "") (num(g) ? " of stage " g : ""))
         else if (P[r, "reset"] && nt_ != "") trig("important", "reset-not-taken", r, "pending reset; in " nt_ ", not taken")
         else if (P[r, "reached"] && cl != "") trig("important", "reached-closed", r, "pending reached; its ticket " cl " is closed")
         else if (P[r, "reached"] && op != "") trig("minor", "reached-open", r, "pending reached; in open " op)
@@ -484,6 +505,14 @@ triggers_() {
       # GM-4 K11: own work off, its move listed; each unanswered ticket ask with the command that decides it
       if (MN && OWK != "on") print "context", "own-work", "off", "own-work on \"<your words>\": until you name it, step 2 decides, asks and posts nothing"
       for (i = 1; i <= nca; i++) { n = CAO[i]; print "context", "ask", "#" n, CAC[n], "/vid:vid-accept-step " n " " CAC[n] }
+      for (i = 1; i <= nrs; i++) print "context", "report", RSO[i]   # FB-3 A2
+      if (TRP != "") print "context", "team-reports", TRP   # FB-3 A3
+      # FB-3 C5 (g): what the own proposal, due and not made, would cover and touch, by count (next-move.sh asks it)
+      if (RYS == "own" && RYO == "due") { ot = 0; tt = 0; tr_ = 0
+        for (i = 1; i <= nt; i++) if (TKS[TO[i]] != "CLOSED") { ot++; OTK[TO[i]] = 1 }
+        for (r in PI) CV[r] = 1; for (r in DIF) CV[r] = 1
+        for (r in CV) { x = 0; m = split(((r in IN) ? IN[r] : "") "," ((r in DIF) ? DIF[r] : ""), a, ","); for (j = 1; j <= m; j++) if (a[j] in OTK) { x = 1; if (!(a[j] in TCH)) { TCH[a[j]] = 1; tt++ } } if (x) tr_++ }
+        print "context", "proposal", "due", "covers the pending changes, " (NPI + 0) " rows, " (NSP + 0) " spec files; touches " tt " of " ot " open tickets and " tr_ " rows" }
       # the moves, each publish with its warnings (N13), the one helper (GM-4 K9)
       # FB-1 B3: the words asked for on a publish, amend or withdraw move in GitHub manual alone (optional in GitHub auto, K1)
       NW = MN ? "; needs your words" : ""
@@ -520,18 +549,32 @@ triggers_() {
       # nothing; implement-replan as replan.sh ready gives it. GM-4 K9: both are moves of /vid next, in GitHub manual alone; in GitHub auto
       # the run manager re-plans from the triggers itself (the vid-replan skill, its GitHub auto paragraph)
       pa = (NPI || NSP) ? "the pending changes, " (NPI + 0) " rows, " (NSP + 0) " spec files" : ""; if (ntp) pa = (pa == "" ? "" : pa "; ") ntp " tests to place"
-      pnt = (RYS == "analyse") ? "implement-replan needs it first: " RYW : (RYF != "" ? "implement-replan is not listed, replan.sh ready refused: " RYF : "")
+      pnt = (RYS == "analyse") ? "implement-replan needs it first: " RYW : (RYS == "own" && RYO == "refused") ? "implement-replan is not listed, its own proposal could not be made: " RYX : (RYF != "" ? "implement-replan is not listed, replan.sh ready refused: " RYF : "")
       if (MN) print "move", "planning-analysis", "-", "@", pa, pnt
       if (RYS == "analysis") print "move", "implement-replan", "-", "@", "applies the analysis'"'"'s proposal " RYH ", the plan " RYW ", as its page shows (its fingerprint " RYP "); needs your words"
-      else if (RYS == "own") print "move", "implement-replan", "-", "@", "applies the pending changes with its own proposal " RYP ", nothing in them adding a test: " RYW (RYV == "needed" ? "; the rows ViD'"'"'s planner adds need a fresh agent'"'"'s review first" : "") "; needs your words"
+      # FB-3 C5 (g): no proposal of its own made, or a stale one: the move makes it, in words that hold nothing that changes by itself
+      else if (RYS == "own" && RYO == "due") print "move", "implement-replan", "-", "@", "makes its own proposal for the pending changes, nothing in them adding a test, shows its page and applies nothing; named again, it applies what was shown; needs your words"
+      else if (RYS == "own" && RYO != "refused") print "move", "implement-replan", "-", "@", "applies the pending changes with its own proposal " RYP ", nothing in them adding a test: " RYW (RYV == "needed" ? "; the rows ViD'"'"'s planner adds need a fresh agent'"'"'s review first" : "") "; needs your words"
     }' "$T/f" > "$T/o"
   tiers_ "$T/o" > "$T/o2"; hashmoves "$T/o2"; }
+# short_ <lines file> (FB-3 C5): the call's lines as shown, one line a kind: the counted lines of a kind, the triggers of a tier and what,
+# the quiet lines of a tier, what and state, the sub-issues of a ticket and the warnings of a move's kind and limit (after the moves),
+# each `<its first fields> TAB <count> TAB <subjects>: <evidence>; …`, every subject and every evidence in it, the subjects of one
+# evidence said once with it; each other line as it stands
+short_() { awk -F'\t' '
+  function g(k, s, e, wn) { if (!(k in N)) { if (wn) W[++nw] = k; else L[++nl] = "\001" k } N[k]++; if ((k, e) in G) G[k, e] = G[k, e] ", " s; else { G[k, e] = s; M[k]++; E[k, M[k]] = e } }
+  function pr(k,   i, o) { o = ""; for (i = 1; i <= M[k]; i++) o = o (i > 1 ? "; " : "") G[k, E[k, i]] ": " E[k, i]; print k "\t" N[k] "\t" o }
+  $1 == "counted" { g("counted\t" $2, $3, $4); next } $1 == "trigger" { g("trigger\t" $2 "\t" $3, $4, $5); next } $1 == "quiet" { g("quiet\t" $2 "\t" $3 "\t" $6, $4, $5); next }
+  $1 == "context" && $2 == "sub" { g("context\tsub\t" $3, $5 " " $8, $6 ($7 == "-" || $7 == "" ? "" : ", " $7) ($4 == $3 ? "" : ", under " $4)); next }
+  $1 == "warning" { g("warning\t" $2 "\t" $4, $3, $5 "; " $6, 1); next }
+  { L[++nl] = $0 }
+  END { for (i = 1; i <= nl; i++) if (substr(L[i], 1, 1) == "\001") pr(substr(L[i], 2)); else print L[i]; for (i = 1; i <= nw; i++) pr(W[i]) }' "$1"; }
 # ekeys_ <file>: for each `<what> TAB <subject> TAB <tier> TAB <evidence>` line, the same with its evidence key in place of the evidence
 # (GM-2 T9, §5): a team change's evidence hash exactly (its evidence's `evidence <hash>`); else the hash of the evidence with every
 # count of days left out and, when the subject is an id of the working tree's inventory, a newline and its first line there
 ekeys_() { invat > "$T/ekw"; rm -rf "$T/ek"; mkdir -p "$T/ek"
   awk -F'\t' -v INV="$T/ekw" -v D="$T/ek" "$KEY"' BEGIN { while ((getline l < INV) > 0) { k = key(l); if (k != "" && !(k in L)) L[k] = l } }
-    { n++; f = sprintf("%s/%06d", D, n); e = $4; if ($1 ~ /^team-/) { sub(/.*evidence /, "", e); print "=" e > f } else { gsub(/[0-9]+ days?( ago)?/, "", e); print e > f; if ($2 in L) print L[$2] > f } close(f) }' "$1"
+    { n++; f = sprintf("%s/%06d", D, n); e = $4; if ($1 ~ /^team-(added|dropped)$/) { sub(/.*evidence /, "", e); print "=" e > f } else { gsub(/[0-9]+ days?( ago)?/, "", e); print e > f; if ($2 in L) print L[$2] > f } close(f) }' "$1"
   ls "$T/ek" | sed "s#^#$T/ek/#" > "$T/ekl"; git hash-object --stdin-paths < "$T/ekl" > "$T/ekh"
   awk -F'\t' -v OFS='\t' -v L="$T/ekl" -v H="$T/ekh" '{ getline f < L; getline h < H; c = ""; getline c < f; close(f); if (c ~ /^=/) h = substr(c, 2); print $1, $2, $3, h }' "$1"; }
 # tiers_ <file>: the call's lines with each raised trigger shown or counted (GM-2 T9, §5; GM-4 F4, the owner's queue): its key
@@ -575,8 +618,11 @@ case "${1:-}" in
   pending) [ $# -eq 1 ] || die 'usage — sh checks/next.sh pending'; pending_; cat "$T/pend" "$T/spec" ;;
   differ) case ${2:-} in ''|*[!0-9]*) die 'usage — sh checks/next.sh differ <n> [<commit>]' ;; esac; [ $# -le 3 ] || die 'usage — sh checks/next.sh differ <n> [<commit>]'; differ_ "$2" "${3:-}" ;;
   changes) [ $# -eq 1 ] || die 'usage — sh checks/next.sh changes'; changes_ ;;
-  triggers) [ $# -eq 1 ] || die 'usage — sh checks/next.sh triggers'; triggers_ ;;
+  # FB-3 C5: the show of a lines file, and of the call's own; triggers itself stays line for line, for its readers
+  short) [ $# -eq 2 ] && [ -f "$2" ] || die 'usage — sh checks/next.sh short <lines file>'; short_ "$2" ;;
+  triggers) case ${2:-} in '') [ $# -eq 1 ] || die 'usage — sh checks/next.sh triggers [--short]'; triggers_ ;;
+    --short) [ $# -eq 2 ] || die 'usage — sh checks/next.sh triggers [--short]'; triggers_ > "$T/full"; short_ "$T/full" ;; *) die 'usage — sh checks/next.sh triggers [--short]' ;; esac ;;
   own-work) [ $# -eq 1 ] || die 'usage — sh checks/next.sh own-work'; ownwork_ ;;
   evkeys) [ $# -eq 2 ] || die 'usage — sh checks/next.sh evkeys <lines file>'; evkeys_ "$2" ;;
-  *) die 'usage — sh checks/next.sh read | pending | differ <n> [<commit>] | changes | triggers | evkeys <lines file>' ;;
+  *) die 'usage — sh checks/next.sh read | pending | differ <n> [<commit>] | changes | triggers [--short] | short <lines file> | evkeys <lines file>' ;;
 esac

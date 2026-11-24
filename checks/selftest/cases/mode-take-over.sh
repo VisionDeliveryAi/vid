@@ -6,7 +6,7 @@
 # step not published, another step not published holding a retired row alone and built on by another, a team name in
 # capitals, a row added after the tickets' commit, and one added and retired since on a side branch merged back. Without
 # --from the switch asks for it, naming the two rows; with --from and no --take-over it lists them and asks the owner's yes,
-# writing nothing; with the yes, the take-over commit holds the two rows on the tickets' commit (and the copy's PLAN.md), kept
+# writing nothing, the panel saying so (FB-3 D2); with the yes, the take-over commit holds the two rows on the tickets' commit (and the copy's PLAN.md), kept
 # under refs/vid/applied/1, and is the applied commit, the owner's words with it; HEAD gains the row no commit since has held,
 # by a commit of its own, and the copy's PLAN.md; the retired rows are dropped and listed, the range written out less its
 # row, the step left with none taken out and its place in another step's builds-on and needs line taken by its own builds-on,
@@ -40,6 +40,7 @@ grep -q "^take-over-row ROW-022 #$MN_N2 " "$T/mo" && grep -q "^take-over-row ROW
 grep -q "^found plan-md PLAN.md — the copy's" "$T/mo" || fail "PLAN.md is not found as the copy's"
 grep -q "^found plan .* — .*copy.*RUN-STATE" "$T/mo" || fail "the plan block is not found in the copy's records"
 [ -z "$(git for-each-ref refs/vid/)" ] && [ -z "$(spec "$H0")" ] && [ ! -s .vid/tw/applied ] || fail 'the take-over was made with no yes'
+grep -qx "stop$(printf '\t')your yes to write 2 rows into the spec" .vid/face/wait || fail "the panel does not say the take-over's yes is needed: $(cat .vid/face/wait 2>/dev/null)"   # FB-3 D2
 
 # 3. the yes: the take-over commit, the rows at HEAD, the copy's PLAN.md; it stops at the rows to place
 TW='yes, write ROW-022 and ROW-023 into the spec as the tickets quote them'

@@ -13,6 +13,9 @@
 #   out   the asks out, one number a line: neither read, withdrawn nor lost (round.sh holds `nothing-left` back for them)
 #   lost  the asks lost, waiting on the owner: their issues stay open, and hold back no `nothing-left`
 #   again <n> | withdraw <n>   the owner's answer to a lost ask: asked again, or closed `vid: withdrawn`
+#   FB-3 A1.6: in GitHub manual nothing is posted and no one is asked: ViD's own review makes the grade (checks/review.sh), from the changes
+#        of the tickets' merged pull requests. The ask is numbered 091<k, seven digits>, the next free (lib.sh ownask: no issue's number); ask also
+#        prints `review grade-<n> <c12>`, said again at each step until it is recorded, and what it does not read; a step never asks it again nor loses it
 #   GM-4 E12: in GitHub manual the requirements, asked and deferred, are read at the applied commit, so no ask carries a pending one
 # Records: .vid/decide/grade/<n>/: ask (issue, commit, asked, reqs, deferred, vs, robustify, focus; tab), body, read (results.sh's),
 # grades (REQ, word, reason, vs word, vs reason; tab), findings, done, refused, again, allow, lost, withdrawn.
@@ -59,11 +62,14 @@ cmd_ask() { RQ=''; FO=''; VS=''; RB=''; AC=''; while [ $# -ge 2 ]; do case $1 in
     else printf 'Grade each requirement, in a fresh context, against the grading checklist and its rows'"'"' fail-ifs: pass, partial, facade (looks built, isn'"'"'t) or absent, each with its reason. One line per requirement, `REQ-<n> <word> — <reason>`'
       [ -z "$VS" ] || printf ', graded at the commit above and again at the vs: commit, on the same line: `REQ-<n> <word> — <reason> — vs: <word> — <reason>`'
       printf '. Then each finding, tagged bug or rule, with its severity, high, medium or low, after its tag: `finding: bug|rule <severity> — <line>`.'; fi
-    printf ' Report it as vid-results/grade-<this issue>-<k>, its grade.txt by: GR, its commit the one above, then comment `vid: reported s1-<k>` here. Comment `vid: started` when it starts; send it again only after a comment `vid: again s1`, or a refusal.\n'; } > "$T/body"
-  i=$(gh_ grade-ask --stage ask --commit "$C" --title "Grade ask: $(if [ -n "$RB1" ]; then echo "robustify $RB1"; elif [ -n "$RQ" ]; then echo "$AQ"; else echo "stages up to ${N:-1}"; fi)$([ -z "$VS" ] || echo ", vs $VS")" --body-file "$T/body") || die 'the grade ask could not be posted'
+    manual || printf ' Report it as vid-results/grade-<this issue>-<k>, its grade.txt by: GR, its commit the one above, then comment `vid: reported s1-<k>` here. Comment `vid: started` when it starts; send it again only after a comment `vid: again s1`, or a refusal.'; echo; } > "$T/body"
+  # FB-3 A1.6: in GitHub manual nothing is posted: ViD's own review makes it (review.sh), under the next number of its own (lib.sh ownask)
+  if manual; then i=$(ls "$G" 2>/dev/null | grep -xE '091[0-9]{7}' | sort | tail -n 1); i=$(printf '091%07d' $(( $(printf %s "${i#091}" | sed 's/^0*//') + 1 )))
+  else i=$(gh_ grade-ask --stage ask --commit "$C" --title "Grade ask: $(if [ -n "$RB1" ]; then echo "robustify $RB1"; elif [ -n "$RQ" ]; then echo "$AQ"; else echo "stages up to ${N:-1}"; fi)$([ -z "$VS" ] || echo ", vs $VS")" --body-file "$T/body") || die 'the grade ask could not be posted'; fi
   [ -n "$i" ] || die 'the grade ask has no number'; mkdir -p "$G/$i"; sed "s/^grade: ask-#$/grade: ask-$i/" "$T/body" > "$G/$i/body"
   printf 'issue\t%s\ncommit\t%s\nasked\t%s\nreqs\t%s\ndeferred\t%s\nvs\t%s\nrobustify\t%s\nfocus\t%s\n' "$i" "$C" "$(stamp)" "$AQ" "$DF" "$VS" "$RB1" "$FO" > "$G/$i/ask"
-  ev "grade-ask issue=$i commit=$C reqs=$(wc -w < "$T/ask" | tr -d ' ')${VS:+ vs=$VS}${RB1:+ robustify=yes}"; echo "asked $i grade ask-$i"; }
+  ev "grade-ask issue=$i commit=$C reqs=$(wc -w < "$T/ask" | tr -d ' ')${VS:+ vs=$VS}${RB1:+ robustify=yes}"; echo "asked $i grade ask-$i"
+  ! manual || { echo "review grade-$i $(printf %.12s "$C")"; echo "this grade reads what the tickets' merged pull requests changed$([ -z "$VS" ] || echo ', those each commit holds'): code no ticket changed is not read"; }; }
 
 outs() { for n in $(ls "$G" 2>/dev/null | grep -E '^[0-9]+$' | sort -n); do X=$G/$n; [ -f "$X/ask" ] && [ ! -f "$X/done" ] && [ ! -f "$X/withdrawn" ] && echo "$n"; done; }
 cmd_step() { for n in $(outs); do X=$G/$n; touch "$X/again"; sh "$HERE/results.sh" grade --ask "$n" > /dev/null 2> .vid/round/ge || die "ask $n could not be read: $(tail -n 1 .vid/round/ge)"
@@ -76,6 +82,7 @@ cmd_step() { for n in $(outs); do X=$G/$n; touch "$X/again"; sh "$HERE/results.s
       refused) grep -qx "refused $3" "$X/refused" 2>/dev/null || { printf 'vid: refused s1-%s\nby: RM\n\n%s\n' "$3" "$(cut -f4- "$X/read" | head -n 1)" > .vid/round/gr
           gh_ comment "$n" --body-file .vid/round/gr > /dev/null 2>&1 && echo "refused $3" >> "$X/refused"; echo "grade-ask-refused $n $3"; } ;;
     esac
+    ! ownask "$n" || { [ "$2" != absent ] || [ -d "$D/review/grade-$n-1" ] || echo "review grade-$n $(akey "$n" commit | cut -c1-12)"; continue; }   # FB-3 A1.6: ViD's own, said until it is recorded; never asked again nor lost
     [ ! -f "$X/lost" ] || continue
     W=$(skey close-wait-minutes); W=$((${W:-180} * 60)); u=$(awk -F'\t' -v n="$n" '$1 == "issue" && $2 == n { print $5 }' "$RD" 2>/dev/null); [ -n "$u" ] || u=$(akey "$n" asked); q=$(( $(date +%s) - $(epoch "$u") ))
     if [ -f "$X/allow" ] || { [ "$q" -ge "$W" ] && ! grep -q . "$X/again"; }; then printf 'vid: again s1\nby: RM\n' > .vid/round/gr; gh_ comment "$n" --body-file .vid/round/gr > /dev/null 2>&1 || die "the grade ask #$n could not be commented"

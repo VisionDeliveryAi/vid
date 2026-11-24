@@ -12,7 +12,7 @@ This page is the map. It gives the idea, the three ways to run ViD, and which do
 
 1. **You say what the product must do, and what must never happen.** ViD interviews you once and writes the spec. Every requirement carries a *fail-if* (an acceptance criterion): one sentence saying what would prove it broken.
 2. **The spec becomes tests before any code exists.** ViD derives the list of everything that will be tested and shows it to you. You approve the list, not the test code.
-3. **The product is built until the tests pass.** Each test is written first and seen to fail. Then the building is done, by ViD's own agents or by your developers.
+3. **The product is built until the tests pass.** The tests are written from the spec, and the building is done, by ViD's own agents or by your developers. Where ViD's own agents build, each test is first seen to fail.
 4. **Independent reviewers check the result.** They read the product against each fail-if and try to break it. What they find comes to you, and you rule on each line.
 
 Your work is at the start, where you answer and approve, and at the end, where you judge. In between, the only thing that reaches you is a question about the product.
@@ -23,7 +23,7 @@ Your work is at the start, where you answer and approve, and at the end, where y
 
 - **The spec is yours.** Product questions are always put to you. Technical choices are made for you and written down where you can read and overrule them.
 - **Nothing is edited after you approve it.** A change is added to the spec as a new dated line. Anyone can see later what was promised, and when.
-- **Tests come first.** A test that has been seen to fail can be believed when it passes.
+- **Tests come first.** A test that has been seen to fail can be believed when it passes. Your own developers, in GitHub manual, may send that failing run; it is not asked.
 - **A passing build is not the end.** An independent review follows every build. In one practice run every test passed, and the review still found a serious fault that none of them could see.
 - **Counts, never scores.** ViD reports how many test conditions are kept, breached or owed. It does not say "92% done".
 

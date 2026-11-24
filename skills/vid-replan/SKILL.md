@@ -61,7 +61,9 @@ The order:
 1. **What it covers.** `sh "${CLAUDE_PLUGIN_ROOT}/checks/replan.sh" scope <the move's arguments>`. Its lines are the
    analysis's whole input: the pending changes, the rows a re-cut moved, the to-place list, the team's additions it takes in
    or leaves out, the triggers it covers, the open published tickets with their tests, and whether a review is needed. A
-   refusal is said in plain words and the move stops there.
+   refusal is said in plain words and the move stops there. `needs engines — named before the apply` (FB-3 E2): say it now and
+   ask the owner which engines the team runs, the primary first, before any candidate is written; their words are recorded by
+   `/vid:vid-accept-step engines "<them>" "<words>"`. The analysis goes on either way; the apply writes tickets, so it needs them.
 2. **The candidate.** Write it in `.vid/next/candidate/`, replaced whole, in the forms `replan.sh`'s header gives (`block`,
    `PLAN.md` only when the candidate needs it, `changes`, `left`), from the plan as ratified (RUN-STATE's plan block) at
    HEAD's spec, by the rules above, each pending and to-place row placed or left in no step with why.
@@ -70,12 +72,29 @@ The order:
    review.
 4. **The analysis.** `sh "${CLAUDE_PLUGIN_ROOT}/checks/replan.sh" analyse <the move's arguments>`. On exit 1, each line it
    printed names a breach or a gap: correct the candidate, never a rule, and run it again. On exit 0, tell the owner in plain
-   words what `.vid/pages/REPLAN-PAGE.html` shows: each ticket's top-ups, the new or split steps and which the apply
-   publishes, what moves, the warnings, what it leaves alone and why, and the review's findings, counts only, never a score.
+   words what `.vid/pages/REPLAN-PAGE.html` shows: each ticket's top-ups, each added test in the inventory's own words, the new or
+   split steps and which the apply publishes, what moves, the warnings, what it leaves alone and why, and the review's findings, counts only, never a score.
    Say that nothing is recorded or posted, and that `/vid next implement-replan "<their words>"` applies it as shown,
-   their words also their words past each warning and for each finding shown.
+   their words also their words past each warning and for each finding shown. Then show the page ("The re-plan page", below).
+
+**The proposal made when the owner says so** (FB-3 C5): with nothing pending that adds a test, no call makes the re-plan's own
+proposal; `/vid next` asks (`proposal due: …`: what it covers and touches, how long it takes), and the owner's yes is
+`implement-replan "<words>"`, which makes it and shows it and applies nothing: say in plain words what
+`.vid/pages/REPLAN-PAGE.html` shows, as after an analysis, and show the page ("The re-plan page", below); named again, it applies what was shown. One that cannot be made is
+refused with its reason, and the move is not listed while that reason stands.
 
 **The apply,** the move `implement-replan "<words>"`, then `--review "<file>"` when its line says the rows ViD's planner adds
 need a fresh agent's review: that review made first by the `vid-row-review` skill and saved as the file. `replan.sh apply` posts
 through the vid-tickets skill's one path, and, with `layout: one`, the spec into the folder first (the vid-spec-publish skill's
 entry); its lines are said as it prints them.
+
+## The re-plan page
+
+`.vid/pages/REPLAN-PAGE.html` opens as the plan page does (FB-3 E3), after an analysis and after an `implement-replan` that made its
+proposal and showed it. Once the call has ended (vid-connect's end: the records saved, the lock freed), follow the vid-triggers skill's
+"The plan page", by the same `plan-page:` in `.vid/tw/settings`, with this page in place of that one:
+- the shell is `sh checks/next-move.sh shell .vid/pages/REPLAN-PAGE.html`'s, and the page is its one data file (`files`, published as
+  `REPLAN-PAGE.html`);
+- it is a private artifact of its own. With `plan-page:` `artifact` or a link: no `.vid/plan/replan-page` yet, publish it new and write its
+  link there, one line; with one, read that artifact first (the Artifact tool, `action: "read"`), then publish to that same link;
+- `none`, no such line, no Artifact tool, or a publish refused or failed: say its path, and never give the link as current.

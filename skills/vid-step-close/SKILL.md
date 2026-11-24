@@ -36,7 +36,7 @@ says these lines as it says them.
 | Line | What you do |
 |---|---|
 | `close <step>` | Nothing: `next` asks for the close run (in GitHub manual, `round.sh asks`) |
-| `asked <n> close <step>` | Nothing: DevAgent runs the chunks |
+| `asked <n> close <step>` | Nothing: DevAgent runs the chunks; in GitHub manual the team does, its reports by anyone, in results files of any name (FB-3 A1.5) |
 | `closed <step>` | Say it to the owner, once: the step closed on a run in every engine |
 | `close-again <step> <chunk>`, `close-lost …`, `close-red …` | Nothing for the first; the others are `Q<n>` lines for the owner. Where ViD's line gives no recommendation, give none of your own: relay the line as it stands, with the owner's earlier answer it shows (0.26.11.1.4, R2) |
 | `failing <row>`, `close-fix <step> <rows>`, `close-done <step>` | Nothing: a close's red rows read failing and go in one fix line, which `next` makes one fix ticket; once its fix tickets merge, `next` asks the whole close again (v0.26.10.25.4) |

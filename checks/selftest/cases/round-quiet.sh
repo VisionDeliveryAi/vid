@@ -19,7 +19,7 @@ sed -i.b 's/^\(published .*\) at=.*/\1 at=2020-01-01T00:00:00Z/' .vid/tw/log; rm
 rd step; ok '^flag devagent-quiet 1$'; grep -q 'word=devagent-quiet on=1' .vid/metrics-events || fail 'no flag event'; rd step; no '^flag devagent-quiet'
 # a claim clears it; the claim gone, raised again; a pull request naming the ticket clears it
 printf 'vid: claimed\nby: DM\n' > "$T/c"; gh issue comment 1 -R $R --body-file "$T/c" > /dev/null; rd step; no '^flag devagent-quiet'; grep -q 'flag-cleared word=devagent-quiet on=1' .vid/metrics-events || fail 'a claim did not clear it'
-rm "$T/gh/issues/1/comments/$(ls "$T/gh/issues/1/comments" | sort -n | tail -n 1)"; rd step; ok '^flag devagent-quiet 1$'
+rm "$T/gh/issues/1/comments/$(ls "$T/gh/issues/1/comments" | sort -n | tail -n 1)"; cp "$T/gh/issues/1/labels" "$T/lb"; : > "$T/gh/issues/1/labels"; rd step; ok '^flag devagent-quiet 1$'; cp "$T/lb" "$T/gh/issues/1/labels"   # FB-3 C3: a ticket on ViD's record counts without its label
 W=$T/w; git clone -q "$T/code.git" "$W" 2>/dev/null; git -C "$W" checkout -q -b ticket-1; git -C "$W" -c user.name=a -c user.email=a@b commit -q --allow-empty -m t; git -C "$W" push -q origin ticket-1 2>/dev/null
 P=$(gh pr create -R $R --head ticket-1 --base main --title t --body "$(printf 'ticket: #%s\n\nDecisions: none' "1")" | sed 's/.*\///'); rd step; no '^flag devagent-quiet'; [ "$(grep -c 'flag-cleared word=devagent-quiet on=1' .vid/metrics-events)" = 2 ] || fail 'a pull request did not clear it'
 # a close issue alone, its chunks reported, never claimed: nothing

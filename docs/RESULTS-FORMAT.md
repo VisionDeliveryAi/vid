@@ -6,6 +6,9 @@ what the team sends in this form. A ticket says what to run; this document says 
 Roles are the team's, named as the ticket names them: DM (manager), TA (test author), TM (test manager), AN (test
 analyst), BU (builder), FX (fixer), GR (grader), SR (second reviewer), MR (merger), DP (deployer). Every report names the role that made it.
 
+A project in **GitHub manual** has rules of its own for a ticket's results, its review and its closes: the section "GitHub manual"
+below. Where it says otherwise than the rest of this document, it stands there.
+
 ## Words
 
 | Word | Meaning |
@@ -23,8 +26,9 @@ analyst), BU (builder), FX (fixer), GR (grader), SR (second reviewer), MR (merge
 
 ## The transport
 
-Each report is one folder, `<id>/`, pushed to the code repository as the branch `vid-results/<id>`. The branch holds
-nothing but that folder. `<id>` names the ask the report answers; `<k>` is the attempt, from 1.
+Each report is one folder, `<id>/`, pushed to the code repository as the branch `vid-results/<id>`. ViD reads that folder
+alone: whatever else the branch holds is neither read nor downloaded. A branch without a folder of its own name is left out, and said:
+put the report's files in a folder named `<id>` on it and push it again. `<id>` names the ask the report answers; `<k>` is the attempt, from 1.
 
 | Report | Id | Made by |
 |---|---|---|
@@ -35,13 +39,11 @@ nothing but that folder. `<id>` names the ask the report answers; `<k>` is the a
 | C1, the step close: one chunk | `req-<ask issue>-<chunk>-<k>` | TM |
 | C3, the stage's full run: one chunk, its rest chunk `p1cx` too | `req-<ask issue>-<chunk>-<k>` | TM |
 | CS, the staging run: one chunk | `req-<ask issue>-<chunk>-<k>` | TM |
-| CP, CR | `req-<ask issue>-<k>` | TM |
+| CP, CR: one chunk | `req-<ask issue>-<chunk>-<k>` | TM |
 | S1, the stage grade, and a grade ask | `grade-<ask issue>-<k>`, then the comment `vid: reported s1-<k>` | GR |
 | D1, RH, D2 | `deploy-<okay issue>-<k>`, then the comment `vid: reported d1-<k>` for D1 | DP |
 | The dev side stopped | `stopped-<k>`, answering no ask | DM |
-| GitHub manual alone: the head report at a commit of main a ticket's ask names | `step-<ticket>-<commit12>-<k>` | TM |
-| GitHub manual alone: its head grade | `grade-step-<ticket>-<commit12>-<k>` | GR |
-| GitHub manual alone: its sort | `sort-step-<ticket>-<commit12>-<k>` | SR |
+| GitHub manual alone: the team's own results | any id but those beginning `red-`, `req-`, `grade-`, `sort-`, `deploy-` or `stopped-`; `step-<ticket>-<commit12>-<k>` for one | anyone |
 
 `<ticket>`, `<pull request>`, `<ask issue>` and `<okay issue>` are GitHub numbers; `<head12>` is the first 12
 characters of the head's commit id, `<commit12>` the same of a commit of the code repository's main; `<chunk>` is a close chunk's name, `p<phase>c<n>`. Only the newest attempt of a report counts, except for T2: each T2 report lists
@@ -136,6 +138,37 @@ both passed at this head's T3. A control may name the faulted row or its journey
 `vid-forbidden-effect: <row id>`, on a line of its own, white space around it ignored; it marks evidence of the forbidden effect itself, never a mismatched error word. A faulted row's test that still passes cannot see its row, and the row fails. A fault
 that cannot be planted, a test that errors or is skipped, a control that fails and a missing forbidden-effect line
 leave the fault inconclusive, which is no verdict and no count: a row with a red, or a proven fault, is accepted without it, and a row with neither is held. A proven fault stands until a later fault on that row reads proven or not proven, or the row is retested: an inconclusive fault, a failing head and a head where the row needs no fault take nothing away. A journey's fault proves the transitions it failed, and says nothing of the others.
+
+## GitHub manual: the team's own results
+
+A ticket of a team of people is decided at a commit of the code repository's main, from the team's own results there and ViD's own
+review of the ticket, once. Nothing here is asked in GitHub auto.
+
+**A result report** is any branch `vid-results/<id>` whose id does not begin `red-`, `req-`, `grade-`, `sort-`, `deploy-` or `stopped-`. Its
+folder holds `results.txt`, whose first line is `by: ` and whoever made it, with a `commit:` line naming a commit the code repository holds;
+and at least one whole results file with a test case, any `.xml` at the folder's top, of any name. Nothing else keeps it from being read.
+Every other line of `results.txt` is read when given: `covers:`, `retested:`, `stand-in:`, and on the skeleton ticket's results `engines:` and
+`environments:`.
+
+**It counts at a commit** when its `commit:` is that one, or one that holds the very same files; whose ticket or pull request it was made
+for does not matter. An id that ends with the first 7 or more characters of its own commit and a number is an attempt, its newest
+alone read; any other id is a report of its own. A test that passed at other files alone reads `passed at <commit12>, not at this
+commit`. A test an amendment of the ticket adds or restates is read only from reports made after it, each report by itself.
+
+**A row** (or a journey's transition) is read from all the reports at the commit as one: it passes when at least one file has a case of
+it, every case of it in that file passed, and no file has a failed or errored case of it. A skipped case, or one that errored with
+`setup:`, in another file stops nothing. A file that is not whole can fail a row and never pass one. No engine is asked by name, and a
+regression row is read the same way. A rule row's `covers:` line of 0 fails it; with no line nothing is missing.
+
+**Read when the team gives it, never asked:** a red run, `red-<ticket or a sub-issue of it>-<k>`; a deliberate break, the report's
+`faults/<row id>/` folder, read as a fault is (a test that still passes under it fails its row as a weak test).
+
+**The review, the stage's grade and any other grade** are ViD's own: no `grade-` or `sort-` report is asked of the team or read. A
+`request <row> — …` line of a decision asks one added test, and holds that decision alone.
+
+**A close's run, a stage's, a staging, a rehearsal and a production run:** `req-` reports, their ids and the commit asked as below, `by:`
+anyone, with any results files; a row passed in a chunk's files passes for each engine of its chunk. A file named `cases-<engine>.xml` is read as
+that engine's names for the run's `not run` reading. **Deploys:** `deploy-` reports as below, `by:` anyone.
 
 ## The step close (C1)
 
@@ -381,9 +414,9 @@ of any kind clears it. Starting the team again is the team's own act; ViD starts
 
 ## What makes a report complete
 
-ViD reads the form only:
+ViD reads the form only (in GitHub manual, of a ticket's results and a run's, the form its own section gives):
 
-- the branch holds only its folder;
+- the branch holds the report's folder;
 - the commit is the one asked for (for T2, the one TM names), and the code repository holds it;
 - `results.txt`, `sorted.txt`, `grade.txt` and `report.txt` each name the role this document gives them;
 - each line of `sorted.txt` holds one of the four words;
@@ -410,9 +443,9 @@ zero `covers:` makes its rule row fail unless its test could not run, and a rete
 - **Asking for ViD's decision** is a comment on the pull request whose first line is `vid: decide <the head's full
   commit>`, and nothing more. ViD finds the reports by their ids.
 - **In GitHub manual alone, asking for ViD's decision** is a comment on the published ticket's issue, of any kind, whose first line
-  is `vid: decide <a full commit of the code repository's main>`, and nothing more, once that commit's head report is pushed
-  (`step-<ticket>-<commit12>-<k>`, its grade at the ticket's first asked commit, its sort when a grade line is open). It is
+  is `vid: decide <a full commit of the code repository's main>`, and nothing more, once results that count at that commit are
+  pushed ("GitHub manual" above); no grade and no sort is. It is
   unanswered while no `vid: decision <that commit>` comment follows it. A unit's pull request asking `vid: decide` is never
   answered there: the ask belongs on the ticket. A test the newest amendment of the ticket adds or restates counts the ticket's
-  evidence only from reports made after that amendment, so its red run comes again after it.
+  evidence only from reports made after that amendment.
 - **A started run or grade:** on a run or grade ask's issue, the role the ask names comments `vid: started` when it starts.

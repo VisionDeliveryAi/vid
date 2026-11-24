@@ -53,6 +53,8 @@
 #                  STAGE-0, or STAGE-0 without it; a feature in STAGE-0, or a split: line to it; a STAGE-0
 #                  no row: line places a row in; a STAGE-0 line added or removed by any commit but the one that
 #                  creates STAGES.md (init's cut only).
+#   check --work   FB-3 C2: the same court on the files on disk (a commit's, in GitHub manual's planner), less that last
+#                  rule, which compares a commit with the one before it. planner.sh makes each refusal a check flag.
 #   msg <message file>  commit-msg: a change to stage membership (the STAGE-,
 #                  split:, row:, screen: and rules: lines, STAGES.md created or deleted)
 #                  between HEAD and the index whose message cites no owner
@@ -288,12 +290,13 @@ membership() { block vid-stages "$1" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//;
 if [ -f "$HERE/eol.sh" ]; then sh "$HERE/eol.sh" file STAGES.md PRD.md INVENTORY.md || exit 1; fi
 
 case "$CMD" in
-  check)
-    load index
+  check)   # FB-3 C2: --work reads the files on disk, for the planner's reading of a commit's
+    _cw=index; case ${1:-} in '') ;; --work) _cw=work ;; *) echo 'ViD stages: usage — check [--work]' >&2; exit 2 ;; esac
+    load "$_cw"
     [ "$HASST" = yes ] || exit 0
     resolve
     # v0.26.10.8 (R2): stage 0 is offered at init's cut only — its line comes and goes only with STAGES.md itself
-    if src head STAGES.md "$T/STAGES.head"; then
+    if [ "$_cw" = index ] && src head STAGES.md "$T/STAGES.head"; then
       H0=no; I0=no; has0 "$T/STAGES.head" && H0=yes; has0 "$T/STAGES.md" && I0=yes
       case "$H0$I0" in
         noyes) echo 'err STAGE-0 is added to an existing STAGES.md: stage 0 is offered only at init'"'"'s cut, in the commit that creates STAGES.md' >> "$T/table" ;;

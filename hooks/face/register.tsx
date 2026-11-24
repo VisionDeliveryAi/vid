@@ -1,8 +1,8 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-import type { FaceItem, FaceSection, Marks, Run, Sitting, Standing, View } from './types'
-import { aloneLine, answerable, asRecommended, atStart, besides, blankMarks, compose, filterList, footLine, isAlone, keyOf, marked, merged, mk, modeOf, needsAnswer, parseRun, parseSitting, parseStanding, presetMarks, restorable, running, sendable, shown, startOf, tally, versionNote, waitLines } from './model'
+import type { BacklogItem, FaceItem, FaceSection, Marks, Run, Sitting, Standing, View } from './types'
+import { aloneLine, answerable, asRecommended, atStart, besides, blankMarks, compose, cut, filterList, footLine, isAlone, keyOf, listed, live, marked, merged, mk, modeOf, needsAnswer, parseRun, parseSitting, parseStanding, presetMarks, restorable, running, sendable, shown, startOf, tally, versionNote, waitLines } from './model'
 import { recordStop } from './recorder'
 
 // ViD's face, step 1a (0.26.10.29): the panel in the Claude desktop app for
@@ -29,8 +29,8 @@ const TONE: Record<string, string> = { keep: 'success', ok: 'success', in: 'succ
 
 // usability (P4, P5): the view holds its conversation's run file and the minute it was read, so the wait is redrawn
 // when the minute changes
-const blankView: View = { standing: null, sitting: null, run: null, problem: '', project: false, here: '', version: '', opened: '', minute: 0, now: 0, moved: { from: 0, to: 0, at: 0 } }
-const view = atom({ plugin: 'vid', key: 'view' } as const, blankView, { shape: 'face-view-4' })
+const blankView: View = { standing: null, sitting: null, run: null, problem: '', project: false, here: '', version: '', opened: '', ranOpen: '', minute: 0, now: 0, moved: { from: 0, to: 0, at: 0 } }
+const view = atom({ plugin: 'vid', key: 'view' } as const, blankView, { shape: 'face-view-5' })
 // usability (P11): how long a new stretch of the map's line is drawn moving after the stop moved on
 const MOVING_MS = 4000
 const marks = atom({ plugin: 'vid', key: 'marks' } as const, {}, { shape: 'face-marks-1' })
@@ -101,7 +101,7 @@ async function refresh($: EngineInterface): Promise<View> {
   const before = await read($, view)
   // usability (P11): the stop moved on since the panel last read the standing
   const moved = before.standing && standing && standing.current > before.standing.current ? { from: before.standing.current, to: standing.current, at: nowMs } : before.moved
-  const next: View = { standing, sitting, run, problem, project, here, version, opened: before.opened, minute: Math.floor(nowMs / 60000), now: nowMs, moved }
+  const next: View = { standing, sitting, run, problem, project, here, version, opened: before.opened, ranOpen: before.ranOpen, minute: Math.floor(nowMs / 60000), now: nowMs, moved }
   await update($, view, () => next)
   // marks made on one sitting never appear on another: a new sitting drops the rest
   if (sitting) {
@@ -172,8 +172,13 @@ async function onDesktop($: EngineInterface): Promise<boolean> {
   }
 }
 
-// Opens the panel by itself once per sitting that waits; never with the keys.
+// Opens the panel by itself once per sitting that waits; never with the keys. FB-3 D1: and once a conversation for the backlog.
 async function openIfWaiting($: EngineInterface, v: View): Promise<void> {
+  if (v.standing && !v.problem && v.here && v.ranOpen !== v.here && modeOf(v.standing, v.sitting, blankMarks(), '', v.project, v.run) === 'run' && (await onDesktop($))) {
+    await update($, view, cur => ({ ...cur, ranOpen: v.here }))
+    await $.ui.open({ id: PANE, title: TITLE })
+    return
+  }
   if (!v.sitting || !v.standing || v.problem) return
   if (modeOf(v.standing, v.sitting, blankMarks(), '', v.project, v.run) !== 'sitting') return
   const key = keyOf(v.sitting)
@@ -358,6 +363,7 @@ export const register: Register = on => {
     const dot = (tone: string, filled = true) => <Text color={tone}>{filled ? '●' : '○'}</Text>
 
     const st = v.standing
+    const list = st && st.backlog ? listed(st.backlog) : null
     const stops = st ? st.stops : []
     const cur = st ? st.current : 1
     const here = stops[cur - 1]
@@ -365,7 +371,8 @@ export const register: Register = on => {
     const turn = mode === 'sitting' || (mode === 'sent' && m.sentHow === 'filled') ? (mode === 'sitting' ? 'Your turn' : 'Your turn, in the chat') : mode === 'stopped' ? 'ViD has stopped' : mode === 'idle' ? 'Your turn, in the chat' : mode === 'done' ? 'All done' : "ViD's turn"
     const head = st ? (
       <Box flexDirection="column" gap={1}>
-        <Box flexDirection="row">
+        {/* FB-3 D1: a run is past the map, which says nothing of it */}
+        {mode === 'run' ? null : <Box flexDirection="row">
           {stops.map((x, i) => {
             const states = stops.map(y => y.state)
             const grow = movingNow ? (i === cur - 2 ? 'right' : i === cur - 1 ? 'left' : '') : ''
@@ -383,7 +390,7 @@ export const register: Register = on => {
               </Box>
             )
           })}
-        </Box>
+        </Box>}
         {/* usability (P9): what there is to read, under the map and above everything else */}
         {st.pages.length ? (
           <Box flexDirection="column">
@@ -397,10 +404,10 @@ export const register: Register = on => {
         ) : null}
         <Box flexDirection="column">
           <Text size="title" weight="semibold">
-            {mode === 'done' ? 'Defining the project is done' : (here?.name ?? '')}
+            {mode === 'run' ? 'Your list' : mode === 'done' ? 'Defining the project is done' : (here?.name ?? '')}
           </Text>
           <Text size="footnote" color="subtle" tabular>
-            {mode === 'done' ? `All ${stops.length} steps done` : `Step ${cur} of ${stops.length} · ${turn}${st.next ? ` · Next: ${st.next}` : ''}`}
+            {mode === 'run' ? (list ? list.counts : '') : mode === 'done' ? `All ${stops.length} steps done` : `Step ${cur} of ${stops.length} · ${turn}${st.next ? ` · Next: ${st.next}` : ''}`}
           </Text>
         </Box>
       </Box>
@@ -427,8 +434,9 @@ export const register: Register = on => {
       body = state(ICON.idle, 'Nothing waits on you here', 'Describe the product in the chat, in your own words. When ViD has questions, this panel opens by itself.', '')
     }
     // usability (P5, P6): the wait's time, last step and parts, while the session runs
-    const waitBits = () => {
-      const parts = st ? st.wait.parts : []
+    // FB-3 D2: fresh, in a run, whether the parts are this turn's
+    const waitBits = (fresh = true) => {
+      const parts = st && fresh ? st.wait.parts : []
       return [
         ...waitLines(v.run, v.now).map(l => (
           <Text size="footnote" color="subtle" tabular>
@@ -444,7 +452,7 @@ export const register: Register = on => {
             ))}
           </Box>
         ) : null,
-        st && st.wait.now && running(v.run) ? <Text size="footnote">{`Now: ${st.wait.now}`}</Text> : null,
+        st && fresh && st.wait.now && running(v.run) ? <Text size="footnote">{`Now: ${st.wait.now}`}</Text> : null,
       ]
     }
     if (body !== null) {
@@ -475,6 +483,56 @@ export const register: Register = on => {
                 </Box>
               </Box>
             ))}
+        </Box>
+      )
+    } else if (mode === 'run' && st) {
+      // FB-3 D1, D2: the stop of a call, or its parts while the session runs; then the list
+      const row = (x: BacklogItem) => (
+        <Box key={`bl-${x.state}-${x.id}`} flexDirection="column" paddingX={2} paddingY={1}>
+          {subtle(`${x.id} · ${x.who}`, 'caption')}
+          <Text weight={x.state === 'doing' ? 'semibold' : 'regular'}>{cut(x.words)}</Text>
+          {x.next && x.state !== 'done' ? subtle(`Next: ${cut(x.next)}`) : null}
+          {x.note ? <Text size="footnote">{cut(x.note)}</Text> : null}
+        </Box>
+      )
+      const group = (title: string, rows: BacklogItem[], tint = FILL) =>
+        rows.length ? (
+          <Box key={`blg-${title}`} flexDirection="column" borderStyle="round" borderColor={LINE}>
+            <Box paddingX={2} paddingY={1} backgroundColor={tint}>
+              <Text size="caption" weight="semibold" color="subtle">
+                {title}
+              </Text>
+            </Box>
+            {rows.map(row)}
+          </Box>
+        ) : null
+      const at = st.wait.parts.find(p => p.state === 'stopped')
+      body = (
+        <Box flexDirection="column" gap={2}>
+          {st.wait.stop ? (
+            <Box flexDirection="column" gap={1} padding={2} borderStyle="round" borderColor="warning">
+              {pic(ICON.problem, 'Stopped')}
+              <Text size="heading" weight="semibold" color="warning">
+                {at ? `ViD stopped at: ${at.name}` : 'ViD stopped'}
+              </Text>
+              <Text>{`It needs: ${cut(st.wait.stop)}`}</Text>
+              <Text color="warning">Look at the chat.</Text>
+            </Box>
+          ) : running(v.run) ? (
+            <Box flexDirection="column" gap={1} padding={2} borderStyle="round" borderColor={LINE}>
+              {pic(ICON.working, 'Working')}
+              <Text size="heading" weight="semibold">
+                ViD is working
+              </Text>
+              {waitBits(live(st, v.run))}
+            </Box>
+          ) : null}
+          {list ? group('In progress', list.doing, TINT.claude) : null}
+          {list ? group('To do, in order', list.todo) : null}
+          {list ? group('Waiting', list.waiting) : null}
+          {list ? group('Set aside', list.aside) : null}
+          {st.backlog && st.backlog.done.length ? group(`Done · ${st.backlog.doneCount} in all, the newest ${st.backlog.done.length} here`, st.backlog.done) : null}
+          {subtle('The list is kept in the project. Change it in the chat: what comes first, what waits, what to set aside.', 'caption')}
         </Box>
       )
     } else if (mode === 'working') {

@@ -12,8 +12,9 @@ T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 . "$CHECKS/selftest/fixtures/results-reports.sh"
 fail() { echo "end-grade-recut: $*" >&2; cat "$T/out" >&2 2>/dev/null; exit 1; }
 tw_toy "$T/toy"; GS=$CHECKS/github.sh; CS=$CHECKS/close.sh; R=owner/code; TAB=$(printf '\t'); S=.vid/decide/stage; mkdir -p "$T/r"; printf 'none\n' > "$T/rv"
-four() { awk '{ print } /^STAGE-2 \| Synonym-aware search/ { print "STAGE-3 | Later work | features: -" }' STAGES.md > "$T/s" && cp "$T/s" STAGES.md; }
-four; g add STAGES.md && g commit -qm 'the cut: a stage 3, empty for now'; pt_record; tw_ratify 'Yes, publish it' || fail 'the toy with stage 3 was not ratified'
+four() { awk '{ print } /^STAGE-2 \| Synonym-aware search/ { print "STAGE-3 | Later work | features: FEAT-04" }' STAGES.md > "$T/s" && cp "$T/s" STAGES.md; }
+awk '{ print } /^FEAT-03 \|/ { print "FEAT-04 | G1 | later work" }' PRD.md > "$T/p" && cp "$T/p" PRD.md   # FB-3 C2: a feature with nothing in it yet, so stage 3 holds no row and the stage court takes it
+four; g add PRD.md STAGES.md && g commit -qm 'the cut: a stage 3, empty for now'; pt_record; tw_ratify 'Yes, publish it' || fail 'the toy with stage 3 was not ratified'
 cs() { RC=0; sh "$CS" "$@" > "$T/out" 2>&1 || RC=$?; }; ok() { grep -q -- "$1" "$T/out" || fail "no line: $1"; }
 sh "$GS" spec-setup > "$T/out" 2>&1 || fail 'spec-setup failed'; mkdir -p .vid/round .vid/decide .vid/tw/out
 printf 'close-chunk-minutes: 20\nclose-wait-minutes: 0\n' >> .vid/tw/settings; tw_hand 'engines alpha beta'; tw_hand 'stage-closed 0 | stand-in: RM at 000000000000 candidate 1'

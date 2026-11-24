@@ -5,7 +5,7 @@
 # and left out; the export's tree is exactly ARCHITECTURE.md, BASELINE.md, DECISIONS.md, GRADING-CHECKLIST.md, PRD.md
 # and TEST-DIFFERENCES.md (INVENTORY.md's three difference lines, verbatim) as at ViD's HEAD — never INVENTORY.md,
 # PLAN.md, STAGES.md, CLAUDE.md, a test or .vid/; its author and committer are ViD <vid@export.invalid>, even with the
-# owner's address in the environment; ViD's index, refs and working tree are unchanged; the log says `spec-repo
+# owner's address in the environment; ViD's index, refs and working tree are unchanged, but refs/vid/export, the export itself (FB-3 B2); the log says `spec-repo
 # owner/code-spec created` and `export <commit> from=<HEAD> state=pushed`. Again: nothing pushed, `state=unchanged`; a
 # committed change to PLAN.md, or to an INVENTORY.md line that is no difference, pushes nothing; a changed difference
 # line, and design/ added, each a fast-forward. A second spec-setup finds the repository (`exists`). A public
@@ -32,7 +32,7 @@ git -C "$SR" show "$C1:TEST-DIFFERENCES.md" | grep '^difference ' > "$T/d1"; gre
 cmp -s "$T/d0" "$T/d1" && [ "$(grep -c . "$T/d1")" = 3 ] || fail 'TEST-DIFFERENCES.md is not the three difference lines verbatim'
 [ "$(git -C "$SR" log -1 --format='%an <%ae> %cn <%ce>' "$C1")" = 'ViD <vid@export.invalid> ViD <vid@export.invalid>' ] || fail "the export is authored as $(git -C "$SR" log -1 --format='%an <%ae>, %cn <%ce>' "$C1")"
 grep -q "^export $C1 from=$H state=pushed at=" .vid/tw/log || fail 'the export is not logged'
-[ "$(git ls-files -s | git hash-object --stdin)" = "$IDX0" ] && [ "$(git for-each-ref | git hash-object --stdin)" = "$REFS0" ] && [ -z "$(git status --porcelain)" ] || fail "the export changed ViD's index, refs or working tree"
+[ "$(git ls-files -s | git hash-object --stdin)" = "$IDX0" ] && [ "$(git for-each-ref | grep -v '	refs/vid/export$' | git hash-object --stdin)" = "$REFS0" ] && [ "$(git rev-parse -q --verify refs/vid/export || true)" = "$C1" ] && [ -z "$(git status --porcelain)" ] || fail "the export changed ViD's index, refs or working tree"
 # unchanged: nothing pushed; PLAN.md alone, or a row that is no difference: nothing pushed
 sh "$GS" spec-export > "$T/out" 2>&1 || fail 'the second export failed'
 [ "$(git -C "$SR" rev-parse refs/heads/main)" = "$C1" ] || fail 'an unchanged export pushed'
