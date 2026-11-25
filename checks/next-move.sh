@@ -14,7 +14,7 @@
 #        stops the call, the moves after it not done;
 #        FB-3 C5 (g): the call never makes the re-plan's own proposal. While one is due and none fresh stands (next.sh triggers'
 #        `context proposal due`), it asks, one `proposal due: …` line: what it covers and touches, by count, and how long it takes
-#        (.vid/next/proposal/took, or the applied one's, the seconds the last one took), and (FB-3 E2) that it needs engines while none is named; the yes is implement-replan, named;
+#        (.vid/next/proposal/took, or the applied one's, the seconds the last one took), and (FB-3 E2, FB-4 A3) what its posts lack, engines or settings; the yes is implement-replan, named;
 #     3. after the moves the call's lines (made again when a move ran, and then printed as next.sh short shows them, `counted` lines left out), and what they
 #        raise kept in the owner's queue (GM-4 F4: queue.sh raise), each trigger and move a `Q<n>` line;
 #     4. the plan page (next-page.sh write on the call's last lines): its `page <path>` line; then (GM-4 K6, I6) each open `Q<n>`
@@ -156,7 +156,8 @@ lines "$W/L" || ref "the call's lines could not be made (next.sh triggers): no m
 duep() { _c=$(awk -F'\t' '$1 == "context" && $2 == "proposal" && $3 == "due" { print $4; exit }' "$1"); [ -n "$_c" ] || return 0
   _s=''; for _f in .vid/next/proposal/took .vid/next/applied-proposal/took; do [ -n "$_s" ] || _s=$(grep -xE '[0-9]+' "$_f" 2> /dev/null | head -n 1); done
   if [ -n "$_s" ]; then _s="the last one took $_s seconds"; else _s="it writes each of the $(printf '%s' "$_c" | sed -n 's/.* of \([0-9]*\) open tickets .*/\1/p') open tickets again, some minutes"; fi
-  ! engnone || _s="$_s; needs engines — named before the apply"   # FB-3 E2
+  # FB-3 E2, FB-4 A3: what the apply's posts lack, as the listed implement-replan says it
+  _n=$(awk -F'\t' '$1 == "move" && $2 == "implement-replan" { x = $5; if (sub(/.*; missing for its posts: /, "", x)) print x; exit }' "$1"); [ -z "$_n" ] || _s="$_s; missing for its posts: $_n"
   echo "proposal due: the re-plan's own proposal is not made. Make it now? It $_c; $_s. implement-replan \"<your words>\" makes it and shows it, and applies nothing; named again, it applies what was shown"; }
 
 # no <step> <words>: the move refused at its step, its output under it

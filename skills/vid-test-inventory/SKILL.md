@@ -257,7 +257,14 @@ and consume each type mechanically, so the derivation is guess-free:
   substitutes — a DIF row with a `paying-step:` or a seam with
   `credentials: not-yet` — is born `owed: paid by /vid deploy gate
   <1|2|3> — <what the rung observes>`, the seam rows' shape. The item
-  stays `pilot`; its other arms derive ledger rows as today. A
+  stays `pilot`; its other arms derive ledger rows as today. Each check
+  takes the earliest place that can really prove it (FB-4 A2): where the
+  developers work, when they can prove it there, an outside service they
+  reach with credentials of their own included (§4.2); the test site
+  (gate 2) when the proof needs the deployed platform, such as a scheduler
+  that fires, the test site's sign-in or load at its size, or a service no
+  developer can reach yet; production (gates 1 and 3) when it needs
+  production or its restored data. A
   time-worded, scheduled, or worker-run obligation whose harness
   substitute is eager execution (the DIF-002 class) is exactly this
   case: the trigger row stays a ledger row (the schedule EXISTS), and a
@@ -576,6 +583,17 @@ commit. Under a block carrying `grammar: 0.9.2` a `not-yet` seam born
 promise a probe develop cannot perform, and checks/seams.sh would block
 every client line behind it. checks/seams.sh enforces both doors from the
 initial commit on.
+
+**Where it is proved: the earliest place that really can** (FB-4 A2, the
+owner's ruling). Three places: where the developers work, the test site,
+live. A service the developers can reach where they work, with
+credentials of their own, is a test of the step that first builds against
+it: propose `| place: dev` on its row, with `credentials: held`, and the
+owner ratifies it with the inventory. Without the field, or with no
+credentials yet, it is checked on the test site (gate 2), as ever. Only
+ticket mode reads the field; develop's probe and gate 2 stay as above. A
+`place: dev` without `credentials: held` is a GAP at the court. A later
+change is an inventory amendment, the owner's.
 
 ### 4.3 Hostility rows — the must-never-happen list
 

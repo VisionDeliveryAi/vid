@@ -137,7 +137,11 @@ the owner's yes. **Raised questions (0.26.10.29.3 R4):** a question an agent's r
   commit-msg refuses a membership change without one. Until it lands,
   `checks/stages.sh` refuses every other commit (the feature is in no
   stage). An amendment that adds a pilot feature gets its own placement
-  commit right after it. **The current stage (v0.26.10.11 R2):** right
+  commit right after it. Before committing a spec or law change by hand,
+  stage the whole change and commit it (FB-4 C2): a refused commit lists
+  every reason at once, the order of commits the law asks for and what
+  the message needs (`sh checks/hooks/commit-msg <file>` checks a draft
+  message); repair them all, then make the commits in that order. **The current stage (v0.26.10.11 R2):** right
   after the placement commit that opens STAGE-<k+1>, write RUN-STATE's
   `stage:` line as `stage: <k+1>` (replace it; with none, add it after
   `plan:`). `sh checks/stages.sh current`, admission, the close of

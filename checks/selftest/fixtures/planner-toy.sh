@@ -14,6 +14,8 @@
 # R10: each row's test needs only its own step's code), `shared: web`) and the prose below it, the plan
 # recorded by `plan.sh change create … --trigger initial`. $PT_REH is the rehearsal row ViD appends once the gate-1 row
 # is gone, ROW-021.
+# FB-4 A1: the toy's placements are read (.vid/plan/placement/result, no finding; `pt_placed <dir>` writes such a
+# result there, a re-plan's candidate's `placement` among them), so a case that ratifies or analyses is asked for no reading it is not about.
 # Helpers: `pt_set <id> <line>` replaces the line whose id field is <id> (the first field, or the second on a rule,
 # difference, exception, suppression, hostility or seam line; `step S0n`, `standing <kind>`), in INVENTORY.md and
 # PLAN.md and RUN-STATE's block, `pt_del <id>` deletes it (and its id from a needs line), `pt_after <id> <line>` adds a line after it; `pt_nogate1`
@@ -161,8 +163,10 @@ for the mail; S05 builds on S02 for the listings. Stage 2 is a draft, planned ag
 EOF
   printf 'stage name=plan state=start session=S1 records=29 at=2026-11-03T09:00:00Z\ncontext-window requested=declined at=2026-11-03T09:00:00Z\n' > .vid/metrics-events   # v0.26.10.26.7 (R13): the compaction question answered
   mkdir -p .vid/plan; for k in layout team split repo spec-repo github-mode; do printf 'setup-answered key=%s value="the toy" words="the toy, answered" at=2026-11-03T09:00:00Z\n' "$k"; done > .vid/plan/setup   # v0.26.10.26.7 (R11): the toy's setup answered; github-mode (v0.26.10.28.8, R3) too
+  pt_placed .vid/plan/placement
   pt_record
 }
+pt_placed() { mkdir -p "$1"; printf 'placed round=1 listed=33 right=33 stands=0 partly=0 refuted=0 unjudged=0 at=2026-11-03T09:00:00Z\n' > "$1/result"; }   # FB-4 A1
 pt_rs() { sed "$1" .vid/RUN-STATE.md > R.x && cat R.x > .vid/RUN-STATE.md && rm R.x; }   # a sed of RUN-STATE's block
 pt_record() { sh "$CHECKS/plan.sh" change create 'the first plan' --trigger initial --expect 'the skeleton ticket goes first' > /dev/null 2>&1; }
 pt_ed() { for f in INVENTORY.md PLAN.md .vid/RUN-STATE.md; do awk -v id="$1" -v l="${3-}" -v m="$2" '

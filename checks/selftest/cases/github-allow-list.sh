@@ -32,7 +32,8 @@ OK="$OK"'|pr close'
 OK="$OK"'|api "repos/\$REPO/contents/\$SPF\?ref=\$SMN"'
 # FB-3 B1: the publish's read of the folder's names and ids, a GET of a tree, under SPUB
 OK="$OK"'|api "repos/\$REPO/git/trees/\$FT"|api "repos/\$REPO/git/trees/\$FT\?recursive=1"'
-grep -q '\[ "\${SPUB:-}" = yes \] && \[ -z "\$_fl" \] && \[ -z "\$_in" \]' "$GS" || fail "a tree's read is not limited to spec-publish, as a read alone"
+# FB-4 B1: and spec-folder's, under FOLDREAD, which the file sets empty first
+grep -q "^FOLDREAD=''" "$GS" && grep -q '{ \[ "\${SPUB:-}" = yes \] || \[ "\${FOLDREAD:-}" = yes \]; } && \[ -z "\$_fl" \] && \[ -z "\$_in" \]' "$GS" || fail "a tree's read is not limited to spec-publish and spec-folder, as a read alone"
 # FB-3 A2, A1.4: one graphql query, results-fetch's and closing-prs', under RESREAD, which the file sets empty first
 OK="$OK"'|api graphql'
 grep -q "^RESREAD=''" "$GS" && grep -q '\[ "\${RESREAD:-}" = yes \] && \[ -z "\$_m\$_fv\$_in" \] && \[ "\$_fn" = 1 \]' "$GS" || fail 'gh api graphql is not limited to one query, under RESREAD'

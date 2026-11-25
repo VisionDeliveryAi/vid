@@ -38,7 +38,8 @@ never only because the cases grew (v0.26.10.28.2, R5).
      choice, set from the project's own case times);
    - a test-sized setting the tests use in place of production's is named as a test difference;
    - nothing is left running after a run, and a stop is final: no restart policy on anything in the environment; a failed `stop:` leaves `stop-failed` in the work folder, for a setup pass to mend and remove;
-   - never real credentials in a test environment, and no network shared with the host.
+   - never real credentials in a test environment, and no network shared with the host. One exception: the own case of a
+     row whose marks say `service` runs with the credentials the developers have, never with a fake (FB-4 A2).
 3. **Measure, pick and prove** the number of test environments, once the test author's tests exist to measure with, and
    again when the product first starts, when the environment can run more than one. Otherwise one environment.
    - **Measure:** the heaviest selection there is, once, in one environment: peak memory, the engine's total memory,

@@ -41,6 +41,9 @@
 #   plan-md|applied> <what> — <where it came from>` before it is used; each not found is a line `need <--register|--plan|--plan-md|
 #   --applied> — <where ViD looked>`, all of them, then a refusal naming them, exit 5. Each ticket's writing is read once. A read of
 #   GitHub that fails is a refusal (exit 1, run again), never a need.
+#   FB-4 B1: with layout: one, before a ticket is read, one line `folder <path> …`: the applied version's spec, another commit's (which,
+#   and --applied <it> as the answer, a range its newest and oldest), no one commit's, or not on main (github.sh spec-folder's names and
+#   ids, lib.sh foldersay); a warning, never a refusal, and never taken as the applied version; `need --applied` names it
 #   GM-3 U4: each applied commit set here is a line of .vid/tw/applied.log, `<commit>\t<at>\t<by>` (by: mode; the one in force
 #   before it, `seed`, first, when the log is empty and the commit moves); the apply (checks/replan.sh) writes its own lines
 #   GM-3 S2, at a switch alone (on a re-take --from and --take-over are refused; the applied version moves only by the apply, GM M3):
@@ -150,8 +153,14 @@ case $rc in 0) LK=1; cat "$W/cn" ;; 3) cat "$W/cn"; echo "ViD mode: the refresh 
 
 # 4. the inputs not given, found (GM-3 S1): each printed `found …` before it is used, each not found a `need …` line, then exit 5
 prog on 'Finding the published tickets'
+# FB-4 B1: which commit's spec the folder holds (github.sh spec-folder, lib.sh foldersay), said before a ticket is read, against the applied
+# version given or recorded; with neither, as it is, FK set and FN its words for the need line. A failed read is said and stops nothing
+FN=''; FK=''; fsay() { foldersay "$1" > "$W/fs"; [ ! -s "$W/fs" ] || echo "folder $(cut -f2 "$W/fs")"; }
+if [ "$TG" = manual ] && [ "$(skey layout)" = one ]; then
+  if gh_ spec-folder > /dev/null 2> "$W/fe"; then FC=${AP:-$(applied)}; fsay "$FC"; [ -n "$FC" ] || { FK=1; [ ! -s "$W/fs" ] || FN="; the code repository's folder $(cut -f2 "$W/fs")"; }
+  else echo "folder $(folderpath) could not be read (the take-stock goes on without it): $(tail -n 1 "$W/fe")"; fi; fi
 mkdir -p "$W/tk"; : > "$W/need"; FA=''; PX=$(skey labels-prefix); GL="GitHub, the code repository's issues labelled ${PX}ticket, open or closed"
-nd() { echo "need $1 — $2" >> "$W/need"; }
+nd() { echo "need $1 — $2$([ "$1" != --applied ] || printf %s "$FN")" >> "$W/need"; }
 hv() { awk -v k="$2" '/^## / { s = substr($0, 4); next } s == "Header" && index($0, "- " k ": ") == 1 { print substr($0, length(k) + 5); exit }' "$1" 2>/dev/null; }
 # rd <n>: ticket n's newest writing read once (github.sh ticket-writing, or kept by github.sh tickets): $W/tk/<n>.line, and .md when whole
 rd() { [ -f "$W/tk/$1.line" ] && return 0; gh_ ticket-writing "$1" "$W/tk/$1.md" > "$W/tk/$1.l0" 2> "$W/we" || { sed 's/^/    /' "$W/we" >&2; ref "#$1 could not be read"; }; mv "$W/tk/$1.l0" "$W/tk/$1.line"; }
@@ -213,6 +222,7 @@ elif [ -z "$AP" ]; then heads; SG=.vid/spec.git; SF=''
     if [ -z "$XH" ]; then nd --applied ".vid/tw/applied (none recorded), then the export $XC of $XD: .vid/tw/log has no export line for it, and the spec repository, read into ViD's copy ($SG), does not hold it"
     elif FA=$(git rev-parse -q --verify "$XH^{commit}" 2>/dev/null); then echo "found applied $FA — the export $XC of $XD: $XW"
     else FA=''; nd --applied "the export $XC of $XD, names $XH ($XW), no commit of this repository"; fi; fi; fi
+[ -z "$FK" ] || [ -z "$FA" ] || fsay "$FA"   # FB-4 B1: the applied version just found
 # GM-3 S2: at a switch, the rows the published tickets quote that INVENTORY.md lacks at the commit they were written from (LB)
 IK='function tr(s) { gsub(/^[ \t]+|[ \t]+$/, "", s); return s } function key(l,   a, k) { split(l, a, "|"); k = tr(a[1]); return (k ~ /^(rule|difference|exception|suppression|hostility|seam)$/) ? tr(a[2]) : k }'
 # ikeys: an INVENTORY.md on stdin, `<id><TAB><its ```vid-inventory block, 1 the first><TAB><its line>`, each id once, its first line

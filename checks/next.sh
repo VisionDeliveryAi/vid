@@ -95,6 +95,8 @@
 #     context assigned <#n> <labels> <title>
 #     context report <id> <words>         (FB-3 A2) in GitHub manual, a report branch left out, its words what to do
 #     context team-reports <why>          (FB-3 A3) in GitHub manual, the text telling the team what its reports hold is not the one handed
+#     context folder <words>              (FB-4 B1) in GitHub manual with one repository, the commit the folder's spec is of, when not the applied
+#                                         version, or that it is of none or not on main (.vid/round/folder); none while its publish is open or owed
 #     context proposal due <what it covers and touches, by count>   (FB-3 C5) implement-replan's own proposal due and not made (or stale)
 #     move <kind> <subject> <hash> <what it needs or does>   (GM-2 T10) named by kind and subject: publish <step>, amend #<n> and
 #                                         withdraw #<n> (writer.sh due's lines as it gives them), team-change #<n> <id>,
@@ -104,7 +106,8 @@
 #                                         important trigger is raised and not declined; implement-replan as replan.sh ready gives it
 #                                         (`apply analysis`, a fresh proposal; `apply own`, its own, nothing pending adding a test;
 #                                         each line carries the proposal's fingerprint, rpfp_, so its hash changes
-#                                         with what the apply would do;
+#                                         with what the apply would do; FB-4 A3: what its posts lack, engines or settings,
+#                                         last, `; missing for its posts: …`, outside its hash;
 #                                         else not listed, and planning-analysis says why; FB-3 C5: its own proposal due and not
 #                                         made, the same words at every call, naming it makes and shows it; one that could not be made
 #                                         is not listed while the same reason stands), read when anything is pending or
@@ -174,10 +177,10 @@ pending_() {
   invat "$A" > "$T/ia" || ref "INVENTORY.md cannot be read at $A"; invat > "$T/iw"; keys "$T/ia" > "$T/ka"; keys "$T/iw" > "$T/kw"
   awk -F'\t' 'FILENAME == ARGV[1] { W[$1] = 1; next } !($1 in W) && $3 == 0 { print $1 "\t" $2 }' "$T/kw" "$T/ka" > "$T/retk"
   awk -F'\t' -v OFS='\t' '{ print "pending", "retired", $1 }' "$T/retk" >> "$T/pend"
-  # GM-3 U1: moved-stage, a row (kind row) of both rows tables whose stage differs: the applied commit's (arows_) and the newest's
+  # GM-3 U1: moved-stage, a row (kind row) of both rows tables whose stage differs: the applied commit's (arows_) and the newest's; a seam's stage follows the plan (FB-4 A2)
   arows_ || exit 1; lread "$T/nrows" planner rows --newest || exit 1
   awk -F'\t' -v OFS='\t' 'FILENAME == ARGV[1] { if (!/^#/ && $2 == "row" && !($1 in A)) A[$1] = $5; next } /^#/ || $2 != "row" || (k[$1]++) { next }
-    ($1 in A) && A[$1] != $5 { print "pending", "moved-stage", $1 }' "$T/arows" "$T/nrows" >> "$T/pend"
+    ($1 in A) && A[$1] != $5 && $1 !~ /^SEAM-/ { print "pending", "moved-stage", $1 }' "$T/arows" "$T/nrows" >> "$T/pend"
   # IR I6: the law files beyond the rows, each line read with its spaces collapsed and trimmed, blank lines left out; GM-3 U1: STAGES.md
   # too, and PRD.md first, so a requirement reworded with its fail-if kept still shows as pending
   : > "$T/spec"; for f in PRD.md ARCHITECTURE.md DECISIONS.md BASELINE.md GRADING-CHECKLIST.md STAGES.md; do
@@ -299,7 +302,7 @@ rpfp_() { { printf '== target\n'; git rev-parse HEAD; printf '== reads\n'; sh "$
     printf '== handed\n'; cat "$HAND" 2> /dev/null || :
     # the open-tickets limit, a setting outside HEAD that the proposal's limit warnings read (own and analysis alike)
     printf '== limit\n'; grep '^open-tickets:' .vid/tw/settings 2> /dev/null || :
-    if [ "$1" = analysis ]; then for _f in made target hash block PLAN.md changes amend publish followup taken-out team-in moves review left args; do
+    if [ "$1" = analysis ]; then for _f in made target hash block PLAN.md changes amend publish followup taken-out team-in moves review placements left args; do
       printf '== %s\n' "$_f"; cat ".vid/next/proposal/$_f" 2> /dev/null || :; done
       # and its warnings, each count of days left out (as ekeys_ leaves them out), so a call later reads the same
       printf '== warnings\n'; sed -E 's/[0-9]+ days?( ago)?//g' .vid/next/proposal/warnings 2> /dev/null || :; fi; } | git hash-object --stdin | cut -c1-12; }
@@ -414,6 +417,11 @@ triggers_() {
     # records say (a publish failed before any apply, after a switch, too): `owed:<export 12>` in place of the apply
     if [ -n "$MN" ] && [ -f .vid/tw/spec-owed ] && ! grep -q "^AO${TAB}spec-publish${TAB}" "$T/f"; then printf 'AO\tspec-publish\tspec-publish\towed:%s\n' "$(head -n 1 .vid/tw/spec-owed | cut -c1-12)" >> "$T/f"; fi
   else printf 'U\tread\t-\tno read kept (.vid/round/read): run next.sh read\n' >> "$T/f"; fi
+  # FB-4 B1: which commit's spec the folder holds, when it is not the applied version's (lib.sh foldersay, from .vid/round/folder), and never while
+  # the folder's publish is owed (AO, or .vid/tw/spec-owed) or the pull request of ViD's newest publish is open in the read
+  if [ -n "$MN" ] && [ ! -f .vid/tw/spec-owed ] && ! grep -q "^AO${TAB}spec-publish${TAB}" "$T/f"; then foldersay | awk -F'\t' '$1 ~ /^(differs|none|absent)$/ { print "FLD\t" $2 }' > "$T/fld"
+    [ ! -s "$T/fld" ] || awk -F'\t' -v L="$LOG" 'BEGIN { while ((getline l < L) > 0) if (l ~ /^spec-published /) { p = index(l, " words=\""); if (p) l = substr(l, 1, p - 1); v = ""; n = (l ~ / by=hand( |$)/) ? 0 : split(l, w, " "); for (i = 2; i <= n; i++) if (w[i] ~ /^pr=/) v = substr(w[i], 4) } }
+      $1 == "open" && v != "" && $2 == v { f = 1 } END { exit !f }' "$([ -f "$RD" ] && echo "$RD" || echo /dev/null)" || cat "$T/fld" >> "$T/f"; fi
   awk -F'\t' -v OFS='\t' -v WR="$HERE/writer.sh" -v MN="$MN" '
     function num(s) { return s ~ /^[0-9]+$/ }
     function abr(r) { return ST[r] ~ /^accepted[- ]by[- ]ruling$/ }   # FB-3 A4
@@ -445,7 +453,7 @@ triggers_() {
     $1 == "DIF" { DIF[$3] = add(DIF[$3], $2); next }
     $1 == "WD" { if (!($2 in WDS)) WDO[++nwd] = $2; WDS[$2] = $3; next }
     $1 == "OW" { OWK = $2; next } $1 == "CA" { CAO[++nca] = $2; CAC[$2] = substr($3, 1, 12); next } $1 == "SS" { SSO[++nss] = $2 "\t" $3; next }
-    $1 == "RSK" { RSO[++nrs] = $2 "\t" $3; next } $1 == "TRP" { TRP = $2; next }
+    $1 == "RSK" { RSO[++nrs] = $2 "\t" $3; next } $1 == "TRP" { TRP = $2; next } $1 == "FLD" { FLD = $2; next }
     $1 == "SM" { if (!(($2, $3) in SMS)) { SMS[$2, $3] = 1; SMK[++nsm] = $2; SMN[nsm] = $3; SMC[nsm] = $4 } next }
     END {
       # with exactly one lane, a step naming none is that lane'"'"'s, as the planner reads it
@@ -507,6 +515,7 @@ triggers_() {
       for (i = 1; i <= nca; i++) { n = CAO[i]; print "context", "ask", "#" n, CAC[n], "/vid:vid-accept-step " n " " CAC[n] }
       for (i = 1; i <= nrs; i++) print "context", "report", RSO[i]   # FB-3 A2
       if (TRP != "") print "context", "team-reports", TRP   # FB-3 A3
+      if (FLD != "") print "context", "folder", FLD   # FB-4 B1
       # FB-3 C5 (g): what the own proposal, due and not made, would cover and touch, by count (next-move.sh asks it)
       if (RYS == "own" && RYO == "due") { ot = 0; tt = 0; tr_ = 0
         for (i = 1; i <= nt; i++) if (TKS[TO[i]] != "CLOSED") { ot++; OTK[TO[i]] = 1 }
@@ -556,7 +565,11 @@ triggers_() {
       else if (RYS == "own" && RYO == "due") print "move", "implement-replan", "-", "@", "makes its own proposal for the pending changes, nothing in them adding a test, shows its page and applies nothing; named again, it applies what was shown; needs your words"
       else if (RYS == "own" && RYO != "refused") print "move", "implement-replan", "-", "@", "applies the pending changes with its own proposal " RYP ", nothing in them adding a test: " RYW (RYV == "needed" ? "; the rows ViD'"'"'s planner adds need a fresh agent'"'"'s review first" : "") "; needs your words"
     }' "$T/f" > "$T/o"
-  tiers_ "$T/o" > "$T/o2"; hashmoves "$T/o2"; }
+  tiers_ "$T/o" > "$T/o2"; hashmoves "$T/o2" > "$T/o3"
+  # FB-4 A3: what the apply's posts need and lack (replan.sh ready's needs lines), on implement-replan's line and not in its hash, so
+  # these words refuse no yes (its fingerprint, rpfp_, holds the handed record as before)
+  awk -F'\t' -v OFS='\t' -v RD="$T/rdy" 'BEGIN { while ((getline l < RD) > 0) { split(l, a, "\t"); if (a[1] == "needs") n = n (n == "" ? "" : "; ") a[6] } }
+    n != "" && $1 == "move" && $2 == "implement-replan" { $5 = $5 "; missing for its posts: " n } { print }' "$T/o3"; }
 # short_ <lines file> (FB-3 C5): the call's lines as shown, one line a kind: the counted lines of a kind, the triggers of a tier and what,
 # the quiet lines of a tier, what and state, the sub-issues of a ticket and the warnings of a move's kind and limit (after the moves),
 # each `<its first fields> TAB <count> TAB <subjects>: <evidence>; …`, every subject and every evidence in it, the subjects of one

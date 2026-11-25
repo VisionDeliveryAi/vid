@@ -2,7 +2,7 @@
 # Purpose: selftest case — what an analysis or an apply needs is asked before it starts (FB-3 E2), on the toy switched to GitHub manual with
 # its tickets (no engines line on record) and the fake gh. The switch and a take-stock in manual, and round.sh accept --outside of a ticket,
 # of rows and of several tickets, in both modes, each print `engines not named — /vid:vid-accept-step engines "<primary> <other>…" "<words>"`
-# once; a refused record does not. `replan.sh scope` prints `needs engines — named before the apply` beside its review line, and the call's
+# once; a refused record does not. `replan.sh scope` says them missing in its list (FB-4 A3: `needs engines missing apply owner` and the same words), and the call's
 # question of an own proposal due says it; `replan.sh own` and `analyse` print nothing of it, so a making that is refused names its real
 # reason. The command it names, the vid-connect start, `results.sh declare --engines … --words …` and the end, records them in both modes;
 # then none of these lines is printed. In GitHub auto, where a close with no engines ends `round.sh next` in an error, the same command
@@ -14,7 +14,7 @@ T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 . "$CHECKS/selftest/fixtures/planner-toy.sh"; . "$CHECKS/selftest/fixtures/tickets.sh"; . "$CHECKS/selftest/fixtures/manual.sh"
 fail() { echo "engines-asked: $*" >&2; cat "$T/out" >&2 2>/dev/null; exit 1; }
 L='engines not named — /vid:vid-accept-step engines "<primary> <other>…" "<words>"'
-asks() { [ "$(grep -cxF "$L" "$T/out")" = 1 ] || fail "$1 does not say, once, that the engines are not named"; }; none() { ! grep -qi 'engines not named\|needs.engines\|needs engines' "$T/out" || fail "$1 says the engines are not named"; }
+asks() { [ "$(grep -cxF "$L" "$T/out")" = 1 ] || fail "$1 does not say, once, that the engines are not named"; }; none() { ! grep -qi 'engines not named\|needs.engines.missing' "$T/out" || fail "$1 says the engines are not named"; }
 st() { HOME=$T/home MN_RC=0; sh "$CHECKS/mode.sh" "$@" --review "$T/review" > "$T/out" 2>&1 || MN_RC=$?; }
 rd() { RC=0; sh "$CHECKS/round.sh" "$@" > "$T/out" 2>&1 || RC=$?; }
 lock() { CLAUDE_CODE_SESSION_ID=engines; export CLAUDE_CODE_SESSION_ID; sh "$CHECKS/github.sh" lock-take engines > "$T/out" 2>&1 || fail 'no lock'; }; free() { sh "$CHECKS/github.sh" lock-free > "$T/out" 2>&1 || fail 'the lock could not be freed'; }
@@ -31,8 +31,8 @@ st manual; [ "$MN_RC" = 0 ] || fail "the take-stock exited $MN_RC"; asks 'the ta
 # the analysis: scope says it; the question of an own proposal says it; a refused making names its real reason
 printf '\nThe pages are served by one process.\n' >> ARCHITECTURE.md; git commit -qam 'the architecture, one line more'
 lock; sh "$CHECKS/next.sh" read > "$T/out" 2>&1 || fail 'next.sh read failed'
-sh "$CHECKS/replan.sh" scope > "$T/out" 2>&1 || fail 'replan.sh scope failed'; tail -n 2 "$T/out" | tr '\t' ' ' > "$T/tl"; printf 'review needed\nneeds engines — named before the apply\n' | cmp -s - "$T/tl" || fail 'scope does not say the engines beside its review'
-sh "$CHECKS/next-move.sh" call > "$T/out" 2>&1 || fail 'the call failed'; grep '^proposal due: ' "$T/out" | grep -qF 'needs engines — named before the apply' || fail 'the question of the own proposal does not say it'
+sh "$CHECKS/replan.sh" scope > "$T/out" 2>&1 || fail 'replan.sh scope failed'; tr '\t' ' ' < "$T/out" > "$T/tl"; [ "$(grep -cxF "needs engines missing apply owner $L" "$T/tl")" = 1 ] && [ "$(tail -n 1 "$T/tl")" = 'review needed' ] || fail 'scope does not say, in its list, that the engines are missing'
+sh "$CHECKS/next-move.sh" call > "$T/out" 2>&1 || fail 'the call failed'; grep '^proposal due: ' "$T/out" | grep -qF "$L" || fail 'the question of the own proposal does not say it'
 sh "$CHECKS/replan.sh" own > "$T/out" 2>&1 || fail 'the own proposal was not made'; none 'a proposal made'; rm -rf .vid/next/proposal; cp .vid/tw/handed "$T/kept"; printf 'row ROW-001 nonsense\n' >> .vid/tw/handed
 RC=0; sh "$CHECKS/replan.sh" own > "$T/out" 2>&1 || RC=$?; [ "$RC" != 0 ] && grep -q 'could not be made: ViD writer: refused — \.vid/tw/handed' "$T/out" || fail 'a refused making does not name its real reason'; none 'a refused making'; ! grep -q 'engines' .vid/next/own-refused || fail 'the kept reason is the engines'
 cat "$T/kept" > .vid/tw/handed

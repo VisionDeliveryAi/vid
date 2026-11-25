@@ -27,4 +27,9 @@ grep -q "^found applied $AP — .*the stamp upstream/vid/STAMP" "$T/mo" || fail 
 # FB-3 B2: the export's line a local one
 sed 's/ state=pushed / state=local /' .vid/tw/log > "$T/lg"; cat "$T/lg" > .vid/tw/log; rm -f .vid/tw/applied; mn_switch
 grep -q "^found applied $AP — .*the stamp upstream/vid/STAMP.* state=local" "$T/mo" || fail 'the applied version was not found from an export kept in the project'
+# FB-4 B1: none recorded and none given, and the folder holds another commit's spec than the one found: the line before compares it with
+# none, and after `found applied` it is said to differ, naming the folder's commit, the one found and --applied
+printf '\nOne line more.\n' >> PRD.md; git commit -qam 'PRD.md: one line more'; C1=$(git rev-parse HEAD); tk_dev 'the spec, by hand' upstream/vid/PRD.md "$(git show "$C1:PRD.md")"; rm -f .vid/tw/applied; mn_switch
+f=$(grep -n '^found applied ' "$T/mo" | cut -d: -f1); d=$(grep -n "^folder upstream/vid on main holds the spec of $(printf %.12s "$C1"), not of the applied version $(printf %.12s "$AP").*--applied $(printf %.12s "$C1")" "$T/mo" | cut -d: -f1)
+[ -n "$f" ] && [ -n "$d" ] && [ "$f" -lt "$d" ] || fail 'a folder of another commit than the one found is not said to differ, after it is found'
 echo 'mode-spec-stamp: ok'

@@ -34,6 +34,10 @@ stage's findings, the vid-answer skill's.
 | `walk-brief <N> <folder>`, `walk-started <N> <pid>` | The walk's brief is written and its walker started by `walk.sh start`, a session of its own: say so in one line. Nothing waits for it; its walk is read once it ends |
 | `facts <N> <k> at <path>`, then `summary <N>` | Write the summary beside those facts, as the `summary <N>` row below says |
 
+A stage's close waits for the test-site tests of its own steps, an outside service among them with its step's stage (FB-4 A2),
+never for a test of the practice release or of production, which those runs prove, nor again for an outside service the
+developers could reach (`place: dev`), accepted with its step.
+
 ## The stage's lines, in both modes
 
 In GitHub auto the entries are also `close.sh ask --stage`, `summary` and `close-stage`, `walk.sh` and `end.sh complete` through

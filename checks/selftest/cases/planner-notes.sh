@@ -15,7 +15,9 @@ set -eu
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 fail() { echo "planner-notes: $*" >&2; cat "$T/out" >&2 2>/dev/null; exit 1; }
 . "$CHECKS/selftest/fixtures/planner-toy.sh"
-fresh() { cd "$T"; rm -rf toy; pt_toy "$T/toy"; printf '## Stack\n\n- one web framework\n' > BASELINE.md; printf '\n```vid-hosting\nplatform: one\n```\n' >> ARCHITECTURE.md; }
+fresh() { cd "$T"; rm -rf toy; pt_toy "$T/toy"; printf '## Stack\n\n- one web framework\n' > BASELINE.md; printf '\n```vid-hosting\nplatform: one\n```\n' >> ARCHITECTURE.md
+  # FB-4 A2: SEAM-002, not-yet, would be noted (planner-place-dev's note); here its reason is another
+  sed 's/^\(seam | SEAM-002 .*\)unreachable-risk(credentials not-yet)/\1unreachable-risk(the partner has no test access)/' INVENTORY.md > "$T/iv" && cat "$T/iv" > INVENTORY.md; }
 pl() { sh "$CHECKS/planner.sh" "$@" > "$T/out" 2>&1; }
 notes() { pl page || fail 'page failed'; sed -n '/^## Notes$/,/^## /p' .vid/plan/PLAN-PAGE.md | grep '^- ' || true; }
 AH="- stage 2: 1 step can start, by its links, before an earlier stage's last step is done: S05 (wave 3); admission's stage rule holds a step of stage 2 until stage 1 has its candidate"

@@ -34,12 +34,12 @@ snap "$T/s0"
 # refused: ROW-013 taken out of S02, nothing written
 B=$T/bad; mkdir -p "$B"; sed -e 's/^\(step S02 .*\) ROW-013 /\1 /' -e 's/^\(step S06 .*rows:\) /\1 ROW-013 /' "$C/block" > "$B/block"; cp "$C/left" "$C/review" "$B/"
 { cat "$C/changes"; printf 'S02\tscope-change\tcommit:%s\tROW-013 moves to S06\n' "$(git rev-parse --short HEAD)"; } > "$B/changes"
-RC=0; sh "$CHECKS/replan.sh" analyse --candidate "$B" > "$T/out" 2>&1 || RC=$?
+RC=0; pt_placed "$B/placement"; sh "$CHECKS/replan.sh" analyse --candidate "$B" > "$T/out" 2>&1 || RC=$?
 [ "$RC" = 1 ] && grep -q 'rule-2 ROW-013' "$T/out" || fail "the analysis of a candidate taking ROW-013 out of #$N exited $RC, or named no rule-2 breach"
 [ ! -e .vid/next/proposal ] && [ ! -e .vid/pages/REPLAN-PAGE.html ] || fail 'the refused analysis wrote a proposal or a page'
 snap "$T/s1"; cmp -s "$T/s0" "$T/s1" || { diff "$T/s0" "$T/s1" > "$T/out"; fail 'the refused analysis changed a record, the commit, the tree or the fake GitHub'; }
 # the analysis
-RC=0; sh "$CHECKS/replan.sh" analyse --candidate "$C" > "$T/out" 2>&1 || RC=$?
+RC=0; pt_placed "$C/placement"; sh "$CHECKS/replan.sh" analyse --candidate "$C" > "$T/out" 2>&1 || RC=$?
 [ "$RC" = 0 ] || fail "the analysis exited $RC"
 P=.vid/next/proposal
 cmp -s "$C/block" "$P/block" || fail 'the proposal does not hold the block as the candidate wrote it'

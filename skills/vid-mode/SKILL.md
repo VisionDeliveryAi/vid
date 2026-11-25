@@ -26,6 +26,9 @@ to GitHub auto, or takes stock again in it (GM M2). From any other mode, `auto` 
      tickets quote rows the spec lacks, the copy they were written from (`--from <folder>`, GM-3 S2: its INVENTORY.md, and
      its PLAN.md and plan records where the project holds none). Run the switch again with them; each one given overrides
      what ViD would find.
+   - Whatever the exit, a `folder …` line (FB-4 B1: which commit's spec the code repository's folder holds, told from its files' ids) is
+     the first thing to say to the owner, in plain words. When it says another commit's than the applied one, ask which of the two the
+     published tickets were written from before going on; their answer is `--applied`. It is a warning: ViD never takes that commit itself.
    - 3: each `ask <key>` line is a setup question. Ask each as /vid plan's setup asks it, record the answer with
      `sh checks/planner.sh setup <key> <answer> --words "<their words>"`, and run the switch again. The answer to
      `state-repo` is also the owner's yes to make that repository, private.

@@ -10,7 +10,7 @@
 # The trailer is a declaration; the proof of separation is the pass file's
 # spawn (the independence header). This hook receives the message file,
 # which pre-commit never sees.
-# v0.9.6.2 (3.4, R4): each of its two refusals writes `refused
+# v0.9.6.2 (3.4, R4): its refusals write `refused
 # phase=commit-msg by=decisions|tests-by attempt=<UTC time plus 4 hex>` to
 # the run's events (checks/event.sh, so at the run's home). Nothing new is
 # enforced.
@@ -31,12 +31,17 @@
 # (Q: dropped, AMENDED folded) and rows left as they were add none, and so does
 # the first commit of a PRD.md HEAD does not hold (an adopted file's rulings
 # were given where it was written).
+# FB-4 C2: a refused message says every reason at once — its checks go on past a refusal, and one `refused` event at the
+# end names them, comma-separated. Run by hand on a draft, `sh checks/hooks/commit-msg <file>`, it checks the draft against
+# the staged files. VID_NEEDS=1 (pre-commit's call on a commit it refuses, to say what the message will need): no event.
 # serves: both (0.26.10.28.4, M9)
 set -eu
 
-MSG_FILE="$1"
+MSG_FILE="$1"; BYM=''
+add() { BYM="${BYM:+$BYM,}$1"; }   # one more reason
 # refused <by>: the refusal's event; never changes the exit
 refused() {
+  [ -z "${VID_NEEDS:-}" ] || return 0
   _att="$(date -u '+%Y%m%dT%H%M%SZ')-$(od -An -N2 -tx1 /dev/urandom 2>/dev/null | tr -d ' \n')"
   _evh="$(dirname "$0")/../event.sh"
   if [ -f "$_evh" ]; then sh "$_evh" "refused phase=commit-msg by=$1 attempt=$_att" 2>/dev/null || true
@@ -56,8 +61,7 @@ if ! grep -v '^#' "$MSG_FILE" | grep -qE '^Decisions:[[:space:]]*[^[:space:]]'; 
   echo '    REQs: <ids touched, or "none">' >&2
   echo '    Decisions: <entries added, or "none — nothing surprising">' >&2
   echo '    Seams: <ARCHITECTURE.md rows changed, or "none">' >&2
-  refused decisions
-  exit 1
+  add decisions
 fi
 
 # v0.26.10.5 (R4): a change to stage membership — STAGES.md's STAGE-, split: or row: lines, or the file created or
@@ -65,8 +69,7 @@ fi
 # nor the index holds STAGES.md.
 _st="$(dirname "$0")/../stages.sh"
 if [ -f "$_st" ] && ! sh "$_st" msg "$MSG_FILE"; then
-  refused stages
-  exit 1
+  add stages
 fi
 
 # 0.26.10.29.3 (R2): an owner ruling the commit adds carries the owner's words (the header above). rulings <blob>: the
@@ -88,8 +91,7 @@ $(rulings "$_mh:PRD.md")"; fi
     echo '    Owner: "<the owner'"'"'s words>"' >&2
     echo '    Owner: A-NNN "<the owner'"'"'s words for that answer>"' >&2
     echo 'An answer the owner has not seen is ViD'"'"'s draft: write it model_proposed, and restate it human (an AMENDED row) once the owner says yes.' >&2
-    refused owner
-    exit 1
+    add owner
   fi
 fi
 
@@ -112,8 +114,8 @@ if [ -n "$ADDED" ]; then
       '') ;;
       *) echo "\"Tests-by: $TB\" is not the shape above." >&2 ;;
     esac
-    refused tests-by
-    exit 1
+    add tests-by
   fi
 fi
+[ -z "$BYM" ] || { refused "$BYM"; exit 1; }
 exit 0

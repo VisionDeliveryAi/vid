@@ -636,6 +636,16 @@ if [ "$GRAMMAR" = 0.9.2 ]; then
       OTHER=$((OTHER + 1)) ;; esac ;; esac
   done
 fi
+# 2b2b. FB-4 A2: a seam's optional `place: dev`, the developers can reach the service with credentials of their own (read by the ticket-mode
+# planner alone: checks/planner.sh), is checked for form: the one word dev, and credentials: held.
+for sm in $SEAMS; do
+  plc=$(labeled "$sm" place); [ -n "$plc" ] || continue
+  if [ "$plc" != dev ]; then
+    echo "GAP  $(field "$sm" 2) ($(field "$sm" 3)) — place: $plc; a seam's place: is dev, or absent (FB-4 A2)."; GAPS=$((GAPS + 1))
+  elif [ "$(labeled "$sm" credentials)" != held ]; then
+    echo "GAP  $(field "$sm" 2) ($(field "$sm" 3)) — place: dev needs credentials: held; without them the service is checked on the test site: leave place: out (FB-4 A2)."; GAPS=$((GAPS + 1))
+  fi
+done
 # 2b3. v0.9.3 (3.13): an owed seam probe is completion debt, named.
 SEAMOWED=0
 if [ "$G93" = yes ]; then

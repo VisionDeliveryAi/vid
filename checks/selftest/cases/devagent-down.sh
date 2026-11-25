@@ -41,7 +41,9 @@ cm "$DN" 'vid: again dn'; is "work $DN"
 g issue close "$DN" -R owner/code; is none
 grep -q '^## A take-down okay' "$RT/devagent/agents/dev-manager.md" || fail 'dev-manager.md has no paragraph for a take-down okay'
 grep -qF 'deploy.sh stop --setup <record> --target staging|production --report deploy-<n> --commit <the commit>' "$RT/devagent/agents/dev-manager.md" || fail "dev-manager.md does not give the take-down's command"
-# the deployer: a local staging, then the local live copy
+# the deployer: a local staging, then the local live copy; its ports from its own bases, so that no deploy of a case running beside it takes
+# the port it has just freed
+DP_PORT=47700; DP_PRODUCTION_PORT=47800; export DP_PORT DP_PRODUCTION_PORT
 sp_project; cd "$T"; S=$W/dev-setup.txt; O="git -C $T/origin.git"; DEVAGENT_ENVIRONMENTS=$T/envs; export DEVAGENT_ENVIRONMENTS
 FH=$T/host; mkdir -p "$FH"; export FH
 dn() { sh "$DP" stop --setup "$S" --target production > /dev/null 2>&1 || true; for f in "$T"/listen-*; do [ -f "$f" ] && kill "$(cat "$f")" 2> /dev/null || true; done; sh "$FHT" down > /dev/null 2>&1 || true; }

@@ -22,7 +22,7 @@ C=$T/cand; mkdir -p "$C"; awk '/^## The plan/ { s = 1; next } s && /^```vid-plan
   sed -e 's/^\(step S02 .*rows:\) /\1 ROW-021 /' -e 's/^needs ROW-001 /needs ROW-021 ROW-001 /' -e 's/^\(step S04 .*rows:\) /\1 ROW-024 /' -e 's/^needs ROW-002 /needs ROW-024 ROW-002 /' -e '/^step S05 /{p;s/.*/step S06 | name: the digest, better said | modules: digest | builds-on: S02 | rows: ROW-022 ROW-023 | lane: devagent/;}' -e '/^needs ROW-017 /{p;s/.*/needs ROW-022 ROW-023 | -/;}' > "$C/block"
 h=$(git rev-parse --short HEAD); printf 'S06\tscope-change\tcommit:%s\tthe two are built and tested in a step of their own\nS02\tscope-change\tcommit:%s\tROW-021 joins the step it belongs to\nS04\tscope-change\tcommit:%s\tROW-024 joins the step it belongs to\n' "$h" "$h" "$h" > "$C/changes"
 printf 'none\n' > "$C/review"; sh "$CHECKS/replan.sh" scope > "$T/out" 2>&1 || fail 'scope failed'; awk -F'\t' '$1 == "trigger" { print "trigger\t" $3 " " $4 "\tno plan change helps it" }' "$T/out" > "$C/left"
-sh "$CHECKS/replan.sh" analyse --candidate "$C" > "$T/out" 2>&1 || fail 'the analysis was refused'
+pt_placed "$C/placement"; sh "$CHECKS/replan.sh" analyse --candidate "$C" > "$T/out" 2>&1 || fail 'the analysis was refused'
 M=.vid/next/proposal/REPLAN-PAGE.md; H=.vid/pages/REPLAN-PAGE.html; cp "$M" "$T/out"
 sec() { awk -v s="## $1" '$0 == s { f = 1; next } /^## / { f = 0 } f' "$M"; }
 L1='ROW-021: A saved search shows the day its last digest went out.'

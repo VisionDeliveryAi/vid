@@ -54,7 +54,7 @@ blk | sed -e 's/^\(step S02 .*rows:\) /\1 ROW-021 /' -e '/^needs ROW-017 /{p;s/.
 printf 'S02\towner-answer\tticket:%s\tROW-021 joins S02, as the team added it to #%s\n' "$N" "$N" > "$T/with/changes"
 blk > "$T/without/block"
 printf 'no-step\tROW-021\tthe owner leaves it out of #%s for now\n' "$N" > "$T/without/left"
-RC=0; sh "$CHECKS/replan.sh" analyse --candidate "$T/without" > "$T/out" 2>&1 || RC=$?
+RC=0; pt_placed "$T/without/placement"; sh "$CHECKS/replan.sh" analyse --candidate "$T/without" > "$T/out" 2>&1 || RC=$?
 [ "$RC" = 1 ] && grep -q "ROW-021" "$T/out" && grep -q 'without' "$T/out" || fail "a candidate leaving ROW-021 out of #$N with no without exited $RC, or did not name it"
 [ ! -e .vid/next/proposal ] || fail 'the refused analysis wrote a proposal'
 # a read that could not read #N's body: refused, naming it, nothing written
@@ -77,7 +77,7 @@ RC=0; sh "$CHECKS/replan.sh" analyse --candidate "$T/without" > "$T/out" 2>&1 ||
 [ "$RC" = 1 ] && grep -q "team #$N ROW-021" "$T/out" || fail "with #$N closed, a candidate leaving ROW-021 in no step with no without exited $RC, or did not name it"
 [ ! -e .vid/next/proposal ] || fail 'the analysis with #N closed wrote a proposal'
 echo OPEN > "$FAKEGH/issues/$N/state"; am_read || { cat "$T/rd" "$T/ch" > "$T/out"; fail 'next.sh read or changes failed with #N open again'; }
-RC=0; sh "$CHECKS/replan.sh" analyse --candidate "$T/with" > "$T/out" 2>&1 || RC=$?
+RC=0; pt_placed "$T/with/placement"; sh "$CHECKS/replan.sh" analyse --candidate "$T/with" > "$T/out" 2>&1 || RC=$?
 [ "$RC" = 0 ] || fail "the analysis with ROW-021 in S02 exited $RC"
 grep -q "^$N${TB}added${TB}ROW-021\$" .vid/next/proposal/amend || { cat .vid/next/proposal/amend > "$T/out" 2>&1; fail "the proposal does not top #$N up with ROW-021"; }
 grep -q "^$N${TB}ROW-021${TB}$EVD\$" .vid/next/proposal/team-in || { cat .vid/next/proposal/team-in > "$T/out" 2>&1; fail 'the proposal does not take ROW-021 in with its evidence'; }
@@ -109,7 +109,7 @@ mkdir -p "$T/ap"; printf 'none\n' > "$T/ap/review"
 blk | sed -e 's/^\(step S02 .*rows:\) /\1 ROW-022 /' -e '/^needs ROW-017 /{p;s/.*/needs ROW-022 | -/;}' > "$T/ap/block"
 printf 'S02\towner-answer\tticket:%s\tROW-022 joins S02, as the team added it to #%s\n' "$N" "$N" > "$T/ap/changes"
 printf 'no-step\tROW-021\tthe owner said no to it on #%s; it waits to be placed\n' "$N" > "$T/ap/left"
-RC=0; sh "$CHECKS/replan.sh" analyse --candidate "$T/ap" > "$T/out" 2>&1 || RC=$?
+RC=0; pt_placed "$T/ap/placement"; sh "$CHECKS/replan.sh" analyse --candidate "$T/ap" > "$T/out" 2>&1 || RC=$?
 [ "$RC" = 0 ] && grep -q "^$N${TB}ROW-022${TB}$EV2\$" .vid/next/proposal/team-in || fail "the analysis taking ROW-022 in exited $RC, or does not take it in"
 RC=0; sh "$CHECKS/replan.sh" apply --words 'Yes, take the team addition in' > "$T/out" 2>&1 || RC=$?
 [ "$RC" = 0 ] || fail "the apply exited $RC"

@@ -1,7 +1,7 @@
 #!/bin/sh
 # Purpose: ViD's planner, PL (v0.26.10.12.2.1 R1–R10; v0.26.10.12.2.2
 # R1, R3–R5, R7, R8) — the ticket-mode plan read and judged. Every line of the ratified INVENTORY.md's ```vid-inventory
-# blocks is a planned row, word for word: its id, requirements, stage (stages.sh scope; a seam is stage 1), marks,
+# blocks is a planned row, word for word: its id, requirements, stage (stages.sh scope; a seam is of its step's, 1 in no step), marks,
 # promise, fail-if and every other field carried by name, but what DevAgent owns (a test path, proved-red:, a golden:
 # path as text, a one-path census, a suppression, a class-only exception, a seam's evidence paths, module:, match:).
 # ViD's rows are appended to the inventory in the schema's form, `| origin: plan <item>` last. PLAN.md holds the
@@ -23,7 +23,7 @@
 #             shared: token no Module of ARCHITECTURE.md, `shared: -` apart; no name, modules or rows; an unknown field;
 #             a row in two steps; a builds-on: naming no step or a later one); skeleton (P4: exactly one step of kind:
 #             skeleton, building on nothing — with a STAGE-0 exactly stage 0's rows left there, else one stage-1 row; no
-#             owed- mark, no seam; stage 0 holds no other step; a step in one stage, building only on steps of its own or
+#             owed- mark, no seam, no service; stage 0 holds no other step; a step in one stage, building only on steps of its own or
 #             earlier stages); size (P12: a step over rule A's ceiling, plan.sh's budget read the same way, a journey
 #             counted once); standing (P5); unread, golden (P9); setup (a team: line out of form); lane (a lane not the
 #             setup's; with more than one lane, a step with none); needs (R10: a row of a step in no `needs <rows> | <steps
@@ -35,7 +35,7 @@
 #             the home step (the most of its other rows, the earliest on a tie) of one of its items, in its stage or before;
 #             v0.26.10.12.3.2: a step with a builds-on: whose every needs line names exactly those steps (R7); a step's rows 10
 #             or more places in the block after the last step their needs line names, a `-` line naming the block's first (R8);
-#             a step over 40 rows, a journey counted once (R9)
+#             a step over 40 rows, a journey counted once (R9); FB-4 A2: the seams paid at staging only because no credentials were held
 #   rows [--short]   the rows table, tab-separated after a `#` header line: id, kind (row, tr or record), parent,
 #             items, stage, class, marks, promise, fail-if, class text, carried (`name: value` joined by ` · `), golden
 #             (the set's path, or -); --short cuts each promise to 80 characters. PLAN.md may be absent
@@ -44,6 +44,10 @@
 #   teams | steps [--block <file>]   (GM-4 F10) the setup's teams, `<name> TAB <area> TAB <strict|core> TAB <people>`, and the
 #                    plan's steps, `<step> TAB <name> TAB <its stage> TAB <rows> …`, as the planner reads them (--block, --at and
 #                    --plan-md as check takes them)
+#   setsup [--block <file>]   (FB-4 A5) which step is the first to set up which data store, `<step> TAB <module> TAB <owned cell>` a
+#             line in the block's order, the seam table's order in one step: a module whose Owned tables/data cell of
+#             ARCHITECTURE.md's seam table holds something (none…, empty or a dash: nothing), with the first step naming it in
+#             modules:; one in shared: alone is the skeleton's; one in neither has the step `-`, last. Nothing without that column (--at as check takes it)
 # GitHub manual (GM-1 S3, S4; lib.sh's manual): every subcommand but setup and rows --newest reads PRD.md, INVENTORY.md,
 #             STAGES.md, GRADING-CHECKLIST.md and ARCHITECTURE.md at .vid/tw/applied's commit and PLAN.md at HEAD, and refuses
 #             when that names no commit (reratify refuses outright: the door lands nothing); P1's check of INVENTORY.md against
@@ -68,7 +72,7 @@
 #             ceiling, guards, builds-on and dashed links; with more than one lane, each lane's steps and the links
 #             between teams; the longest chain and "Row counts are not effort"; the shared: line; the prose below the block; the waves by
 #             the longest builds-on chain; each recorded change, newest first); the rows ViD added and the standing
-#             lines; the rows waiting on an open question; each stage, stage 0 first, its card, its steps, every row in
+#             lines; where the tests go, what two readers found (FB-4 A1: .vid/plan/placement/); the rows waiting on an open question; each stage, stage 0 first, its card, its steps, every row in
 #             full; the golden sets, each once (v0.26.10.12.3.2, R6); the grading checklist and the records; the later-phase
 #             rows; the counts
 #   counts    per stage `stage <n> inventory= seams= added= rows= planned= moved= owed= limit= record= transitions=
@@ -78,7 +82,9 @@
 #   ratify --words "<the owner's words>"   `ratified hash=<h> plan=<plan hash> at=<t> words=<verbatim>` in
 #             .vid/plan/ratified; refused, each reason named, while a check flag is open, no review has the current
 #             hash, a finding of it has no answer, the block is not the newest recorded plan, or the newest page did
-#             not show this plan. GM-3 U4: in GitHub manual a size flag is no flag here either, as in ratified (GM M4)
+#             not show this plan. GM-3 U4: in GitHub manual a size flag is no flag here either, as in ratified (GM M4). FB-4 A1: a
+#             first ratification, with no ticket published and not /vid mode's, is refused too with no .vid/plan/placement/result (a
+#             step left out, never a finding: findings refuse nothing)
 #   reratify --words "<the owner's yes>" --base <b> --to <t> --held <file,…>   (v0.26.10.25.5, R3) a counted change landed
 #             during a run, ratified by the owner's yes with no new sitting: a ratification in those words (checks/land.sh records
 #             the publish-approved event in the same words, as vid-plan does after ratify); refused while a check flag is open, when the spec files at the base are not the newest ratified ones,
@@ -103,9 +109,27 @@
 #             layout: one in GitHub auto alone, the export being kept in the project in manual) and github-mode that no such event covers; in GitHub manual (GM-1 S1) state-repo too, and github-mode
 #             not under /vid mode's own mark (GM-2 §5's issue-form, issue-parent and plan-page are asked by /vid mode, not flagged here)
 #   prereq    (v0.26.10.12.3.2, R10) what the skeleton ticket quotes, no PLAN.md needed: one line per gap, exit 0; the page's notes repeat each
+#   placements write <dir> [--again] [--all] [--since <plan hash>] [--block <f> --at <c> --plan-md <f>]   (FB-4 A1) the placements two
+#             independent readers judge (the vid-placement-review skill); a placement is a planned test and the step it stands in, or
+#             none. With no ratification yet every one; else each that differs from the newest recorded plan (--since: from that one):
+#             the test's step changed, is new, or reaches another set of steps through builds-on:; and each planned test in no step and
+#             each row of .vid/tw/to-place. The first round empties <dir>. --again, the second: what differs in the same way from the
+#             block the first judged, and the tests of each of its findings that stand or stand in part (of a step alone, the step's
+#             tests), and nothing else. --all: every one. Prints `listed <n>`; writes <dir>/part-<k>.md, whole steps, at most 150
+#             placements a part, a larger step in a part of its own: every step of the plan in order (name, stage, modules, builds-on,
+#             fakes, its open published ticket, new or changed, what it is first to set up, the ids of its tests), then the part's
+#             placements in the inventory's own words; and <dir>/listed and <dir>/judged (the list, the block). 0: nothing to review
+#   placements result <dir> [the same]   each part's two outputs, saved beside it as part-<k>.reader and part-<k>.refuter, checked for
+#             form alone (a finding names a test or a step of the plan and has exactly one line of the refuter's, a part with none needs no refuter's file, the reader's counts
+#             add up to the part's placements; else refused, exit 1, the line named, and with a refused reader's file its refuter's goes), then <dir>/result, tab-separated: `placed
+#             round=<r> listed= right= stands= partly= refuted= unjudged= at=`, one line a round; `finding <stands|partly> <round>
+#             <ids> <step> <rule> <wrong|doubt> <better> <quote> <harm> <the refuter's why>` for each that stands or stands in part; `unjudged
+#             <id> <why>`. The second round's findings take the first's place, the first's placed line and its unjudged lines of tests
+#             the second does not list, and its findings none of whose ids it lists, kept beside them; a third is not recorded, and it says so. <dir>/reviewed is the block judged
+#   placements show <dir> [--block <f> …]   <dir>/result as the pages show it
 #   prd-form  (0.26.10.28.1, stage 9 R6, CK-R-006) refuses a PRD.md in the legacy block form (no ```vid-prd block) in one line,
 #             exit 1, naming /vid create-prd's import door; silent, exit 0, on an enriched PRD or none
-# Usage: sh checks/planner.sh check | prereq | prd-form | rows [--short|--added|--newest] | teams | steps | review --in <file> | page | counts |
+# Usage: sh checks/planner.sh check | prereq | prd-form | rows [--short|--added|--newest] | teams | steps | setsup | placements … | review --in <file> | page | counts |
 #        answer <n> keep --words "<…>" | ratify --words "<…>" | reratify … | ratified | hash
 # serves: tickets (0.26.10.28.4, M9)
 set -eu
@@ -131,6 +155,21 @@ ceil() { [ -z "${CEILOV:-}" ] || { echo "$CEILOV"; return 0; }; b=''; s=''; if [
   if [ "$b" -gt "$c" ] && ! grep '^plan-change ' .vid/metrics-events 2>/dev/null | grep ' what=other ' | grep -q "unverified-rows=$b\([^0-9]\|$\)"; then b=$c; fi; echo "$b"; }
 mods() { [ -f ARCHITECTURE.md ] && awk -F'|' 'function tr(x) { gsub(/^[ \t`]+|[ \t`]+$/, "", x); return x }
   /^[ \t]*\|/ { if (done) next; if (!col) { for (k = 2; k < NF; k++) if (tr($k) == "Module") col = k; next } if ($0 ~ /^[ \t|:-]+$/) next; v = tr($col); if (v != "") print v; next } col { done = 1 }' ARCHITECTURE.md; }
+# setsup (FB-4 A5): the lines of `setsup` above, from the plan block (RUN-STATE's, or BLK's) and ARCHITECTURE.md alone
+setsup() { [ -f ARCHITECTURE.md ] || return 0; if [ -n "${BLK:-}" ]; then cat "$BLK"; else plan_block; fi > "$T/sublk" || :
+  awk -F'|' 'function tr(x) { gsub(/^[ \t`]+|[ \t`]+$/, "", x); return x }
+    FILENAME == ARGV[1] { l = tr($0); if (l ~ /^shared:/) { n = split(substr(l, 8), a, /[ ,\t]+/); for (i = 1; i <= n; i++) SH[a[i]] = 1; next }
+      if (l !~ /^step[ \t]/) next
+      s = tr($1); sub(/^step[ \t]+/, "", s); O[++ns] = s; for (k = 2; k <= NF; k++) { x = tr($k); if (x ~ /^kind:[ \t]*skeleton$/ && skel == "") skel = s
+        if (x ~ /^modules:/) { n = split(substr(x, 9), a, /[ ,\t]+/); for (i = 1; i <= n; i++) if (a[i] != "" && !(a[i] in F)) F[a[i]] = s } } next }
+    /^[ \t]*\|/ { if (done) next; if (!col) { oc = 0; for (k = 2; k < NF; k++) { if (tr($k) == "Module") col = k; if (tr($k) == "Owned tables/data") oc = k } next } if (!oc || $0 ~ /^[ \t|:-]+$/) next
+      m = tr($col); v = tr($oc); if (m == "" || v == "" || tolower(v) ~ /^none/ || v ~ /^(-|–|—)$/) next
+      M[++nm] = m; V[nm] = v; next } col { done = 1 }
+    END { for (i = 1; i <= nm; i++) W[i] = (M[i] in F) ? F[M[i]] : ((M[i] in SH) && skel != "") ? skel : "-"; O[ns + 1] = "-"
+      for (j = 1; j <= ns + 1; j++) for (i = 1; i <= nm; i++) if (W[i] == O[j]) print O[j] "\t" M[i] "\t" V[i] }' "$T/sublk" ARCHITECTURE.md; }
+# setsuppage (FB-4 A5): the same on the plan page
+setsuppage() { setsup > "$T/su"; [ -s "$T/su" ] || return 0; printf '\n### What each step is the first to set up\n\nFrom the owned data of ARCHITECTURE.md'"'"'s seam table and the steps'"'"' modules: the first step, in the block'"'"'s order, of\neach module that owns data. A module in shared: alone is the skeleton'"'"'s.\n\n'
+  awk -F'\t' '{ printf "- %s: %s (%s)\n", ($1 == "-" ? "in no step" : "**" $1 "**"), $3, $2 }' "$T/su"; }
 # gaps (R10): what the skeleton ticket quotes and does not find, read as writer.sh's stack() reads it, one line each
 gaps() { awk '/^## Stack[ \t]*$/ { on = 1; next } on && /^## / { exit } on' BASELINE.md > "$T/sk" 2>/dev/null || :; sed -n '/^```vid-hosting[[:space:]]*$/,/^```[[:space:]]*$/p' ARCHITECTURE.md 2>/dev/null | grep -v '^```' > "$T/ho" || :
   grep -q '[^[:space:]]' "$T/sk" || echo "the stack: BASELINE.md's \`## Stack\` section is missing or empty; the skeleton ticket quotes it"
@@ -241,7 +280,7 @@ inventory() {
     c1 == "suppression" { next }
     c1 == "seam" { id = A[2]; if (id !~ /^SEAM-[0-9]+$/ || n < 4) { flag("unread", (id == "" ? "seam" : id), "a seam line out of form"); next }
       CC = "service: " A[3]; for (i = 5; i <= n; i++) if (A[i] ~ /^(module|match):/ || (A[i] ~ /^evidence:/ && A[i] !~ /^evidence:[ \t]*owed$/)) continue; else extra(id, A[i])
-      keep(id, "row", "", "", "seam", A[4], GEN, CC, "-"); next }
+      keep(id, "row", "", "", (V["place"] == "dev") ? "service" : "seam", A[4], GEN, CC, "-"); next }   # FB-4 A2: a service the developers can reach is an ordinary test of its step
     { flag("unread", "\"" substr($0, 1, 40) "\"", "an inventory line of no kind the schema allows") }
     END {
       for (k = 1; k <= ne; k++) if (K[EX[k]] == "row" && M[EX[k]] == "rule") C[EX[k]] = add(C[EX[k]], EW[k]); else flag("unread", EI[k], EX[k] " is no rule of the inventory")
@@ -295,7 +334,7 @@ model() {
       if ("?" in K) flag("form", id, "the field " K["?"] ": twice") }
     function marks(id, m,   nm, ms, i, x, y, owed, mk) { gsub(/,/, " ", m); nm = split(m, ms, " "); owed = ""; mk = ""
       for (i = 1; i <= nm; i++) { x = ms[i]; if (x == "-") continue
-        if (x !~ /^(journey|protection|rule|seam|owed-staging|owed-production|owed-rehearsal|shell|reachability)$/) { flag("mark", id, "an unknown mark \"" x "\""); continue }
+        if (x !~ /^(journey|protection|rule|seam|service|owed-staging|owed-production|owed-rehearsal|shell|reachability)$/) { flag("mark", id, "an unknown mark \"" x "\""); continue }
         mk = mk (mk == "" ? "" : " ") x; M[id, x] = 1
         y = (x == "seam" ? "owed-staging" : x); if (y ~ /^owed-/ && index(owed, y) == 0) owed = owed " " y }
       if (split(owed, ow, " ") > 1) flag("mark", id, "two owed- marks")
@@ -371,6 +410,13 @@ model() {
         else if (mv != "") { cls[id] = "moved"; ctext[id] = "moved to stage " rstage[id] " by the owner (" a[2] ")" }
         else if (o != "") { cls[id] = "owed"; ctext[id] = "deploy-owed: " o ", in stage " rstage[id] }
         else { cls[id] = "planned"; ctext[id] = "planned to stage " rstage[id] } }
+      # FB-4 A2: a seam is of the own stage of its step, worked out without the seams: the stage the header of its published ticket names, else the
+      # one most of the other planned rows of the step are in, the earliest on a tie; in no step, or in a step of seams alone, 1; a moved: line stands
+      for (i = 1; i <= ns; i++) { s = sorder[i]; n = split(srows[s], a, " "); split("", pn); bst = ""
+        for (j = 1; j <= n; j++) { r = a[j]; if (r ~ /^SEAM-/ || !(r in rkind) || rkind[r] != "row" || cls[r] !~ /^(planned|moved|owed)$/) continue; oth[s] = 1; pn[rstage[r]]++ }
+        for (k in pn) if (bst == "" || pn[k] > pn[bst] || (pn[k] == pn[bst] && before(k, bst))) bst = k
+        if (s in PSG) bst = PSG[s]; if (bst == "") continue
+        for (j = 1; j <= n; j++) { r = a[j]; if (r !~ /^SEAM-/ || !(r in rkind) || cls[r] !~ /^(planned|owed)$/ || (r in sms)) continue; sms[r] = rstage[r] = bst; sub(/stage 1$/, "stage " bst, ctext[r]) } }
       for (i = 1; i <= nr; i++) { id = order[i]
         if (rkind[id] == "record") { cls[id] = "record"; ctext[id] = "record: deliberately not tested, in no step" }
         else if (rkind[id] == "row" && rstage[id] == "later") { cls[id] = "later"; ctext[id] = "later phase, in no step until an amendment brings it in" } }
@@ -416,7 +462,7 @@ model() {
           if (!(r in rkind)) { flag("step", s, r " is no planned row"); continue }
           if (rkind[r] == "tr") { flag("step", s, r " is no planned row: a transition; its journey stands for it"); continue }
           c++; last = r; has[r] = 1; if (r ~ /^(HOS|RULE|DIF|SEAM)-/) gd[s]++; if (sst[s] == "?") sst[s] = rstage[r]; if (index(" " got " ", " " rstage[r] " ") == 0) got = got (got == "" ? "" : " and ") rstage[r]
-          if (MAN && cls[r] ~ /^(planned|moved|owed)$/) { if (!((s, rstage[r]) in pc)) pst[s] = pst[s] " " rstage[r]; pc[s, rstage[r]]++ } }   # D4, GM M4: the stages of the planned rows of a step, for its own stage
+          if (MAN && cls[r] ~ /^(planned|moved|owed)$/ && (r !~ /^SEAM-/ || !(s in oth))) { if (!((s, rstage[r]) in pc)) pst[s] = pst[s] " " rstage[r]; pc[s, rstage[r]]++ } }   # D4, GM M4: the stages of the planned rows of a step, for its own stage
         # GM-1 S3 (§5), D4 and GM M4 (the stage of a step is its own), GM M2 (rows to place): in GitHub manual the own stage of a step is the stage most of its planned rows are in, the earliest on a tie; each
         # planned row of another stage is a row to place, `place <row> — in step <s> of stage <k>; its own stage is <j>`, in place of
         # the step-level "its rows are in stages" flag
@@ -435,7 +481,7 @@ model() {
           else { z = 0; for (r in s0) { z++; if (!(r in has)) flag("skeleton", s, "lacks " r ", a row of stage 0") }
           if (z) { for (r in has) if (!(r in s0)) flag("skeleton", s, "holds " r ", which is no row of stage 0") }
           else { if (c != 1) flag("skeleton", s, "holds " c " rows; with no stage 0 the skeleton holds one, the golden path"); if (c == 1 && rstage[last] != "1") flag("skeleton", s, "its row " last " is in stage " rstage[last] ", not stage 1") } }
-          for (r in has) if (rowed[r] != "") flag("skeleton", s, "its row " r " is deploy-owed or a seam") } }
+          for (r in has) if (rowed[r] != "" || M[r, "service"]) flag("skeleton", s, "its row " r " is deploy-owed or a seam") } }
       for (i = 1; i <= ns; i++) { s = sorder[i]; n = split(sb[s], a, /[ ,]+/); for (j = 1; j <= n; j++) { b = a[j]; if (b == "") continue
           if (!(b in sidx)) flag("step", s, "builds on " b ", which is no step")
           else if (sidx[b] >= i) flag("step", s, "builds on " b ", a later step")
@@ -474,6 +520,9 @@ model() {
         x = sb[s]; gsub(/[ ,]+/, ", ", x); if (x != "" && c && cp == c) print s ": every needs line repeats its builds-on (" x "); read its rows one by one" > NO
         if (h) print s ": " h " rows sit 10 or more steps after the last step they need: " o > NO
         if (cnt[s] > 40) print s ": " cnt[s] " rows, over 40; the aim is about 30" > NO }
+      # FB-4 A2: the seams that are staging only because no credentials were held, one note for all
+      o = ""; for (i = 1; i <= nr; i++) { id = order[i]; if (M[id, "seam"] && cls[id] ~ /^(moved|owed)$/ && index(" · " rc[id] " · ", " · probe: unreachable-risk(credentials not-yet) · ")) o = o (o == "" ? "" : ", ") id }
+      if (o != "") print o ": outside services checked on the test site only because no credentials were held; if the developers can reach one, say so: it goes with the step that builds it" > NO
       for (i = 1; i <= nr; i++) { id = order[i]; t = rkind[id]; if (t == "tr") { pj = rpar[id]; st = rstage[pj]; c = ""; ct = "with its journey" } else { st = rstage[id]; c = cls[id]; ct = ctext[id] }
         print id "\t" t "\t" rpar[id] "\t" ritem[id] "\t" st "\t" c "\t" rmarks[id] "\t" rp[id] "\t" rf[id] "\t" ct "\t" rc[id] "\t" rg[id] > RW }
       for (i = 1; i <= ns; i++) { s = sorder[i]; print s "\t" sn[s] "\t" sst[s] "\t" srows[s] "\t" sb[s] "\t" ssk[s] "\t" smod[s] "\t" skind[s] "\t" slane[s] "\t" cnt[s] "\t" sfk[s] "\t" gd[s] + 0 > SP }; print shv > SH
@@ -502,7 +551,7 @@ model() {
       echo "setup $k — no answer of the owner's is recorded: ask it, then sh checks/planner.sh setup $k <the answer> --words \"<their words>\"" >> "$T/fl0"; done; fi
   # FB-3 C2: the stage court on the STAGES.md read here, each refusal a flag, so no page or ratification takes a cut it refuses (not
   # run for a reading of the rows, the teams or the steps alone, which prints no flag)
-  case $CMD in rows|teams|steps) ;; *) [ ! -f STAGES.md ] || sh "$HERE/stages.sh" check --work 2> /dev/null > "$T/sco" || sed -n 's/^STAGES  /stages STAGES.md — /p' "$T/sco" >> "$T/fl0" ;; esac
+  case $CMD in rows|teams|steps|placements) ;; *) [ ! -f STAGES.md ] || sh "$HERE/stages.sh" check --work 2> /dev/null > "$T/sco" || sed -n 's/^STAGES  /stages STAGES.md — /p' "$T/sco" >> "$T/fl0" ;; esac
   mv "$T/fl0" "$T/flags"
   # GM-1 S3 (§5), GM M2 (rows to place, in the owner's words): in GitHub manual a row .vid/tw/to-place lists in the place its flag names (no-step, other-stage) is no flag: it
   # goes to $T/toplace, `<row>\t<no-step|other-stage>\t<where>\t<the owner's words>`, for the page
@@ -638,6 +687,152 @@ stagepage() {
   : > "$T/placed"
 }
 
+# ---- FB-4 A1: the placements, for two independent readers (the vid-placement-review skill) ----
+# pblk <plan block>: each step, in order, `<step> TAB <its rows, ranges expanded> TAB <every step it reaches through builds-on:,
+# sorted> TAB <its line in plan.sh canon's form>`
+pblk() { sh "$HERE/plan.sh" canon < "$1" | awk "$RNG"'
+  function ids(v,   n, a, i, o) { gsub(/,/, " ", v); n = split(v, a, " "); o = ""; for (i = 1; i <= n; i++) if (a[i] != "-") o = o " " rng(a[i]); return substr(o, 2) }
+  function reach(s,   q, n, i, a, m, j, V, o, x) { q[1] = s; n = 1; V[s] = 1; o = ""
+    for (i = 1; i <= n; i++) { m = split(B[q[i]], a, " "); for (j = 1; j <= m; j++) if (!(a[j] in V)) { V[a[j]] = 1; q[++n] = a[j] } }
+    for (i = 3; i <= n; i++) { x = q[i]; for (j = i - 1; j >= 2 && q[j] > x; j--) q[j + 1] = q[j]; q[j + 1] = x }
+    for (i = 2; i <= n; i++) o = o (i > 2 ? " " : "") q[i]; return o }
+  /^step / { n = split($0, f, "|"); s = f[1]; sub(/^step /, "", s); gsub(/ /, "", s); O[++k] = s; L[s] = $0
+    for (i = 2; i <= n; i++) { x = f[i]; sub(/^ /, "", x); if (x ~ /^rows:/) R[s] = ids(substr(x, 6)); else if (x ~ /^builds-on:/) B[s] = ids(substr(x, 11)) } }
+  END { for (i = 1; i <= k; i++) print O[i] "\t" R[O[i]] "\t" reach(O[i]) "\t" L[O[i]] }'; }
+# pdiff <pblk then> <pblk now>: each test whose step changed, or reaches another set of steps: `<test> TAB <its step now, or -> TAB
+# <then, or -> TAB <moved|reach>` (a new step changes the step of every test it holds)
+pdiff() { awk -F'\t' 'f == 0 { n = split($2, a, " "); for (i = 1; i <= n; i++) { o[a[i]] = $1; A[a[i]] = 1 } q[$1] = $3; next }
+    { n = split($2, a, " "); for (i = 1; i <= n; i++) { c[a[i]] = $1; A[a[i]] = 1 } p[$1] = $3 }
+    END { for (x in A) { w = (x in c) ? c[x] : "-"; v = (x in o) ? o[x] : "-"; if (w != v) print x "\t" w "\t" v "\tmoved"; else if (w != "-" && p[w] != q[w]) print x "\t" w "\t" v "\treach" } }' f=0 "$1" f=1 "$2"; }
+# planned: $T/pl, each planned row (model first)
+planned() { awk -F'\t' '$2 == "row" && $6 ~ /^(planned|moved|owed)$/ { print $1 }' "$T/rows" > "$T/pl"; }
+# placechanged <block then>: how many planned tests pdiff lists against the block read now
+placechanged() { pblk "$1" > "$T/pb0"; pblk "$T/stepsblk" > "$T/pb1"; pdiff "$T/pb0" "$T/pb1" | awk -F'\t' -v P="$T/pl" 'BEGIN { while ((getline l < P) > 0) K[l] = 1 } ($1 in K) { n++ } END { print n + 0 }'; }
+# FIDS: awk, the ids a finding names, a range expanded (RNG) and a transition its journey
+FIDS='function fids(s,   n, a, i, o) { gsub(/[,;]/, " ", s); n = split(s, a, " "); o = ""; for (i = 1; i <= n; i++) { sub(/-T[0-9]+$/, "", a[i]); o = o " " rng(a[i]) } return o }
+'
+PLW='planner: the two rounds of this review are recorded; a third round of one review is not recorded'
+# placewrite <dir>: the list and its parts. PAG --again, PAL --all, PSI --since's hash
+placewrite() { PD=$1; model; planned; pblk "$T/stepsblk" > "$T/cur"; : > "$T/base"; : > "$T/why"; FRM=''; PR=1
+  if [ -n "$PAG" ]; then [ -f "$PD/result" ] && [ -f "$PD/reviewed" ] || die "placements --again: no first round is recorded in $PD (result, reviewed)"
+    if grep -q '^placed round=2 ' "$PD/result"; then echo "$PLW"; echo 'listed 0'; return 0; fi
+    PR=2; pblk "$PD/reviewed" > "$T/base"; FRM='the block the first round judged'
+    pdiff "$T/base" "$T/cur" > "$T/why"   # what differs, and the tests of each finding left standing (a step alone: the tests of the step)
+    awk -F'\t' -v C="$T/cur" -v P="$T/pl" "$RNG$FIDS"'BEGIN { while ((getline l < C) > 0) { split(l, a, "\t"); S[a[1]] = a[2] } while ((getline l < P) > 0) K[l] = 1 }
+      $1 == "finding" { n = split(fids($4), a, " "); t = 0; for (i = 1; i <= n; i++) if (a[i] in K) { print a[i] "\t-\t-\tfinding"; t = 1 }
+        if (!t) for (i = 1; i <= n; i++) if (a[i] in S) { m = split(S[a[i]], r, " "); for (j = 1; j <= m; j++) print r[j] "\t-\t-\tfinding" } }' "$PD/result" >> "$T/why"
+  else B=''; if [ -s .vid/plan/ratified ]; then B=${PSI:-$(recorded)}; fi   # with no ratification yet, every placement
+    if [ -n "$B" ] && [ ! -f ".vid/plans/$B.plan" ]; then echo "ViD planner: placements — no recorded plan $B (.vid/plans/): every placement is listed" >&2; B=''; fi
+    if [ -n "$B" ]; then pblk ".vid/plans/$B.plan" > "$T/base"; FRM="the plan $B"; pdiff "$T/base" "$T/cur" > "$T/why"
+      { cat "$T/pl"; echo ==; cut -f2 "$T/cur" | tr ' ' '\n'; } | awk '/^==$/ { f = 1; next } !f { P[++n] = $1; next } { I[$1] = 1 } END { for (i = 1; i <= n; i++) if (!(P[i] in I)) print P[i] "\t-\t-\tno-step" }' >> "$T/why"
+      [ ! -f .vid/tw/to-place ] || awk 'NF { print $1 "\t-\t-\tto-place" }' .vid/tw/to-place >> "$T/why"; fi
+    if [ -z "$B" ] || [ -n "$PAL" ]; then sed 's/$/	-	-	all/' "$T/pl" >> "$T/why"; fi; fi
+  mkdir -p "$PD"; rm -f "$PD"/part-*.md "$PD"/part-*.reader "$PD"/part-*.refuter "$PD/listed" "$PD/judged"
+  [ "$PR" = 2 ] || rm -f "$PD/result" "$PD/reviewed"
+  # the steps' first set-ups (A5: setsup, where this planner has it), and each step's open published tickets
+  : > "$T/su"; ! command -v setsup > /dev/null 2>&1 || setsup > "$T/su"
+  awk -v RD=.vid/round/read 'BEGIN { while ((getline l < RD) > 0) { split(l, a, "\t"); if (a[1] == "ticket" && a[3] == "CLOSED") C[a[2]] = 1 } }
+    $1 == "withdrawn" { W[$2] = 1 } $1 == "published" || $1 == "amended" { for (i = 3; i <= NF; i++) if ($i ~ /^step=/) S[$2] = substr($i, 6) }
+    END { for (n in S) if (!(n in W) && !(n in C)) print S[n] "\t" n }' .vid/tw/log 2>/dev/null | sort -k2,2n > "$T/ptk" || :
+  awk -F'\t' -v D="$PD" -v T="$T" -v PR="$PR" -v FRM="$FRM" -v SC="${SNAPC:-}" "$RNG"'
+    function rd(f,   l, n) { n = 0; split("", Q); while ((getline l < f) > 0) Q[++n] = l; close(f); return n }
+    function say(s) { return s == "" || s == "-" ? "none" : s }
+    function lst(s) { gsub(/[ ,]+/, ", ", s); return say(s) }
+    BEGIN { n = rd(T "/pl"); for (i = 1; i <= n; i++) P[Q[i]] = 1
+      n = rd(T "/base"); hb = n; for (i = 1; i <= n; i++) { split(Q[i], a, "\t"); bl[a[1]] = a[4]; m = split(a[2], r, " "); for (j = 1; j <= m; j++) bs[r[j]] = a[1] }
+      n = rd(T "/cur"); for (i = 1; i <= n; i++) { split(Q[i], a, "\t"); O[++no] = a[1]; cr[a[1]] = a[2]; cl[a[1]] = a[4]; m = split(a[2], r, " "); for (j = 1; j <= m; j++) cs[r[j]] = a[1] }
+      n = rd(T "/why"); for (i = 1; i <= n; i++) { split(Q[i], a, "\t"); if (a[1] in P) W[a[1]] = W[a[1]] " " a[4] }
+      n = rd(T "/steps"); for (i = 1; i <= n; i++) { split(Q[i], a, "\t"); sn[a[1]] = a[2]; sst[a[1]] = a[3]; sb[a[1]] = a[5]; sm[a[1]] = a[7]; sf[a[1]] = a[11] }
+      n = rd(T "/su"); for (i = 1; i <= n; i++) { split(Q[i], a, "\t"); su[a[1]] = su[a[1]] (su[a[1]] == "" ? "" : "; ") a[2] ": " a[3] }
+      n = rd(T "/ptk"); for (i = 1; i <= n; i++) { split(Q[i], a, "\t"); tk[a[1]] = tk[a[1]] (tk[a[1]] == "" ? "" : ", ") "#" a[2] }
+      n = rd(T "/stepsblk"); for (i = 1; i <= n; i++) { l = Q[i]; if (l !~ /^[ \t]*needs[ \t]/) continue; p = index(l, "|"); x = substr(l, 1, p - 1); sub(/^[ \t]*needs[ \t]+/, "", x); gsub(/,/, " ", x); v = substr(l, p + 1); gsub(/^[ \t]+|[ \t]+$/, "", v)
+        m = split(x, r, /[ \t]+/); for (j = 1; j <= m; j++) if (r[j] != "") { e = split(rng(r[j]), t, " "); for (k = 1; k <= e; k++) nd[t[k]] = v } }
+      n = rd(".vid/tw/to-place"); for (i = 1; i <= n; i++) { m = split(Q[i], a, /[ \t]+/); if (m >= 2) tp[a[1]] = a[2] }
+      n = rd(T "/rows"); for (i = 1; i <= n; i++) { split(Q[i], a, "\t"); x = a[1]; if (a[2] == "tr") { KD[a[3]] = KD[a[3]] "  - " x ": " a[8] "\n"; continue } OR[++nr] = x; it[x] = a[4]; sg[x] = a[5]; mk[x] = a[7]; pr[x] = a[8]; fi[x] = a[9] }
+      # the listed tests by step, in the order of the block, those in no step last; whole steps, at most 150 a part, a larger step in a part of its own
+      for (i = 1; i <= no; i++) { s = O[i]; m = split(cr[s], r, " "); for (j = 1; j <= m; j++) if ((r[j] in W) && !(r[j] in dn)) { dn[r[j]] = 1; G[s] = G[s] " " r[j]; c[s]++ } }
+      for (i = 1; i <= nr; i++) { x = OR[i]; if ((x in W) && !(x in dn)) { G["-"] = G["-"] " " x; c["-"]++ } }
+      O[no + 1] = "-"; k = 0; np = 0; for (i = 1; i <= no + 1; i++) { s = O[i]; if (!c[s]) continue; if (!np || k + c[s] > 150) { np++; k = 0 } pt[s] = np; k += c[s]; N += c[s] }
+      print "round " PR " listed " N + 0 " parts " np > (D "/listed")
+      for (q = 1; q <= np; q++) { F = D "/part-" q ".md"; z = 0
+        for (i = 1; i <= no + 1; i++) if (pt[O[i]] == q && c[O[i]]) z += c[O[i]]
+        print "# The plan, and the placements to judge — part " q " of " np ", " z " placements\n" (SC == "" ? "" : "\nThe spec of this plan is the one of commit " substr(SC, 1, 12) ": read each of its files as `git show " substr(SC, 1, 12) ":<file>` gives it, never the folder\047s own.\n") "\n## The steps of the plan, in order\n" > F
+        for (i = 1; i <= no; i++) { s = O[i]; g = ""; if (hb) g = (!(s in bl) ? "; new" : bl[s] != cl[s] ? "; changed" : "")
+          print "- " s " — " sn[s] "\n  stage " sst[s] "; modules: " lst(sm[s]) "; builds-on: " lst(sb[s]) "; fakes: " lst(sf[s]) "; open published ticket: " say(tk[s]) g "\n  first to set up: " say(su[s]) "\n  tests: " lst(cr[s]) > F }
+        if ("-" in su) print "- in no step: first to set up: " su["-"] > F
+        print "\n## The placements to judge" (hb ? ", each with where it was in " FRM : "") > F
+        for (i = 1; i <= no + 1; i++) { s = O[i]; if (pt[s] != q || !c[s]) continue
+          print "\n### " (s == "-" ? "In no step" : "In " s " — " sn[s]) > F
+          m = split(G[s], r, " "); for (j = 1; j <= m; j++) { x = r[j]; print x "\t" s "\t" q > (D "/listed")
+            print "\n" x "\n- from: " (!hb ? "not planned before" : !(x in bs) ? "no step" : bs[x] == s ? "the same step" (W[x] ~ / reach/ ? ", which reaches other steps now" : "") : bs[x]) ((x in tp) ? "; on the to-place list (" tp[x] ")" : "") > F
+            print "- stage: " sg[x] "; marks: " lst(mk[x]) "; requirements: " lst(it[x]) "; needs: " ((x in nd) ? (nd[x] == "-" || nd[x] == "" ? "its own step alone" : lst(nd[x])) : "no line") > F
+            print "- promise: " say(pr[x]) "\n- fails if: " say(fi[x]) > F
+            if (x in KD) printf "- transitions:\n%s", KD[x] > F } } }
+      close(D "/listed"); print "listed " N + 0 }' < /dev/null
+  put "$PD/judged" < "$T/stepsblk"; }
+# placeresult <dir>: each part's two outputs checked for form and joined into <dir>/result
+placeresult() { PD=$1; [ -f "$PD/listed" ] || die "placements result: no list in $PD (placements write)"
+  if [ -f "$PD/result" ] && grep -q '^placed round=2 ' "$PD/result"; then echo "$PLW"; return 0; fi
+  read -r _ PR _ PN _ PK < "$PD/listed"; [ "$PN" != 0 ] || { echo 'planner: no placement is listed: nothing to review, and nothing recorded'; return 0; }
+  pblk "$PD/judged" > "$T/jb"; awk -F'\t' -v D="$PD" -v PR="$PR" -v PN="$PN" -v PK="$PK" -v AT="$(now)" -v GO="$T/go" -v JB="$T/jb" "$RNG$FIDS"'
+    function tr(s) { gsub(/\r/, "", s); gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
+    function bad(f, n, w) { if (f ~ /reader$/) RBAD[p] = 1; print "ViD planner: placements result refused — " f (n ? " line " n : "") ": " w > "/dev/stderr"; BAD = 1 }
+    function cut(s, lab,   i) { i = index(s, "| " lab); if (!i) { CL = s; CR = ""; return 0 } CL = tr(substr(s, 1, i - 1)); CR = tr(substr(s, i + 2 + length(lab))); return 1 }
+    function num(s, k) { return match(s, "(^| )" k "=[0-9]+( |$)") ? substr(s, RSTART, RLENGTH) : "" }
+    function val(x) { gsub(/[^0-9]/, "", x); return x + 0 }
+    function tabs(s) { gsub(/\t/, " ", s); return s }
+    BEGIN { while ((getline l < (D "/listed")) > 0) { if (l ~ /^round /) continue; split(l, a, "\t"); LP[a[1]] = 1; pn[a[3]]++ }
+      while ((getline l < JB) > 0) { split(l, a, "\t"); KN[a[1]] = 1; m = split(a[2], qs, " "); for (i = 1; i <= m; i++) KN[qs[i]] = 1 }
+      for (p = 1; p <= PK; p++) { f = "part-" p ".reader"; n = 0; nf = 0; none = 0; pl = 0; split("", FD); split("", FO); split("", UN); nu = 0
+        while ((r = (getline l < (D "/" f))) > 0) { n++; l = tabs(tr(l)); if (l == "" || l ~ /^```/) continue
+          if (l == "none") { none = 1; continue }
+          if (l ~ /^placed /) { a1 = num(l, "right"); a2 = num(l, "finding"); a3 = num(l, "unjudged"); if (pl++) bad(f, n, "a second placed line")
+            else if (a1 == "" || a2 == "" || a3 == "") bad(f, n, "not placed right=<n> finding=<n> unjudged=<n>")
+            else { ri = val(a1); uj = val(a3); if (ri + val(a2) + uj != pn[p]) bad(f, n, "its counts are " ri " + " val(a2) " + " uj ", and the part has " pn[p] " placements") } continue }
+          if (l ~ /^unjudged [^ ]/) { x = l; sub(/^unjudged /, "", x); k = index(x, "|"); if (!k || tr(substr(x, k + 1)) == "") { bad(f, n, "not unjudged <id> | <why>"); continue } UN[++nu] = tr(substr(x, 1, k - 1)) "\t" tr(substr(x, k + 1)); continue }
+          if (l ~ /^finding [0-9]+ *\|/) { x = l; sub(/^finding /, "", x); k = x; sub(/[^0-9].*/, "", k); sub(/^[0-9]+ *\| */, "", x)
+            ok = cut(x, "harm:"); h = CR; ok = ok && cut(CL, "quote:"); q = CR; ok = ok && cut(CL, "better:"); b = CR; m = ok ? split(CL, a, /[ ]*\|[ ]*/) : 0
+            if (!ok || m != 4 || a[2] !~ /^in [^ ]+/ || a[3] !~ /^rule [1-8]([ ,]+(and )?[1-8])*$/ || a[4] !~ /^(wrong|doubt)$/ || a[1] == "" || h == "" || q == "" || b == "") { bad(f, n, "not finding <n> | <ids> | in <step or none> | rule <1-8, or several> | <wrong or doubt> | better: <place> | quote: \"<words>\" (<where>) | harm: <one line>"); continue }
+            if (k in FD) { bad(f, n, "finding " k " twice"); continue }
+            m = split(fids(a[1]), qs, " "); j = 0; for (i = 1; i <= m; i++) if ((qs[i] in KN) || (qs[i] in LP)) j = 1; if (!j) { bad(f, n, "finding " k " names no test and no step of the plan"); continue }
+            sub(/^in /, "", a[2]); sub(/^rule /, "", a[3]); FD[k] = a[1] "\t" a[2] "\t" a[3] "\t" a[4] "\t"; FB[k] = b; FQ[k] = q; FH[k] = h; FO[++nf] = k; continue }
+          bad(f, n, "a line out of form: " substr(l, 1, 60)) }
+        close(D "/" f)
+        if (r < 0 && !n) { bad(f, 0, "there is no such file: the first reader did not judge this part"); continue }
+        if (!pl) bad(f, 0, "no placed line"); if (none && nf) bad(f, 0, "none, and findings"); if (!none && !nf) bad(f, 0, "no finding, and no line none")
+        RI += ri; UJ += uj; for (i = 1; i <= nu; i++) { split(UN[i], a, "\t"); ul = ul "unjudged\t" UN[i] "\n" }
+        if (!nf) continue
+        f = "part-" p ".refuter"; n = 0; split("", RF)
+        while ((r = (getline l < (D "/" f))) > 0) { n++; l = tabs(tr(l)); if (l == "" || l ~ /^```/) continue
+          if (l !~ /^(stands|partly|refuted) [0-9]+ *\|/) { bad(f, n, "a line out of form: " substr(l, 1, 60)); continue }
+          v = l; sub(/ .*/, "", v); x = l; sub(/^[a-z]+ /, "", x); k = x; sub(/[^0-9].*/, "", k); sub(/^[0-9]+ *\| */, "", x)
+          if (!(k in FD)) { bad(f, n, "finding " k " is no finding of the first reader"); continue } if (k in RF) { bad(f, n, "a second line of finding " k); continue }
+          i = index(x, "|"); a1 = i ? tr(substr(x, 1, i - 1)) : ""; a2 = i ? tr(substr(x, i + 1)) : ""
+          if (a2 == "" || (v == "refuted" ? a1 !~ /^\([abc]\)/ : a1 !~ /^better: *[^ ]/)) { bad(f, n, "not " (v == "refuted" ? "refuted <n> | (a), (b) or (c) | <why>" : v " <n> | better: <place> | <why>")); continue }
+          sub(/^better: */, "", a1); RF[k] = v; RB[k] = a1; RW[k] = a2 }
+        close(D "/" f)
+        if (r < 0 && !n) { bad(f, 0, "there is no such file: the second reader did not try the findings of this part"); continue }
+        for (i = 1; i <= nf; i++) { k = FO[i]; if (!(k in RF)) { bad(f, 0, "no line of finding " k); continue } C[RF[k]]++
+          if (RF[k] != "refuted") fl = fl "finding\t" RF[k] "\t" PR "\t" FD[k] RB[k] "\t" FQ[k] "\t" FH[k] "\t" RW[k] "\n" } }
+      # a refused first reader: the verdicts of its second reader are on findings it will replace, so that file goes
+      if (BAD) { for (p in RBAD) print D "/part-" p ".refuter" > GO; exit 1 }
+      # the second round: its findings take the place of the first, whose placed line and whose unjudged lines of tests not listed now stay
+      if (PR == 2) while ((getline l < (D "/result")) > 0) { split(l, a, "\t"); if (l ~ /^placed /) print l
+        else if (a[1] == "unjudged" && !(a[2] in LP)) ul = ul l "\n" }
+      print "placed round=" PR " listed=" PN " right=" RI + 0 " stands=" C["stands"] + 0 " partly=" C["partly"] + 0 " refuted=" C["refuted"] + 0 " unjudged=" UJ + 0 " at=" AT
+      printf "%s%s", fl, ul }' < /dev/null > "$T/res" || { [ ! -f "$T/go" ] || while IFS= read -r f; do rm -f "$f"; done < "$T/go"; exit 1; }
+  put "$PD/result" < "$T/res"; put "$PD/reviewed" < "$PD/judged"; grep '^placed ' "$PD/result" | tail -n 1 | sed 's/^/planner: /'; }
+# placeshow <dir>: the page's section, its counts and each finding, and how many placements changed since (model and planned first)
+placeshow() { printf 'Two readers, each told nobody'"'"'s reasons: the first judged where each test stands, the second tried to disprove each finding.\nA finding is their judgement and refuses nothing.\n\n'
+  if [ ! -f "$1/result" ]; then echo '- not reviewed'; return 0; fi
+  awk -F'\t' 'function v(k) { return match($0, " " k "=[^ ]*") ? substr($0, RSTART + length(k) + 2, RLENGTH - length(k) - 2) : "" }
+    /^placed / { printf "- round %s: %s placements read, %s right, %s could not be judged; findings: %s stand, %s stand in part, %s refuted (%s)\n", v("round"), v("listed"), v("right"), v("unjudged"), v("stands"), v("partly"), v("refuted"), v("at") }' "$1/result"
+  if [ -f "$1/reviewed" ] && ! cmp -s "$1/reviewed" "$T/stepsblk"; then echo "- placements changed since the plan they read: $(placechanged "$1/reviewed")"; fi
+  awk -F'\t' 'BEGIN { split("built here|needs|its stage|a published ticket|one promise together|left out, or new|the order|set up first", R, "|") }
+    $1 == "finding" { m = split($6, q, /[^1-8]+/); rl = ""; for (i = 1; i <= m; i++) if (q[i] != "") rl = rl (rl == "" ? "" : "; ") R[q[i]]
+      printf "%s- **%s** in %s (rule %s: %s; %s): better: %s. Quote: %s. Harm: %s. The second reader: %s\n", (n++ ? "" : "\n"), $4, ($5 == "none" ? "no step" : $5), $6, rl, ($2 == "stands" ? "stands" : "stands in part"), $8, $9, $10, $11 }
+    $1 == "unjudged" { u = u "- " $2 ": could not be judged: " $3 "\n" } END { if (u != "") printf "\n%s", u }' "$1/result"; }
+
 # snap (GM-1 S3): GitHub manual's reading. A read-only folder in $T, entered: PRD.md, INVENTORY.md, STAGES.md, GRADING-CHECKLIST.md
 # and ARCHITECTURE.md as the applied commit (.vid/tw/applied) holds them, PLAN.md as HEAD does (a file a commit lacks, absent),
 # and every other entry of the repository's top, .vid/ among them, linked as it stands, so the records the planner writes land
@@ -661,9 +856,9 @@ CMD=${1:-check}; [ $# -gt 0 ] && shift
 # GM-1 S3 (§5), GM M3 (nothing reaches the team before the apply, so the door lands no change): `rows --newest` reads the working tree in every mode; in GitHub manual every other subcommand but setup reads
 # the spec at the applied commit (snap), and reratify, the door's landing, is refused there
 NEWEST=''; if [ "$CMD" = rows ] && [ "${1:-}" = --newest ]; then NEWEST=1; shift; fi
-# GM-3 U2, U3, GM M3 (a candidate read against the applied commit, before the apply): --at <commit> (check, rows, hash, steps) and --plan-md <file> (check, steps), taken out of the arguments wherever they stand
-case "$CMD" in check|rows|hash|steps) _n=$#; _i=0; while [ "$_i" -lt "$_n" ]; do _a=$1; shift; _i=$((_i + 1))
-    if [ "$_a" = --at ] || { [ "$_a" = --plan-md ] && { [ "$CMD" = check ] || [ "$CMD" = steps ]; }; }; then [ "$_i" -lt "$_n" ] || die "$_a takes a value"; _v=$1; shift; _i=$((_i + 1))
+# GM-3 U2, U3, GM M3 (a candidate read against the applied commit, before the apply): --at <commit> (check, rows, hash, steps, setsup, placements) and --plan-md <file> (check, steps, placements), taken out of the arguments wherever they stand
+case "$CMD" in check|rows|hash|steps|setsup|placements) _n=$#; _i=0; while [ "$_i" -lt "$_n" ]; do _a=$1; shift; _i=$((_i + 1))
+    if [ "$_a" = --at ] || { [ "$_a" = --plan-md ] && { [ "$CMD" = check ] || [ "$CMD" = steps ] || [ "$CMD" = placements ]; }; }; then [ "$_i" -lt "$_n" ] || die "$_a takes a value"; _v=$1; shift; _i=$((_i + 1))
       if [ "$_a" = --at ]; then AT=$(git rev-parse -q --verify "$_v^{commit}" 2>/dev/null) || die "--at $_v names no commit"; else [ -f "$_v" ] || die "--plan-md $_v: no such file"; PMD=$(cd "$(dirname "$_v")" && pwd -P)/$(basename "$_v"); fi
     else set -- "$@" "$_a"; fi; done
   if [ -n "$AT$PMD" ]; then [ -z "$NEWEST" ] || die 'rows --newest reads the working tree: it takes no --at'; manual || die '--at and --plan-md are GitHub manual'"'"'s (GM-3)'; fi ;; esac   # GM M3
@@ -690,6 +885,18 @@ case "$CMD" in
   steps)   # GM-4 F10: --block <file> reads that plan block in place of RUN-STATE's, as check does (the re-plan's candidate)
     while [ $# -ge 2 ]; do case $1 in --block) BLK=$(ab "$2"); [ -f "$BLK" ] || die "--block $BLK: no such file" ;; *) die "steps: unknown $1" ;; esac; shift 2; done
     [ $# -eq 0 ] || die "steps: unknown $1"; model; cat "$T/steps" ;;
+  setsup)   # FB-4 A5: --block as steps takes it
+    while [ $# -ge 2 ]; do case $1 in --block) BLK=$(ab "$2"); [ -f "$BLK" ] || die "--block $BLK: no such file" ;; *) die "setsup: unknown $1" ;; esac; shift 2; done
+    [ $# -eq 0 ] || die "setsup: unknown $1"; setsup ;;
+  placements)   # FB-4 A1
+    PSUB=${1:-}; case $PSUB in write|result|show) shift ;; *) die 'usage — sh checks/planner.sh placements write|result|show <dir> [--again] [--all] [--since <plan hash>] [--block <f>] [--at <commit>] [--plan-md <f>]' ;; esac
+    PAG=''; PAL=''; PSI=''; PDIR=''
+    while [ $# -gt 0 ]; do case $1 in --again) PAG=1; shift ;; --all) PAL=1; shift ;;
+        --since) [ $# -ge 2 ] || die 'placements: --since takes a plan hash'; PSI=$2; shift 2 ;;
+        --block) [ $# -ge 2 ] || die 'placements: --block takes a file'; BLK=$(ab "$2"); [ -f "$BLK" ] || die "--block $BLK: no such file"; shift 2 ;;
+        -*) die "placements: unknown $1" ;; *) [ -z "$PDIR" ] || die "placements: unknown $1"; PDIR=$(ab "$1"); shift ;; esac; done
+    [ -n "$PDIR" ] || die "placements $PSUB: it takes a folder"
+    case $PSUB in write) placewrite "$PDIR" ;; result) placeresult "$PDIR" ;; show) model; planned; placeshow "$PDIR" ;; esac ;;
   hash) hash ;;
   prereq) gaps ;;
   prd-form) [ ! -f PRD.md ] || grep -q '^```vid-prd' PRD.md || { echo "ViD plan: refused — PRD.md is in the legacy block form, with no \`\`\`vid-prd block: ticket mode reads only the enriched PRD. Bring it in through /vid create-prd's import door." >&2; exit 1; } ;;
@@ -714,7 +921,8 @@ case "$CMD" in
           $1 == "dropped-step" && !s["step " $2]++ { printf "- step %s, taken out of the plan: every row it held was taken out\n", $2 }' .vid/tw/dropped; fi
       printf '\n## Notes\n\nComputed beside the flags; a note never refuses the check or the ratification. For each, the plan is changed or\nthe prose says why it stands.\n\n'
       if [ -s "$T/notes" ]; then sed 's/^/- /' "$T/notes"; else echo '- none'; fi; setuppage
-      planpage
+      planpage; setsuppage
+      printf '\n## Where the tests go: what two readers found\n\n'; planned; placeshow .vid/plan/placement   # FB-4 A1
       printf '\n## The rows ViD added\n\nAppended to INVENTORY.md with `origin: plan`, each in the schema'"'"'s form for its kind; every other row\nis the ratified inventory'"'"'s, word for word.\n'
       table "$(ids '$11 ~ /(^| · )origin: plan( |$)/')"
       printf '\nThe standing rows:\n\n'
@@ -774,7 +982,10 @@ case "$CMD" in
     if [ -n "$MAN" ]; then grep -v '^size ' "$T/flags" > "$T/flags.g" || :; cat "$T/flags.g" > "$T/flags"; fi
     { sed 's/^/a check flag is open: /' "$T/flags"; if [ "$RVD" = no ]; then echo "no review has this plan's hash ($H)"; fi
       sed 's/^\([0-9]*\) | \([^|]*[^| ]\) *|.*/finding \1 on \2 has no answer/' "$T/open"; planok
-      PG=$(tail -n 1 .vid/plan/paged 2>/dev/null | sed -n 's/.* plan=\([0-9a-f]*\) .*/\1/p'); [ "$PG" = "$(phash)" ] || echo "the newest page did not show this plan ($(phash)): sh checks/planner.sh page, for the owner to see"; } > "$T/why"
+      PG=$(tail -n 1 .vid/plan/paged 2>/dev/null | sed -n 's/.* plan=\([0-9a-f]*\) .*/\1/p'); [ "$PG" = "$(phash)" ] || echo "the newest page did not show this plan ($(phash)): sh checks/planner.sh page, for the owner to see"
+      # FB-4 A1: a first ratification with no ticket published, and no result of the placements' two readers: a step left out (a switch's
+      # ratification, /vid mode's own call, is asked for none)
+      case ${VID_CALLER:-} in mode|mode-auto) ;; *) [ -s .vid/plan/ratified ] || grep -q '^published ' .vid/tw/log 2>/dev/null || [ -f .vid/plan/placement/result ] || echo 'two readers have not read the placements (no .vid/plan/placement/result): the vid-placement-review skill, then the page again' ;; esac; } > "$T/why"
     if [ -s "$T/why" ]; then sed 's/^/ViD planner: ratify refused — /' "$T/why" >&2; exit 1; fi
     mkdir -p .vid/plan; printf 'ratified hash=%s plan=%s at=%s words=%s\n' "$H" "$(phash)" "$(now)" "$OW" >> .vid/plan/ratified
     printf 'ratified after-review=%s\n' "$(cat "$RV" 2>/dev/null | grep -c '^review ' || :)" >> "$RV"   # low-1 (R5): the sitting's boundary

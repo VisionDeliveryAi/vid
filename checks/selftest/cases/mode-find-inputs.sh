@@ -56,6 +56,8 @@ RC=0; VID_TICKETS_LIMIT=2 sh "$CHECKS/mode.sh" manual --review "$T/review" > "$T
 grep -q '^found register 3 tickets' "$T/mo" || fail 'the list at its limit was not read again, larger, before it was a need'
 [ "$RC" = 5 ] || fail "the switch run with no input file, no export line and no export on the spec repository exited $RC, not 5 (need --applied alone)"
 [ "$(grep -c '^need ' "$T/mo")" = 1 ] && grep -q '^need --applied — .*spec repository' "$T/mo" || fail 'the switch did not ask for --applied alone, with where it looked'
+# FB-4 B1: with layout separate the need line names no folder, and none is read
+! grep -q 'folder' "$T/mo" && ! grep -q 'git/trees' "$FAKEGH/log" || fail 'the folder was read, or named, with layout separate'
 grep 'refused' "$T/mo" | grep -q -- '--applied' || fail 'the refusal does not name --applied'
 grep -q '^taken-over ' "$T/mo" && fail 'a ticket was taken over with an input not found'
 [ ! -s .vid/tw/applied ] || fail 'an applied version was recorded on the refused run'

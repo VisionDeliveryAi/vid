@@ -14,7 +14,8 @@ leaves it held; anywhere else the vid-connect skill's start first and its end af
 
 `sh checks/round.sh read`: the one read of GitHub (GM-4 F3), `github.sh round-read`'s lines written whole into
 `.vid/round/read`; in GitHub manual with the ticket bodies, sub-issues and assignees, which `round.sh` adds itself. Say each
-`unread` line it holds, in plain words: what could not be read, and why. On exit 1 the read failed and the file is as it
+`unread` line it holds, in plain words: what could not be read, and why. In GitHub manual with one repository it also reads the names
+and ids of the folder's files, no file's content (FB-4 B1, `.vid/round/folder`); a line saying that read failed is said, and stops nothing. On exit 1 the read failed and the file is as it
 was: say the lines it printed.
 
 ## Slack, for context alone

@@ -30,6 +30,37 @@ onrec() { awk '$1 == "published" && $2 ~ /^[0-9]+$/ { P[$2] = 1 } $1 == "withdra
 # commit of ViD's is exported as it is made, so no record is kept there. A reader that must know there is no recorded version in
 # GitHub manual checks manual and an empty applied
 applied() { if manual; then sed -n '1s/[[:space:]]*$//p' .vid/tw/applied 2>/dev/null; else git rev-parse -q --verify HEAD 2>/dev/null; fi; }
+# FB-4 B1: which commit's spec the code repository's folder holds, in GitHub manual with layout: one, from the read github.sh spec-folder
+# keeps, .vid/round/folder (its first line `main TAB <main's commit> TAB <repo> TAB <path>`, then `<blob id> TAB <path from the folder>`),
+# names and ids alone. folderpath: the setup's spec-path:, docs/specs while missing. folderis [<commit>]: one line, `is <commit> …`,
+# `none` or `absent` (no PRD.md at the folder's top, or no folder); nothing in another mode or layout, with no read kept or one of
+# another folder. Of the seven spec files at the folder's top, those it holds: every commit HEAD reaches, newest first, and <commit> (the
+# applied one when not given), at which each has that blob; a commit an export line of .vid/tw/log names by from=, whose copy in
+# .vid/spec.git has those blobs (the export's blanked words), counts, and each commit with the same files as it. Whatever else the folder holds is never compared
+folderpath() { _fd=$(skey spec-path); _fd=${_fd:-docs/specs}; printf '%s\n' "${_fd%/}"; }
+folderis() { manual && [ "$(skey layout)" = one ] && [ -s .vid/round/folder ] && [ "$(sed -n 1p .vid/round/folder | cut -f4)" = "$(folderpath)" ] || return 0
+  _fi=$(awk -F'\t' 'NR > 1 && $2 ~ /^(PRD|DECISIONS|BASELINE|ARCHITECTURE|GRADING-CHECKLIST|INVENTORY|STAGES)\.md$/ { print $2 "=" $1 }' .vid/round/folder | paste -sd ' ' -)
+  case " $_fi" in *' PRD.md='*) ;; *) echo absent; return 0 ;; esac
+  _fq='function ask(n,   i, a, f) { n = split(W, a, " "); for (i = 1; i <= n; i++) { f = a[i]; sub(/=.*/, "", f); print $1 ":" f, f, $1 ($2 == "" ? "" : " " $2) } }'
+  { { git rev-list --topo-order HEAD; [ -z "${1-$(applied)}" ] || git rev-parse -q --verify "${1-$(applied)}^{commit}"; } 2>/dev/null | awk -v W="$_fi" "$_fq"' { ask() }' | git cat-file --batch-check='%(objectname) %(rest)' | sed 's/^/C /'
+    [ ! -d .vid/spec.git ] || awk '$1 == "export" { for (i = 3; i <= NF; i++) if ($i ~ /^from=/ && !U[$2, $i]++) print $2, substr($i, 6) }' .vid/tw/log 2>/dev/null | awk -v W="$_fi" "$_fq"' { ask() }' |
+      git --git-dir=.vid/spec.git cat-file --batch-check='%(objectname) %(rest)' 2>/dev/null | sed 's/^/X /'
+  } | awk -v W="$_fi" 'BEGIN { n = split(W, a, " "); for (i = 1; i <= n; i++) { F[i] = a[i]; sub(/=.*/, "", F[i]); B[F[i]] = a[i]; sub(/.*=/, "", B[F[i]]); S = S " " B[F[i]] } OK[S] = 1 }
+    $1 == "C" && NF == 4 { if (!($4 in K)) { K[$4] = 1; O[++k] = $4 } I[$4, $3] = $2 }
+    $1 == "X" && NF == 5 && B[$3] == $2 && ++N[$4, $5] == n { E[$5] = 1 }
+    function sig(c,   i, s) { s = ""; for (i = 1; i <= n; i++) s = s " " I[c, F[i]]; return s }
+    END { for (c in E) if (c in K) OK[sig(c)] = 1; r = ""; for (i = 1; i <= k; i++) if (sig(O[i]) in OK) r = r " " O[i]; print (r == "" ? "none" : "is" r) }'; }
+# foldersay [<commit>]: what folderis says, in words, `<holds|differs|is|none|absent> TAB <words>`, the folder first: holds, the commit (the
+# applied one when not given) is of them, or is a take-over commit (kept under refs/vid/applied/) made on one of them; differs, it is not; is, no commit to compare with
+foldersay() { _fc=${1-$(applied)}; _fr=$(folderis "$_fc"); _fp=$(folderpath); [ -z "$_fc" ] || _fc=$(git rev-parse -q --verify "$_fc^{commit}" 2>/dev/null) || _fc=''
+  case $_fr in '') return 0 ;;
+    none) printf "none\t%s on main holds no one commit's spec: its files are of more than one commit, or changed there\n" "$_fp"; return 0 ;;
+    absent) printf 'absent\t%s is not on main, or holds no PRD.md there: if the team reads the spec in another folder, sh checks/planner.sh setup spec-path <folder> --words "<their words>" names it\n' "$_fp"; return 0 ;; esac
+  _fr=${_fr#is }; _fn=$(printf %.12s "$_fr"); _fw="the spec of $_fn"; [ "${_fr##* }" = "$_fr" ] || _fw="the spec of $_fn (the newest of $(echo "$_fr" | wc -w | tr -d ' ') commits with the same files, the oldest $(printf %.12s "${_fr##* }"))"
+  _ft=''; if [ -n "$_fc" ] && git for-each-ref --format='%(objectname)' refs/vid/applied/ 2>/dev/null | grep -qx "$_fc"; then _ft=$(git rev-parse -q --verify "$_fc^1" 2>/dev/null) || _ft=''; fi
+  case " $_fr " in *" ${_fc:--} "*|*" ${_ft:--} "*) printf 'holds\t%s on main holds the spec of the applied version, %.12s\n' "$_fp" "$_fc"; return 0 ;; esac
+  if [ -n "$_fc" ]; then printf 'differs\t%s on main holds %s, not of the applied version %.12s: if the published tickets were written from that one, /vid mode manual --applied %s is the answer\n' "$_fp" "$_fw" "$_fc" "$_fn"
+  else printf 'is\t%s on main holds %s: if the published tickets were written from it, --applied %s names it\n' "$_fp" "$_fw" "$_fn"; fi; }
 # engnone (FB-3 E2): no engines line on the handed record; ENGASK, the line that says so, with its command (both modes)
 engnone() { [ -z "$(sed -n 's/^engines \(.*\) | stand-in.*/\1/p' .vid/tw/handed 2>/dev/null | tail -n 1)" ]; }
 ENGASK='engines not named — /vid:vid-accept-step engines "<primary> <other>…" "<words>"'

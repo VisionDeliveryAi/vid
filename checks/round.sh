@@ -24,6 +24,7 @@
 #   read   (GM-4 F3) the one read of GitHub, github.sh round-read, written whole to .vid/round/read (lib.sh put); in GitHub manual with
 #          --bodies, the ticket bodies, sub-issues and assignees after it, as /vid next reads them. A read that fails leaves the file as it
 #          was, names the failure and exits 1. It prints nothing when the read succeeds, and writes nothing under .vid/ but .vid/round/
+#          (FB-4 B1: in GitHub manual with layout: one, the folder's names and ids among it, github.sh spec-folder; that one failing is said and stops nothing)
 #          (FB-3 D2: and its part in .vid/face, where a call named its parts; the read done, the next part, for next.sh triggers writes nothing).
 #   asks   (GM-4 E5) next's first part alone: renews the lock, reads, the export, then the owed asks, okays and stage close; next calls it,
 #          so GitHub auto is unchanged (a stage close ends next there). In GitHub manual no export (a write to the spec repository, done only
@@ -90,6 +91,9 @@ renew() { rc=0; gh_ lock-renew > "$L/e" 2>&1 || rc=$?; [ "$rc" != 3 ] || { echo 
 # GM-4 F3: rd_, the one read into .vid/round/read, with --bodies in GitHub manual (E4: the sub-issues a merge there is mapped by); read_, the
 # round's own, a failure its error
 rd_() { RB=''; ! manual || RB=--bodies; gh_ round-read $RB > "$L/rd" 2> "$L/e" && put "$L/read" < "$L/rd"; }
+# FB-4 B1: folder_, in GitHub manual with one repository, the read of the folder's names and ids (github.sh spec-folder, .vid/round/folder); one that
+# fails is said and stops nothing
+folder_() { manual && [ "$(skey layout)" = one ] || return 0; gh_ spec-folder > /dev/null 2> "$L/fe" || echo "ViD round: the folder's read failed, and the call goes on without it: $(tail -n 1 "$L/fe")" >&2; }
 read_() { rd_ || fail round-read "$(tail -n 1 "$L/e")"; }
 # what is new from the dev side: unanswered asks, unrecorded merges, blocked questions
 # GM-4 E1: in GitHub manual (MA) the asks are the tickets', `ask #<n> <commit>` (tasks_), never a pull request's; a merge in unit-merges
@@ -407,5 +411,5 @@ cmd_accept() { OS=''; OW=''; RS=''; RW=''; TS=''; TL=''; n=''; c=''; k=0; while 
   gh_ state-save > /dev/null 2> "$L/e" || fail state-save "$(tail -n 1 "$L/e")"
   [ "$a" = "$b" ] && [ "$C" != "$AQ" ] || { echo "decided #$n $h $TL"; weak_ "$D/posted-step-$n-$h" "#$n" "$h"; }; [ "$TL" != 'ticket: accepted' ] || echo "accepted #$n $h"; DID=1; }
 CMD=${1:-}
-cmd_read() { [ $# -eq 0 ] || { echo 'usage: sh checks/round.sh read' >&2; exit 2; }; prog on 'Reading GitHub'; rd_ || { rneed 'a look at the chat: GitHub could not be read'; sed 's/^/    /' "$L/e" >&2; echo 'ViD round: the read failed (the lines above) — .vid/round/read is as it was' >&2; exit 1; }; prog on 'Working out what changed'; }
+cmd_read() { [ $# -eq 0 ] || { echo 'usage: sh checks/round.sh read' >&2; exit 2; }; prog on 'Reading GitHub'; rd_ || { rneed 'a look at the chat: GitHub could not be read'; sed 's/^/    /' "$L/e" >&2; echo 'ViD round: the read failed (the lines above) — .vid/round/read is as it was' >&2; exit 1; }; folder_; prog on 'Working out what changed'; }
 case $CMD in wait) cmd_wait ;; step) cmd_step ;; next) cmd_next ;; asks) cmd_asks ;; accept) shift; cmd_accept "$@" ;; read) shift; cmd_read "$@" ;; *) echo 'usage: sh checks/round.sh wait|step|next|asks|accept <ticket> [<commit>]|accept <ticket> <commit> --outside "<words>"|accept --rows "<ids>" --outside "<words>"|accept --tickets "<n>[@<commit>] …" --outside "<words>"|read' >&2; exit 2 ;; esac

@@ -32,6 +32,8 @@ owner's words last, and everything that waits for the publish goes on. Not there
 dropped from the spec), and refuses, naming the folder. The stamp, the texts and the team's other files are the team's; ViD closes
 no pull request of theirs.
 
+Which commit's spec the folder holds is told at each call from its files' names and ids (FB-4 B1, vid-read and vid-triggers), never from the stamp.
+
 ## The owner's command
 
 `/vid:vid-spec-publish "<words>"`, or `/vid:vid-spec-publish #<pull request> "<words>"` with `spec-publish: hand`, the owner's words their own, never yours: their yes to this one publish, required in GitHub

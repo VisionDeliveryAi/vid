@@ -323,7 +323,7 @@ rowsec() {
 # lists: $T/reg and $T/flt — the regression rows (accepted or by ruling, of the golden path, a journey, a protection row
 # with fault-proven, a shell or reachability row, a rule row (v0.26.10.26.4 R5), a row of a bug finding, a reached row; never a known limit, a
 # deploy-owed row or the ticket's own) and the faulted rows (the ticket's rows not deploy-owed: every protection row with
-# its disable: note, a journey's lowest transition, every other row whose number is a multiple of ten); a reached-rows
+# its disable: note, a journey's lowest transition, every other row whose number is a multiple of ten, a service row (FB-4 A2) apart); a reached-rows
 # ticket's rows are regression rows, faulted only when retested (T4)
 lists() {
   G=$(awk -F'\t' '$6 == "skeleton" { print $5; exit }' "$T/steps")
@@ -336,7 +336,7 @@ lists() {
         if ((r in W) && K != "reached") { if (ow) continue; k = r; sub(/^[A-Z]+-/, "", k)
           if (has(m, "protection")) { print "- " r ": make this row'"'"'s fail-if true, and nothing else; its disable: note, quoted:" > FL; d = dis[r]; sub(/[ \t]+$/, "", d); print "> " (d == "" ? "disable: none" : d) > FL }
           else if (has(m, "journey")) print "- " ft[r] " (of the journey " r "): make this transition'"'"'s fail-if true, and nothing else" > FL
-          else if (k % 10 == 0) print "- " r ": make this row'"'"'s fail-if true, and nothing else" > FL; continue }
+          else if (k % 10 == 0 && !has(m, "service")) print "- " r ": make this row'"'"'s fail-if true, and nothing else" > FL; continue }
         if ((S[r] == "accepted" || S[r] == "accepted-by-ruling") && !ow && cl[r] != "limit" && (has(G, r) || has(m, "journey") || (has(m, "protection") && F[r] == "fp") || has(m, "shell") || has(m, "reachability") || has(m, "rule") || bug[r] || has(RC, r))) print "- " r > RG } }' "$T/rows"   # v0.26.10.26.4 (R5): an accepted rule row, kept armed
   touch "$T/reg" "$T/flt"; }
 q_() { if [ -s "$1" ]; then q "$1"; else echo none; fi; }
@@ -426,9 +426,16 @@ The independence rules, which ViD takes DevAgent's word it keeps:
 8. DevAgent reads the spec repository's main alone: its other branches hold ViD's records, and are no part of the spec.
 R
 }
-rowasks() { awk -F'\t' -v IDS="$T/ids" -v FU="$FU" -v MAN="${1:-}" 'BEGIN { while ((getline l < IDS) > 0) W[l] = 1 } ($1 in W) && $2 == "row" { m = " " $7 " "
+# setup_ (FB-4 A5): the line of a step's own ticket (kind step or skeleton) whose step is the first to set up a module's data, by
+# the planner's list (planner.sh setsup), read once a call, in $T/su, at the commit every quote is read at
+setup_() { case $K in step|skeleton) ;; *) return 0 ;; esac
+  if [ ! -f "$T/su" ]; then if [ -n "${VID_WRITER_AT:-}" ]; then set -- --at "$AT"; else set --; fi
+    sh "$HERE/planner.sh" setsup --block "$PF" "$@" > "$T/su.x" 2>/dev/null || die 'planner.sh setsup failed'; mv "$T/su.x" "$T/su"; fi
+  ! awk -F'\t' -v s="$S" '$1 == s { f = 1 } END { exit !f }' "$T/su" || echo '- Set up the data its modules own, as their rows above say, where no earlier ticket has.'; }
+rowasks() { setup_; awk -F'\t' -v IDS="$T/ids" -v FU="$FU" -v MAN="${1:-}" 'BEGIN { while ((getline l < IDS) > 0) W[l] = 1 } ($1 in W) && $2 == "row" { m = " " $7 " "
       if (index(m, " protection ")) print "- " $1 ": its test'"'"'s failure message carries the line vid-forbidden-effect: " $1 ". A protection row names something that must never happen, and the line marks evidence of that thing alone."
       if (index(m, " seam ")) print "- " $1 ": the seam'"'"'s probe: its test makes one real action through the service, on staging."
+      if (index(m, " service ")) print "- " $1 ": an outside service the developers can reach: its test makes one real action through the service, with the credentials the developers have; without them its case errors with a message that begins setup:, and that is no proof."
       if (index(m, " rule ")) print "- " $1 (MAN != "" ? ": when the report gives the number of places its test covered, zero places means the row fails." : ": the report gives the number of places its test covered; zero places means the row fails.")
       if ($1 ~ /^DIF-/) print "- " $1 ": a test difference: the test environment uses its test value as the stand-in, and the report names it."
       if (index($11, "actor: (process)") || index(m, " journey ")) print "- " $1 ": run with the product'"'"'s own declared processes, not inline."

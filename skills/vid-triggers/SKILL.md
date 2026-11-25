@@ -9,7 +9,8 @@ One job: `sh checks/next.sh triggers --short`, and show its lines as it prints t
 subject and its evidence in it (FB-3 C5; the full lines, one each, are `sh checks/next.sh triggers`). The count, the tiers, the
 warnings and the moves are its own; a publish's warnings are `plan.sh warnings`' lines, after the moves (GM-4 K9). This skill adds
 none and drops none. It reads ViD's records and `.vid/round/read` (vid-read's), and writes nothing. Its lines name their evidence: say them
-in plain words, keeping each number as printed.
+in plain words, keeping each number as printed. A `context folder` line (FB-4 B1) says the folder the team reads the spec in does not hold the
+applied version's: say which commit's it holds and the command it names; the owner judges which is right.
 
 **Called by the owner** as `/vid:vid-triggers`, in either GitHub mode: inside /vid run's own conversation it uses the run's lock and
 leaves it held; anywhere else the vid-connect skill's start first and its end after, however the call ends (GM-4 S0). The vid-read skill's read

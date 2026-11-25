@@ -51,7 +51,7 @@ S=$(git rev-parse --short HEAD)
   printf 'S03\tscope-change\tcommit:%s\tthe retired ROW-019 leaves the plan; #%s keeps it listed, marked retired\n' "$S" "$N3"
   printf 'S04\tscope-change\tcommit:%s\tROW-022 is placed in S04\n' "$S"
   printf 'S06\tscope-change\tcommit:%s\tits one test, ROW-018, is retired; #%s keeps it listed, marked retired\n' "$S" "$N6"; } > "$C/changes"
-sh "$CHECKS/replan.sh" analyse --candidate "$C" > "$T/out" 2>&1 || fail 'the analysis was refused'
+pt_placed "$C/placement"; sh "$CHECKS/replan.sh" analyse --candidate "$C" > "$T/out" 2>&1 || fail 'the analysis was refused'
 # the apply
 RC=0; sh "$CHECKS/replan.sh" apply --words 'Yes, apply the re-plan' > "$T/out" 2>&1 || RC=$?
 [ "$RC" = 0 ] || fail "the apply exited $RC"

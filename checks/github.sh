@@ -58,6 +58,10 @@
 #   spec-stamp   GM-4 K13, read only: with layout: one and spec-stamp:, the first line of the stamp file <spec-path>/<spec-stamp> on
 #                the code repository's main (gh api repos/<repo>/contents/<file>?ref=<main's commit>, a GET), the export commit the
 #                folder holds; nothing when no stamp is set or found. /vid mode's take-stock reads it (checks/mode.sh)
+#   spec-folder   FB-4 B1, read only, in GitHub manual with layout: one (nothing read in another): the names and blob ids of the files in
+#                the folder spec-path: on the code repository's main (fold's GETs of git/trees, no file's content), kept in
+#                .vid/round/folder for lib.sh's folderis; the repository, its main and spec-path: as the kept read names them, no GET;
+#                no main yet, or a read that fails (exit 1, said), leaves the file out
 #   record-read <link>   IR I1: a record the owner names by its GitHub link, read only: <link> is a blob link at a commit,
 #                https://github.com/<owner>/<repo>/blob/<40-hex sha>/<path>, or a pull request, https://github.com/<owner>/<repo>/pull/<n>.
 #                For each file (the blob's; or each Markdown file the pull request changes and does not delete, read at its head commit,
@@ -184,6 +188,7 @@ W=$(mktemp -d); trap 'rm -rf "$W"' EXIT
 REPO=''; SHARE=''; SCREATE=''; MKREPO=''; FORMPOST=''; RECREAD=''; RR=''; SPUB=''   # 0.26.10.28.7: the share's allow-list switches never come from the environment; GM-2 T3: nor the form post's (IR I1: nor record-read's)
 RESREAD=''   # FB-3 A2: results-fetch's graphql read (A1.4: closing-prs' too), its switch never from the environment
 PRREAD=''   # FB-3 A1.4: pr-files' read of a pull request's files, its switch never from the environment
+FOLDREAD=''   # FB-4 B1: spec-folder's read of the folder's names and ids, its switch never from the environment
 STAMPREAD=''; SPF=''; SMN=''   # GM-4 K13: spec-stamp's read of the stamp file, its switch never from the environment
 SPX=''   # FB-2 B1: spec-publish's flag (gref, keeperr), never from the environment
 # one read a tick (R3): the same three reads as DevAgent's dm.sh next, its own copy
@@ -232,7 +237,7 @@ ghc() {
           [ "${PRREAD:-}" = yes ] && [ -z "$_fl" ] && { [ -z "$_m" ] || [ "$_m" = GET ]; } || gref "gh api on a pull request's files is allowed as pr-files' read alone (a GET, no field)" ;;
         "repos/$REPO/milestones"|"repos/$REPO/milestones/"[0-9]*) ;;
         "repos/$REPO/git/trees/"*) _q=${_p#"repos/$REPO/git/trees/"}; _q=${_q%"?recursive=1"}; case "$_q" in *[!0-9a-f]*|'') gref "not a tree's read: '$_p'" ;; esac   # FB-3 B1: the folder's names and ids
-          [ "${SPUB:-}" = yes ] && [ -z "$_fl" ] && [ -z "$_in" ] && { [ -z "$_m" ] || [ "$_m" = GET ]; } || gref "gh api on a tree is allowed only in spec-publish, as a read alone (a GET, no field)" ;;
+          { [ "${SPUB:-}" = yes ] || [ "${FOLDREAD:-}" = yes ]; } && [ -z "$_fl" ] && [ -z "$_in" ] && { [ -z "$_m" ] || [ "$_m" = GET ]; } || gref "gh api on a tree is allowed only in spec-publish and spec-folder, as a read alone (a GET, no field)" ;;
         "repos/$REPO/git/blobs"|"repos/$REPO/git/trees"|"repos/$REPO/git/commits"|"repos/$REPO/git/refs")   # GM-4 K13: spec-publish's git data calls alone
           [ "${SPUB:-}" = yes ] && [ "$_m" = POST ] && [ -z "$_fl" ] && [ -n "$_in" ] || gref "gh api on the git data endpoints is allowed only in spec-publish: -X POST --input <file>, no field" ;;
         "repos/$REPO/git/refs/heads/vid-spec/"*)   # GM-4 K13: spec-publish's move of its own branch, left by an earlier call, alone
@@ -278,6 +283,16 @@ kv() { printf '%s\n' "$1" | tr ' ' '\n' | sed -n "s/^$2=//p" | head -n 1; }
 # spec-published line names that export, that folder and that stamp, so a changed folder or stamp is published again
 spdest() { SP=$(twkey spec-path); SP=${SP:-docs/specs}; SP=${SP%/}; SS=$(twkey spec-stamp); SS=${SS#"$SP"/}; }
 spdone() { spdest; _sl=$(grep '^spec-published ' .vid/tw/log 2>/dev/null | tail -n 1 || true); [ -n "$_sl" ] && [ "$(kv "$_sl" export)" = "$1" ] && [ "$(kv "$_sl" path)" = "$SP" ] && [ "$(kv "$_sl" stamp)" = "${SS:--}" ]; }
+# spplain: the spec folder (spdest's SP) is a plain path from the code repository's top
+spplain() { case "$SP" in ''|/*|.|..|./*|../*|*/../*|*/..|*/.|*/./*|*//*|*[!A-Za-z0-9._/-]*) return 1 ;; esac; }
+# gw: GitHub's reply to the last git data call ($W/gde), in brackets
+gw() { _g=$(ghwhy "$W/gde"); if [ -n "$_g" ]; then printf ' (GitHub: %s)' "$_g"; elif [ -n "${1:-}" ]; then printf ' (GitHub made %s, the export'"'"'s is %s)' "$1" "$2"; else printf ' (GitHub gave no reply)'; fi; }
+# FB-3 B1: fold <tree>: $W/fold, the folder's files at that tree of the code repository, `<blob id>\t<path from the folder>`, names and
+# ids alone (GETs, down to the folder and then whole); empty when the folder is not there
+fold() { FT=$1; : > "$W/fold"; for _c in $(printf '%s\n' "$SP" | tr / '\n'); do FT=$(ghc api "repos/$REPO/git/trees/$FT" --jq ".tree[] | select(.path == \"$_c\" and .type == \"tree\") | .sha" 2> "$W/gde") || spfail "the folder $SP could not be read$(gw) — nothing posted; the next call reads it"; [ -n "$FT" ] || return 0; done
+  ghc api "repos/$REPO/git/trees/$FT?recursive=1" --jq "$FOQ" > "$W/fold" 2> "$W/gde" || spfail "the folder $SP could not be read$(gw) — nothing posted; the next call reads it"
+  [ "$(head -n 1 "$W/fold")" != truncated ] || gref "the folder $SP holds more files than GitHub lists in one read — nothing posted"; }
+FOQ='(if .truncated then "truncated" else empty end), (.tree[] | select(.type == "blob") | [.sha, .path] | @tsv)'
 # FB-3 B1: BYH, a spec-published line of the team's own publish (by=hand stands before the words, so no words of the owner's read as it)
 BYH='^spec-published pr=[^ ]+ export=[^ ]+ path=[^ ]+ stamp=[^ ]+ at=[^ ]+ by=hand( |$)'
 num_of_url() { sed -n 's#.*/\([0-9][0-9]*\)$#\1#p' | tail -n 1; }
@@ -1089,7 +1104,7 @@ $1"; shift ;; esac; done
     [ -z "$WS" ] || [ -n "$(printf '%s' "$WO" | tr -d '[:space:]')" ] || manual || WS=''; WQ=$(printf '%s' "$WO" | tr '\t\n\r' '   ' | tr '"' "'")
     [ "$(twkey layout)" = one ] || gref "layout: $(twkey layout | grep . || echo separate): the spec reaches the team by the spec repository's export alone (sh checks/github.sh spec-export); spec-publish is layout: one's — nothing posted"
     spdest
-    case "$SP" in ''|/*|.|..|./*|../*|*/../*|*/..|*/.|*/./*|*//*|*[!A-Za-z0-9._/-]*) gref "spec-path: '$SP' is no folder inside the code repository (a plain path from its top): nothing outside the folder is ever published — nothing posted" ;; esac
+    spplain || gref "spec-path: '$SP' is no folder inside the code repository (a plain path from its top): nothing outside the folder is ever published — nothing posted"
     case "$SS" in '') ;; /*|.|..|./*|../*|*/../*|*/..|*/.|*/./*|*//*|*/|*[!A-Za-z0-9._/-]*) gref "spec-stamp: '$(twkey spec-stamp)' is no file inside spec-path: $SP: an entry outside the folder is never published — nothing posted" ;; esac
     specgit; E=${EA:-$(awk '$1 == "export" { v = $2 } END { print v }' .vid/tw/log 2>/dev/null)}; [ -n "$E" ] || gref 'no export yet: sh checks/github.sh spec-export first — nothing posted'
     E=$(git --git-dir="$SG" rev-parse -q --verify "$E^{commit}") || gref "the export $EA is not in ViD's copy of the spec repository (.vid/spec.git) — nothing posted"; E12=$(printf %.12s "$E")
@@ -1152,13 +1167,6 @@ $1"; shift ;; esac; done
     MT=$(git --git-dir=.vid/code cat-file commit "$MC" 2>/dev/null | sed -n '1s/^tree //p'); [ -n "$MT" ] || gref "main's tree could not be read from .vid/code — nothing posted"
     # GM-4 proof D6: each git data call's reply kept ($W/gde), so a refusal says what GitHub answered (gw)
     gd() { SPUB=yes ghc api -X POST "repos/$REPO/git/$1" --input "$W/pj" --jq "$2" 2> "$W/gde"; }
-    gw() { _g=$(ghwhy "$W/gde"); if [ -n "$_g" ]; then printf ' (GitHub: %s)' "$_g"; elif [ -n "${1:-}" ]; then printf ' (GitHub made %s, the export'"'"'s is %s)' "$1" "$2"; else printf ' (GitHub gave no reply)'; fi; }
-    # FB-3 B1: fold <tree>: $W/fold, the folder's files at that tree of the code repository, `<blob id>\t<path from the folder>`, names and
-    # ids alone (GETs, down to the folder and then whole); empty when the folder is not there
-    fold() { FT=$1; : > "$W/fold"; for _c in $(printf '%s\n' "$SP" | tr / '\n'); do FT=$(ghc api "repos/$REPO/git/trees/$FT" --jq ".tree[] | select(.path == \"$_c\" and .type == \"tree\") | .sha" 2> "$W/gde") || spfail "the folder $SP could not be read$(gw) — nothing posted; the next call reads it"; [ -n "$FT" ] || return 0; done
-      ghc api "repos/$REPO/git/trees/$FT?recursive=1" --jq "$FOQ" > "$W/fold" 2> "$W/gde" || spfail "the folder $SP could not be read$(gw) — nothing posted; the next call reads it"
-      [ "$(head -n 1 "$W/fold")" != truncated ] || gref "the folder $SP holds more files than GitHub lists in one read — nothing posted"; }
-    FOQ='(if .truncated then "truncated" else empty end), (.tree[] | select(.type == "blob") | [.sha, .path] | @tsv)'
     # olds [all]: $W/olds, `<blob id>\t<path>` of each file an earlier publish of this folder put there (ViD's own, its stamp too; all: the
     # team's too) that this export and its stamp do not hold; was: those of them in $W/fold unchanged, by path
     olds() { : > "$W/ol0"; grep '^spec-published ' .vid/tw/log 2>/dev/null | if [ "${1:-}" = all ]; then cat; else grep -vE "$BYH"; fi > "$W/ol1"
@@ -1224,6 +1232,17 @@ $1"; shift ;; esac; done
     SMN=$(git ls-remote "$U" refs/heads/main 2> /dev/null | cut -f1) || gref "$REPO's main could not be read"; [ -n "$SMN" ] || exit 0
     STAMPREAD=yes; SV=$(ghc api "repos/$REPO/contents/$SPF?ref=$SMN" --jq '.content | @base64d' 2> "$W/se") || { STAMPREAD=''; grep -q '404' "$W/se" && exit 0; sed 's/^/    /' "$W/se" >&2; gref "the stamp $SPF could not be read"; }; STAMPREAD=''
     printf '%s\n' "$SV" | sed -n '1s/[[:space:]]*$//p'; exit 0 ;;
+
+  spec-folder)   # FB-4 B1: read only, in GitHub manual with layout: one alone. Main's commit; unmoved since the kept read, with its repository and
+    # folder, no GET; else the folder's names and ids (fold), written whole to .vid/round/folder, an empty list when it is not there
+    manual && [ "$(twkey layout)" = one ] || exit 0
+    mkdir -p .vid/round; : > "$W/kept"; [ ! -f .vid/round/folder ] || mv -f .vid/round/folder "$W/kept"   # out until it is read
+    tw; spdest; spplain || gref "spec-path: '$SP' is no folder inside the code repository (a plain path from its top)"
+    spfail() { gref "$*"; }; U=$(ghc repo view "$REPO" --json url --jq .url) && [ -n "$U" ] && git ls-remote "$U" refs/heads/main > "$W/fm" 2> "$W/gde" || gref "the folder $SP could not be read: $REPO's main could not be read"
+    SMN=$(cut -f1 "$W/fm"); [ -n "$SMN" ] || exit 0
+    printf 'main\t%s\t%s\t%s\n' "$SMN" "$REPO" "$SP" > "$W/fo"
+    if [ "$(sed -n 1p "$W/kept")" = "$(cat "$W/fo")" ]; then cp "$W/kept" "$W/fo"; else FOLDREAD=yes; fold "$SMN"; FOLDREAD=''; cat "$W/fold" >> "$W/fo"; fi
+    put .vid/round/folder < "$W/fo" || gref "the folder's read could not be kept"; exit 0 ;;
 
   record-read)   # IR I1: record-read <link>, read only; every file read before anything is printed, so a failed read prints nothing
     [ $# -eq 1 ] || usage; N=''

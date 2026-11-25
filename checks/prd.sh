@@ -89,18 +89,23 @@
 # and the court does the same for the seed file a `Seed:` line points at (F53); a `## Seed` section cut short by the
 # seed's own `## ` heading gives one join-11 advice line, SEED.md and its
 # `Seed:` pointer, instead of one gap per excerpt found later in the file (F44).
-# Usage: sh checks/prd.sh [PRD.md] [--report] [--pause] [--before <file>] · sh checks/prd.sh --effective|--failifs|--arms [PRD.md]
+# FB-4 C1: --arms-accepted prints, one a line, `F-NN <id> arm <n> <retained|strengthened> A-NNN<TAB><the amending row>`:
+# each arm --arms reads as kept in other words that a findings row of pass `review` on that one item, evidence `arm <n>`, records `accepted A-NNN`
+# in the amending row's own append, the answer's effective row human and not delegated, the append holding one AMENDED
+# row of the item. The owner accepted that arm narrower, so its label is wrong: pre-commit refuses it in the commit that
+# adds the row. Read-only; silent and 0 as --arms is.
+# Usage: sh checks/prd.sh [PRD.md] [--report] [--pause] [--before <file>] · sh checks/prd.sh --effective|--failifs|--arms|--arms-accepted [PRD.md]
 # serves: both (0.26.10.28.4, M9)
 set -eu
 _vidwsl=${0%/*}/lib/wsl.sh; [ ! -f "$_vidwsl" ] || . "$_vidwsl"   # 0.26.10.29.3 (R6): on native Windows, with the owner's yes, this court re-runs under WSL
 IFS='
 '
-PRD=./PRD.md; MODE=default; PAUSE=no; BEFORE=''; _nb=no
+PRD=./PRD.md; MODE=default; ACC=no; PAUSE=no; BEFORE=''; _nb=no
 for a in "$@"; do
   if [ "$_nb" = yes ]; then BEFORE=$a; _nb=no; continue; fi
   case "$a" in
-  --report) MODE=report ;; --effective) MODE=effective ;; --failifs) MODE=failifs ;; --arms) MODE=arms ;; --pause) PAUSE=yes ;; --before) _nb=yes ;;
-  --*) echo "ViD prd: unknown flag '$a' — the flags are --report, --pause, --before <file>, --effective, --failifs, --arms; refusing rather than reading it as a file." >&2; exit 1 ;;
+  --report) MODE=report ;; --effective) MODE=effective ;; --failifs) MODE=failifs ;; --arms) MODE=arms ;; --arms-accepted) MODE=arms; ACC=yes ;; --pause) PAUSE=yes ;; --before) _nb=yes ;;
+  --*) echo "ViD prd: unknown flag '$a' — the flags are --report, --pause, --before <file>, --effective, --failifs, --arms, --arms-accepted; refusing rather than reading it as a file." >&2; exit 1 ;;
   *) PRD=$a ;; esac; done
 [ "$_nb" = no ] || { echo 'ViD prd: --before names no file — the pre-consolidation PRD follows it.' >&2; exit 1; }
 [ -z "$BEFORE" ] || [ -f "$BEFORE" ] || { echo "ViD prd: --before '$BEFORE' does not exist — refusing rather than comparing with nothing." >&2; exit 1; }
@@ -340,7 +345,7 @@ if [ "$MODE" = arms ]; then
     /^```/ { oth = 1; next }
     /^## / { app = ($0 ~ /^## Appends[[:space:]]*$/) ? 1 : (app ? 2 : 0); next }
     app == 1 && /^### / { pos++ }' "$PRD")
-  RN=0; CANDS=''; RULES=''
+  RN=0; CANDS=''; RULES=''; ACCS=''
   for l in $TAGGED; do
     tg=${l%%"$TB"*}; l=${l#*"$TB"}; ps=${l%%"$TB"*}; l=${l#*"$TB"}; cs=${l%%"$TB"*}; r=${l#*"$TB"}
     case $tg in
@@ -350,7 +355,9 @@ if [ "$MODE" = arms ]; then
       case $LV in 'arm '[0-9]*) ;; *) continue ;; esac
       _t=${LV#'arm '}; un=${_t%%[!0-9]*}
       field "$r" 4; _list "$FV"
-      for t in $LS; do RULES=$RULES$NL$t$TB$un$TB$ua; done ;;
+      for t in $LS; do RULES=$RULES$NL$t$TB$un$TB$ua; done
+      # FB-4 C1: for --arms-accepted, an accepted review finding on one item, with its id and its append
+      if [ "$ACC" = yes ] && [ "$LN" -eq 1 ]; then field "$r" 2; _p=$FV; field "$r" 5; case $_p:$FV in review:accepted*) field "$r" 1; ACCS=$ACCS$NL$LS$TB$un$TB$ps$TB$ua$TB$FV ;; esac; fi ;;
     I) RN=$((RN + 1)); field "$r" 1; id=$FV; bid=$id
       case $id in *AMENDED) _amid "$id"; bid=$FV ;; esac
       _key "$bid"; k=$KV; [ -n "$k" ] || continue   # an id beyond letters, digits, _ and -: join 1 and 12 judge it
@@ -358,6 +365,7 @@ if [ "$MODE" = arms ]; then
       for a in $ARMS; do normws "$a"; CN=$CN$NL$NW; HL=$HL$NL$RN$TB$NW; done
       eval "_WE_$k=\$r; pred=\${_WP_$k-}; _WP_$k=\$r; _WH_$k=\${_WH_$k-}\$HL"
       case $id in *AMENDED) ;; *) continue ;; esac
+      eval "_WM_${k}_$ps=\$((\${_WM_${k}_$ps-0} + 1))"   # FB-4 C1: the append's AMENDED rows of the item
       [ -n "$pred" ] || continue
       labeled "$pred" fail-if; [ -n "$LV" ] || continue; arms_of "$LV"; PARMS=$ARMS; NP=$NARMS
       labeled "$r" arms; _list "$LV"
@@ -368,7 +376,7 @@ if [ "$MODE" = arms ]; then
         [ "$ord" -ge 1 ] && [ "$ord" -le "$NP" ] || continue   # join 14 judges the ordinals
         _nth "$PARMS" "$ord"; normws "$NTH"; [ -n "$NW" ] || continue
         _in "$CN" "$NW" && continue
-        CANDS=$CANDS$NL$RN$TB$ps$TB$k$TB$bid$TB$ord$TB$disp$TB$NW$TB$cs
+        CANDS=$CANDS$NL$RN$TB$ps$TB$k$TB$bid$TB$ord$TB$disp$TB$NW$TB$cs; [ "$ACC" = no ] || eval "_WR_$RN=\$r"
       done ;;
     esac
   done
@@ -376,6 +384,18 @@ if [ "$MODE" = arms ]; then
     crn=${c%%"$TB"*}; c=${c#*"$TB"}; cps=${c%%"$TB"*}; c=${c#*"$TB"}; k=${c%%"$TB"*}; c=${c#*"$TB"}
     bid=${c%%"$TB"*}; c=${c#*"$TB"}; ord=${c%%"$TB"*}; c=${c#*"$TB"}; disp=${c%%"$TB"*}; c=${c#*"$TB"}
     oa=${c%%"$TB"*}; cs=${c#*"$TB"}
+    if [ "$ACC" = yes ]; then   # FB-4 C1: the arm the owner accepted narrower, marked kept; beyond doubt only
+      eval "_m=\${_WM_${k}_$cps}"; [ "$_m" -eq 1 ] || continue
+      for u in $ACCS; do
+        case $u in "$bid$TB$ord$TB$cps$TB"*) ;; *) continue ;; esac
+        u=${u#"$bid$TB$ord$TB$cps$TB"}; ua=${u%%"$TB"*}
+        _key "$ua"; [ -n "$KV" ] || continue
+        eval "ar=\${_WA_$KV-}"; [ -n "$ar" ] || continue
+        field "$ar" 2; [ "$FV" = human ] || continue
+        labeled "$ar" delegated; [ "$LV" != yes ] || continue
+        eval "ar=\$_WR_$crn"; printf '%s %s arm %s %s %s\t%s\n' "${u#*"$TB"}" "$bid" "$ord" "$disp" "$ua" "$ar"
+      done; continue
+    fi
     shut=no; eval "H=\${_WH_$k-}"
     for h in $H; do [ "${h%%"$TB"*}" -gt "$crn" ] && [ "${h#*"$TB"}" = "$oa" ] && { shut=yes; break; }; done   # restored
     if [ "$shut" = no ]; then
@@ -620,7 +640,9 @@ for r in $ITEMS_RAW; do
     continue
   fi
   _nraw "$ac"; NE=$NRAW
-  [ "$NE" -eq "$NP" ] || strict "join 14 ($id): arms: carries $NE entr(y/ies) for a predecessor with $NP arm(s) — one entry per arm, by ordinal."
+  if [ "$NE" -ne "$NP" ]; then   # FB-4 C2: the predecessor's arms listed, as the court splits them
+    _al=''; _i=0; set -f; for a in $PARMS; do _i=$((_i + 1)); _al="$_al $_i \"$a\""; done; set +f
+    strict "join 14 ($id): arms: carries $NE entr(y/ies) for a predecessor with $NP arm(s) — one entry per arm, by ordinal:$_al."; fi
   k=0
   _list "$ac"
   for e in $LS; do

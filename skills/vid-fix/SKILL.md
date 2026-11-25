@@ -196,9 +196,16 @@ dual-write):
   append, a question goes to the owner before any code moves (v0.9.8.1
   R29: every finding that narrows or withdraws a fail-if arm, as one
   question for the review, listing each row, its arm and the answer it
-  follows; the answer settles every row it names); what the repairs and
+  follows; the answer settles every row it names, and an arm the owner
+  accepts narrower is marked `withdrawn A-NNN`, its new words an arm of
+  the new fail-if: pre-commit refuses it marked kept, FB-4 C1); what the repairs and
   the rulings land is read again by the same pass (vid-create-prd, "Reviews converge", in Pass mechanics: every repaired round is read again by the same pass, up to three rounds, and what remains goes to the owner as one list; 0.26.10.29.3 phase 2, R1); the run
-  records `sh checks/event.sh 'tokens slice=N phase=review n=T'`; write the rulings as an edits file and apply it with `sh "${CLAUDE_PLUGIN_ROOT}/checks/prd-apply.sh" PRD.md <file>`; never edit the machine blocks by hand or with a script of your own (FB-1 A2).
+  records `sh checks/event.sh 'tokens slice=N phase=review n=T'`; write the rulings as an edits file and apply it with `sh "${CLAUDE_PLUGIN_ROOT}/checks/prd-apply.sh" PRD.md <file>`; never edit the machine blocks by hand or with a script of your own (FB-1 A2). Before
+  committing a spec or law change by hand, stage the whole change and
+  commit it (FB-4 C2): a refused commit lists every reason at once, the
+  order of commits the law asks for and what the message needs (`sh
+  checks/hooks/commit-msg <file>` checks a draft message); repair them
+  all, then make the commits in that order.
 - (b) ledger test in tests/invariants/ keyed to that REQ, through the public
   surface only, fixture law respected — WRITTEN BY A TEST-AUTHOR PASS
   (`${CLAUDE_PLUGIN_ROOT}/skills/vid-test-inventory/passes/test-author.md`,

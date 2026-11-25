@@ -23,7 +23,7 @@ pg() { sh "$CHECKS/planner.sh" page > "$T/out" 2>&1 || fail 'page failed'; PG=.v
 flags() { sed -n '/^## Flags$/,/^## /p' "$PG" | grep '^- '; }
 fresh; pg
 [ -f .vid/pages/PLAN-PAGE.html ] || fail 'no HTML page'
-[ "$(grep '^## ' "$PG" | tr '\n' '/')" = '## Flags/## Notes/## The setup/## The plan/## The rows ViD added/## The rows waiting on an open question/## Stage 0 — The walking skeleton/## Stage 1 — The daily digest/## Stage 2 — Synonym-aware search/## The golden sets/## The grading checklist/## The later-phase rows/## Counts/' ] || fail 'the sections are not all there, in order'
+[ "$(grep '^## ' "$PG" | tr '\n' '/')" = '## Flags/## Notes/## The setup/## The plan/## Where the tests go: what two readers found/## The rows ViD added/## The rows waiting on an open question/## Stage 0 — The walking skeleton/## Stage 1 — The daily digest/## Stage 2 — Synonym-aware search/## The golden sets/## The grading checklist/## The later-phase rows/## Counts/' ] || fail 'the sections are not all there, in order'
 [ "$(flags)" = '- no review of this plan' ] || fail 'an unreviewed plan does not say so'
 printf 'none\n' > "$T/none"; sh "$CHECKS/planner.sh" review --in "$T/none" > /dev/null; pg
 [ "$(flags)" = '- none' ] || fail 'a clean, reviewed plan does not say none'

@@ -89,7 +89,7 @@ printf 'ROW-012\n' > "$T/moved/taken-out"
 chk moved; [ "$RC" = 0 ] && ! grep -q '^rule-' "$T/out" || fail "ROW-012 taken out into S05, named, exited $RC or printed a breach"
 # its proposal's block checks clean: the proposal's taken-out file read back
 printf 'none\n' > "$T/moved/review"
-RC=0; sh "$CHECKS/replan.sh" analyse --candidate "$T/moved" > "$T/out" 2>&1 || RC=$?; [ "$RC" = 0 ] || fail "the analysis of ROW-012 taken out into S05 exited $RC"
+RC=0; pt_placed "$T/moved/placement"; sh "$CHECKS/replan.sh" analyse --candidate "$T/moved" > "$T/out" 2>&1 || RC=$?; [ "$RC" = 0 ] || fail "the analysis of ROW-012 taken out into S05 exited $RC"
 grep -q "^ROW-012${TB}$N${TB}S05\$" .vid/next/proposal/taken-out || { cp .vid/next/proposal/taken-out "$T/out"; fail 'the proposal does not take ROW-012 out of #N into S05'; }
 RC=0; sh "$CHECKS/replan.sh" check .vid/next/proposal/block > "$T/out" 2>&1 || RC=$?
 [ "$RC" = 0 ] && ! grep -q '^rule-' "$T/out" || fail "the proposal's own block does not check clean (exit $RC)"

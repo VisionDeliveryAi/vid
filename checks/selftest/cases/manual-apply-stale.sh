@@ -22,7 +22,7 @@ blk() { awk '/^## The plan/ { s = 1; next } s && /^```vid-plan[ \t]*$/ { b = 1; 
 C=$T/cand; mkdir -p "$C"; printf 'none\n' > "$C/review"
 blk | sed -e 's/^\(step S02 .*rows:\) /\1 ROW-021 /' -e '/^needs ROW-017 /{p;s/.*/needs ROW-021 | -/;}' > "$C/block"
 cand() { printf 'S02\tscope-change\tcommit:%s\tROW-021 joins #%s\n' "$(git rev-parse --short HEAD)" "$N" > "$C/changes"; }
-cand; sh "$CHECKS/replan.sh" analyse --candidate "$C" > "$T/out" 2>&1 || fail 'the analysis was refused'
+cand; pt_placed "$C/placement"; sh "$CHECKS/replan.sh" analyse --candidate "$C" > "$T/out" 2>&1 || fail 'the analysis was refused'
 snap() { { find .vid -type f ! -path '.vid/next/proposal/*' ! -path .vid/pages/REPLAN-PAGE.html | sort | while IFS= read -r f; do cksum "$f"; done
   git rev-parse HEAD; git status --porcelain; find "$FAKEGH" -type f | sort | while IFS= read -r f; do cksum "$f"; done; } > "$1"; }
 # a commit after the analysis
@@ -32,7 +32,7 @@ RC=0; sh "$CHECKS/replan.sh" apply --words 'Yes, apply it' > "$T/out" 2>&1 || RC
 [ "$RC" = 4 ] && grep -qi 'analyse again' "$T/out" || fail "the apply after a later commit exited $RC, or did not name the analysis to run again"
 snap "$T/s1"; cmp -s "$T/s0" "$T/s1" || { diff "$T/s0" "$T/s1" > "$T/out" || :; fail 'the stale apply recorded something'; }
 # analysed again; the proposal's block then takes ROW-013 out of #N
-cand; sh "$CHECKS/replan.sh" analyse --candidate "$C" > "$T/out" 2>&1 || fail 'the second analysis was refused'
+cand; pt_placed "$C/placement"; sh "$CHECKS/replan.sh" analyse --candidate "$C" > "$T/out" 2>&1 || fail 'the second analysis was refused'
 sed 's/^\(step S02 .*\) ROW-013 /\1 /; s/^\(step S05 .*rows:\) /\1 ROW-013 /' .vid/next/proposal/block > "$T/b" && cat "$T/b" > .vid/next/proposal/block
 grep -q '^step S05 .* ROW-013 ' .vid/next/proposal/block || fail 'the edit of the proposal did not take'
 snap "$T/s2"
@@ -47,7 +47,7 @@ RC=0; sh "$CHECKS/replan.sh" apply --words 'Yes, apply it' > "$T/out" 2>&1 || RC
 [ "$RC" = 1 ] && grep -q 'dry run' "$T/out" || fail "the apply whose plan change refuses in the dry run exited $RC, or did not name the dry run"
 snap "$T/s5"; cmp -s "$T/s4" "$T/s5" || { diff "$T/s4" "$T/s5" > "$T/out" || :; fail 'the apply refused in its dry run recorded something'; }
 # the review the apply records is the one the page showed: one changed after the analysis refuses, shown again
-cand; sh "$CHECKS/replan.sh" analyse --candidate "$C" > "$T/out" 2>&1 || fail 'the third analysis was refused'
+cand; pt_placed "$C/placement"; sh "$CHECKS/replan.sh" analyse --candidate "$C" > "$T/out" 2>&1 || fail 'the third analysis was refused'
 AD=$(sh "$CHECKS/planner.sh" rows --added --at HEAD 2>/dev/null | awk -F'|' 'NF { k = $1; gsub(/^[ \t]+|[ \t]+$/, "", k); if (k ~ /^(rule|difference|exception|suppression|hostility|seam)$/) { k = $2; gsub(/^[ \t]+|[ \t]+$/, "", k) } print k; exit }')
 [ -n "$AD" ] || fail 'the toy has no row its planner added, for a finding'
 printf 'finding %s | the page never showed this\n' "$AD" > .vid/next/proposal/review

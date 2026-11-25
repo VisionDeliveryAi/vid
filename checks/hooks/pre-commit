@@ -16,14 +16,20 @@
 # seams) together, then the lanes (inventory then census, design-cite, prd,
 # harness) together — each job's output, status and seconds in its own file,
 # replayed in a fixed order, every failing court named, exactly the commits
-# the serial hook refused refused; and a memo skips the PRD court when its
+# the serial hook refused refused (a quick-gate refusal no longer stops the
+# lanes, FB-4 C2); and a memo skips the PRD court when its
 # inputs are unchanged on disk — only once rule 2a has run (HEAD carries checks/).
-# v0.9.6.2 (3.4, R4): every refusal is named. Each refusing exit sets BY —
-# the courts that run side by side from the FAILED list (several failing
-# together are all named, comma-separated; inventory and census apart),
-# every other refusal its own name at its own exit (protected-paths,
+# FB-4 C2: a refused commit says every reason at once. A refusal is collected (refuse <name>) and the hook goes on; one
+# end (done_, before check 7) names them all, prints the order of commits the law asks for, with law-standalone or
+# law-dirty, and what commit-msg will ask of the message, and refuses. Ended early, since the rest would mean nothing:
+# line-endings, checks/labels.sh missing, index-copy. With law the commit does not carry or may not write (law-dirty,
+# protected-paths) the courts do not run, and one line says so; every other check still speaks. A check names every file
+# it refuses. Check 7 and the failif-amendment count run only with no refusal. A commit that passes is as it was.
+# v0.9.6.2 (3.4, R4): every refusal is named. BY holds the names, comma-separated —
+# the courts that run side by side from the FAILED list (inventory and census apart),
+# every other refusal its own name (protected-paths,
 # law-dirty, law-standalone, purpose-header, decisions-enforced,
-# decisions-promissory, decisions-label (v0.9.7.3), hosting-access (v0.26.10.8), no-plan-step (v0.26.10.24), line-endings and decisions-ticket (0.26.10.28.1), index-copy, red-stamp, prd-grammar, append-review and final-review (0.26.10.29.3), selftest) — and
+# decisions-promissory, decisions-label (v0.9.7.3), hosting-access (v0.26.10.8), no-plan-step (v0.26.10.24), line-endings and decisions-ticket (0.26.10.28.1), index-copy, red-stamp, prd-grammar, append-review and final-review (0.26.10.29.3), arm-accepted (FB-4 C1), selftest) — and
 # the EXIT trap, on a refused exit, appends ` by=<names>` to its hook-times
 # line and writes `refused phase=pre-commit by=<names> attempt=<UTC time
 # plus 4 hex>` to the run's events (checks/event.sh, so at the run's home).
@@ -91,6 +97,29 @@ kill_tree() { for _c in $(pgrep -P "$1" 2>/dev/null); do kill_tree "$_c"; done; 
 on_kill() { set +e; RESULT=killed; for _p in $JOBS; do kill_tree "$_p"; done; exit 143; }
 trap 'rc=$?; hook_times "$rc"; exit $rc' EXIT
 trap on_kill INT TERM
+# FB-4 C2. refuse <name>: one more reason, named once; the hook goes on to its next check
+refuse() { case ",$BY," in *",$1,"*) ;; *) BY="${BY:+$BY,}$1" ;; esac; }
+NOCOURTS=''; LAWSPLIT=''; LAWDIRTY=''; LAWNEW=''; AMEND=0
+# done_: the one end of a refused commit — every reason's name, the order of commits (land.sh's own, DECISIONS.md last: a
+# decision may name a row or a test the third commit adds) and what the message will need; nothing when nothing refused
+done_() {
+  [ -n "$BY" ] || return 0
+  echo "ViD pre-commit: rejected — refused by: $(printf '%s' "$BY" | tr ',' ' ')" >&2
+  if [ -n "$LAWSPLIT$LAWDIRTY$LAWNEW" ]; then
+    printf '%s\n%s\n%s\n' "$JUDGED" "$LAWDIRTY" "$LAWNEW" | grep -v '^$' | sort -u | awk '
+      function g(f) { if (f ~ /^(ARCHITECTURE|BASELINE|CLAUDE)\.md$/ || f == "docker-compose.test.yml") return 1
+        if (f ~ /^(PRD|PRD-HISTORY-[^\/]*|GRADING-CHECKLIST)\.md$/) return 2
+        return f ~ /^(INVENTORY|STAGES|DESIGN-BRIEF)\.md$/ || f ~ /^(checks|design|tests\/invariants)\// ? 3 : 4 }
+      { k = g($0); F[k] = F[k] " " $0 }
+      END { print "The order of commits the law asks for, the later files set back as HEAD holds them until their own commit:"; for (k = 1; k <= 4; k++) if (F[k] != "") print "  " ++n "." F[k] }' >&2
+  fi
+  if [ -f "$(dirname "$0")/commit-msg" ]; then
+    _mf=$(mktemp); echo 'Decisions: -' > "$_mf"
+    VID_NEEDS=1 sh "$(dirname "$0")/commit-msg" "$_mf" > "$_mf.o" 2>&1 || { echo 'And the message needs, unless it has it already:' >&2; sed 's/^/    /' "$_mf.o" >&2; }
+    rm -f "$_mf" "$_mf.o"
+  fi
+  exit 1
+}
 
 STAGED=$(git diff --cached --name-only --diff-filter=ACMR)
 STAGED_ALL=$(git diff --cached --name-only --diff-filter=ACMRD)
@@ -126,7 +155,7 @@ if [ "${VID_ROLE:-}" != "fix" ]; then
     echo 'ViD pre-commit: rejected — protected paths staged without VID_ROLE=fix:' >&2
     printf '%s\n' "$PROT" | sed 's/^/    /' >&2
     echo 'Only owner-sanctioned writes may touch tests/invariants/, checks/ or design/.' >&2
-    BY=protected-paths; exit 1
+    refuse protected-paths; NOCOURTS=yes
   fi
 fi
 
@@ -159,9 +188,9 @@ if git rev-parse -q --verify HEAD:checks >/dev/null 2>&1; then
     echo 'The courts run from the working tree, so they would judge this commit by law it does not carry. Do one of these, then commit again:' >&2
     echo '  - commit those files first, as their own law commit;' >&2
     echo '  - or set them aside with a WIP commit (on a side branch, never a stash) and bring them back after this commit.' >&2
-    BY=law-dirty; exit 1
+    refuse law-dirty; NOCOURTS=yes
   fi
-  MEMO_OK=yes   # v0.9.5 (3.9): disk equals the index under checks/ from here — the PRD memo may be read and written
+  [ -n "$NOCOURTS" ] || MEMO_OK=yes   # v0.9.5 (3.9): disk equals the index under checks/ from here — the PRD memo may be read and written
 
   extract() { # $1=git blob ref ($1 may not exist: empty) $2=region name
     C=$(git show "$1" 2>/dev/null || true)
@@ -230,7 +259,7 @@ if git rev-parse -q --verify HEAD:checks >/dev/null 2>&1; then
       echo 'Also staged (split these into their own commit):' >&2
       printf '%s' "$NONLAW" | sed 's/^/    /' >&2
       echo 'A law change is a standalone, owner-visible act: its Decisions: trailer states what it admits and why.' >&2
-      BY=law-standalone; exit 1
+      refuse law-standalone; LAWSPLIT=yes
     fi
   fi
 fi
@@ -249,7 +278,7 @@ for f in $(git diff --cached --name-only --diff-filter=A); do
   esac
   if ! git show ":$f" | head -n 15 | grep -q 'Purpose:'; then
     echo "ViD pre-commit: rejected — new source file '$f' has no \"Purpose:\" header in its first 15 lines." >&2
-    BY=purpose-header; exit 1
+    refuse purpose-header
   fi
 done
 
@@ -276,7 +305,7 @@ if [ -n "$BAD" ]; then
   echo 'ViD pre-commit: rejected — DECISIONS.md entries without an enforcement ref:' >&2
   printf '%s\n' "$BAD" | sed 's/^/    /' >&2
   echo 'Format: - **D-NNN** <what> | why: <why> | enforced: <test/hook ref, or "convention"> | applies-to: <ids and codes>' >&2
-  BY=decisions-enforced; exit 1
+  refuse decisions-enforced
 fi
 
 # 4b. Enforcement refs must not be promissory: a named ledger test must exist,
@@ -291,13 +320,13 @@ for p in $(printf '%s\n' "$D4B" | grep -oE 'tests/invariants/[A-Za-z0-9_./-]+' |
   if [ ! -f "$p" ]; then
     echo "ViD pre-commit: rejected — DECISIONS.md cites '$p' as enforcement, but no such file exists." >&2
     echo 'Write the ledger test first; promissory refs are invalid.' >&2
-    BY=decisions-promissory; exit 1
+    refuse decisions-promissory
   fi
 done
 if printf '%s\n' "$DJUDGE" | grep -qiE '\| enforced:[^|]*(future|planned|TBD)'; then
   echo 'ViD pre-commit: rejected — promissory enforced: ref ("future/planned/TBD" is not enforcement).' >&2
   echo 'Write the test first, or cite a hook/convention that exists today.' >&2
-  BY=decisions-promissory; exit 1
+  refuse decisions-promissory
 fi
 # 0.26.10.28.1 (stage 9 R6, CK-T-233): in ticket mode an enforced: field that begins `ticket <n>` must name a ticket the writer's log
 # (.vid/tw/log) published, and one that begins `step <id>` (a decision written before its ticket exists) a step of the plan
@@ -308,11 +337,11 @@ if grep -q '^mode:[[:space:]]*tickets' .vid/RUN-STATE.md 2>/dev/null; then
         awk -v n="$_n" '$1 == "published" && $2 == n { f = 1 } END { exit !f }' .vid/tw/log 2>/dev/null || {
           echo "ViD pre-commit: rejected — DECISIONS.md cites 'enforced: ticket $_n', but the ticket writer's log published no ticket #$_n." >&2
           echo 'Name a published ticket, or, before its ticket exists, its step: enforced: step <id>.' >&2
-          BY=decisions-ticket; exit 1; } ;;
+          refuse decisions-ticket; } ;;
       step*) _s=${_er#step }
         sed -n '/^```vid-plan[[:space:]]*$/,/^```[[:space:]]*$/p' .vid/RUN-STATE.md | awk -v s="$_s" '$1 == "step" && $2 == s { f = 1 } END { exit !f }' || {
           echo "ViD pre-commit: rejected — DECISIONS.md cites 'enforced: step $_s', but the plan in .vid/RUN-STATE.md has no step $_s." >&2
-          BY=decisions-ticket; exit 1; } ;;
+          refuse decisions-ticket; } ;;
     esac
   done
 fi
@@ -329,7 +358,7 @@ fi
 # as a path, as the viewer reads it. Nothing requires a module item.
 if [ -n "$DLINES" ]; then
   # 0.26.10.29.3 (R7): the join is checks/labels.sh's, which checks/decisions.sh's labelling pass uses too
-  [ -f checks/labels.sh ] || { echo 'ViD pre-commit: rejected — checks/labels.sh, the decision-label join, is missing: refresh checks/ from the plugin.' >&2; BY=decisions-label; exit 1; }
+  [ -f checks/labels.sh ] || { echo 'ViD pre-commit: rejected — checks/labels.sh, the decision-label join, is missing: refresh checks/ from the plugin.' >&2; refuse decisions-label; done_; }
   . checks/labels.sh
   DJF=$(mktemp); git show :INVENTORY.md > "$DJF.i" 2>/dev/null || : > "$DJF.i"; git show :ARCHITECTURE.md > "$DJF.a" 2>/dev/null || : > "$DJF.a"
   label_items "$DJF.i" "$DJF.a" > "$DJF"; rm -f "$DJF.i" "$DJF.a"
@@ -339,7 +368,7 @@ if [ -n "$DLINES" ]; then
     echo 'ViD pre-commit: rejected — DECISIONS.md lines without a label a brief can join on (v0.9.7.3 R1):' >&2
     printf '%s\n' "$LBAD" >&2
     echo 'Label a decision when you write it: | applies-to: <ROW, RULE or REQ ids, screen codes, DIF ids, module ids> — or | scope: project, only when it bears on many areas.' >&2
-    BY=decisions-label; exit 1
+    refuse decisions-label
   fi
 fi
 # IR I2: a replaced line is marked, and only marked: `| replaced-by: D-NNN[, D-MMM]` in its rule part, right before
@@ -370,7 +399,7 @@ if ! git diff --cached --quiet -- DECISIONS.md 2>/dev/null; then
     echo 'ViD pre-commit: rejected — DECISIONS.md replaced-by: marks out of form (IR I2):' >&2
     printf '%s\n' "$MBAD" >&2
     echo 'Mark a replaced line, and only mark it: | replaced-by: D-NNN[, D-MMM] right before | why:, naming lines DECISIONS.md holds; a later mark keeps the ids there and adds one.' >&2
-    BY=decisions-label; exit 1
+    refuse decisions-label
   fi
 fi
 
@@ -392,14 +421,14 @@ if [ -n "$HBAD" ]; then
   echo "ViD pre-commit: rejected — ARCHITECTURE.md's vid-hosting block records access only by its shape (v0.26.10.8 R4):" >&2
   printf '%s\n' "$HBAD" >&2
   echo 'Never a password or a token: name the log-in (cli-login <the platform:>), or the environment variable that holds it (env <NAME>). An answer that held a value is not recorded — ask the owner for the name, and to treat the value as exposed and replace it.' >&2
-  BY=hosting-access; exit 1
+  refuse hosting-access
 fi
 
 # 4e. v0.26.10.24 (R3, R4): no product code with no plan step, during an add or before a step of a develop stage —
 # checks/plan.sh guard judges JUDGED and names the refusal; only its exit 1 refuses. Silent without plan.sh.
 if [ -f checks/plan.sh ]; then
   _gr=0; printf '%s\n' "$JUDGED" | sh checks/plan.sh guard --paths - || _gr=$?
-  if [ "$_gr" -eq 1 ]; then BY=no-plan-step; exit 1; fi
+  if [ "$_gr" -eq 1 ]; then refuse no-plan-step; fi
 fi
 
 # 5–6. The courts — placement and conformance always; the rest presence-gated,
@@ -408,6 +437,9 @@ fi
 # checks/ without breaking. v0.9.5 (3.8, R8): side by side. No court writes a
 # shared file or reads another's output (courts-events-map A10); inventory and
 # census share one lane, since both run the project's routes extractor.
+if [ -n "$NOCOURTS" ]; then   # FB-4 C2: they would judge by law the commit does not carry, or may not write
+  echo 'ViD pre-commit: the courts did not run — they judge from the working tree, whose law this commit does not carry or may not write.' >&2
+else
 TD=$(mktemp -d)
 # job <name> <command…>: stdout, stderr, status and seconds, each in its own file
 job() { _n=$1; shift; ( set +e; _s=$(date +%s); "$@" > "$TD/$_n.out" 2> "$TD/$_n.err"; _r=$?; echo $(( $(date +%s) - _s )) > "$TD/$_n.sec"; echo "$_r" > "$TD/$_n.st" ) & JOBS="$JOBS
@@ -426,7 +458,8 @@ replay() {
     [ "$_st" = 0 ] || FAILED="$FAILED $_n"
   done
 }
-# the quick gate: the diff-reading courts together; a refusal usually comes from them
+refuse_failed() { for _n in $(printf '%s\n' "$FAILED" | tr ' ' '\n'); do refuse "$_n"; done; FAILED=''; }
+# the quick gate: the diff-reading courts together; a refusal there no longer hides the lanes' (FB-4 C2)
 court placement sh checks/placement.sh
 court conformance sh checks/conformance.sh
 if [ -f checks/imports.sh ]; then court imports sh checks/imports.sh; fi
@@ -438,10 +471,7 @@ F_placement=$(sec placement); F_conformance=$(sec conformance)
 if [ -f "$TD/imports.run" ]; then F_imports=$(sec imports); fi
 if [ -f "$TD/seams.run" ]; then F_seams=$(sec seams); fi
 replay placement conformance imports seams stages
-if [ -n "$FAILED" ]; then
-  echo "ViD pre-commit: rejected — refused by:$FAILED" >&2
-  BY=$(printf '%s' "$FAILED" | sed 's/^ *//; s/ /,/g'); exit 1
-fi
+refuse_failed
 # the PRD court's memo (3.9): its key is checks/ as staged, PRD.md and the seed
 # file, each by the sha256 of its bytes on disk; no skip and no memo when any
 # hash fails
@@ -482,7 +512,7 @@ if [ -f checks/inventory.sh ] || [ -f checks/census.sh ]; then
       if [ -d .vid ] && [ ! -e "$LANEDIR/.vid" ]; then ln -s "$PWD/.vid" "$LANEDIR/.vid"; fi
     else
       echo 'ViD pre-commit: rejected — the index could not be copied for the inventory and census lane.' >&2
-      BY=index-copy; exit 1
+      refuse index-copy; done_
     fi
   fi
 fi
@@ -509,14 +539,12 @@ if [ -f "$TD/prd.run" ]; then F_prd=$(sec prd); fi
 if [ -f "$TD/harness.run" ]; then F_harness=$(sec harness); fi
 replay inventory census design-cite prd harness
 if [ "$PRDSKIP" = yes ]; then echo 'prd: unchanged since its last pass — skipped (memo)'; fi
-if [ -n "$FAILED" ]; then
-  echo "ViD pre-commit: rejected — refused by:$FAILED" >&2
-  BY=$(printf '%s' "$FAILED" | sed 's/^ *//; s/ /,/g'); exit 1
-fi
+refuse_failed
 # the PRD memo is written only after the court passed here, atomically
-if [ -n "$PRDKEY" ] && [ -f "$TD/prd.run" ]; then
+if [ -n "$PRDKEY" ] && [ "$(cat "$TD/prd.st" 2>/dev/null || true)" = 0 ]; then
   { mkdir -p "$MEMOD" && printf '%s\n' "$PRDKEY" > "$MEMOD/.prd.tmp" && mv "$MEMOD/.prd.tmp" "$MEMOD/prd"; } 2>/dev/null || true
 fi
+fi   # NOCOURTS
 
 # 6a. v0.9.6 (3.11, R11): the red stamp — the hook's one gated call. Inside a
 # 0.9.6 develop run, a newly staged `proved-red:` stamp on a ROW row needs a
@@ -524,7 +552,7 @@ fi
 # redstamp); outside it, off. Its seconds ride .vid/hook-times as redstamp=.
 if [ -f checks/plan.sh ] && printf '%s\n' "$STAGED" | grep -qxF INVENTORY.md; then
   _s=$(date +%s)
-  if ! sh checks/plan.sh redstamp --staged; then F_redstamp=$(( $(date +%s) - _s )); BY=red-stamp; exit 1; fi
+  if ! sh checks/plan.sh redstamp --staged; then F_redstamp=$(( $(date +%s) - _s )); refuse red-stamp; fi
   F_redstamp=$(( $(date +%s) - _s ))
 fi
 
@@ -532,7 +560,7 @@ fi
 # is legitimate, but uncounted it is indistinguishable from moving the
 # goalposts. Counted = added "REQ-NNN AMENDED" lines plus removed Fail-if
 # lines in the staged PRD diff; the count lands in .vid/metrics-events for
-# checks/metrics.sh.
+# checks/metrics.sh, written below, after the last refusal: a refused attempt counts none (FB-4 C2).
 # v0.9.3 (3.7, R22): under an inventory block opening with `grammar: 0.9.3`
 # the removed-line grep matches the enriched grammar's `fail-if:` field too
 # (the 0.9.2 grep matched `Fail-if` only — a 0.9.1 defect), and a
@@ -548,7 +576,7 @@ if git diff --cached --name-only | grep -qxF PRD.md; then
     GH=$(gram HEAD:PRD.md); GS=$(gram :PRD.md)
     if [ -n "$GH" ] && [ "$(printf '%s\n%s\n' "${GS:-0}" "$GH" | awk -F. 'NR == 1 { for (i = 1; i <= 3; i++) a[i] = $i + 0 } NR == 2 { for (i = 1; i <= 3; i++) { b = $i + 0; if (a[i] < b) { print "lower"; exit } if (a[i] > b) { print "ok"; exit } } print "ok" }')" = lower ]; then
       echo "ViD pre-commit: rejected — PRD.md's grammar line goes from $GH to ${GS:-none}; a grammar is never lowered (v0.9.5 3.13)." >&2
-      BY=prd-grammar; exit 1
+      refuse prd-grammar
     fi
   fi
   PDIFF=$(git diff --cached -U0 -- PRD.md 2>/dev/null || true)
@@ -565,11 +593,6 @@ if git diff --cached --name-only | grep -qxF PRD.md; then
 ' "$PDIFF" | grep '^-' | grep -v '^---' | grep -c 'Fail-if' || true)
   fi
   AMEND=$(( ${A1:-0} + ${A2:-0} ))
-  if [ "$AMEND" -gt 0 ]; then
-    mkdir -p .vid
-    printf 'failif-amendment n=%s at=%s\n' "$AMEND" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >> .vid/metrics-events
-    echo "ViD pre-commit: note — $AMEND Fail-if amendment(s) counted (F9: legitimate, and counted)."
-  fi
 fi
 
 # 6c. 0.26.10.29.3 (R3): no append is committed without its review. Each append section the staged PRD.md adds — a
@@ -605,7 +628,33 @@ if git diff --cached --name-only | grep -qxF PRD.md && git rev-parse -q --verify
     echo 'ViD pre-commit: rejected — a new append section carries no record of its delta review (0.26.10.29.3 R3):' >&2
     printf '%s\n' "$RVBAD" >&2
     echo 'Before the commit, spawn vid-create-prd'"'"'s passes/whole-set-review.md in mode: delta on the append, and write its findings, ruled, in the section'"'"'s own ```vid-prd-findings block and the line `review: delta, round <r>, <n> findings` (0 findings: the line alone; a whole or final review'"'"'s repair append: `review: <whole|final>, round <r>, 0 findings, see <its heading under ## Findings>`). Appends already committed are never judged.' >&2
-    BY=append-review; exit 1
+    refuse append-review
+  fi
+  # FB-4 C1: a commit that adds an AMENDED row — a line neither HEAD's PRD.md nor MERGE_HEAD's holds — marking an arm
+  # retained or strengthened in other words, beside a review row of its own section `accepted A-NNN | evidence: arm <n>`: the
+  # owner accepted the arm narrower, so the label is wrong. checks/prd.sh --arms-accepted is the join; a row already
+  # committed is never judged (the record is append-only), whatever is ruled on it later, so this is not in join 14. Left
+  # out when law kept the courts from running and prd.sh itself is that law (staged, or not as the index holds it)
+  _arm=yes; [ -f checks/prd.sh ] || _arm=no
+  if [ -n "$NOCOURTS" ] && [ "$_arm" = yes ]; then
+    if printf '%s\n' "$STAGED_ALL" | grep -qxF checks/prd.sh || [ "$(git hash-object checks/prd.sh)" != "$(git rev-parse -q --verify :checks/prd.sh || true)" ]; then _arm=no; fi
+  fi
+  if [ "$_arm" = yes ]; then
+    ARBAD=''; _apf=$(mktemp); { git show HEAD:PRD.md; [ -z "$_rvm" ] || git show "$_rvm:PRD.md"; } > "$_apf.h" 2>/dev/null || true
+    git show :PRD.md > "$_apf" 2>/dev/null || : > "$_apf"
+    # only when an AMENDED row is added and an accepted arm finding is there to join
+    if awk -v hf="$_apf.h" 'BEGIN { while ((getline l < hf) > 0) H[l] = 1 } /^[^|]*AMENDED[ \t]*\|/ && !($0 in H) { n = 1 } /\|[ \t]*accepted A-[0-9]/ && /\|[ \t]*evidence:[ \t]*arm [0-9]/ { f = 1 } END { exit !(n && f) }' "$_apf"; then
+      ARBAD=$(sh checks/prd.sh "$_apf" --arms-accepted | awk -v hf="$_apf.h" 'BEGIN { while ((getline l < hf) > 0) H[l] = 1 }
+        { i = index($0, "\t"); if (substr($0, i + 1) in H) next; split(substr($0, 1, i - 1), w, " ")
+          print "    " w[2] " AMENDED: arms: marks arm " w[4] " " w[5] ", and " w[1] " records that the owner accepted it narrower: " w[4] " withdrawn " w[6] }')
+    fi
+    rm -f "$_apf" "$_apf.h"
+    if [ -n "$ARBAD" ]; then
+      echo 'ViD pre-commit: rejected — an arm the owner accepted narrower is marked kept (FB-4 C1):' >&2
+      printf '%s\n' "$ARBAD" >&2
+      echo 'Its accounting names the ruling, `<n> withdrawn A-NNN` (the new words are an arm of the new fail-if); or restore the old words; or, when the owner said the arm is no narrower, the finding is `overruled A-NNN`.' >&2
+      refuse arm-accepted
+    fi
   fi
 fi
 
@@ -625,8 +674,15 @@ if ! git rev-parse -q --verify HEAD:checks >/dev/null 2>&1 \
   if [ "${_frs:-0}" -le "${_frh:-0}" ]; then
     echo 'ViD pre-commit: rejected — this commit adds INVENTORY.md, and the staged PRD.md holds no new `review: final` line (0.26.10.29.3 phase 2 R4).' >&2
     echo 'Before the spec commit, run vid-create-prd'"'"'s passes/final-review.md over the whole spec (vid-init, "6b. The final review"), and write its record under a dated `## Findings` heading: `review: final, round <r>, <n> findings, read: <files>`, its rows in that heading'"'"'s one ```vid-prd-findings block.' >&2
-    BY=final-review; exit 1
+    refuse final-review
   fi
+fi
+
+done_   # FB-4 C2: the one end of a refused commit; below, nothing refused
+if [ "$AMEND" -gt 0 ]; then   # 6b's count
+  mkdir -p .vid
+  printf 'failif-amendment n=%s at=%s\n' "$AMEND" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >> .vid/metrics-events
+  echo "ViD pre-commit: note — $AMEND Fail-if amendment(s) counted (F9: legitimate, and counted)."
 fi
 
 # 7. Touch the law, prove the judge still convicts (§4.2): a law-change

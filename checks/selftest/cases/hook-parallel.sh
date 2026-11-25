@@ -3,8 +3,8 @@
 # refuses (v0.9.5 spec 3.8, R8; §7 case 9). Stub courts (a refusal toggled
 # per court) under the real hook: a commit where every court passes passes,
 # and one where each court in turn refuses is refused. Then: two failing
-# courts are both printed and named; a quick-gate refusal comes before any
-# lane starts; a court whose job dies before writing its status is a
+# courts are both printed and named; a quick-gate refusal no longer stops
+# the lanes, and a lane's refusal is named beside it (FB-4 C2); a court whose job dies before writing its status is a
 # failure. Last, with the real harness court, a commit whose only fault is
 # an UNTRACKED test file carrying a forbidden harness token is refused.
 # v0.9.6.2 (3.4, R4; §6 case 16): inventory and census failing together are
@@ -34,10 +34,11 @@ grep -q 'refused by: inventory prd' "$T/out" || fail 'not both failing courts na
 rm -f .fail/*; : > .fail/inventory; : > .fail/census
 rm -rf "$(git rev-parse --git-path vid-memo)"; sh checks/hooks/pre-commit > "$T/out" 2>&1 && fail 'inventory and census failing passed'
 tail -n 1 .vid/hook-times | grep -q ' by=inventory,census at=' || fail 'hook-times does not name inventory and census apart'
-# a quick-gate refusal: no lane starts
-rm -f .fail/* .ran/*; : > .fail/seams
+# a quick-gate refusal: the lanes run all the same, and a lane's refusal is named beside it (FB-4 C2)
+rm -f .fail/* .ran/*; : > .fail/seams; : > .fail/census
 rm -rf "$(git rev-parse --git-path vid-memo)"; sh checks/hooks/pre-commit > "$T/out" 2>&1 && fail 'a quick-gate refusal passed'
-for c in inventory census design-cite prd harness; do [ ! -f ".ran/$c" ] || fail "the lane $c started after a quick-gate refusal"; done
+for c in inventory census design-cite prd harness; do [ -f ".ran/$c" ] || fail "the lane $c did not run after a quick-gate refusal"; done
+tail -n 1 .vid/hook-times | grep -q ' by=seams,census at=' || fail 'hook-times does not name the gate and the lane'
 [ -f .ran/placement ] && [ -f .ran/conformance ] && [ -f .ran/imports ] || fail 'the quick gate did not run side by side'
 # a job that dies before its status file: a failure
 rm -f .fail/* .ran/*

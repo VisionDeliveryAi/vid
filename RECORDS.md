@@ -833,6 +833,7 @@ release that began the file; *(33)* is when this contract first lists it.
 | `.vid/plan/<the review's output>` | the session (vid-plan: the fresh agent's review, saved under `.vid/plan/`) | at each review pass | the reviewer's `finding <row id> \| <why>` lines or `none`, as it returned them; read once by `planner.sh review --in` |
 | `.vid/plan/TEAM-REPORTS.md` *(FB-3 A3)* | `checks/results.sh team --hand` (`/vid:vid-accept-step reports`); `checks/mode.sh manual`, at the switch and each take-stock | at each, whole | the text last handed to the owner telling the team what its reports hold; `checks/next.sh triggers` names it when the text ViD would give now differs |
 | `.vid/plan/replan-page` *(FB-3 E3)* | the session (vid-replan, "The re-plan page") | at the re-plan page's first publish | the link of the artifact that shows `.vid/pages/REPLAN-PAGE.html`, one line; each later re-plan page is published to it |
+| `.vid/plan/placement/` *(FB-4 A1)*; `.vid/plan/placement-check/`, the owner's `/vid:vid-placement-review`; `.vid/next/candidate/placement/`, a re-plan's candidate | `checks/planner.sh placements write` (`part-<k>.md`, `listed`, `judged`) and `result` (`result`, `reviewed`); the session (the vid-placement-review skill: `part-<k>.reader`, `part-<k>.refuter`) | at each review of the placements, the first round emptying the folder | the plan's steps and the placements to judge, a part a file; each part's two readers' outputs as they gave them; `result`, tab-separated: `placed round=<r> listed= right= stands= partly= refuted= unjudged= at=` a round, then `finding <stands\|partly> <round> <ids> <step> <rule> <wrong\|doubt> <better> <quote> <harm> <why>` and `unjudged <id> <why>` lines; `reviewed`, the block judged. The pages show it; `ratify` refuses a first ratification, and `replan.sh analyse` a candidate with placements listed, with no `result`; the re-plan's proposal keeps it as `.vid/next/proposal/placements` |
 | `.vid/plan/PLAN-PAGE.md` | `checks/planner.sh page` | at each page | the plan page's markdown, the record; rendered to `.vid/pages/PLAN-PAGE.html` |
 | `.vid/plan/paged` | `checks/planner.sh page` | appended at each page | `paged spec= plan=` — the spec and plan hashes the owner was shown; ratify refuses a plan no page showed |
 | `.vid/plan/ratified` | `checks/planner.sh ratify`; `reratify` (a landing's, from `checks/land.sh`) | appended at each ratification | `ratified hash=<h> plan=<plan hash> at=<t> words=<verbatim>` — `planner.sh ratified` and the writer's gate read the newest |
@@ -884,6 +885,10 @@ Added by 0.26.10.28.1 to 0.26.10.28.8, after the ticket flow's files above; each
   read. ViD's flag for each is the alarm word `report-skipped` (a `flag` and later a `flag-cleared` event, `on=<id>`, and a line of
   `.vid/decide/flags`). In `.vid/code` a report's ref is a commit of ViD's holding the report's folder alone, its message
   `vid-report: <the branch's commit>`; one of ViD's own reviews, `vid-own`.
+- **`.vid/round/folder`** *(FB-4 B1)*, `checks/github.sh spec-folder`, in GitHub manual with `layout: one`, at each take-stock and each
+  `checks/round.sh read`, never saved: `main TAB <the code repository's main> TAB <repo> TAB <spec-path:>`, then `<blob id> TAB <path from
+  the folder>`, one line a file (none when the folder is not there). Kept as it is while that first line stands; a read that fails leaves
+  it out. `checks/lib.sh folderis` reads which commit's spec it is.
 - **`.vid/round/review/<id>/`** *(FB-3 A1.4, A1.6)*, `checks/review.sh`, never saved: a review being made, `<id>` `step-<n>-<c12>` or an
   ask's ten digits: `brief.md`, `ticket.md`, `spec/` (ViD's own repository's, at the applied commit), `prs`, `rows` or `reqs` and `unread`, the
   reviewer's `grade.txt`, `to-sort.txt`, `sort-brief.md`, `sorted.txt`. It holds the cases' names, results and messages, and no change of a pull request.
@@ -1153,13 +1158,15 @@ One line per commit attempt, newest last:
 - *(2)* `redstamp=` — the red-stamp check's seconds (a commit staging
   INVENTORY.md inside a 0.9.6 develop run), `-` otherwise.
 - *(4)* `by=` — on a refused line only: what refused, the same names as
-  the `refused` event's `by=`.
+  the `refused` event's `by=`; a comma-separated list of every reason of
+  the attempt, since the hook goes on past a refusal (FB-4 C2).
 - *(14)* `checkout=` — a commit attempt in another checkout than the run's
   home (a builder's worktree) writes its line at the home, naming that
   checkout's folder; a line without it is the checkout's own (the home's,
   or any with no live run).
-- A court field is `-` when the court did not run (absent, or the hook
-  stopped earlier), `memo` when its memo skipped it; the courts run side by
+- A court field is `-` when the court did not run (absent, the hook
+  stopped earlier, or the attempt was refused for law the commit does not
+  carry or may not write), `memo` when its memo skipped it; the courts run side by
   side, so the fields add up to more than `seconds=`. From 0.26.10.12.1
   `selftest=` times the project's own cases only and is never `memo`.
 
@@ -1350,7 +1357,7 @@ field. A writer that builds keys or a type at run time names them in a
 | `red-observed` | *(2)* `row=<ROW-id> report=<receipt> case=<case id> assertion="<the failing assertion>"`; *(29)* ticket mode: `row=<ROW-id>` `pr=<n> commit=<code sha, 12>` *(not written from 0.26.10.28.1)* — the row's cases failing in the dev team's CI report for the tests-first commit; no receipt, no stamp | vid-develop; *(29)* `checks/ticket.sh import` (old ticket mode, removed in 0.26.10.28.1) | a new row's test observed failing on its real check, before its `proved-red:` stamp; *(29)* in ticket mode, at the import of the tests-first commit's CI report |
 | `re-verdict` | `slice=<N> round=<r> breached=<k>` | vid-develop | a re-verdict round |
 | `regressions` | `slice=<N> n=<k>` | vid-develop | at slice close |
-| `refused` | *(4)* `phase=pre-commit\|commit-msg\|admission by=<court or rule> attempt=<the UTC time plus 4 hex> [step=<id>]` | `checks/hooks/pre-commit` (`by=` the courts that refused, comma-separated, or `protected-paths`, `law-dirty`, `law-standalone`, `purpose-header`, `decisions-enforced`, `decisions-promissory`, *(18)* `decisions-label`, `index-copy`, `red-stamp`, `prd-grammar`, `selftest`; *(25)* `stages` among the courts; `append-review`, a new append section holding rows with no record of its delta review, 0.26.10.29.3 R3); `checks/hooks/commit-msg` (`decisions`, `tests-by`, *(25)* `stages`; `owner`, a human answer added with no `Owner:` trailer, 0.26.10.29.3 R2); `checks/plan.sh` (`rule-A`, `rule-B`, `dirty-currency`, `unrecorded-plan`, `no-step`, `rows-not-of-step`, *(17)* `graded`, *(25)* `stage`, with `step=`) | every refusal of a commit or an admission, at the run's home |
+| `refused` | *(4)* `phase=pre-commit\|commit-msg\|admission by=<court or rule> attempt=<the UTC time plus 4 hex> [step=<id>]` | `checks/hooks/pre-commit` (`by=` every reason of the attempt, comma-separated (FB-4 C2): the courts that refused, and `protected-paths`, `law-dirty`, `law-standalone`, `purpose-header`, `decisions-enforced`, `decisions-promissory`, *(18)* `decisions-label`, `index-copy`, `red-stamp`, `prd-grammar`, `selftest`; *(25)* `stages` among the courts; `append-review`, a new append section holding rows with no record of its delta review, 0.26.10.29.3 R3; `arm-accepted`, an arm marked kept whose review row says the owner accepted it narrower, FB-4 C1); `checks/hooks/commit-msg` (comma-separated as well: `decisions`, `tests-by`, *(25)* `stages`; `owner`, a human answer added with no `Owner:` trailer, 0.26.10.29.3 R2); `checks/plan.sh` (`rule-A`, `rule-B`, `dirty-currency`, `unrecorded-plan`, `no-step`, `rows-not-of-step`, *(17)* `graded`, *(25)* `stage`, with `step=`) | every refusal of a commit or an admission, at the run's home |
 | `reissued` | `row=<ROW-id> why=<answer id>` *(8)* `[rounds=<N>]` — the owner's allowance: the row is held, reason rounds, once N distinct briefs breach it with no KEPT | vid-develop | an owner ruling releases a held row |
 | `reverted` | `row=<ROW-id>` | (legacy, 0.9.2) | no longer written; wipes as 0.9.2 read it |
 | `rows-paid` | `slice=<N> n=<k>` | vid-develop | at slice close |

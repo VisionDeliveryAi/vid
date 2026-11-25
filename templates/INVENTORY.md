@@ -239,7 +239,7 @@ is visible to the vacuity extractor.
 
 ## Provider seam rows (v0.8 — read by checks/seams.sh)
 
-    seam | SEAM-NNN | service | purpose | chosen: D-NNN | credentials: <held|not-yet|never> | probe: <owed | probed(YYYY-MM-DD) | unreachable-risk(reason)> | evidence: <contract-test path + captured-response path, or owed> | quirks: <one per ";", or "none yet"> [| module: <module id>]
+    seam | SEAM-NNN | service | purpose | chosen: D-NNN | credentials: <held|not-yet|never> | probe: <owed | probed(YYYY-MM-DD) | unreachable-risk(reason)> | evidence: <contract-test path + captured-response path, or owed> | quirks: <one per ";", or "none yet"> [| module: <module id>] [| place: dev]
 
 - One row per EXTERNAL service the product depends on — payments, mail,
   feeds, search, auth, storage: anything on the other side of the network
@@ -267,6 +267,12 @@ is visible to the vacuity extractor.
   module table that talks to the service (its Module column, a dotted
   label read as a path). The project viewer lists the service among that
   module's contracts; no court reads it.
+- Optional `| place: dev` (needs `credentials: held`) says the developers
+  can reach the service from where they work, with credentials of their
+  own, so its one real action is a test of the step that first builds
+  against it. Only ticket mode reads it (checks/planner.sh); develop and
+  every other court do as without it. Absent, the service is checked on
+  the test site, at deploy gate 2.
 - Optional trailing `| match: <tokens>` names the greppable tokens that
   identify code touching this seam (client-library import names,
   hostnames, space-separated). Absent, the service field is the match

@@ -12,10 +12,10 @@ sf() { printf '%s/%s\n' "$SPD" "$1"; }
 lrev() { if manual; then applied; else echo HEAD; fi; }
 snc() { c0=''; for d in $(ls "$SD/$1" 2>/dev/null | grep -E '^[0-9]+$' | sort -n); do [ -f "$SD/$1/$d/ask" ] && c0=$d; done; echo "$c0"; }
 plr() { [ -f "$SX/plr" ] || { mustread "$SX/plr0" planner rows; grep -v '^#' "$SX/plr0" > "$SX/plr"; }; }   # R6: an unreadable plan stops the close
-# upto <N>: every row of stages 1 to N, by the admission's join: planner.sh rows' stage (its moved: counts), else stages.sh's; a seam stage 1
+# upto <N>: every row of stages 1 to N, by the admission's join: planner.sh rows' stage (its moved: counts), else stages.sh's; a seam's is the planner's (FB-4 A2)
 upto() { [ -f "$SX/up$1" ] && return 0; plr; ( cd "$SPD" && mustread "$SX/st0" stages scope --upto "$1" )
-  awk -F'\t' -v c="$1" 'FILENAME == ARGV[1] { if ($5 ~ /^[0-9]+$/ || $5 == "later") P[$1] = ($5 != "later" && $5 + 0 <= c); if ($1 ~ /^SEAM-/ && c >= 1) S[$1] = 1; next }
-    !($1 in P) || P[$1] { print } END { for (r in P) if (P[r]) print r; for (r in S) print r }' "$SX/plr" "$SX/st0" | sort -u > "$SX/up$1"; }
+  awk -F'\t' -v c="$1" 'FILENAME == ARGV[1] { if ($5 ~ /^[0-9]+$/ || $5 == "later") P[$1] = ($5 != "later" && $5 + 0 <= c); next }
+    !($1 in P) || P[$1] { print } END { for (r in P) if (P[r]) print r }' "$SX/plr" "$SX/st0" | sort -u > "$SX/up$1"; }
 sstages() { plr; x=$(awk -F'\t' '$5 ~ /^[0-9]+$/ { print $5 }' "$SX/plr" | sort -nu); echo "${x:-1}"; }
 # psteps: the plan's steps and rows, `<step> TAB <row>`, ranges expanded; sst: each step's stage, the lowest that holds all its rows
 psteps() { [ -f "$SX/ps" ] || plan_block | awk "$RNG"' function tr(x) { gsub(/^[ \t]+|[ \t]+$/, "", x); return x }

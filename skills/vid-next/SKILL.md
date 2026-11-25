@@ -51,7 +51,8 @@ The call's order, nothing more: every tier, warning, count, check and every move
    - `read-walk …`: the `vid-stage-close` skill's move, named as that skill gives it;
    - `write-summary …`: the `vid-stage-close` skill's move, named as that skill gives it (its summary written as that skill says);
    - `planning-analysis …`: the `vid-replan` skill's move, named as that skill gives it;
-   - `implement-replan …`: the `vid-replan` skill's move, named as that skill gives it.
+   - `implement-replan …`: the `vid-replan` skill's move, named as that skill gives it; what its listed line says is missing for its
+     posts (the `needs` lines of `replan.sh`) is said with it, with each command, before the owner's yes (FB-4 A3).
 
    Invoke each named move's skill (the Skill tool) first, unless this call has invoked it already. Never pass a move the owner did not name, and never words that are not theirs. Say each line it prints, in plain words:
    what was done; what was refused, at which step and in what words; what is shown again and why (not done: the owner names

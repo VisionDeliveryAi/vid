@@ -110,7 +110,9 @@ lands as that row's disposition, `accepted A-NNN` or `overruled A-NNN`
 under the owner's answer to that question (a `human` row of this sitting
 or later, never one the amending row's `source:` cites, never one
 carrying `delegated: yes`), and either corrects the disposition
-(`withdrawn A-NNN`) or restores the old words; only that ruling or a
+(`withdrawn A-NNN`, in the amending row itself when it is not yet
+committed: pre-commit refuses the arm accepted narrower and marked kept,
+FB-4 C1) or restores the old words; only that ruling or a
 restoration closes the entry. An entry whose new words fail every wrong
 build the old ones failed draws no finding (the finiteness mandate).
 

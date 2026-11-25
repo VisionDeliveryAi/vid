@@ -617,7 +617,7 @@ cmd_status() { E=$(sed -n 's/^run-start //p' .vid/decide/queue/started 2>/dev/nu
     # v0.26.10.26.2 (R7): D1, CS and the paid rows of stages up to this one
     d1=''; if [ -f "$F/d1/passed" ]; then d1=passed; elif [ -f "$F/d1/closed" ]; then grep -q '^failed ' "$F/d1/closed" && d1=failed || d1=withdrawn; elif [ -f "$F/d1/ask" ]; then d1=out; elif [ -f "$F/passed" ]; then d1=due; fi
     cs=''; if [ -f "$F/cs/passed" ]; then cs=green; elif [ -f "$F/cs/withdrawn" ]; then cs=withdrawn; elif [ -f "$F/cs/done" ]; then cs=red; elif [ -f "$F/cs/ask" ]; then cs=out; fi
-    py=$(awk -F'\t' -v x="$x" '(($3 ~ /^[0-9]+$/ && $3 + 0 <= x + 0) || $1 ~ /^SEAM-/) && $5 ~ /(^| )(owed-staging|seam)( |$)/ { m++; if ($2 == "paid") p++ } END { print p + 0 " of " m + 0 }' "$Q/rst" 2>/dev/null)
+    py=$(awk -F'\t' -v x="$x" '$3 ~ /^[0-9]+$/ && $3 + 0 <= x + 0 && $5 ~ /(^| )(owed-staging|seam)( |$)/ { m++; if ($2 == "paid") p++ } END { print p + 0 " of " m + 0 }' "$Q/rst" 2>/dev/null)
     # v0.26.10.26.4 (R6): W1, and the stage's findings ruled
     w1=''; W=$F/w1; ws=$(ls "$W" 2>/dev/null | grep -E '^[0-9]+$' | sort -n | tail -n 1); if [ -f "$W/done" ]; then w1=done; elif [ -f "$W/withdrawn" ]; then w1=withdrawn
       elif [ -f "$W/none" ]; then w1="none — $(head -n 1 "$W/none")"   # 0.26.10.28.6 (R1): no screens, no journey

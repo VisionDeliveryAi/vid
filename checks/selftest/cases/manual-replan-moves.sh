@@ -85,7 +85,7 @@ awk '/^## The plan/ { s = 1; next } s && /^```vid-plan[ \t]*$/ { b = 1; next } b
   sed -e 's/^\(step S02 .*rows:\) /\1 ROW-021 /' -e 's/^\(step S03 .*\) ROW-019 /\1 /' -e 's/^\(step S04 .*rows:\) ROW-002 \(.*\) HOS-003 /\1 \2 /' -e 's/^\(step S05 .*rows: ROW-017\)/\1 ROW-002 HOS-003/' \
     -e 's/^needs ROW-001 /needs ROW-021 ROW-001 /' -e 's/^\(needs .*\) ROW-019 /\1 /' -e 's/^needs ROW-002 \(.*\) HOS-003 /needs \1 /' -e 's/^needs ROW-017 /needs ROW-017 ROW-002 HOS-003 /' > "$C/block"
 S=$(git rev-parse --short HEAD); for s in S02 S03 S04 S05; do printf '%s\tscope-change\tcommit:%s\tthe landed changes placed\n' "$s" "$S"; done > "$C/changes"
-sh "$CHECKS/replan.sh" analyse --candidate "$C" > "$T/out" 2>&1 || fail 'the analysis was refused'
+pt_placed "$C/placement"; sh "$CHECKS/replan.sh" analyse --candidate "$C" > "$T/out" 2>&1 || fail 'the analysis was refused'
 BH=$(cat .vid/next/proposal/block-hash)
 lines; cp "$T/tr" "$T/out"
 grep -q "^move${TB}implement-replan${TB}-${TB}[0-9a-f]*${TB}applies the analysis's proposal $(cat .vid/next/proposal/hash), the plan $BH, as its page shows (its fingerprint [0-9a-f]\\{12\\}); needs your words\$" "$T/tr" || fail 'implement-replan is not listed with the fresh proposal as its page shows it, its plan and its fingerprint'

@@ -55,7 +55,7 @@ spec). `sh checks/planner.sh` judges it all (its header names each subcommand).
      With one repository, ViD's own publish into the folder comes with `vid-spec-publish`: each export mirrored into the
      folder by a pull request the team merges. The code repository as `repo: <owner>/<name>`; with `separate`, and
      with `one` in GitHub auto alone, `spec-repo:` (default `<repo>-spec`), ViD's own export (FB-3 B2: in GitHub manual with one
-     repository the export is kept in the project, so ask it only once the owner names GitHub auto); with `one`, `spec-path: <folder>` (default `docs/specs`) and
+     repository the export is kept in the project, so ask it only once the owner names GitHub auto); with `one`, `spec-path: <folder>` (default `docs/specs`), the folder ViD tells the team's spec from (FB-4 B1), and
      `spec-stamp: <a file in the folder>` (the file the publish sets to the export it holds, or `none`), and
      `spec-publish: vid|hand` (FB-3 B1: `vid`, the default, ViD's own pull request; `hand`, in GitHub manual the team publishes by its own
      process, and ViD lays the files out and reads the team's pull request); an empty
@@ -179,14 +179,18 @@ step's code; where they need only an earlier hub (a step many build on), build o
 more than one lane, a step whose rows can all pass against a fake of another step's agreed interface names that step
 in `fakes:`, and only then; with one lane a step builds on what it needs and has no `fakes:`. A journey or
 cross-module row goes to the step that builds on every step owning what it exercises, the latest point of its chain,
-with no separate integration step (its needs line, below, holds it there). Each test difference and outside service
-goes to the step that first builds against it, in the stage its row has, never the skeleton (which holds no seam or
-deploy-owed row); each rule with the steps whose modules it covers; a row with the step building the module that
-implements it, the requirement deciding only when the module is unclear. A step always holds rows: a technical step
-holds the rules, outside services and test differences of its modules, or its work goes into the first step whose
-rows use it. With `split: fine`, split the drafted steps by passes/split.md: a fresh agent (the Agent tool,
-general-purpose, no model override) receives what it lists and returns the split block, which you check and own. Read
-the page's notes and, for each, change the plan or say in the prose why it stands.
+with no separate integration step (its needs line, below, holds it there). A row paid at a deploy gate, a test
+difference and an outside service are placed as any other row: in the step that first builds what they check, the
+latest their needs name, never the skeleton (which holds none of them); a standing row ViD adds (the rehearsal, the
+two sign-ins) goes with the last step of its stage that it needs. An outside service is of its step's stage. No step
+waits for one of them but an outside service the developers can reach (`place: dev`, an ordinary test of its step); a
+stage's close waits for its steps' test-site ones, and the practice release and production prove the rest. Each rule
+goes with the steps whose modules it covers; a row with the step building the module that implements it, the
+requirement deciding only when the module is unclear. A step always holds rows: a technical step holds the rules,
+outside services and test differences of its modules, or its work goes into the first step whose rows use it.
+With `split: fine`, split the drafted steps by passes/split.md: a fresh agent (the Agent tool, general-purpose, no
+model override) receives what it lists and returns the split block, which you check and own. Read the page's notes and,
+for each, change the plan or say in the prose why it stands.
 Aim at about 30 rows a step, a journey counted once (rule A's ceiling stays 60; the page notes a step over 40). A
 protected row, a protection (hostility) row and a row of a must-never-happen (T0) item sit in the earliest step their
 needs allow, never held back to group a topic; the note on rows held late shows where one is not.
@@ -262,6 +266,12 @@ checks/planner.sh answer <n> keep --words "<the owner's words>"`) or have fixed.
 after a review that finds no fewer than the one before, and `planner.sh review` then records nothing and says why. Once
 they close, PL fixes nothing more on its own: each open finding is the owner's, to keep or to have fixed (`answer <n>
 fixed --words "<the owner's words>"` once it is), and ratify needs no new review.
+
+**Where the tests go** (FB-4 A1), once `planner.sh check` is clean and in parallel with the row review: invoke the
+`vid-placement-review` skill with the folder `.vid/plan/placement/` (before the first ratification, no argument; after one, for a plan
+changed, `--since <the plan= of .vid/plan/ratified's newest line>`). Correct each finding you agree with (through `plan.sh change`),
+check again, and its one second round; the page shows what still stands, and a first ratification is refused while the two
+readers have not read the placements. A finding refuses nothing: one you do not take up is left, its reason in the prose.
 
 ## The page
 

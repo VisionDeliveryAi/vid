@@ -5,6 +5,14 @@
 # nothing under .vid/plan/ or .vid/plans/, no call to GitHub; analyse writes only .vid/next/proposal/ (whole) and its page, .vid/pages/REPLAN-PAGE.html. The rules are read where they stand
 # (skills/vid-replan/SKILL.md says where); this script holds the checks.
 #   scope [<kind> [<subject>]]… [without #<n> <id> | without <step>]…
+#              FB-4 A3, A4: first, before every other read, what the analysis and its apply need, met or missing, one line each, none of
+#              which refuses (what refuses, refuses after the list, in its own words): `needs <what> <met|missing> <analysis|apply>
+#              <who supplies it: owner, ViD or team> <what stands, or the command>`, what being read (kept, of this call, whole), spec
+#              (committed, readable at HEAD, the stage court's own, the applied version named; no export is made or read), records (the
+#              writer's at HEAD, next.sh pending, changes and triggers), folder (B1's read kept, the spec the folder holds) and accepted
+#              (the tickets closed and not accepted) for the analysis, folder and accepted never ending it; call (the call's stage),
+#              engines, settings (writer.sh gate less the ratification, and the issue form at HEAD) and publish (layout: one with
+#              spec-publish: hand, the team's, after the apply) for the apply. Then
 #              what an analysis with these arguments covers, tab-separated, one line each: `target <HEAD>`, `applied <commit>`;
 #              next.sh pending's lines as it prints them (a failure, or an `unread` line, refuses: nothing pending is never read
 #              from a failed read); `moved-stage <id> <stage at the applied commit> <stage at HEAD>` for each row whose stage the
@@ -17,8 +25,7 @@
 #              published ticket (its newest log line's step= and rows=, not withdrawn, not CLOSED in the call's read). GM M16:
 #              an `unread` line of any part but due, in the call's read, next.sh changes or next.sh triggers, refuses,
 #              naming it, and no read kept refuses as `unread read`, so an addition a ticket's body holds is never left out unseen. `review
-#              needed|none`, needed when `planner.sh rows --added --at HEAD` prints rows; `needs engines — named before the apply`
-#              (FB-3 E2) with no engines on the handed record, told here, before any candidate, and refusing nothing. The pending changes and the to-place
+#              needed|none`, needed when `planner.sh rows --added --at HEAD` prints rows. The pending changes and the to-place
 #              rows are always covered: the apply makes HEAD the applied version, so each is placed or left either way
 #   check <block>   the candidate against the newest spec (HEAD), one line a breach, `<rule> <id> — <why>`, rule-1, rule-2,
 #              rule-4 and rule-6; then the warnings, never refusals, `size <#n or step> — <why>` and `builds <row> — <why>`. The
@@ -50,7 +57,9 @@
 #              each line named, nothing written) on a breach and on these: a team-in addition not in its ticket's step (U5: in by
 #              default, out only by `without`; round 2: one whose ticket is no open published ticket, in no step), a team-out one put there, a `without <step>` naming no new step of the candidate,
 #              a no-step row of left placed, a left trigger naming no covered trigger, a review needed and missing, or out of
-#              form (`none`, or `finding <row ViD added> | <why>` lines). Refused too while HEAD's spec files differ from the
+#              form (`none`, or `finding <row ViD added> | <why>` lines), FB-4 A1: placements listed (planner.sh placements write) and no
+#              placement/result in the candidate, two readers' (the vid-placement-review skill; a finding refuses nothing; the apply's own
+#              proposal needs none). Refused too while HEAD's spec files differ from the
 #              working tree's (the analysis targets HEAD). Then .vid/next/proposal/ written whole, and its page rendered
 #              (checks/page.sh) to .vid/pages/REPLAN-PAGE.html
 #   hash       the hash the apply recomputes and compares (exit 0, 12 hex): over the applied commit, the newest recorded plan
@@ -60,7 +69,8 @@
 #              (.vid/round/read) only each published ticket's state (its `ticket` line's number and state) and its `body` lines,
 #              so the team's other work between the two calls never stales it
 #   apply --words "<the owner's words>" [--review <file>]   GM-3 U4, the apply move (U6 wires it as `/vid next implement-replan
-#              "<words>"`). The proposal: .vid/next/proposal/ when the analysis made it (made: analysis) and it is fresh (its hash
+#              "<words>"`). First, FB-4 A3, each need of the apply that is missing, a `needs` line as scope prints it, which refuses
+#              nothing: a post that cannot be made stays owed. The proposal: .vid/next/proposal/ when the analysis made it (made: analysis) and it is fresh (its hash
 #              hash prints now, its target HEAD), else refused, exit 4, "analyse again"; with none, or the apply's own, and nothing
 #              pending that adds a test (no added or moved-stage row, no pending-only team addition, no breach of the plan as ratified
 #              with its retired rows taken out, a row newly to place among them), the apply's own (made: own, `own` below), kept while
@@ -74,7 +84,7 @@
 #              Then, inside the call's stage (vid-connect's, GM-4 F2; with the gate off the apply is refused), in order: (1) .vid/tw/applied set
 #              to the target and a line of .vid/tw/applied.log (`<commit>\t<at>\tapply`; the one in force first, `seed`, when the
 #              log is empty), the proposal's PLAN.md committed when it differs from HEAD's; (2) .vid/tw/to-place written whole: a row
-#              the block places off it, the rest kept with their words, left's no-step and other-stage rows put on in the owner's
+#              the block puts in a step of its own stage, or moves, off it (FB-4 A1b), the rest kept with their words, left's no-step and other-stage rows put on in the owner's
 #              words; (3) each team-in line recorded in .vid/next/team-answers as a yes in the owner's words; (4) for a landed
 #              re-cut (pending's spec STAGES.md) RUN-STATE's stage: moved, STAGES.md read at the target commit; the block written and plan.sh change
 #              rows recorded with the changes' triggers, evidence and expected effects (skipped when the block is the newest
@@ -96,7 +106,8 @@
 #              (analysis: a fresh analysis to apply; own: the apply's own proposal, nothing pending adding a test; analyse: the
 #              analysis is needed first, why; none: nothing pending), with own `own\t<fresh|due|refused>\t<why or ->` (FB-3 C5: its
 #              proposal made and fresh; not made, or stale; not to be made, .vid/next/own-refused's reason while what the making read
-#              stands), then `review\t<needed|none>`. Records nothing
+#              stands), then `review\t<needed|none>`, then, with the apply or its own proposal's making listed, its missing engines and
+#              settings `needs` lines (FB-4 A3), said with the move before the owner's yes. Records nothing
 #   own        the apply's own proposal written into .vid/next/proposal/ (as analyse writes one, made: own; took: the seconds it
 #              took, FB-3 C5); refused when anything pending adds a test, or nothing is pending, or it cannot be made (its first
 #              refusal line, kept in .vid/next/own-refused with a hash of what the making read). Records and posts nothing
@@ -111,6 +122,7 @@
 #   left       `no-step\t<row>\t<why>` a row left in no step; `trigger\t<what> <subject>\t<why>` a covered trigger left alone
 #   taken-out  `<row>` a line: a published row a landed re-cut moved, taken out of its ticket into a step of its new stage
 #   review     the fresh agent's review of the rows ViD's planner adds at HEAD (planner.sh review --in's form), or `none`
+#   placement/ FB-4 A1: the two readers' folder (planner.sh placements), its result the one the proposal keeps
 # The proposal, .vid/next/proposal/ (the apply's input, GM-3 U4), tab-separated, each file present, empty when it has nothing:
 #   block, PLAN.md (the candidate's, else HEAD's), review (the candidate's, or `none` when no row is added), changes (the
 #   candidate's); target (HEAD, the full commit); hash (as `hash` prints it at the analysis); block-hash (the block's lines, their
@@ -123,7 +135,7 @@
 #   ->`); warnings (`<kind>\t<subject>\t<why>`: size, builds, and each published step's GM M12 warnings, limit, stage-ahead and
 #   not-taken, as next.sh triggers gives them on a scratch copy holding the candidate with HEAD applied); left (`<kind>\t<subject>
 #   \t<why>`: no-step, other-stage (a re-cut-moved row left in ticket n, subject `<row> #<n>`), kept (a to-place row the plan still
-#   leaves, its words), trigger, team (`#<n> <id>`, without), step (without)); REPLAN-PAGE.md (the page's markdown)
+#   leaves, its words; FB-4 A1b: in no step, or in the step of another stage the ratified plan has it in), trigger, team (`#<n> <id>`, without), step (without)); placements (FB-4 A1: the candidate's placement/result, empty with none); REPLAN-PAGE.md (the page's markdown)
 # Exit: scope, hash, ready 0; check 0 clean (warnings printed or not), 1 a breach; analyse and own 0 written, 1 refused (named);
 # apply 0 applied and every post out, 3 applied with a post left owed, 1 refused (named, nothing recorded), 4 the proposal stale
 # (analyse again); 2 usage, or a read that failed (named).
@@ -219,7 +231,7 @@ judge() {
         m = split(a[3], r, " "); for (j = 1; j <= m; j++) tko[r[j], a[2]] = n }
       rd(RH, "rh"); for (i = 1; i <= N["rh"]; i++) { if (L["rh", i] ~ /^#/) continue; split(L["rh", i], a, "\t"); hk[a[1]] = a[2]; hit[a[1]] = a[4]; hst[a[1]] = a[5] }
       rd(RA, "ra"); for (i = 1; i <= N["ra"]; i++) { if (L["ra", i] ~ /^#/) continue; split(L["ra", i], a, "\t"); ast[a[1]] = a[5]; AO[++na] = a[1] }
-      for (i = 1; i <= na; i++) { x = AO[i]; if ((x in hst) && hk[x] == "row" && hst[x] ~ /^[0-9]+$/ && ast[x] ~ /^[0-9]+$/ && hst[x] != ast[x]) { mv[x] = 1; print "moved\t" x "\t" ast[x] "\t" hst[x] > SIDE } }
+      for (i = 1; i <= na; i++) { x = AO[i]; if (x !~ /^SEAM-/ && (x in hst) && hk[x] == "row" && hst[x] ~ /^[0-9]+$/ && ast[x] ~ /^[0-9]+$/ && hst[x] != ast[x]) { mv[x] = 1; print "moved\t" x "\t" ast[x] "\t" hst[x] > SIDE } }
       rd(MD, "md"); for (i = 1; i <= N["md"]; i++) { split(L["md", i], a, "\t"); mod[a[1]] = a[2] }
       rd(TA, "ta"); for (i = 1; i <= N["ta"]; i++) { split(L["ta", i], a, "\t"); YN[i] = a[1]; YK[i] = a[2]; YI[i] = a[3]; YT[i] = a[6] }
       rd(LF, "lf"); for (i = 1; i <= N["lf"]; i++) { split(L["lf", i], a, "\t"); if (a[1] == "no-step") lft[a[2]] = 1 }
@@ -236,8 +248,8 @@ judge() {
           if (!(s in rst)) { if (!(s in two)) { two[s] = ks; TW[++ntw] = s } if (!has(two[s], js)) two[s] = two[s] " " js; continue }
           br("rule-4", id, "in step " s " of stage " ks "; HEAD" "\047" "s spec gives it stage " js "; a stage changes only by a landed re-cut"); continue }
         br("rule-1", id, k ": " why) }
-      # a row the to-place list holds as other-stage, moved from its ratified step into another of another stage
-      for (x in tpo) if (cin[x] != "" && cin[x] != rin[x] && hst[x] ~ /^[0-9]+$/ && pst[cin[x]] != hst[x]) br("rule-4", x, "in step " cin[x] " of stage " pst[cin[x]] "; HEAD" "\047" "s spec gives it stage " hst[x] "; the to-place list accepted it in step " (rin[x] == "" ? "none" : rin[x]) ", not here")
+      # FB-4 A2: a seam is skipped here and above, its stage being its step'"'"'s. A row the to-place list holds as other-stage, moved from its ratified step into another of another stage
+      for (x in tpo) if (x !~ /^SEAM-/ && cin[x] != "" && cin[x] != rin[x] && hst[x] ~ /^[0-9]+$/ && pst[cin[x]] != hst[x]) br("rule-4", x, "in step " cin[x] " of stage " pst[cin[x]] "; HEAD" "\047" "s spec gives it stage " hst[x] "; the to-place list accepted it in step " (rin[x] == "" ? "none" : rin[x]) ", not here")
       for (i = 1; i <= ntw; i++) { s = TW[i]; x = two[s]; gsub(/ /, " and ", x); br("rule-1", s, "a new step whose rows are in stages " x "; every step is in one stage") }
       # rule 2, and each ticket'"'"'s top-up
       for (i = 1; i <= nt; i++) { n = TO_[i]; s = tst[n]; m = split(trw[n], r, " ")
@@ -295,6 +307,49 @@ parseargs() { : > "$T/kinds"; : > "$T/wo"; CAND=.vid/next/candidate
       if [ $# -ge 2 ] && [ "$2" != without ] && [ "$2" != --candidate ] && ! iskind "$2"; then printf '%s\t%s\n' "$1" "$2" >> "$T/kinds"; shift 2; else printf '%s\t\n' "$1" >> "$T/kinds"; shift; fi ;;
   esac; done; }
 
+# nx_ <file> <next.sh command>: next.sh's output in $T/<file>, read once a run (FB-4 A3: the list of needs and scope_ read the same one)
+nx_() { [ -f "$T/$1.rc" ] || { _nr=0; sh "$HERE/next.sh" "$2" > "$T/$1" 2> "$T/$1.e" || _nr=$?; echo "$_nr" > "$T/$1.rc"; }; [ "$(cat "$T/$1.rc")" = 0 ]; }
+# needs_ [apply]: FB-4 A3, A4, what an analysis and an apply need (scope's header), or the apply's alone; nd_ <what> <analysis|apply>
+# <who> <what is missing, empty when met> [<words when met>]: one line of it
+nd_() { printf 'needs\t%s\t%s\t%s\t%s\t%s\n' "$1" "$(if [ -n "$4" ]; then echo missing; else echo met; fi)" "$2" "$3" "$(printf '%s' "${4:-$5}" | tr '\t\n' '  ')"; }
+last_() { grep -v '^[[:space:]]*$' "$1" | tail -n 1 | sed 's/^ViD [a-z]*: //; s/^refused — //'; }
+join_() { grep . | paste -sd ';' - | sed 's/;/; /g'; }
+needs_() { _nh=$(git rev-parse -q --verify HEAD^{commit} 2>/dev/null) || _nh=''; _na=$(applied) || _na=''; git rev-parse -q --verify "${_na:-none}^{commit}" > /dev/null 2>&1 || _na=''; _rd=.vid/round/read; [ -f "$_rd" ] || _rd=/dev/null
+  if [ "${1:-}" != apply ]; then
+    # read: kept, of this call (connect.sh keeps the read before it as read.prev at the call's start, so a read of this call is newer), whole
+    if [ "$_rd" = /dev/null ]; then _w='no read kept'; elif [ -n "$(find .vid/round/read.prev -newer "$_rd" 2>/dev/null)" ]; then _w="the call before's"
+    else _w=$(awk -F'\t' '$1 == "unread" && $2 != "due" { printf "%sunread %s %s: %s", (n++ ? "; " : ""), $2, $3, $4 }' "$_rd"); fi
+    nd_ read analysis ViD "${_w:+$_w — /vid:vid-read reads GitHub now}" 'GitHub, read in this call'
+    # spec: the applied version, the spec files committed, and what the planner cannot read at HEAD, the stage court's refusals among it
+    { [ -n "$_na" ] || echo 'no applied version, .vid/tw/applied names no commit of this repository — /vid:vid-mode manual records it'
+      _sd=$(specdiff_); [ -z "$_sd" ] || echo "not committed: $(echo $_sd) — commit them"
+      _r=0; sh "$HERE/planner.sh" check --at HEAD > "$T/nck" 2> "$T/nce" || _r=$?; awk '$1 == "stages" || $1 == "unread" { print $0 " — a commit of the spec corrects it" }' "$T/nck"; [ "$_r" -le 1 ] || echo "planner.sh check cannot read HEAD: $(last_ "$T/nce")"; } > "$T/nw"
+    nd_ spec analysis owner "$(join_ < "$T/nw")" "read at HEAD $(printf %.12s "$_nh"), the team has $(printf %.12s "$_na"); no export is read"
+    # records: the writer's own at HEAD, then every part next.sh cannot read that the call's read does not say itself
+    { VID_WRITER_AT=${_nh:-HEAD} sh "$HERE/writer.sh" pending > /dev/null 2> "$T/nre" || { last_ "$T/nre" | grep . || echo 'the records cannot be read at HEAD (writer.sh pending)'; }
+      [ -z "$_na" ] || for _k in pend:pending chg:changes tg:triggers; do nx_ "${_k%:*}" "${_k#*:}" || grep -q '^unread' "$T/${_k%:*}" || echo "next.sh ${_k#*:}: $(last_ "$T/${_k%:*}.e")"; done
+      cat "$T/pend" "$T/chg" "$T/tg" 2>/dev/null | awk -F'\t' -v R="$_rd" 'BEGIN { while ((getline l < R) > 0) { split(l, a, "\t"); if (a[1] == "unread") K[a[2], a[3]] = 1 } }
+        $1 == "unread" && $2 != "due" && $2 != "read" && !(($2, $3) in K) { K[$2, $3] = 1; print "unread " $2 " " $3 ": " $4 (($2 == "writing") ? " — /vid:vid-mode manual takes stock again" : "") }'; } > "$T/nw"
+    nd_ records analysis ViD "$(join_ < "$T/nw")" 'the records read whole'
+    # folder (FB-4 B1, lib.sh foldersay): met while it holds the applied version's spec; else missing, in the words of the call's own context
+    # line, and no line while that one is quiet
+    if [ -f .vid/round/folder ] && command -v foldersay > /dev/null 2>&1; then _f=$(foldersay 2>/dev/null) || _f=''; _w=$(sed -n "s/^context${TAB}folder$TAB//p" "$T/tg" 2>/dev/null | head -n 1)
+      case $_f in '') ;; "holds$TAB"*) nd_ folder analysis owner '' "${_f#*"$TAB"}" ;; *) [ -z "$_w" ] || nd_ folder analysis owner "$_w" ;; esac; fi
+    # accepted: a published ticket closed on GitHub and not accepted (round.sh's told_, its command the one that records it)
+    _w=$(awk -v M=.vid/decide/merges -v RD="$_rd" 'BEGIN { while ((getline l < M) > 0) { split(l, a, "\t"); if (a[4] != "") A[a[2]] = 1 } while ((getline l < RD) > 0) { split(l, a, "\t"); if (a[1] == "ticket" && a[3] == "CLOSED") C[a[2]] = 1 } }
+      $1 == "withdrawn" { W[$2] = 1 } $1 == "published" { P[$2] = 1 } END { for (n in P) if ((n in C) && !(n in W) && !(n in A)) print n }' .vid/tw/log 2>/dev/null | sort -n | sed 's/^/#/' | paste -sd ',' - | sed 's/,/, /g')
+    nd_ accepted analysis owner "${_w:+$_w closed and not accepted — /vid:vid-accept-step <n> <commit> accepted \"<words>\" records each; the analysis goes on}" 'every closed ticket is accepted'
+  fi
+  _w=$(sh "$HERE/plan.sh" gate 2>/dev/null) && _w='' || _w="${_w:-off} — the vid-connect skill's start opens it; a plan that changes needs it"; nd_ call apply ViD "$_w" "the call's stage is on"
+  _w=''; ! engnone || _w=$ENGASK; nd_ engines apply owner "$_w" 'named'
+  # settings: GIT_OPTIONAL_LOCKS=0, so the gate's git status writes no index: ready runs on a read's path
+  _w=$(skey issue-form); { GIT_OPTIONAL_LOCKS=0 sh "$HERE/writer.sh" gate 2>&1 | sed -n 's/^writer: gate — //p' | grep -v '^the plan is not ratified' || :
+    [ -z "$_w" ] || [ "$(git cat-file -t "HEAD:$_w" 2>/dev/null)" = blob ] || echo "issue-form: $_w is no file committed at HEAD — commit it, or sh checks/planner.sh setup issue-form <path> --words \"<words>\""; } |
+    sed -e 's|^the settings name no \([a-z-]*\): .*|& — sh checks/planner.sh setup \1 <owner>/<name> --words "<words>"|' -e 's|^spec-repo: .*|& — sh checks/planner.sh setup spec-repo <owner>/<name> --words "<words>"|' \
+      -e 's|^the settings have no labels-prefix: .*|& — any answer sh checks/planner.sh setup records writes it|' -e 's|^open-tickets: .*|& — correct the line of .vid/tw/settings|' -e 's|has an uncommitted change$|& — commit it|' > "$T/nw"
+  nd_ settings apply owner "$(join_ < "$T/nw")" 'whole'
+  if [ "$(skey layout)" = one ] && [ "$(skey spec-publish)" = hand ]; then nd_ publish apply team "after the apply: its posts wait until the team has published the new export into the folder"; fi; }
+
 # scope_: the analysis's reads (reads_ first): $T/pend, $T/tin (`<n>\t<id>\t<evidence>`), $T/tout (`<n>\t<id>`), $T/trg (covered,
 # `<tier>\t<what>\t<subject>\t<evidence>`), $T/tp, REV (needed or none), $T/added
 # specdiff_: each spec file whose working-tree bytes differ from HEAD's (a tracked file gone counts), compared byte for byte, so
@@ -303,10 +358,10 @@ specdiff_() { for _f in $SPECF; do if git cat-file -e "HEAD:$_f" 2>/dev/null; th
     elif [ -n "$(git ls-files -- "$_f")" ]; then echo "$_f"; fi; done; }
 scope_() {
   _sd=$(specdiff_); [ -z "$_sd" ] || ref "the spec files in the working tree differ from HEAD's ($(echo $_sd)): the analysis reads HEAD; land them first"
-  sh "$HERE/next.sh" pending > "$T/pend" 2> "$T/e" || { sed 's/^/    /' "$T/e" >&2; ref 'the pending changes could not be read (next.sh pending): nothing is analysed from a failed read'; }
+  nx_ pend pending || { sed 's/^/    /' "$T/pend.e" >&2; ref 'the pending changes could not be read (next.sh pending): nothing is analysed from a failed read'; }
   ! grep -q '^unread' "$T/pend" || { sed 's/^/    /' "$T/pend" >&2; ref 'the pending changes could not be read (an unread line): nothing is analysed from a failed read'; }
-  sh "$HERE/next.sh" changes > "$T/chg" 2> "$T/e" || { sed 's/^/    /' "$T/e" >&2; ref "the team's changes could not be read (next.sh changes)"; }
-  sh "$HERE/next.sh" triggers > "$T/tg" 2> "$T/e" || { sed 's/^/    /' "$T/e" >&2; ref "the call's triggers could not be read (next.sh triggers)"; }
+  nx_ chg changes || { sed 's/^/    /' "$T/chg.e" >&2; ref "the team's changes could not be read (next.sh changes)"; }
+  nx_ tg triggers || { sed 's/^/    /' "$T/tg.e" >&2; ref "the call's triggers could not be read (next.sh triggers)"; }
   # GM M16: a partial read never reads as nothing: any unread part but due refuses, named
   # no read kept is a read unread, named `unread read`
   { if [ -f .vid/round/read ]; then cat .vid/round/read; else printf 'unread\tread\t-\tno read kept (.vid/round/read)\n'; fi; cat "$T/chg" "$T/tg"; } |
@@ -372,7 +427,7 @@ ownkey_() { { echo "$HD"; applied; grep '^plan-change ' .vid/metrics-events 2>/d
 # written through analyse itself, so it has every file of the proposal's form; made own; its review `pending` while one is needed
 own_() { [ -s "$T/oc/block" ] || ownblock_ "$T/oc/block" || ref 'a step would hold no row once its retired rows leave: the plan needs the analysis'
   S12=$(printf %.12s "$HD"); : > "$T/oc/changes"; for s in $(grep -v '^empty ' "$T/ochg"); do printf '%s\tscope-change\tcommit:%s\tthe retired tests %s leave the plan; each ticket keeps them listed, marked retired\n' "$s" "$S12" "$(paste -sd ' ' "$T/oret")" >> "$T/oc/changes"; done
-  printf 'none\n' > "$T/oc/review"; S0=$(date -u +%s); sh "$0" analyse --candidate "$T/oc" > "$T/oa" 2>&1 || { sed 's/^/    /' "$T/oa" >&2; _w=$(grep -v '^[[:space:]]*$' "$T/oa" | head -n 1 | sed 's/^[[:space:]]*//' | tr '\t' ' ')
+  printf 'none\n' > "$T/oc/review"; S0=$(date -u +%s); VID_REPLAN_OWN=1 sh "$0" analyse --candidate "$T/oc" > "$T/oa" 2>&1 || { sed 's/^/    /' "$T/oa" >&2; _w=$(grep -v '^[[:space:]]*$' "$T/oa" | head -n 1 | sed 's/^[[:space:]]*//' | tr '\t' ' ')
     # FB-3 C5 (e): kept, with what it read, so the call leaves the move out while the same reason stands
     [ -z "$_w" ] || { mkdir -p .vid/next; printf '%s\t%s\n' "$(ownkey_)" "$_w" | put .vid/next/own-refused || :; }
     ref "the apply's own proposal could not be made: ${_w:-it was stopped}"; }
@@ -387,6 +442,14 @@ rpage_() { _p=.vid/next/proposal; awk '/^## The review of the tests ViD adds/ { 
 rcheck() { awk -v AD="$T/added" "$KEY"' BEGIN { while ((getline l < AD) > 0) { k = key(l); if (k != "") A[k] = 1 } } /^[ \t]*$/ { next } { n++ } /^[ \t]*none[ \t]*$/ { z++; next }
     /^finding [^ |]+ *\|/ { x = $2; if (!(x in A)) { print x " is no row ViD added"; exit } next } { print "a line out of form: " substr($0, 1, 60); exit } END { if (!n) print "it is empty"; else if (z && n > 1) print "none with findings" }' "$1"; }
 
+# keptin_ <a block parsed by BP> (FB-4 A1b): each row of the to-place list that block leaves in the step the ratified plan ($T/rs) has it
+# in, a step of another stage ($T/pst the block's steps' stages, the planner's; $T/rh the rows' at HEAD); needs judge of that block
+keptin_() { awk -F'\t' -v CS="$1" -v RSF="$T/rs" -v PST="$T/pst" -v RH="$T/rh" '
+  BEGIN { while ((getline l < CS) > 0) { split(l, a, "\t"); if (a[1] ~ /:$/) continue; m = split(a[2], r, " "); for (j = 1; j <= m; j++) c[r[j]] = a[1] }
+    while ((getline l < RSF) > 0) { split(l, a, "\t"); if (a[1] ~ /:$/) continue; m = split(a[2], r, " "); for (j = 1; j <= m; j++) o[r[j]] = a[1] }
+    while ((getline l < PST) > 0) { split(l, a, "\t"); st[a[1]] = a[3] } while ((getline l < RH) > 0) { split(l, a, "\t"); sg[a[1]] = a[5] } }
+  NF && ($1 in c) && c[$1] == o[$1] && st[c[$1]] != sg[$1] { print $1 }' .vid/tw/to-place 2>/dev/null || :; }
+
 # steps15: the apply's steps 1 to 5, in the repository at the working directory (ViD's, or the dry run's scratch copy), the proposal
 # at .vid/next/proposal; WD the owner's words (one line), TGT the target. Prints a line each thing recorded; 1 on the first refusal
 steps15() { P=.vid/next/proposal; N0=$(now)
@@ -399,11 +462,17 @@ steps15() { P=.vid/next/proposal; N0=$(now)
 Decisions: none — PLAN.md as the re-plan's proposal holds it, applied on the owner's yes (checks/replan.sh apply)
 Seams: none
 Owner: \"$WD\"" -- PLAN.md > "$T/cm" 2>&1 || { sed 's/^/    /' "$T/cm" >&2; echo 'PLAN.md could not be committed' >&2; return 1; }; echo "plan-md $(git rev-parse --short=12 HEAD)"; fi
-  # 2. the to-place list, written whole: each row the block places off it, each row left kept with its words, the rows the proposal
+  # 2. the to-place list, written whole: each row the block puts in a step of its own stage, or moves, off it (FB-4 A1b: the stages are
+  # the apply's check's, $T/pst and $T/rh; the plan as ratified, $T/rs), each other kept with its words, the rows the proposal
   # leaves in no step (no-step) and the re-cut rows it leaves in their tickets (other-stage) put on it in the owner's words
   awk "$BP" "$P/block" | awk -F'\t' '$1 !~ /:$/ { n = split($2, r, " "); for (i = 1; i <= n; i++) print r[i] }' | sort -u > "$T/inb"
-  { awk -F'\t' -v B="$T/inb" 'BEGIN { while ((getline l < B) > 0) I[l] = 1 } NF && !($1 in I)' .vid/tw/to-place 2>/dev/null || :
-    awk -F'\t' -v OFS='\t' -v t="$N0" -v w="$WD" -v B="$T/inb" -v TP=.vid/tw/to-place 'BEGIN { while ((getline l < B) > 0) I[l] = 1; while ((getline l < TP) > 0) { split(l, a, "\t"); H[a[1]] = 1 } }
+  awk "$BP" "$P/block" > "$T/bps"; keptin_ "$T/bps" > "$T/kin"
+  # a row the proposal leaves otherwise than its line says (moved out of its step into none) takes a new line
+  awk -F'\t' -v B="$T/inb" -v K="$T/kin" -v L="$P/left" 'BEGIN { while ((getline l < B) > 0) I[l] = 1; while ((getline l < K) > 0) delete I[l]
+      while ((getline l < L) > 0) { split(l, a, "\t"); if (a[1] ~ /^(no-step|other-stage)$/) { sub(/ .*/, "", a[2]); N[a[2]] = a[1] } } }
+    NF && !($1 in I) && (!($1 in N) || N[$1] == $2)' .vid/tw/to-place > "$T/tpk" 2>/dev/null || :
+  { cat "$T/tpk"
+    awk -F'\t' -v OFS='\t' -v t="$N0" -v w="$WD" -v B="$T/inb" -v TP="$T/tpk" 'BEGIN { while ((getline l < B) > 0) I[l] = 1; while ((getline l < TP) > 0) { split(l, a, "\t"); H[a[1]] = 1 } }
       $1 == "no-step" && !($2 in I) && !($2 in H) { print $2, "no-step", t, w; H[$2] = 1 }
       $1 == "other-stage" { r = $2; sub(/ .*/, "", r); if (!(r in H)) { print r, "other-stage", t, w; H[r] = 1 } }' "$P/left"; } > "$T/tpn"
   awk -F'\t' 'FILENAME == ARGV[1] { N[$1] = 1; next } NF && !($1 in N) { print "off-to-place " $1 }' "$T/tpn" .vid/tw/to-place 2>/dev/null || :
@@ -427,6 +496,7 @@ Owner: \"$WD\"" -- PLAN.md > "$T/cm" 2>&1 || { sed 's/^/    /' "$T/cm" >&2; echo
 apply_() { WD=''; RVF=''; while [ $# -gt 0 ]; do case $1 in --words) [ $# -ge 2 ] || usage; WD=$(one "$2"); shift 2 ;; --review) [ $# -ge 2 ] || usage; RVF=$2; shift 2 ;; *) usage ;; esac; done
   [ -n "$WD" ] || ref "no words: the apply is done only on the owner's yes, --words \"<their words>\""
   [ -z "$RVF" ] || [ -f "$RVF" ] || die "--review $RVF: no file there"
+  ! manual || needs_ apply | awk -F'\t' '$3 == "missing"'   # FB-4 A3: what its posts need and lack, first; none refuses
   reads_; P=.vid/next/proposal; M=$(made_)
   # which proposal: a fresh analysis; else, with nothing pending that adds a test, the apply's own (kept while fresh, so a review shown stays)
   if [ "$M" = analysis ]; then fresh_ || { echo "ViD replan: refused — the proposal is stale: HEAD or what it reads changed since the analysis ($(printf %.12s "$(cat "$P/target" 2>/dev/null)") then, $(printf %.12s "$HD") now): analyse again, /vid next planning-analysis" >&2; exit 4; }
@@ -517,18 +587,19 @@ case $sub in
 
   check) [ $# -eq 1 ] || usage; reads_; judge "$1"; cat "$T/jo"; ! grep -q '^rule-' "$T/jo" || exit 1; exit 0 ;;
 
-  scope) parseargs "$@"; [ "$CAND" = .vid/next/candidate ] || usage; reads_; scope_
+  scope) parseargs "$@"; [ "$CAND" = .vid/next/candidate ] || usage; ! manual || needs_; reads_; scope_   # FB-4 A3: the list first, whatever refuses after it
     printf 'target\t%s\napplied\t%s\n' "$HD" "$A"; cat "$T/pend"
     judge "$T/rb" > /dev/null 2>&1 || :; awk -F'\t' -v OFS='\t' '$1 == "moved" { print "moved-stage", $2, $3, $4 }' "$T/side"
     awk -F'\t' -v OFS='\t' 'NF { print "to-place", $1, $2, $4 }' "$T/tp"
     awk -F'\t' -v OFS='\t' '{ print "team-in", "#" $1, $2, $3 }' "$T/tin"; awk -F'\t' -v OFS='\t' '{ print "team-out", "#" $1, $2 }' "$T/tout"
     awk -F'\t' -v OFS='\t' '{ print "trigger", $1, $2, $3, $4 }' "$T/trg"
     awk -F'\t' -v OFS='\t' '{ r = $3; gsub(/ /, ",", r); print "ticket", "#" $1, $2, (r == "" ? "-" : r) }' "$T/tk"
-    printf 'review\t%s\n' "$REV"; ! engnone || printf 'needs\tengines — named before the apply\n'; exit 0 ;;
+    printf 'review\t%s\n' "$REV"; exit 0 ;;
 
   analyse) ;;
   apply) parseargs; apply_ "$@" ;;
-  ready) [ $# -eq 0 ] || usage; parseargs; ready_; exit 0 ;;
+  # FB-4 A3: with implement-replan listed, what its posts need and lack
+  ready) [ $# -eq 0 ] || usage; parseargs; ready_ > "$T/rdo"; cat "$T/rdo"; ! grep -q "^apply${TAB}\(analysis\|own\)$TAB" "$T/rdo" || grep -q "^own${TAB}refused" "$T/rdo" || needs_ apply | awk -F'\t' '$3 == "missing" && $2 ~ /^(engines|settings)$/'; exit 0 ;;
   own) [ $# -eq 0 ] || usage; parseargs; reads_; scope_; adds_; [ ! -s "$T/adds" ] || { sed 's/^/    /' "$T/adds" >&2; ref 'something pending adds a test (above): the apply needs the analysis'; }
     [ -s "$T/pend" ] || ref 'nothing is pending'; own_; echo "ViD replan: the apply's own proposal is in .vid/next/proposal/ — the plan block $(cat .vid/next/proposal/block-hash); nothing recorded or posted"; exit 0 ;;
   *) usage ;;
@@ -559,6 +630,10 @@ awk -F'\t' -v CS="$T/cs" -v TK="$T/tk" -v TIN="$T/tin" -v TOUT="$T/tout" -v WO="
       if (!n) print "review \342\200\224 the rows ViD" "\047" "s planner adds at HEAD (planner.sh rows --added --at HEAD) need a fresh agent" "\047" "s review: its output, or none, in the candidate" "\047" "s review"
       else if (bad != "") print "review \342\200\224 " bad
       else if (none && n > 1) print "review \342\200\224 none and findings both" } }' < /dev/null > "$T/bad"
+# FB-4 A1: the candidate's placements, two readers' (the vid-placement-review skill); the apply's own proposal places no test
+PLN=0; if [ -z "${VID_REPLAN_OWN:-}" ] && [ ! -f "$C/placement/result" ]; then
+  PLN=$(sh "$HERE/planner.sh" placements write "$T/plc" --block "$C/block" --at HEAD --plan-md "$T/cpm" 2> "$T/e" | sed -n 's/^listed //p'); [ -n "$PLN" ] || { sed 's/^/    /' "$T/e" >&2; die "planner.sh placements could not list the candidate's placements"; }
+  [ "$PLN" = 0 ] || echo "placements — $PLN to read (planner.sh placements write), and no $C/placement/result: the vid-placement-review skill's two readers" >> "$T/bad"; fi
 if grep -q '^rule-' "$T/jo" || [ -s "$T/bad" ]; then grep '^rule-' "$T/jo" >&2 || :; cat "$T/bad" >&2
   ref "the candidate breaks $(grep -c '^rule-' "$T/jo" || :) re-plan rule(s) and $(grep -c . "$T/bad" || :) of the analysis's — nothing written"; fi
 
@@ -568,6 +643,7 @@ trap 'rm -rf "$T" "$PD"' EXIT   # FB-3 C5 (e): a read that dies half way leaves 
 fail_() { rm -rf "$PD"; ref "$1"; }
 cp "$C/block" "$PD/block"; cp "$T/cpm" "$PD/PLAN.md"; cp "$T/c-changes" "$PD/changes"
 if [ "$REV" = needed ]; then tr -d '\r' < "$C/review" > "$PD/review"; else printf 'none\n' > "$PD/review"; fi
+if [ -z "${VID_REPLAN_OWN:-}" ] && [ -f "$C/placement/result" ]; then cp "$C/placement/result" "$PD/placements"; else : > "$PD/placements"; fi   # FB-4 A1
 printf '%s\n' "$HD" > "$PD/target"; hash_ > "$PD/hash"; sed 's/[[:space:]]*$//' "$C/block" | sha > "$PD/block-hash"
 { awk -F'\t' -v OFS='\t' '{ print "kind", $1, ($2 == "" ? "-" : $2) }' "$T/kinds"; awk -F'\t' -v OFS='\t' '{ print "without", $2 }' "$T/wo"; } > "$PD/args"
 cp "$T/pend" "$PD/pending"; cp "$T/trg" "$PD/triggers"
@@ -611,11 +687,15 @@ fi
 # left: the rows left in no step, the re-cut rows left in their tickets, the to-place rows kept, the triggers, the team's, the steps
 { awk -F'\t' -v OFS='\t' -v LF="$T/c-left" 'BEGIN { while ((getline l < LF) > 0) { split(l, a, "\t"); if (a[1] == "no-step") W[a[2]] = a[3] } } $1 == "no-step" { print "no-step", $2, W[$2] }' "$T/side"
   awk -F'\t' -v OFS='\t' '$1 == "other-stage" { print "other-stage", $2 " #" $3, "a landed re-cut moved it to stage " $4 "; it stays in #" $3 ", where it was published, on the to-place list" }' "$T/side"
-  awk -F'\t' -v OFS='\t' -v CS="$T/cs" 'BEGIN { while ((getline l < CS) > 0) { split(l, a, "\t"); m = split(a[2], r, " "); for (j = 1; j <= m; j++) c[r[j]] = 1 } } NF && !($1 in c) { print "kept", $1, "on the to-place list (" $2 "): " $4 }' "$T/tp"
+  keptin_ "$T/cs" > "$T/kin"   # FB-4 A1b: a test left in another stage's step is said too
+  awk -F'\t' -v OFS='\t' -v CS="$T/cs" -v K="$T/kin" 'BEGIN { while ((getline l < CS) > 0) { split(l, a, "\t"); m = split(a[2], r, " "); for (j = 1; j <= m; j++) c[r[j]] = a[1] } while ((getline l < K) > 0) k[l] = 1 }
+    NF && (!($1 in c) || ($1 in k)) { print "kept", $1, "on the to-place list (" $2 "): " $4 (($1 in k) ? " (still in step " c[$1] ", of another stage)" : "") }' "$T/tp"
   awk -F'\t' -v OFS='\t' '$1 == "trigger" { print "trigger", $2, $3 }' "$T/c-left"
   awk -F'\t' -v OFS='\t' '{ print "team", "#" $1 " " $2, "left out in the owner" "\047" "s words: without #" $1 " " $2 }' "$T/tout"
   awk -F'\t' -v OFS='\t' '$1 == "step" { print "step", $2, "not published by the apply, in the owner" "\047" "s words: without " $2 }' "$T/wo"; } > "$PD/left"
 
+# FB-4 A5: which step is the first to set up which data store, the planner's own list for the candidate
+sh "$HERE/planner.sh" setsup --block "$C/block" --at HEAD > "$T/su" 2> "$T/e" || { sed 's/^/    /' "$T/e" >&2; fail_ "what each step is the first to set up could not be read (planner.sh setsup)"; }
 # the page, in plain words
 BH=$(cat "$PD/block-hash"); PH=$(cat "$PD/hash")
 { printf '# The re-plan proposal\n\n'
@@ -645,13 +725,18 @@ BH=$(cat "$PD/block-hash"); PH=$(cat "$PD/hash")
   printf '\n## What moves\n\n'
   if [ -s "$PD/moves" ]; then awk -F'\t' '{ if ($2 == "-") print "- " $1 ": into " $3 " (new to the plan)"; else if ($3 == "-") print "- " $1 ": out of " $2 ", into no step"; else print "- " $1 ": from " $2 " to " $3 }' "$PD/moves"; else printf 'No test moves.\n'; fi
   [ ! -s "$PD/taken-out" ] || awk -F'\t' '{ print "- " $1 ": taken out of #" $2 " into " $3 ", its new stage after the landed re-cut; your words to the apply are your words for it" }' "$PD/taken-out"
+  [ ! -s "$T/su" ] || { printf '\n## What each step is the first to set up\n\nFrom the owned data of ARCHITECTURE.md'"'"'s seam table and the steps'"'"' modules, as the plan would be.\n\n'
+    awk -F'\t' '{ printf "- %s: %s (%s)\n", ($1 == "-" ? "in no step" : "**" $1 "**"), $3, $2 }' "$T/su"; }
+  printf '\n## Where the tests go: what two readers found\n\n'   # FB-4 A1, as the plan page shows it
+  if [ -s "$PD/placements" ]; then sh "$HERE/planner.sh" placements show "$C/placement" --block "$C/block" --at HEAD --plan-md "$T/cpm" 2> "$T/e" || fail_ "the two readers' result could not be shown: $(tail -n 1 "$T/e")"; printf '\nYour words to the apply answer each finding shown here.\n'
+  elif [ -n "${VID_REPLAN_OWN:-}" ]; then echo '- not reviewed: this proposal places no test'; else echo '- not reviewed: no placement to read'; fi
   printf '\n## The warnings\n\nEach is shown, never a refusal: your words to the apply are your words past them.\n\n'
   if [ -s "$PD/warnings" ]; then awk -F'\t' '{ print "- **" $1 "** " $2 ": " $3 }' "$PD/warnings"; else printf 'None.\n'; fi
   printf '\n## What it leaves alone, and why\n\n'
   if [ -s "$PD/left" ]; then awk -F'\t' '{ k = $1; s = $2; if (k == "no-step") k = "in no step"; else if (k == "other-stage") k = "left in its ticket"; else if (k == "kept") k = "to place"; else if (k == "team") k = "the team" "\047" "s addition"; else if (k == "step") k = "the new step"; print "- " k " " s ": " $3 }' "$PD/left"; else printf 'Nothing.\n'; fi
   printf '\n## The triggers it covers\n\n'
-  if [ -s "$PD/triggers" ]; then awk -F'\t' -v LF="$PD/left" 'BEGIN { while ((getline l < LF) > 0) { split(l, a, "\t"); if (a[1] == "trigger") W[a[2]] = a[3] } }
-      { k = $2 " " $3; print "- " $1 ", " k " (" $4 "): " ((k in W) ? "left alone: " W[k] : "taken in by the changes below") }' "$PD/triggers"; else printf 'None.\n'; fi
+  if [ -s "$PD/triggers" ]; then awk -F'\t' -v LF="$PD/left" 'BEGIN { while ((getline l < LF) > 0) { split(l, a, "\t"); if (a[1] == "trigger") W[a[2]] = a[3]; if (a[1] == "kept") K["to-place-active " a[2]] = K["stage-to-correct " a[2]] = 1 } }
+      { k = $2 " " $3; print "- " $1 ", " k " (" $4 "): " ((k in W) ? "left alone: " W[k] : (k in K) ? "left as it is" : "taken in by the changes below") }' "$PD/triggers"; else printf 'None.\n'; fi
   [ ! -s "$PD/team-in" ] || { printf '\n## The team'"'"'s additions it takes in\n\n'; awk -F'\t' '{ print "- " $2 " in #" $1 ", as the team added it: the apply records your yes to it" }' "$PD/team-in"; }
   printf '\n## The changes\n\n'
   if [ -s "$PD/changes" ]; then printf '| What | Trigger | Evidence | Expected effect |\n|---|---|---|---|\n'; awk -F'\t' '{ for (i = 1; i <= 4; i++) gsub(/\|/, "/", $i); print "| " $1 " | " $2 " | " $3 " | " $4 " |" }' "$PD/changes"; else printf 'No plan change.\n'; fi
