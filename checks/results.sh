@@ -49,6 +49,7 @@
 #   lines or fault folders; a row's transitions and marks come from the newest ticket holding it, by .vid/tw/log
 # FB-3 A2: skipped [--ticket <n>]               the report branches github.sh results-fetch left out, with the owner's words for each (a flag's); a
 #   ticket's, a `report left out — vid-results/<id>: <why>` line each. `read` says each of the ticket's, `report skipped <id> <why>`
+# FB-6 A2.2: missing --ticket <n> --at <commit>  (GitHub manual) in one line what an ask at a commit with no result lacks, posted by round.sh accept
 # FB-5 B1.8: lacks --ticket <n> --at <commit>   (GitHub manual) what the team's older form lacked in the evidence last read there, a lack a line
 # FB-3 A3: team [--hand]                       the text telling the team what its reports hold, in the project's mode, for the owner to hand over;
 #   --hand writes it to .vid/plan/TEAM-REPORTS.md too (FB-5 B1.7: not while the team's own rules are on record). No lock, no GitHub
@@ -152,7 +153,7 @@ mform() { FN=results.txt; case $1 in stopped-*) WHY="not a results, red, run or 
   G cat-file -e "$R:$1/$FN" 2>/dev/null || { WHY="no $FN"; return 1; }; G show "$R:$1/$FN" | tr -d '\r' > "$T/mf"
   _x=$(head -n 1 "$T/mf"); case $_x in 'by: '*[!\ ]*) ;; *) WHY="the first line of $FN is not by: <who made it>: $_x"; return 1 ;; esac
   _c=$(sed -n 's/^commit: *//p' "$T/mf" | head -n 1 | sed 's/ *$//'); [ -n "$_c" ] || { WHY="$FN names no commit"; return 1; }
-  _x=$(G rev-parse -q --verify "$_c^{commit}" 2>/dev/null) || { WHY="the code repository lacks the commit $_c"; return 1; }; _c=$_x
+  _x=$(G rev-parse -q --verify "$_c^{commit}" 2>/dev/null) || { WHY="no branch of the code repository holds the commit $_c"; return 1; }; _c=$_x
   case $1 in red-*) ;; *) [ -z "$2" ] || [ "$_c" = "$2" ] || { case $1 in req-*|deploy-*) false ;; *) [ "$(tid "$_c")" = "$(tid "$2")" ] ;; esac; } || { WHY="the commit $_c is not the one asked for, $2"; return 1; } ;; esac
   case $1 in req-*|deploy-*) [ -n "$2" ] || { WHY="the commit $_c is not the one asked for, none"; return 1; } ;; esac
   [ "$FN" = results.txt ] || return 0; load "$1"; case $1 in req-*-p1cx-*) _m=0 ;; *) _m=1 ;; esac
@@ -187,9 +188,7 @@ attempts() { awk -F'\t' '{ id = $2; k = id; sub(/.*-/, "", k); b = id; sub(/-[^-
 atids() { rlist; awk -F'\t' -v c="$1" -v t="$(tid "$1")" '{ print (($2 != "" && ($2 == c || (t != "" && $3 == t))) ? "@" : "-") "\t" $1 "\t" $2 }' "$T/rl" | attempts; }
 # hits <id>: a case of the report names one of the rows of $T/hr (a line each); kept in $T/hit.<id>. HT, the matching, as the evidence's
 hits() { [ -f "$T/hit.$1" ] || { load "$1"; cat "$T/cx/$1/"[0-9]* 2>/dev/null | awk -F'\t' -v H="$T/hr" "$HT"' BEGIN { while ((getline l < H) > 0) r[++n] = l } $1 == "c" && !f { x = norm($2); for (i = 1; i <= n && !f; i++) if (hit(x, r[i])) f = 1 } END { print f + 0 }' > "$T/hit.$1"; }; [ "$(cat "$T/hit.$1")" = 1 ]; }
-HT='function norm(s) { gsub(/[-_.]/, "-", s); return s }
-  function hit(n, id,   o, p, a, b, s) { id = norm(id); o = 1
-    while ((p = index(substr(n, o), id)) > 0) { a = o + p - 1; b = (a > 1) ? substr(n, a - 1, 1) : ""; s = substr(n, a + length(id), 1); if (b !~ /[A-Za-z0-9]/ && s !~ /[A-Za-z0-9]/) return 1; o = a + 1 } return 0 }'
+HT=$(hitf)
 # at <ticket> [<commit>] (GitHub manual): the result reports at that commit whose form is right, an id a line; with no commit, the newest
 # commit of main's first-parent line at which one holds a case of one of the ticket's rows
 cmd_at() { [ -n "$MAN" ] && [ -n "${1:-}" ] || die 'usage — sh checks/results.sh at <ticket> [<commit>] (GitHub manual)'; KIND=''; ticket "$1"; cut -f1,2 "$T/tk" | sed -n "s/^row$TAB//p" > "$T/hr"
@@ -213,6 +212,12 @@ left() { skips > "$T/sk"; [ -s "$T/sk" ] || [ -n "$MAN" ] || return 0; if [ -n "
 # skipped: each left-out branch, `<id> TAB <the flag's words>`; skipped --ticket <n> [--at <commit>]: the ticket's, a `report left out — …` line each
 cmd_skipped() { if [ "${1:-}" = --ticket ] && [ -n "${2:-}" ]; then left "$2" '' "${4:-}" | while IFS=$TAB read -r i y; do echo "report left out — vid-results/$i: $y"; done; return 0; fi; [ $# -eq 0 ] || die 'usage — sh checks/results.sh skipped [--ticket <n>]'
   skips | while IFS=$TAB read -r i n c a d y; do [ "$n" = - ] && o='' || o=" reports on #$n"; printf "%s\tthe branch vid-results/%s (its newest commit %s by %s, %s)%s: %s. Put the report's files in a folder named %s on that branch and push it again; whatever else the branch holds is not read.\n" "$i" "$i" "$(printf %s "$c" | cut -c1-12)" "$a" "$d" "$o" "$y" "$i"; done; }
+# FB-6 A2.2: missing --ticket <n> --at <commit> (GitHub manual), in one line what no result at a commit of main lacks, and the pull request merged as it whose
+# last commit holds the same files (the tree id, read from the commit object)
+cmd_missing() { [ -n "$MAN" ] && [ "${1:-}" = --ticket ] && [ -n "${2:-}" ] && [ "${3:-}" = --at ] && [ -n "${4:-}" ] || die 'usage — sh checks/results.sh missing --ticket <n> --at <commit> (GitHub manual)'
+  printf 'no result report that can be read is at %s, or at a commit with its very files' "$(printf %.12s "$4")"; _t=$(tid "$4" || true)
+  [ -z "$_t" ] || awk -F'\t' -v c="$4" '$4 == c && $3 != c { print $1 " " $3 }' .vid/decide/unit-merges 2>/dev/null | while read -r _p _h; do [ "$(tid "$_h" || true)" = "$_t" ] || continue
+    printf " — pull request #%s's last commit, %s, holds the same files: a report at it counts" "$_p" "$(printf %.12s "$_h")"; break; done; echo; }
 # FB-5 B1.8: lacks, from the evidence file and the reports at the commit: a transition no test names, a row's id written with other digits, results
 # older than a row's amendment, a report's branch, a file or a break's folder left out, no engine named. Read for the owner alone; it changes nothing
 cmd_lacks() { [ -n "$MAN" ] && [ "${1:-}" = --ticket ] && [ -n "${2:-}" ] && [ "${3:-}" = --at ] && [ -n "${4:-}" ] || die 'usage — sh checks/results.sh lacks --ticket <n> --at <commit> (GitHub manual)'
@@ -341,9 +346,7 @@ cmd_team() { case "$#:${1:-}" in 0:|1:--hand) ;; *) die 'usage — sh checks/res
   # FB-5 B1.7: in GitHub manual, with the team's own rules on record (team-rules), --hand prints the text and writes nothing
   [ $# = 0 ] || { [ -n "$MAN" ] && [ -n "$(skey team-rules)" ]; } || { mkdir -p .vid/plan && put .vid/plan/TEAM-REPORTS.md < "$T/team"; } || exit 1; cat "$T/team"; }
 # the evidence, from the stream $T/in: the format's matching, red rule and faults
-EV='function norm(s) { gsub(/[-_.]/, "-", s); return s }
-  function hit(n, id,   o, p, a, b, s) { id = norm(id); o = 1
-    while ((p = index(substr(n, o), id)) > 0) { a = o + p - 1; b = (a > 1) ? substr(n, a - 1, 1) : ""; s = substr(n, a + length(id), 1); if (b !~ /[A-Za-z0-9]/ && s !~ /[A-Za-z0-9]/) return 1; o = a + 1 } return 0 }
+EV=$HT'
   function add(set, name, st, f, fbd,   i) { i = ++nc[set]; cn[set, i] = norm(name); cs[set, i] = st; cf[set, i] = f; cb[set, i] = " " fbd " " }
   function scan(set, id,   i, w) { sn = 0; sfail = 0; sbad = 0; serr = 0; ssu = 0; sline = ""; sbline = ""; sfb = ""
     for (i = 1; i <= nc[set]; i++) if (hit(cn[set, i], id)) { sn++; w = cs[set, i]; if (w == "failed") { sfail++; if (sline == "") sline = cf[set, i]; sfb = sfb cb[set, i] } else if (w != "passed") { sbad++; serr += (w == "errored"); ssu += (w == "errored" && cf[set, i] ~ /^setup:/); if (sbline == "") sbline = w ": " cf[set, i] } } }
@@ -553,9 +556,7 @@ declared() {
 # the close's reading of one chunk, from the stream: c <engine> <attempt> <name> <status> <first line>; u <row> <transitions>; h <engine> <row> <name>,
 # a case of the row's newest accepted head report. Each row in each engine of the chunk: passed, failed, could not run, not run, or, in phase 2
 # with no case at all, an x line for the engine line. Then the chunk's line and its rows
-CL='function norm(s) { gsub(/[-_.]/, "-", s); return s }
-  function hit(n, id,   o, p, a, b, s) { id = norm(id); o = 1
-    while ((p = index(substr(n, o), id)) > 0) { a = o + p - 1; b = (a > 1) ? substr(n, a - 1, 1) : ""; s = substr(n, a + length(id), 1); if (b !~ /[A-Za-z0-9]/ && s !~ /[A-Za-z0-9]/) return 1; o = a + 1 } return 0 }
+CL=$HT'
   function unit(u, e, a,   i, n, bad, su) { n = 0; bad = 0; su = 0
     for (i = 1; i <= nc[e, a]; i++) if (hit(cn[e, a, i], u)) { n++; if (cs[e, a, i] == "errored" && cf[e, a, i] ~ /^setup:/) su++; else if (cs[e, a, i] != "passed") { bad++; if (FN == "") FN = cr[e, a, i] } }
     return !n ? "none" : bad ? "failed" : su ? "setup" : "passed" }
@@ -597,8 +598,8 @@ stdir() { c=''; for d in $(ls ".vid/decide/stage/$1" 2>/dev/null | grep -E '^[0-
 invat_() { if manual; then _a=$(applied); [ -z "$_a" ] || git show "$_a:INVENTORY.md" 2>/dev/null; else cat INVENTORY.md 2>/dev/null; fi; }
 invids() { invat_ | sed -n '/^```vid-inventory/,/^```$/p' | awk -F'|' '{ a = $1; gsub(/[ \t]/, "", a); b = $2; gsub(/[ \t]/, "", b); if (a ~ /^ROW-[0-9]+$/) print a; else if (b ~ /^[A-Z]+-[0-9]+$/) print b }'; }
 # unmatched <rev> <engine>: the rest chunk's cases whose name holds no id of the inventory, `unmatched <case> <status>`
-unmatched() { invids > "$T/ids"; cases "$1" | awk -F'\t' -v I="$T/ids" 'BEGIN { while ((getline l < I) > 0) W[++n] = l }
-    $1 == "c" { c = $2; gsub(/[-_.]/, "-", c); f = 0; for (i = 1; i <= n && !f; i++) { q = c; while ((p = index(q, W[i])) > 0) { b = (p > 1) ? substr(q, p - 1, 1) : ""; a = substr(q, p + length(W[i]), 1); if (b !~ /[A-Za-z0-9]/ && a !~ /[A-Za-z0-9]/) { f = 1; break } q = substr(q, p + 1) } }
+unmatched() { invids > "$T/ids"; cases "$1" | awk -F'\t' -v I="$T/ids" "$HT"' BEGIN { while ((getline l < I) > 0) W[++n] = l }
+    $1 == "c" { c = norm($2); f = 0; for (i = 1; i <= n && !f; i++) f = hit(c, W[i])
       if (!f) print "unmatched\t" $2 "\t" $3 }'; }   # the format matching: separators one for one, the id whole
 cmd_close() { S=''; ST=''; CS=''; CCA=''; while [ $# -ge 2 ]; do case $1 in --step) S=$2 ;; --stage) ST=$2 ;; --cs) ST=$2; CS=cs ;; --cr) ST=$2; CS=cr ;; --cp) ST=$2; CS=cp ;; --candidate) CCA=$2 ;; *) die "unknown $1" ;; esac; shift 2; done
   [ -n "$S$ST" ] || die 'usage — sh checks/results.sh close --step <step> | --stage <N> | --cs <N>'; CD=.vid/decide/close/$S; [ -z "$ST" ] || { S=stage-$ST; CD=$(stdir "$ST"); [ -z "$CCA" ] || CD=.vid/decide/stage/$ST/$CCA; }; [ -z "$CS" ] || { case $CS in cs) S=staging-$ST ;; cr) S=rehearsal-$ST ;; cp) S=production-$ST ;; esac; CD=$CD/$CS; }   # v0.26.10.27.3: --candidate, CP read at its own candidate
@@ -785,6 +786,6 @@ CMD=${1:-}; [ $# -gt 0 ] && shift
 case $CMD in
   cases) cases "${1:?}" ;;   # FB-3 A1.4: one results file's cases, for checks/review.sh's brief
   grade) cmd_grade "$@" ;; deploy) cmd_deploy "$@" ;;
-  check) cmd_check "$@" ;; read) cmd_read "$@" ;; page) cmd_page "$@" ;; declare) cmd_declare "$@" ;; close) cmd_close "$@" ;; skipped) cmd_skipped "$@" ;; lacks) cmd_lacks "$@" ;; at) cmd_at "$@" ;; team) cmd_team "$@" ;;
+  check) cmd_check "$@" ;; read) cmd_read "$@" ;; page) cmd_page "$@" ;; declare) cmd_declare "$@" ;; close) cmd_close "$@" ;; skipped) cmd_skipped "$@" ;; missing) cmd_missing "$@" ;; lacks) cmd_lacks "$@" ;; at) cmd_at "$@" ;; team) cmd_team "$@" ;;
   *) die 'usage — sh checks/results.sh check|read|page|declare|close|skipped|at|team …' ;;
 esac

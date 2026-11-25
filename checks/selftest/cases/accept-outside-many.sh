@@ -1,7 +1,7 @@
 #!/bin/sh
 # Purpose: selftest case — several tickets accepted outside ViD are recorded in one call (FB-3 E1): round.sh accept --tickets
 # "<n>[@<commit>] …" --outside "<words>", on GitHub manual's toy and the fake gh (fixtures/accept.sh), both issues closed. Before it all four
-# stand: the stage-ahead warning counts stage 0's tests; `closed #<n> not accepted` is told, its line and accept's refusal naming the third
+# stand: the stage-ahead warning counts stage 0's tests; `context closed` is told, its line and accept's refusal naming the third
 # command, /vid:vid-accept-step <n> <commit> accepted "<your words>"; the step's close is not owed; rule B holds a step that builds on it. The
 # skeleton with no commit named is recorded at its decision comment's commit, the step named at a commit off main at main's newest, its
 # record saying which; a withdrawn ticket refused alone; with no words each is. One read, one save of the records, nothing posted. The
@@ -29,9 +29,10 @@ admit() { mode_ auto; sh "$CHECKS/plan.sh" admit S03 > "$T/out" 2>&1 || :; mode_
 owed() { sh "$CHECKS/close.sh" owed > "$T/out" 2>&1 || :; grep -qx "$1" "$T/out"; }
 # the four, before
 ac_round read; [ "$(warn)" = 2 ] || fail 'the warning does not count stage 0 two tests on the toy'
-for n in "$K" "$AC_N"; do gh issue close "$n" -R owner/code; done
+for n in "$K" "$AC_N"; do gh issue close "$n" -R owner/code --reason 'not planned'; done
 third() { printf '/vid:vid-accept-step %s <commit> accepted "<your words>" records it as accepted outside ViD' "$1"; }
-ac_round step; for n in "$K" "$AC_N"; do grep "^closed #$n not accepted — " "$T/out" | grep -qF "$(third "$n")" || fail "#$n, closed, is not told with the third command"; done
+trg() { sh "$CHECKS/next.sh" read > "$T/out" 2>&1; sh "$CHECKS/next.sh" triggers > "$T/L" 2> "$T/out" || fail 'next.sh triggers failed'; cp "$T/L" "$T/out"; }; TABB=$(printf '\t')
+trg; for n in "$K" "$AC_N"; do grep "^context${TABB}closed${TABB}#$n${TABB}closed on GitHub as not planned, not accepted — " "$T/out" | grep -qF "$(third "$n")" || fail "#$n, closed, is not told with the third command"; done
 ac_round accept "$AC_N"; grep "^refused #$AC_N closed on GitHub before its acceptance: " "$T/out" | grep -qF "$(third "$AC_N")" || fail 'the refusal of a closed ticket does not name the third command'
 ! owed 'stage 0' && ! owed 'close S02' || fail 'a close is owed before'; case $(admit) in "admit	S03	held	"*'builds on S01, which is not closed'*) ;; *) fail 'S03 is not held for S01 before' ;; esac
 # usage, and the words
@@ -54,7 +55,7 @@ grep -qx "$(printf 'step-%s-%s\t%s\t%s\t%s' "$K" "$(c12 "$AC_RED")" "$K" "$AC_RE
 ! ls .vid/results/ 2>/dev/null | grep -qE '^(step|pr|stand-in)' && [ ! -s $D/log ] && [ ! -d $D/review ] && ! grep -q 'fault-proven' .vid/tw/handed && [ -z "$(git --git-dir=.vid/code for-each-ref refs/heads/vid-results)" ] || fail 'something a run or a review writes was written'
 # the four, after
 for n in "$K" "$AC_N"; do gh_attr "$n" state OPEN; done; ac_round read; [ "$(warn)" = 0 ] || fail 'the warning still counts stage 0 tests'; for n in "$K" "$AC_N"; do gh_attr "$n" state CLOSED; done
-ac_round step; ! grep -q '^closed #' "$T/out" || fail 'a recorded ticket is still told closed and not accepted'
+trg; ! grep -q "^context${TABB}closed" "$T/out" || fail 'a recorded ticket is still told closed and not accepted'
 owed 'stage 0' || fail "stage 0's run, S01's close among it, is not owed"; owed 'close S02' || fail "S02's close is not owed"
 ac_round accept --tickets "$K" --outside "$W"; grep -qx "refused #$K accepted already, at $(c12 "$AC_RED")" "$T/out" || fail 'a ticket on record is not refused'
 # stage 0's run passed, the line it writes for its step

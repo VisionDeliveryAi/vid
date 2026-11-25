@@ -360,7 +360,7 @@ if [ -n "$SWA" ]; then : > "$W/no"; WA='the switch to GitHub auto'
   [ ! -s "$W/tpa" ] || echo "no-auto to-place — $WA is refused while any row is to place: $(paste -sd ' ' - < "$W/tpa") (place each in a step: /vid next's re-plan)" >> "$W/no"
   [ ! -s "$W/no" ] || { cat "$W/no"; ref "$WA is refused (the lines above): the mode stays GitHub manual"; }
   # FB-3 C3: the switch posts nothing, so a ticket on record without the label is one DevAgent will not see: said, one line each
-  for n in $(onrec); do awk -F'\t' -v n="$n" -v T=",${PX}ticket," -v L="${PX}ticket" '$1 == "issue" && $2 == n && !index("," $3 ",", T) { print "unlabelled #" n " — an open ticket on record without the label " L ": DevAgent works only issues labelled " L }' .vid/round/read; done
+  for n in $(onrec); do gclosed "$n" || awk -F'\t' -v n="$n" -v T=",${PX}ticket," -v L="${PX}ticket" '$1 == "issue" && $2 == n && !index("," $3 ",", T) { print "unlabelled #" n " — an open ticket on record without the label " L ": DevAgent works only issues labelled " L }' .vid/round/read; done
   VID_CALLER=mode-auto; export VID_CALLER; fi
 
 # 7. the plan, in a planning sitting

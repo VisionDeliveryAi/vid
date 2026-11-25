@@ -88,6 +88,8 @@ close-rows.sh
 close-selected.sh
 close-shrink.sh
 close-ticket-real.sh
+closed-ask.sh
+closed-held.sh
 closure.sh
 commit-msg-refuses-human-without-owner.sh
 commit-msg.sh
@@ -243,6 +245,7 @@ hook-times.sh
 hooks-idle-cost.sh
 host-lease.sh
 hostility.sh
+id-no-dash.sh
 identical-runs.sh
 image-name.sh
 impact-equals-post-commit.sh
@@ -374,6 +377,7 @@ next-tiers-minor.sh
 next-warnings-one.sh
 next-warnings.sh
 no-completed-key.sh
+no-results-said.sh
 notice-contradicted.sh
 notice-died.sh
 notice-handback.sh

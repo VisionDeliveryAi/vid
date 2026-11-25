@@ -19,7 +19,7 @@ The call's order, nothing more: every tier, warning, count, check and every move
    end. Its start opens the call's stage: every move below runs in it. The panel beside the chat shows the call's parts as they
    run; the scripts say them (FB-3 D2).
 2. **ViD's own work by its rules,** behind the owner's switch: `sh "${CLAUDE_PLUGIN_ROOT}/checks/next.sh" own-work`.
-   - Unless it prints `on`: say in one line that ViD's own work is off, with the move that turns it on, `own-work on "<your words>"`, and run nothing here. Each `context ask` line step 5 shows is then said with its command, as the vid-accept-step skill says it.
+   - Unless it prints `on`: say in one line that ViD's own work is off, with the move that turns it on, `own-work on "<your words>"`, and run nothing here. Each `context ask` line step 5 shows is then said with its command, as the vid-accept-step skill says it. A `context closed` line is said so with own work on too.
    - With it on, these in order, one line each, every line they print said as its skill says:
      - Invoke the `vid-accept-step` skill (the Skill tool): `sh "${CLAUDE_PLUGIN_ROOT}/checks/round.sh" step`, then `sh "${CLAUDE_PLUGIN_ROOT}/checks/round.sh" accept <n> <commit>` for each `decide` line it printed;
      - Invoke the `vid-step-close` skill (the Skill tool): the close's lines those printed;

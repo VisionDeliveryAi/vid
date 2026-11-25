@@ -157,7 +157,7 @@ commit`. A test an amendment of the ticket adds or restates is read only from re
 
 **A row** (or a journey's transition) is read from all the reports at the commit as one: it passes when at least one file has a case of
 it, every case of it in that file passed, and no file has a failed or errored case of it. A skipped case, or one that errored with
-`setup:`, in another file stops nothing. A file that is not whole can fail a row and never pass one. No engine is asked by name, and a
+`setup:`, in another file stops nothing. A file that is not whole can fail a row and never pass one. A test's name also holds a row's id written without its first dash (`ROW012`), and a failure so named fails the row. No engine is asked by name, and a
 regression row is read the same way. A rule row's `covers:` line of 0 fails it; with no line nothing is missing.
 
 **Read when the team gives it, never asked:** a red run, `red-<ticket or a sub-issue of it>-<k>`; a deliberate break, the report's
@@ -446,6 +446,8 @@ zero `covers:` makes its rule row fail unless its test could not run, and a rete
   is `vid: decide <a full commit of the code repository's main>`, and nothing more, once results that count at that commit are
   pushed ("GitHub manual" above); no grade and no sort is. It is
   unanswered while no `vid: decision <that commit>` comment follows it. A unit's pull request asking `vid: decide` is never
-  answered there: the ask belongs on the ticket. A test the newest amendment of the ticket adds or restates counts the ticket's
+  answered there: the ask belongs on the ticket. A ticket closed on GitHub as completed
+  is asked and answered the same way. An ask at a commit where no result report counts is answered once, `not yet`, `no results at this
+  commit — …`, with what is missing: push the report and ask again. A test the newest amendment of the ticket adds or restates counts the ticket's
   evidence only from reports made after that amendment.
 - **A started run or grade:** on a run or grade ask's issue, the role the ask names comments `vid: started` when it starts.

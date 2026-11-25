@@ -107,6 +107,18 @@ askall_() { [ -f "$1" ] || return 0; awk -F'\t' "$ASKF"'BEGIN { OFS = "\t"; whil
     END { close(".vid/decide/unit-merges"); while ((getline l < ".vid/decide/unit-merges") > 0) { split(l, x, "\t"); UH[x[1]] = x[3] } close(".vid/decide/pr-asks"); while ((getline l < ".vid/decide/pr-asks") > 0) { split(l, x, "\t"); if ((x[1] in SN) || !(x[2] in P) || UH[x[1]] != x[3]) continue
         f = ".vid/decide/posted-step-" x[2] "-" substr(x[3], 1, 12); if ((getline y < f) >= 0) { close(f); continue } print x[2], x[3], x[1], 0, x[3] } }' "$1"; }
 tasks_() { askall_ "$1" | awk -F'\t' '$4 == 0 && ($3 == "-" || $2 == $5) { print $1 "\t" $2 "\t" $3 }'; }
+# FB-6 A1: gclosed <n>, the call's read holds ticket n as closed on GitHub; CLOSEDL, the last line of a `not yet` posted on such a ticket
+gclosed() { awk -F'\t' -v n="$1" '$1 == "ticket" && $2 == n && $3 == "CLOSED" { f = 1 } END { exit !f }' .vid/round/read 2>/dev/null; }
+# gclosedl: those tickets, for the readers that count open tickets (FB-6 A1.2: an `issue` line does not make one open)
+gclosedl() { awk -F'\t' '$1 == "ticket" && $3 == "CLOSED" { printf " %s", $2 } END { print " " }' .vid/round/read 2>/dev/null || echo ' '; }
+CLOSEDL='this ticket is closed on GitHub and not accepted: ask again here'
+# FB-6 A2.1: hitf, the awk functions a test's name is matched to an id by, one text for every reader: norm(s), `-`, `_` and `.` one character; hit(<a
+# normed name>, <id>), the id in it with neither a letter nor a digit right before or after. In GitHub manual the id's first dash may be left out (ROW012)
+hitf() { printf '%s\n' 'function norm(s) { gsub(/[-_.]/, "-", s); return s }
+  function hit1(n, id,   o, p, a, b, s) { o = 1
+    while ((p = index(substr(n, o), id)) > 0) { a = o + p - 1; b = (a > 1) ? substr(n, a - 1, 1) : ""; s = substr(n, a + length(id), 1); if (b !~ /[A-Za-z0-9]/ && s !~ /[A-Za-z0-9]/) return 1; o = a + 1 } return 0 }'
+  if manual; then printf '%s\n' '  function hit(n, id,   x) { x = id = norm(id); return (hit1(n, id) || (sub(/-/, "", x) && hit1(n, x))) ? 1 : 0 }'
+  else printf '%s\n' '  function hit(n, id) { return hit1(n, norm(id)) }'; fi; }
 # epoch <UTC ISO time>: its seconds, BSD's date or GNU's, else 0
 epoch() { date -u -j -f '%Y-%m-%dT%H:%M:%SZ' "$1" +%s 2>/dev/null || date -u -d "$1" +%s 2>/dev/null || echo 0; }
 # stamp, now: the UTC time, ISO

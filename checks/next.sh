@@ -93,6 +93,8 @@
 #     context ask <#n> <commit12> <the command that decides it>   (GM-4 K11, E1) each published ticket's unanswered `vid: decide`
 #                                         ask in the read, on its issue or (FB-5 B1.4) at the head of its own pull request,
 #                                         /vid:vid-accept-step <n> <commit12>
+#     context closed <#n> <words>         (FB-6 A1.3) in GitHub manual, own work on or off, each published ticket closed on GitHub and not
+#                                         accepted: that the team asks for its decision (the ask's line above), or the owner's commands
 #     context assigned <#n> <labels> <title>
 #     context report <id> <words>         (FB-3 A2) in GitHub manual, a report branch left out, its words what to do
 #     context team-reports <why>          (FB-3 A3) in GitHub manual, the text telling the team what its reports hold is not the one handed
@@ -312,6 +314,15 @@ rpfp_() { { printf '== target\n'; git rev-parse HEAD; printf '== reads\n'; sh "$
 
 # GM-4 K11 (L1): ownwork_, `on` or `off`, the newest own-work line of the setup
 ownwork_() { _o=$(sed -n 's/^setup-answered key=own-work value="\([a-z]*\)".*/\1/p' .vid/plan/setup 2> /dev/null | tail -n 1); [ "$_o" = on ] && echo on || echo off; }
+# FB-6 A1.3 (GitHub manual): closed_, `CLZ TAB <n> TAB <words>` for each ticket published, not withdrawn and not accepted (.vid/decide/merges) that the
+# read holds as CLOSED, whatever own work is; one whose view failed has its unread line. $T/tas, the asks owed an answer
+closed_() { [ -f "$RD" ] && [ -f "$LOG" ] || return 0
+  awk -F'\t' -v OFS='\t' -v LG="$LOG" -v MG=.vid/decide/merges -v TA="$T/tas" -v PQ=.vid/decide/pr-asks 'BEGIN { while ((getline l < LG) > 0) { split(l, x, " "); if (x[1] == "published") P[x[2]] = 1; else if (x[1] == "withdrawn") delete P[x[2]] }
+      while ((getline l < MG) > 0) { split(l, x, "\t"); if (x[4] != "") A[x[2]] = 1 } while ((getline l < TA) > 0) { split(l, x, "\t"); K[x[1]] = 1 } while ((getline l < PQ) > 0) { split(l, x, "\t"); Q[x[2]] = 1 } }
+    $1 == "issue" { I[$2] = 1 } $1 == "unread" && $2 == "closed" { U[$3] = 1 } $1 == "ticket" && $3 == "CLOSED" && ($2 in P) && !($2 in A) { o[++n] = $2 }
+    END { for (i = 1; i <= n; i++) { t = o[i]; if (t in U) continue; w = "closed on GitHub" ((t in I) ? "" : " as not planned") ", not accepted — "; r = "/vid:vid-tickets reopen #" t " \"<your words>\" reopens it, "; a = "/vid:vid-accept-step " t " <commit> accepted \"<your words>\" records it as accepted outside ViD"
+      if (t in K) w = w "the team asks for its decision, the line above"; else if ((t in I) && (t in Q)) w = w "/vid:vid-accept-step " t " decides it, or records its acceptance"
+      else w = w r ((t in I) ? "" : "/vid:vid-tickets withdraw #" t " \"<your words>\" withdraws it, ") a; print "CLZ", t, w } }' "$RD"; }
 # GM-4 E10 (GM M11): slow_, `SS TAB <step> TAB <evidence>` for each published step ticket open in the read and not accepted (no
 # accepted-at line, no merge on record), out longer than twice the median time from publish to first acceptance of the step tickets
 # accepted, once three have one
@@ -320,7 +331,7 @@ slow_() { [ -f "$RD" ] && [ -f "$LOG" ] && [ -s .vid/decide/accepted-at ] || ret
   : > "$T/sl1"; while IFS="$TAB" read -r n s a; do [ "$n" != w ] || continue; grep -qx "w$TAB$n" "$T/sl0" && continue; [ -n "$a" ] || continue
     f=$(awk -v n="$n" '$2 == n { for (i = 4; i <= NF; i++) if ($i ~ /^at=/) { print substr($i, 4); exit } }' .vid/decide/accepted-at)
     if [ -n "$f" ]; then printf 'a\t%s\n' "$(( $(epoch "$f") - $(epoch "$a") ))" >> "$T/sl1"
-    elif awk -F'\t' -v n="$n" '$1 == "issue" && $2 == n { f = 1 } END { exit !f }' "$RD" && ! awk -F'\t' -v n="$n" '$2 == n { f = 1 } END { exit !f }' .vid/decide/merges 2> /dev/null; then
+    elif ! gclosed "$n" && awk -F'\t' -v n="$n" '$1 == "issue" && $2 == n { f = 1 } END { exit !f }' "$RD" && ! awk -F'\t' -v n="$n" '$2 == n { f = 1 } END { exit !f }' .vid/decide/merges 2> /dev/null; then
       printf 'o\t%s\t%s\t%s\n' "$n" "$s" "$(( _now - $(epoch "$a") ))" >> "$T/sl1"; fi; done < "$T/sl0"
   awk -F'\t' '$1 == "a" { d[++k] = $2 } $1 == "o" { o[++m] = $0 } END { if (k < 3) exit; for (i = 2; i <= k; i++) { x = d[i]; j = i - 1; while (j > 0 && d[j] + 0 > x + 0) { d[j + 1] = d[j]; j-- } d[j + 1] = x }
       md = (k % 2) ? d[(k + 1) / 2] : (d[k / 2] + d[k / 2 + 1]) / 2
@@ -366,7 +377,7 @@ triggers_() {
       [ "$_k" != analysis ] || printf 'RDY\tph\t%s\n' "$(cat .vid/next/proposal/hash 2> /dev/null)" >> "$T/f"
     else printf 'RDY\tfailed\t%s\n' "$(grep -v '^[[:space:]]*$' "$T/rdye" | tail -n 1 | sed 's/^ViD replan: //' | tr '\t' ' ')" >> "$T/f"; fi; fi
   # GM-4 K11: own work's switch, and each unanswered ask (lib.sh tasks_; FB-5 B1.4: a step's own pull request's too); E10: the step tickets out too long
-  printf 'OW\t%s\n' "$(ownwork_)" >> "$T/f"; tasks_ "$RD" | sed 's/^/CA	/' >> "$T/f"; slow_ >> "$T/f"
+  printf 'OW\t%s\n' "$(ownwork_)" >> "$T/f"; tasks_ "$RD" > "$T/tas"; sed 's/^/CA	/' "$T/tas" >> "$T/f"; if manual; then closed_ >> "$T/f"; fi; slow_ >> "$T/f"
   # GM-4 K4 (GM M16): while own work is on, step 2's walk, walk-read and summary lines (round.sh step keeps them whole in
   # .vid/next/stage-moves), each with its stage's newest candidate, for the moves walk-stage, read-walk and write-summary
   if manual && [ "$(ownwork_)" = on ]; then awk '$1 ~ /^(walk|walk-read|summary)$/ && $2 ~ /^[0-9]+$/ { print $1 "\t" $2 }' .vid/next/stage-moves 2> /dev/null |
@@ -453,6 +464,7 @@ triggers_() {
     $1 == "DIF" { DIF[$3] = add(DIF[$3], $2); next }
     $1 == "WD" { if (!($2 in WDS)) WDO[++nwd] = $2; WDS[$2] = $3; next }
     $1 == "OW" { OWK = $2; next } $1 == "CA" { CAO[++nca] = $2; CAC[nca] = substr($3, 1, 12); next } $1 == "SS" { SSO[++nss] = $2 "\t" $3; next }
+    $1 == "CLZ" { CLO[++ncl] = "#" $2 "\t" $3; next }
     $1 == "RSK" { RSO[++nrs] = $2 "\t" $3; next } $1 == "TRP" { TRP = $2; next } $1 == "FLD" { FLD = $2; next } $1 == "PBW" { PBL[++npb] = "#" $2 "\t" $3; next }
     $1 == "SM" { if (!(($2, $3) in SMS)) { SMS[$2, $3] = 1; SMK[++nsm] = $2; SMN[nsm] = $3; SMC[nsm] = $4 } next }
     END {
@@ -513,6 +525,7 @@ triggers_() {
       # GM-4 K11: own work off, its move listed; each unanswered ticket ask with the command that decides it
       if (MN && OWK != "on") print "context", "own-work", "off", "own-work on \"<your words>\": until you name it, step 2 decides, asks and posts nothing"
       for (i = 1; i <= nca; i++) { n = CAO[i]; print "context", "ask", "#" n, CAC[i], "/vid:vid-accept-step " n " " CAC[i] }
+      for (i = 1; i <= ncl; i++) print "context", "closed", CLO[i]   # FB-6 A1.3
       for (i = 1; i <= nrs; i++) print "context", "report", RSO[i]   # FB-3 A2
       if (TRP != "") print "context", "team-reports", TRP   # FB-3 A3
       if (FLD != "") print "context", "folder", FLD   # FB-4 B1

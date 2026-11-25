@@ -19,9 +19,9 @@ issue() { { mn_ticket "$@"; printf '\n## Engines\n\n- primary: alpha\n'; } > ".v
 # the ticket: a journey, a plain row, a staging-owed one, a known limit and one accepted already
 issue "$AC_N" S02 step ROW-001 ROW-004 ROW-010 ROW-012 ROW-013
 printf 'row ROW-012 known-limit | stand-in: decision\nrow ROW-013 accepted | stand-in: decision\nengines alpha | stand-in: owner at 2026-11-18T09:00:00Z, words "alpha"\n' >> .vid/tw/handed
-ac_ask "$AC_C"; c0=$(ac_comments)
 ac_round accept "$AC_N" "$AC_C"; grep -qxF "refused #$AC_N no results at $c12; accepted outside ViD: /vid:vid-accept-step $AC_N $c12 accepted \"<your words>\"" "$T/out" || fail 'the refusal does not name the command'
 ac_round accept "$AC_N"; grep -qxF "refused #$AC_N no results on main; accepted outside ViD: /vid:vid-accept-step $AC_N <commit> accepted \"<your words>\"" "$T/out" || fail 'the refusal with no commit named does not name the command'
+ac_ask "$AC_C"; c0=$(ac_comments)
 # each refusal, and nothing written
 N2=$(gh_issue 'Step S03'); issue "$N2" S03 step ROW-006; printf 'withdrawn %s decision=abc at=2026-11-19T09:00:00Z\n' "$N2" >> .vid/tw/log; w0=$(gh_w0)
 no() { _w=$1; shift; ac_round accept "$@"; grep -q "^refused .*$_w" "$T/out" && [ "$(gh_w0)" = "$w0" ] || fail "not refused ($_w), or something was written: $*"; }

@@ -97,8 +97,8 @@ cmd_prepare() { pass_
     # the cases at the commit that name a row of the ticket, from the reports that read counted
     sed -n 's/^report \(.* read\).*/\1/p' "$X/ev" | tr ' ' '\n' | sed 's/:$//' | awk '!s[$0]++' | grep -E '^[!#-~]+$' | grep -vE '^(red|grade|sort)-' | while read -r i; do G rev-parse -q --verify "refs/heads/vid-results/$i" > /dev/null 2>&1 || continue
       G ls-tree --name-only "refs/heads/vid-results/$i:$i" 2>/dev/null | grep '\.xml$' | while IFS= read -r f; do cases_ "refs/heads/vid-results/$i:$i/$f" | awk -F'\t' -v h="$i $f" '$1 == "c" { print h "\t" $2 "\t" $3 "\t" $4 }'; done; done > "$X/cs"
-    awk -F'\t' 'function nm(s) { gsub(/[-_.]/, "-", s); return s } FILENAME == ARGV[1] { id = nm($1); sub(/-T[0-9]+$/, "", id); if (!s[id]++) B[++n] = id; next }
-      { x = "-" nm($2) "-"; for (i = 1; i <= n; i++) if (match(x, "[^A-Za-z0-9]" B[i] "[^A-Za-z0-9]")) { print "- " $1 ": " $2 ": " $3 ($4 == "" ? "" : " — " $4); next } }' "$F/rows" "$X/cs" > "$X/cx"
+    awk -F'\t' "$(hitf)"' FILENAME == ARGV[1] { id = $1; sub(/-T[0-9]+$/, "", id); if (!s[id]++) B[++n] = id; next }
+      { x = norm($2); for (i = 1; i <= n; i++) if (hit(x, B[i])) { print "- " $1 ": " $2 ": " $3 ($4 == "" ? "" : " — " $4); next } }' "$F/rows" "$X/cs" > "$X/cx"
     { printf '# ViD'"'"'s review of ticket #%s: your brief\n\n' "$n"; head_; sect 'Every form' 'The ticket form'
       printf '## The ticket\n\nIts whole writing: `%s/ticket.md`. The commit of main decided: %s.\n\nThe rows you grade, a line each:\n\n' "$RW/$ID" "$C"; sed 's/^/- /' "$F/rows"; printf '\n'; awk '/^## / { s = ($0 == "## Rows") } s && /^> /' "$F/ticket.md"
       printf '\n## The cases at the commit, by the rows'"'"' ids in their names\n\n'; if [ -s "$X/cx" ]; then cat "$X/cx"; else echo 'none'; fi; spec__; } > "$F/brief.md"

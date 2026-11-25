@@ -114,7 +114,7 @@ grep -qF '/vid:vid-step-close <step>' "$K3" && grep -qF 'sh checks/close.sh step
 grep -q '^## GitHub manual' "$K2" && awk '/^## GitHub manual/ { on = 1; next } on && /^## / { exit } on' "$K2" | grep -q 'GM M8' || fail "vid-accept-step has no GitHub manual paragraph naming GM M8"
 awk '/^## GitHub manual/ { on = 1; next } on && /^## / { exit } on' "$K3" > "$T0"; grep -q 'GM M8' "$T0" && grep -q 'GM M3' "$T0" || fail "vid-step-close has no GitHub manual paragraph naming GM M8 and GM M3"
 grep -q '^## GitHub auto' "$K2" && awk '/^## GitHub auto/ { on = 1; next } on && /^## / { exit } on' "$K2" | grep -qF 'round.sh step' || fail "vid-accept-step does not give GitHub auto's entry, round.sh step"
-grep -F '`closed #<n> not accepted' "$K2" | grep -qF '/vid:vid-tickets reopen #<n>' && grep -F '`closed #<n> not accepted' "$K2" | grep -qF '/vid:vid-tickets withdraw #<n>' || fail "vid-accept-step does not say E6's line with both of K1's commands"
+grep -F '`context closed #<n> <words>`' "$K2" | grep -qF '/vid:vid-tickets reopen #<n>' && grep -F '`context closed #<n> <words>`' "$K2" | grep -qF '/vid:vid-tickets withdraw #<n>' || fail "vid-accept-step does not say E6's line with both of K1's commands"
 # the rows that call them: one row each naming the skill; their lines held by the skill alone, never by the run skill
 grep -F '| `decided <p> <head> ticket: …`' "$R" | grep -q '`vid-accept-step`\|vid-accept-step skill' || fail "the run skill's decision row does not name vid-accept-step"
 grep -F '| `close <step>`' "$R" | grep -q 'vid-step-close skill' || fail "the run skill's close row does not name vid-step-close"

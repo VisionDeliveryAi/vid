@@ -95,8 +95,8 @@ a=$(printf '%s\n' "$S2" | grep -n '`vid-accept-step`' | head -n 1 | cut -d: -f1)
 [ -n "$a" ] && [ -n "$b" ] && [ -n "$c" ] && [ "$a" -lt "$b" ] && [ "$b" -lt "$c" ] || fail "vid-next's step 2 does not name vid-accept-step, vid-step-close and round.sh asks in that order"
 L1=$(printf '%s\n' "$S2" | grep '`vid-accept-step`' | head -n 1); x=${L1%%round.sh\" step*}; y=${L1%%round.sh\" accept*}
 [ "$x" != "$L1" ] && [ "$y" != "$L1" ] && [ "${#x}" -lt "${#y}" ] && printf '%s\n' "$L1" | grep -q '`decide' || fail "vid-next's vid-accept-step line does not run round.sh step, then round.sh accept for each decide line"
-for f in '`decided #' '`accepted #' '`refused #<n>' '`closed #<n> not accepted' '`unit-merged' '`asked <n> close' '`closed <step>`' '`ticket-closed' '`out <step>' 'GM M8' 'vid: decide'; do ! grep -qF -- "$f" "$N" || fail "vid-next holds a line of its skills: $f"; done
-for f in '`accepted #<n> <c12>`' '`closed #<n> not accepted' '`context unit-ask #<p>' '`context ask #<n> <c12>'; do grep -qF -- "$f" "$K2" || fail "vid-accept-step does not say the line $f"; done
+for f in '`decided #' '`accepted #' '`refused #<n>' '`context closed #<n>' '`unit-merged' '`asked <n> close' '`closed <step>`' '`ticket-closed' '`out <step>' 'GM M8' 'vid: decide'; do ! grep -qF -- "$f" "$N" || fail "vid-next holds a line of its skills: $f"; done
+for f in '`accepted #<n> <c12>`' '`context closed #<n> <words>`' '`context unit-ask #<p>' '`context ask #<n> <c12>'; do grep -qF -- "$f" "$K2" || fail "vid-accept-step does not say the line $f"; done
 for f in '`ticket-closed #<n>`' '`out <step> #<' '`refused <step>: '; do grep -qF -- "$f" "$K3" || fail "vid-step-close does not say the line $f"; done
 # step 6 (F16, K11): the engines and own-work moves vid-accept-step's, one line each, their forms there alone
 for m in engines own-work; do [ "$(grep -c "^   - \`$m " "$N")" = 1 ] || fail "vid-next does not name the $m move in one line"

@@ -335,7 +335,7 @@ needs_() { _nh=$(git rev-parse -q --verify HEAD^{commit} 2>/dev/null) || _nh='';
     # line, and no line while that one is quiet
     if [ -f .vid/round/folder ] && command -v foldersay > /dev/null 2>&1; then _f=$(foldersay 2>/dev/null) || _f=''; _w=$(sed -n "s/^context${TAB}folder$TAB//p" "$T/tg" 2>/dev/null | head -n 1)
       case $_f in '') ;; "holds$TAB"*) nd_ folder analysis owner '' "${_f#*"$TAB"}" ;; *) [ -z "$_w" ] || nd_ folder analysis owner "$_w" ;; esac; fi
-    # accepted: a published ticket closed on GitHub and not accepted (round.sh's told_, its command the one that records it)
+    # accepted: a published ticket closed on GitHub and not accepted (next.sh's `context closed`, its command the one that records it)
     _w=$(awk -v M=.vid/decide/merges -v RD="$_rd" 'BEGIN { while ((getline l < M) > 0) { split(l, a, "\t"); if (a[4] != "") A[a[2]] = 1 } while ((getline l < RD) > 0) { split(l, a, "\t"); if (a[1] == "ticket" && a[3] == "CLOSED") C[a[2]] = 1 } }
       $1 == "withdrawn" { W[$2] = 1 } $1 == "published" { P[$2] = 1 } END { for (n in P) if ((n in C) && !(n in W) && !(n in A)) print n }' .vid/tw/log 2>/dev/null | sort -n | sed 's/^/#/' | paste -sd ',' - | sed 's/,/, /g')
     nd_ accepted analysis owner "${_w:+$_w closed and not accepted — /vid:vid-accept-step <n> <commit> accepted \"<words>\" records each; the analysis goes on}" 'every closed ticket is accepted'

@@ -35,13 +35,14 @@
 #          first-parent line (git rev-list --first-parent refs/heads/main in .vid/code): one off it is answered `ticket: not yet` with
 #          the one line `not on main — <commit>`, no row moved; with no commit, the newest commit of that line at which a result report holds a case of one of
 #          the ticket's rows (`refused #<n> no results on main` with none, nothing posted; FB-3 A1.3: at a commit named with none, `refused #<n> no
-#          results at <c12>`; FB-3 A4: either ends naming the command that records it accepted outside ViD; after either, each of the ticket's report branches left out or refused, `report left out — …`); when the decision
+#          results at <c12>`, but the ticket's unanswered ask there is answered once, FB-6 A2.2: `ticket: not yet`, `no results at this commit — …`
+#          (results.sh missing), `decided #<n> <c12> ticket: not yet — no results`; either way a `missing #<n> <c12> — …` line; FB-3 A4: either ends naming the command that records it accepted outside ViD; after either, each of the ticket's report branches left out or refused, `report left out — …`); when the decision
 #          would be accepted but for ViD's own review, `review #<n> <c12>`, nothing decided or posted and the ask still owed; results.sh read --ticket <n> --at <c>,
 #          decide.sh decide --ticket <n> --at <c> --post (an unanswered ask at c always answered, else posted only when changed), the
 #          queue synced and the records saved. On `ticket: accepted` the acceptance is the ticket's merge (E4): decide.sh merged
 #          --ticket <n>, `step-<n>-<c12> <n> <c> <c>` in .vid/decide/merges and its id in merged-prs. An accepted ticket asked again
-#          is answered `ticket: accepted at <its merge's commit12>; its close runs there`, nothing decided again; a closed ticket not
-#          accepted is refused, naming /vid:vid-tickets reopen and withdraw (E6). Lines: `decided #<n> <c12> <the ticket line>`,
+#          is answered `ticket: accepted at <its merge's commit12>; its close runs there`, nothing decided again; a ticket closed
+#          as completed is decided as an open one (FB-6 A1), one closed for another reason refused, naming /vid:vid-tickets reopen and withdraw (E6). Lines: `decided #<n> <c12> <the ticket line>`,
 #          `accepted #<n> <c12>`, `refused #<n> <why>`; FB-1 C2: after each `decided` line, in step and accept alike, one `weak <row>
 #          <#n or pull request> <head 12> — <the row's text>` line for each row of that decision reading `failing, a weak test`. In GitHub auto it decides the open pull request naming the ticket at its
 #          head, as step does, at the owner's word (`decided <p> <head12> …`)
@@ -67,7 +68,7 @@
 # newest asked commit), for accept; a piece's pull request (its line names no published ticket) asking `vid: decide` is never answered, listed once a head, `context
 # unit-ask #<p> <its ticket line's number or -> <head12>`; each merge not recorded goes to .vid/decide/unit-merges (`<p> <ticket line's
 # number or -> <head> <merge>`), deciding and closing nothing, `unit-merged <p> <ticket or ->`; a published ticket closed on GitHub, not
-# withdrawn and not accepted, is told at every call, `closed #<n> not accepted — …` naming K1's two commands (E6) and A4's record (FB-3 E1), never withdrawn, no
+# withdrawn and not accepted, is told by next.sh triggers at every call (FB-6 A1.3, `context closed`), never withdrawn, no
 # step reopened; no stray stop (it guards the round's own publishing); the alarms ticket-hours, ticket-quiet, devagent-quiet,
 # devagent-stopped and ticket-left (FB-2 A3) not raised; no `update`. GM-4 K4: `summary <N>` writes no facts (the move write-summary does), and the step's walk,
 # walk-read and summary lines are kept in .vid/next/stage-moves for the call to list as the owner's moves.
@@ -120,7 +121,7 @@ man_() { ! manual || echo 1; }
 pubs_() { manual || pubwords "$L/read" | awk -F'\t' '{ print "publish #" $1 " " $2 }'; }
 # GM-4 E2: accepted <n>, the ticket's merge on record in merges (E4's acceptance line, or a merge recorded in GitHub auto): its commit
 accepted() { awk -F'\t' -v n="$1" '$2 == n { c = $4 } END { if (c != "") print c }' "$D/merges" 2>/dev/null; }
-tickets() { awk -F'\t' -v O=" $(onrec | tr '\n' ' ') " -v T=",${PX}ticket," -v U=",${PX}run," -v G=",${PX}grade," -v P=",${PX}deploy," '$1 == "issue" && (index(O, " " $2 " ") || index("," $3 ",", T) || index("," $3 ",", U) || index("," $3 ",", G) || index("," $3 ",", P)) { print $2 }' "$L/read"; }
+tickets() { awk -F'\t' -v GC="$(gclosedl)" -v O=" $(onrec | tr '\n' ' ') " -v T=",${PX}ticket," -v U=",${PX}run," -v G=",${PX}grade," -v P=",${PX}deploy," '$1 == "issue" && !index(GC, " " $2 " ") && (index(O, " " $2 " ") || index("," $3 ",", T) || index("," $3 ",", U) || index("," $3 ",", G) || index("," $3 ",", P)) { print $2 }' "$L/read"; }
 open_() { if manual; then for n in $(tickets); do [ -n "$(accepted "$n")" ] || echo "$n"; done; return 0; fi
   # GM-4 E2, F13: in GitHub auto too, a ticket whose merge is on record (a GitHub manual acceptance's step- line) is not open
   for n in $(tickets); do [ -z "$(accepted "$n")" ] || continue; m=$(awk -F'\t' -v n="$n" '$1 == "merged" && $3 == n { print $2 }' "$L/read" | head -n 1); [ -n "$m" ] && grep -qx "$m" "$D/merged-prs" || echo "$n"; done; }
@@ -177,18 +178,13 @@ merged_() { awk -F'\t' '$1 == "merged"' "$L/read" | sort -t"$TAB" -k2,2n > "$L/m
 # no row decided, no issue closed, no close owed
 umerged_() { awk -F'\t' '$1 == "merged"' "$L/read" | sort -t"$TAB" -k2,2n > "$L/m"; while IFS=$TAB read -r x p t H M _r <&3; do grep -qx "$p" "$D/merged-prs" && continue
     cut -f1 "$D/unit-merges" | grep -qx "$p" && continue; printf '%s\t%s\t%s\t%s\n' "$p" "$t" "$H" "$M" >> "$D/unit-merges"; echo "unit-merged $p $t"; DID=1; done 3< "$L/m"; }
-# GM-4 E6 (GitHub manual): told_, each published ticket not withdrawn, closed on GitHub (no issue line in the read) and not accepted,
-# told at every call with K1's two commands and the record of an acceptance outside ViD (FB-3 E1); nothing withdrawn, nothing reopened
-told_() { awk '$1 == "published" { p[$2] = 1 } $1 == "withdrawn" { delete p[$2] } END { for (n in p) print n }' "$LOG" 2>/dev/null | sort -n > "$L/pub"
-  awk -F'\t' '$1 == "issue" { print $2 }' "$L/read" | sort -u > "$L/oi"; for n in $(cat "$L/pub"); do grep -qx "$n" "$L/oi" && continue; [ -z "$(accepted "$n")" ] || continue; [ -z "$(stands_ "$n")" ] || continue   # FB-5 B1.4
-    echo "closed #$n not accepted — closed on GitHub before its acceptance: /vid:vid-tickets reopen #$n \"<your words>\" reopens it, /vid:vid-tickets withdraw #$n \"<your words>\" withdraws it, /vid:vid-accept-step $n <commit> accepted \"<your words>\" records it as accepted outside ViD"; done; }
 # FB-5 B1.3, B1.4 (GitHub manual), a step's own pull request: cfull_ <characters of a commit>: the one commit of .vid/code they begin, a full id as it is;
 # nothing with none or more than one. ta_: the asks owed an answer, `<n> TAB <full commit> TAB <- or the pull request>` in $L/ta, in $L/tu `<n> TAB <it>` those
 # that name no one commit. und_: B1.6's line, said to the owner alone at each call. pra_ <n> <commit>: the pull request that ask stands on in
 # pr-asks. other_ <n> <p>: B1.5, another open pull request of the read, a draft too, that names the ticket or a sub-issue of it
 cfull_() { [ "${#1}" != 40 ] || { echo "$1"; return 0; }; git --git-dir=.vid/code rev-parse --disambiguate="$1" 2>/dev/null | git --git-dir=.vid/code cat-file --batch-check='%(objectname) %(objecttype)' 2>/dev/null | awk '$2 == "commit" { c = $1; k++ } END { if (k == 1) print c }'; }
 ta_() { : > "$L/ta"; : > "$L/tu"; tasks_ "$L/read" > "$L/t0"; while IFS=$TAB read -r v_n v_c v_p <&8; do v_f=$(cfull_ "$v_c"); if [ -n "$v_f" ]; then printf '%s\t%s\t%s\n' "$v_n" "$v_f" "$v_p" >> "$L/ta"; else printf '%s\t%s\n' "$v_n" "$v_c" >> "$L/tu"; fi; done 8< "$L/t0"; }
-UQ=''; und_() { echo "$1" >> "$L/said"; [ -n "$UQ" ] || echo "undecided #$1 $(printf %.12s "$2") — $3"; }
+UQ=''; und_() { [ -n "$UQ" ] || echo "undecided #$1 $(printf %.12s "$2") — $3"; }
 pra_() { awk -F'\t' -v n="$1" -v c="$2" '$2 == n && $3 == c { p = $1 } END { if (p != "") print p }' "$D/pr-asks" 2>/dev/null; }
 other_() { awk -F'\t' -v n="$1" -v p="$2" 'NR == FNR { if ($1 == "sub" && $2 == n) S[$4] = 1; next } $1 == "open" && $2 != p && ($3 == n || ($3 in S)) { print $2; exit }' "$L/read" "$L/read"; }
 # prasks_: pr-asks kept, one line a pull request, `<p> TAB <n> TAB <the commit its newest ask names>`; $L/pa this read's, with its head and 1 when
@@ -201,12 +197,9 @@ prune_() { awk -F'\t' -v OFS='\t' -v LG="$LOG" -v MG="$D/merges" -v UM="$D/unit-
       while ((getline l < PAF) > 0) { split(l, x, "\t"); N[x[1]] = 1; if (!((x[2] in A) && (x[5] == 1 || x[3] != x[4]))) print x[1], x[2], x[3] } }
     !($1 in N) && ($1 in U) && ($2 in P) && !($2 in A) { print $1, $2, $3 }' "$D/pr-asks" > "$L/pn" || exit 1; cmp -s "$L/pn" "$D/pr-asks" || put "$D/pr-asks" < "$L/pn" || exit 1; }
 pans_() { awk -F'\t' -v OFS='\t' -v p="$1" '$1 == p { $5 = 1 } { print }' "$L/pa" > "$L/pa2" && mv "$L/pa2" "$L/pa" || exit 1; }
-# stands_ <n>: an ask of the ticket's own pull request stands and this call says it: one owed an answer (mdec_), or one prec_ said; else told_ tells
-# the ticket closed early, so a closed ticket is never silent
-stands_() { awk -F'\t' -v n="$1" '$2 == n && $5 == 0 { f = 1 } END { exit !f }' "$L/pa" 2>/dev/null || grep -qxF -e "$1" "$L/said" 2>/dev/null || return 0; echo 1; }
 # prec_ [<n>] [own]: the acceptance of a head accepted on its pull request recorded at its merge, as GitHub auto records one, no post: only when the head
 # merged is the one accepted and the merge is on main's own line; else B1.6's line, and B1.5's while another is open, but at the owner's own command
-prec_() { : > "$L/said"; [ -s "$D/pr-asks" ] || return 0; cp "$D/pr-asks" "$L/pk"; while IFS=$TAB read -r v_p v_n v_c <&8; do [ -z "${1:-}" ] || [ "$v_n" = "$1" ] || continue; [ -z "$(accepted "$v_n")" ] || continue
+prec_() { [ -s "$D/pr-asks" ] || return 0; cp "$D/pr-asks" "$L/pk"; while IFS=$TAB read -r v_p v_n v_c <&8; do [ -z "${1:-}" ] || [ "$v_n" = "$1" ] || continue; [ -z "$(accepted "$v_n")" ] || continue
     v_h=$(printf %.12s "$v_c"); v_k=$(awk -F'\t' -v p="$v_p" '$1 == p { print $5 }' "$L/pa"); v_H=$(awk -F'\t' -v p="$v_p" '$1 == p { print $4 }' "$L/pa"); v_u=$(awk -F'\t' -v p="$v_p" '$1 == p { l = $3 "\t" $4 } END { if (l != "") print l }' "$D/unit-merges")
     [ -n "$v_k" ] || [ ! -f "$D/posted-step-$v_n-$v_h" ] || v_k=1   # out of the read, answered
     if [ -z "$v_u" ]; then [ "$v_H" = "$v_c" ] || [ "$v_k" = 1 ] || und_ "$v_n" "$v_c" "asked on pull request #$v_p at an older head: its head is $(printf %.12s "$v_H"); asked again there, it is decided"; continue; fi
@@ -312,7 +305,7 @@ cmd_step() { prog on "ViD's own work"; FT=''; renew; read_; sig_ > "$L/now"; cmp
   # on results fetched first, and posted only when the decision changed)
   # GM-4 E5: in GitHub manual the merges are E4's, a ticket closed early is told (E6), and nothing is decided: each ticket owed a
   # decision is a `decide` line for round.sh accept (E13)
-  if manual; then prasks_; umerged_; prec_ || fail merged "$PE"; told_; touch_; mdec_; uask_; ruled_; else
+  if manual; then prasks_; umerged_; prec_ || fail merged "$PE"; touch_; mdec_; uask_; ruled_; else
   merged_; outside_; reopen_; touch_; awk -F'\t' -v OFS='\t' -v D="$D" -v TF="$L/touch" -v W=" $(wdn | tr '\n' ' ') " 'BEGIN { while ((getline l < TF) > 0) { split(l, x, "\t"); if (x[1] == "row") { R[x[2]] = 1; b = x[2]; sub(/-T[0-9]+$/, "", b); R[b] = 1 } else if (x[1] == "on") O[x[2]] = 1; else K[x[2]] = 1 } }
     function hit(p, t, h,   f, l, y, r, b, n, i) { if ((p in O) || (t in O) || (t in K)) return 1; f = D "/pr-" p "-" h ".rows"; while ((getline l < f) > 0) { split(l, y, "\t"); r = y[1]; b = r; sub(/-T[0-9]+$/, "", b); if ((r in R) || (b in R)) { close(f); return 1 } } close(f)
       # the head evidence too: a row a landing reset out of the rows file can still stand in its grade lines
@@ -438,7 +431,8 @@ cmd_accept() { OS=''; OW=''; RS=''; RW=''; TS=''; TL=''; n=''; c=''; k=0; while 
     echo "accepted #$n at $m12; its close runs there"; return 0; fi
   x=$(awk -F'\t' -v n="$n" -v c="$c" 'c != "" && $1 == n && (index($2, c) == 1 || index(c, $2) == 1) { print $2; exit }' "$L/tu"); [ -z "$x" ] || { und_ "$n" "$x" "$NOONE"; return 0; }
   PA=''; [ -z "$c" ] || PA=$(pra_ "$n" "$c")   # FB-5 B1.4: the pull request the named head's ask stands on
-  # a ticket closed on GitHub before its acceptance: K1's two commands (E6), and FB-3 E1's third
+  # a ticket closed on GitHub before its acceptance, not as completed (FB-6 A1: one so closed has its issue line): K1's two commands (E6), and FB-3 E1's third
+  if [ -z "$PA" ] && awk -F'\t' -v n="$n" '$1 == "unread" && $2 == "closed" && $3 == n { f = 1 } END { exit !f }' "$L/read"; then echo "refused #$n its issue could not be read: try again"; return 0; fi
   [ -n "$PA" ] || awk -F'\t' -v n="$n" '$1 == "issue" && $2 == n { f = 1 } END { exit !f }' "$L/read" || { echo "refused #$n closed on GitHub before its acceptance: /vid:vid-tickets reopen #$n \"<your words>\" reopens it, /vid:vid-tickets withdraw #$n \"<your words>\" withdraws it, /vid:vid-accept-step $n <commit> accepted \"<your words>\" records it as accepted outside ViD"; return 0; }
   # E13: with no commit, the newest commit of main's first-parent line at which a result report holds a case of one of the ticket's
   # rows (FB-3 A1.3, results.sh at), an unanswered ask or not; the
@@ -451,10 +445,15 @@ cmd_accept() { OS=''; OW=''; RS=''; RW=''; TS=''; TL=''; n=''; c=''; k=0; while 
   # FB-5 B1.4: but a head asked on its own pull request, that pull request's head now, or the one merged
   if [ -n "$PA" ]; then x=$({ awk -F'\t' -v p="$PA" '$1 == p { print $4 }' "$L/pa"; awk -F'\t' -v p="$PA" '$1 == p { print $3 }' "$D/unit-merges"; } | tail -n 1); [ "$x" = "$C" ] || { und_ "$n" "$C" "asked on pull request #$PA at an older head: its head is $(printf %.12s "$x")"; return 0; }
   elif ! grep -qx "$C" "$L/fp"; then [ "$C" = "$AQ" ] || { echo "refused #$n $h is not on main"; return 0; }
-    mpost "$n" "$(printf 'vid: decision %s\nticket: not yet\nnot on main — %s' "$C" "$C")"; : > "$D/posted-step-$n-$h"
+    mpost "$n" "$(printf 'vid: decision %s\nticket: not yet\nnot on main — %s\n' "$C" "$C"; ! gclosed "$n" || echo "$CLOSEDL")"; : > "$D/posted-step-$n-$h"
     echo "decided #$n $h ticket: not yet — not on main"; DID=1; return 0; fi
-  sh "$HERE/results.sh" at "$n" "$C" > "$L/at" 2> "$L/e" || fail results "$(tail -n 1 "$L/e")"; [ -s "$L/at" ] || [ -z "$PA" ] || { echo "refused #$n no results at $h, the head of pull request #$PA"; sh "$HERE/results.sh" skipped --ticket "$n" --at "$C"; return 0; }
-  [ -s "$L/at" ] || { echo "refused #$n no results at $h; accepted outside ViD: /vid:vid-accept-step $n $h accepted \"<your words>\""; sh "$HERE/results.sh" skipped --ticket "$n" --at "$C"; return 0; }
+  sh "$HERE/results.sh" at "$n" "$C" > "$L/at" 2> "$L/e" || fail results "$(tail -n 1 "$L/e")"
+  # FB-6 A2.2: no results there: the ticket's unanswered ask is answered, once, with what is missing; a direct call and a pull request's ask post nothing
+  if [ ! -s "$L/at" ]; then mw=$(sh "$HERE/results.sh" missing --ticket "$n" --at "$C" 2> "$L/e") || fail results "$(tail -n 1 "$L/e")"; sh "$HERE/results.sh" skipped --ticket "$n" --at "$C" > "$L/sk"
+    if [ -z "$PA" ] && [ "$C" = "$AQ" ]; then { printf 'vid: decision %s\nticket: not yet\nno results at this commit — %s\n' "$C" "$mw"; [ -n "$(skey team-rules)" ] || cat "$L/sk"; ! gclosed "$n" || echo "$CLOSEDL"; } > "$L/mt"
+      mpost "$n" "$(cat "$L/mt")"; : > "$D/posted-step-$n-$h"; echo "decided #$n $h ticket: not yet — no results"; DID=1
+    elif [ -n "$PA" ]; then echo "refused #$n no results at $h, the head of pull request #$PA"; else echo "refused #$n no results at $h; accepted outside ViD: /vid:vid-accept-step $n $h accepted \"<your words>\""; fi
+    echo "missing #$n $h — $mw"; cat "$L/sk"; return 0; fi
   sh "$HERE/results.sh" read --ticket "$n" --at "$C" > /dev/null 2> "$L/e" || fail results "$(tail -n 1 "$L/e")"
   # FB-3 A1.3: a decision that would be accepted but for ViD's own review: nothing decided, nothing posted, the ask still owed
   dec decide --ticket "$n" --at "$C" --dry > "$L/dry" 2> "$L/e" || fail decide "$(tail -n 1 "$L/e")"; ! grep -qx review "$L/dry" || { echo "review #$n $h"; return 0; }
@@ -463,7 +462,7 @@ cmd_accept() { OS=''; OW=''; RS=''; RW=''; TS=''; TL=''; n=''; c=''; k=0; while 
   b=''; [ ! -f "$D/posted-step-$n-$h" ] || b=$(cksum < "$D/posted-step-$n-$h")
   dec decide --ticket "$n" --at "$C" --post > /dev/null 2> "$L/e" || fail post "$(tail -n 1 "$L/e")"
   # FB-5 B1.4: the ticket's own ask at the same head has its answer there
-  if [ -n "$PA" ]; then pans_ "$PA"; [ "$C" != "$AQ" ] || { AP=1; gh_ comment "$n" --body-file "$D/posted-step-$n-$h" > /dev/null 2> "$L/e" || fail post "$(tail -n 1 "$L/e")"; }; fi
+  if [ -n "$PA" ]; then pans_ "$PA"; [ "$C" != "$AQ" ] || { AP=1; { cat "$D/posted-step-$n-$h"; [ "$(sed -n 2p "$D/posted-step-$n-$h")" != 'ticket: not yet' ] || ! gclosed "$n" || echo "$CLOSEDL"; } > "$L/mt"; gh_ comment "$n" --body-file "$L/mt" > /dev/null 2> "$L/e" || fail post "$(tail -n 1 "$L/e")"; }; fi
   [ "$(cat "$D/review/none-step-$n" 2>/dev/null)" != "$C" ] || rm -f "$D/review/none-step-$n"   # the review that found no pull request is answered: the next ask looks again
   a=$(cksum < "$D/posted-step-$n-$h"); TL=$(sed -n 2p "$D/posted-step-$n-$h")
   if [ "$TL" = 'ticket: accepted' ] && [ -z "$PA" ]; then dec merged --ticket "$n" > "$L/o" 2>&1 || fail merged "$(tail -n 1 "$L/o")"   # E4: the acceptance is its merge

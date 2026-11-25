@@ -18,6 +18,9 @@ sh "$CHECKS/next.sh" read > "$T/out" 2>&1 || fail 'the read failed'
 sh "$CHECKS/next.sh" triggers > "$T/out" 2>&1 || fail 'next.sh triggers failed'
 grep -q "^trigger	important	step-slow	S05	#$A out 9 days; the median from publish to first acceptance 4 days" "$T/out" || fail 'the ticket past twice the median is not raised'
 ! grep -q "step-slow	S06" "$T/out" || fail 'a ticket under twice the median was raised'
+# FB-6 A1.2: closed on GitHub as completed and not accepted, it is no open ticket
+gh issue close "$A" -R owner/code; sh "$CHECKS/next.sh" read > "$T/out" 2>&1 || fail 'the read failed'; grep -q "^issue	$A	" .vid/round/read || fail 'the closed ticket is not in the read'; sh "$CHECKS/next.sh" triggers > "$T/out" 2>&1; ! grep -q "step-slow	S05" "$T/out" || fail 'a closed ticket was raised as out too long'
+gh issue reopen "$A" -R owner/code; sh "$CHECKS/next.sh" read > "$T/out" 2>&1 || fail 'the read failed'
 sed -i.b '1d' .vid/decide/accepted-at; rm -f .vid/decide/accepted-at.b
 sh "$CHECKS/next.sh" triggers > "$T/out" 2>&1 || fail 'next.sh triggers failed with two accepted'; ! grep -q 'step-slow' "$T/out" || fail 'raised with two accepted'
 exit 0

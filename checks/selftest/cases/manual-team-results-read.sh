@@ -54,7 +54,7 @@ li '^ROW-012 accepted$'; li '^RULE-001 accepted$'; li '^ROW-006 evidence missing
 # two reports' covers: lines, the lowest counts; a report with no commit, under the ticket's number, is left out in words
 tk_dev 'C6'; C6=$(git -C "$T/dev" rev-parse HEAD); for x in a:0 b:3; do rr_put "cov-${x%:*}" results.txt "$(printf 'by: A. Person\ncommit: %s\ncovers: RULE-001 %s' "$C6" "${x#*:}")"; rr_put "cov-${x%:*}" c.xml "$(rr_cases RULE-001=pass ROW-002=pass ROW-012=pass)"; ac_send "cov-${x%:*}"; done
 rr_put "step-$AC_N-x" results.txt 'by: A. Person'; rr_put "step-$AC_N-x" s.xml "$(rr_cases ROW-006=pass)"; ac_send "step-$AC_N-x"; dec "$C6"
-li '^RULE-001 failing, a product failure'; li '^ROW-006 evidence missing — no case of it in the results at this commit$'; li "^report left out — vid-results/step-$AC_N-x: results.txt names no commit$"
+li '^RULE-001 failing, a product failure'; li '^ROW-006 evidence missing — no case of it in the results at this commit (a test is found by the row.s id in its name)$'; li "^report left out — vid-results/step-$AC_N-x: results.txt names no commit$"
 # a regression row with no case: passing when what it lacks is a known limit, its state standing when a close's fix holds it
 NJ=$(gh_issue 'the journey'); tkt "$NJ" S04 ROW-004; NR=$(gh_issue 'a later step'); AC_N=$NR; tkt "$NR" S03 ROW-002; printf '\n## Regression rows\n\n- ROW-004\n- ROW-010\n' >> ".vid/tw/out/issue-$NR.md"
 printf '2026-11-19T09:00:00Z\tROW-004-T3\tlimit\t\towner\n' >> .vid/decide/rulings; mkdir -p .vid/decide/close/S05/1; printf 'issue\t9\ncommit\t%s\nasked\t2026-11-19T09:00:00Z\n' "$C6" > .vid/decide/close/S05/1/ask; printf 'ROW-010\tno list\n' > .vid/decide/close/S05/1/acted

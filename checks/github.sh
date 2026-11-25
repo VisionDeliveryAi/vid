@@ -1372,7 +1372,8 @@ $1"; shift ;; esac; done
     # read only, tab-separated: the round read (these lines, a failure of it one `unread round - <gh's words>` line); `ticket <n> <state>
     # <assignees> <created at>` and `body <n> <line>` for each ticket the log publishes and does not withdraw; `sub <ticket> <parent> <child>
     # <state> <assignees> <title>` for each sub-issue under one, at every depth, breadth first; `assigned <n> <labels> <comment first lines,
-    # \001 between> <title>` and `abody <n> <line>` for each open issue assigned to the owner (gh's @me). An empty list is `-`. A read that
+    # \001 between> <title>` and `abody <n> <line>` for each open issue assigned to the owner (gh's @me); FB-6 A1.1: and an `issue` line for each such
+    # ticket closed as completed and not accepted (.vid/decide/merges), `unread closed <n> …` when its view fails. An empty list is `-`. A read that
     # fails is `unread <part> <n or -> <gh's words>`, and the rest is read: it never stops the call. round.sh read gives it in GitHub manual
     # FB-5 C2: an `open` line ends with the pull request's comments' first lines and its author; and for each open pull request that is a
     # logged publish (pubprs) or, in GitHub manual, the owner's own, one `pr view` and, tab-separated: `publish <n> push <author> <its newest
@@ -1382,13 +1383,17 @@ $1"; shift ;; esac; done
     # that fails is `publish <n> unread <gh's words>`, never an `unread` line: the read is whole. The words are lib.sh pubwords'
     case ${1:-} in '') ;; --bodies) [ $# -eq 1 ] || usage ;; *) usage ;; esac
     if [ "${1:-}" = --bodies ]; then
+    CQ='[([.labels[].name] | join(",")), ([.comments[].body | split("\n") | .[0]] | join("\u0001")), .updatedAt, (.stateReason // "")] | @tsv'
     tw; TQ='[.state, ([.assignees[].login] | join(",")), .createdAt] | @tsv'; SQ='.[] | [.number, .state, .title, ([.assignees[].login] | join(","))] | @tsv'
     AQ='.[] | [.number, ([.labels[].name] | join(",")), ([.comments[].body | split("\n") | .[0]] | join("\u0001")), .title] | @tsv'
     un() { printf 'unread\t%s\t%s\t%s\n' "$1" "$2" "$(tr '\n\t' '  ' < "$W/e" | cut -c1-200)"; }
-    sh "$0" round-read 2> "$W/e" || un round -
+    sh "$0" round-read > "$W/rr" 2> "$W/e" || un round -; cat "$W/rr"
     awk '$1 == "published" { p[$2] = 1 } $1 == "withdrawn" { delete p[$2] } END { for (n in p) print n }' .vid/tw/log 2>/dev/null | sort -n > "$W/pn"
     pni=0; for n in $(cat "$W/pn"); do pni=$((pni + 1)); prog now "ticket $pni of $(grep -c . "$W/pn")"   # FB-3 D2
-      if ghc issue view "$n" -R "$REPO" --json state,assignees,createdAt --jq "$TQ" > "$W/t" 2> "$W/e"; then tr -d '\r' < "$W/t" | awk -F'\t' -v OFS='\t' -v n="$n" 'NR == 1 { print "ticket", n, $1, ($2 == "" ? "-" : $2), $3 }'; else un ticket "$n"; continue; fi
+      if ghc issue view "$n" -R "$REPO" --json state,assignees,createdAt --jq "$TQ" > "$W/t" 2> "$W/e"; then tr -d '\r' < "$W/t" | awk -F'\t' -v OFS='\t' -v n="$n" 'NR == 1 { print "ticket", n, $1, ($2 == "" ? "-" : $2), $3 }' > "$W/t1"; cat "$W/t1"; else un ticket "$n"; continue; fi
+      # FB-6 A1.1: one closed on GitHub as completed, not accepted (.vid/decide/merges) and with no issue line, an issue line as the list's own: its ask, label and questions read
+      if [ "$(cut -f3 "$W/t1")" = CLOSED ] && ! awk -F'\t' -v n="$n" '$2 == n && $4 != "" { f = 1 } END { exit !f }' .vid/decide/merges 2>/dev/null && ! awk -F'\t' -v n="$n" '$1 == "issue" && $2 == n { f = 1 } END { exit !f }' "$W/rr"; then
+        if ghc issue view "$n" -R "$REPO" --json labels,comments,updatedAt,stateReason --jq "$CQ" > "$W/t" 2> "$W/e"; then tr -d '\r' < "$W/t" | awk -F'\t' -v OFS='\t' -v n="$n" 'NR == 1 && $4 == "COMPLETED" { print "issue", n, $1, $2, $3 }'; else un closed "$n"; fi; fi
       if ghc issue view "$n" -R "$REPO" --json body --jq .body > "$W/t" 2> "$W/e"; then tr -d '\r' < "$W/t" | awk -v n="$n" '{ L[NR] = $0 } END { while (NR > 0 && L[NR] == "") NR--; for (i = 1; i <= NR; i++) print "body\t" n "\t" L[i] }'; else un body "$n"; fi; done
     for n in $(cat "$W/pn"); do printf '%s %s\n' "$n" "$n"; done > "$W/q"; : > "$W/seen"
     while [ -s "$W/q" ]; do IFS=' ' read -r r p < "$W/q"; sed 1d "$W/q" > "$W/q2"; mv "$W/q2" "$W/q"; grep -qx "$p" "$W/seen" && continue; echo "$p" >> "$W/seen"

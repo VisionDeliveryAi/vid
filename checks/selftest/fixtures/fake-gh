@@ -56,6 +56,8 @@
 # <when> TAB <first line>` a line) and its comments, each with its author (prs/<n>/cby/<k>, else toy, the viewer), date (cat/<k>) and
 # first line; with prs/<n>/view-fail it fails in that file's words. A `pr list` with --jq RPQ, or a `pr view` with --jq PBQ, whose --json
 # lacks a field that query names is refused (exit 1), since gh would give it empty: RPF and PBF, beside the queries, are those fields.
+# FB-6 A1.1: `issue view` with --jq CLQ (below): its labels, its comments' first lines, its update and its state's reason (issues/<n>/reason, which
+# `issue close --reason` writes, else COMPLETED), tab-separated; with issues/<n>/view-fail it fails in that file's words.
 set -u
 IFS='
 '   # a path with a space stays one word
@@ -101,6 +103,7 @@ wlog() { printf '%s %s\n' "$1" "$2" >> "$F/writes"; }
 # hook <bare repository> <owner/name>: its update hook logs each ref pushed; GM-4 K12: and each push of the lock, a take or a free, in $F/locks
 hook() { mkdir -p "$1/hooks"; { printf '#!/bin/sh\nprintf "%%s push %%s\\n" %s "$1" >> %s\n' "'$2'" "'$F/writes'"
   printf '[ "$1" = refs/heads/vid-state/lock ] || exit 0\ncase $3 in *[!0]*) w=taken ;; *) w=freed ;; esac\nprintf "%%s %%s\\n" %s "$w" >> %s\n' "'$2'" "'$F/locks'"; } > "$1/hooks/update"; chmod +x "$1/hooks/update"; }
+CLQ='[([.labels[].name] | join(",")), ([.comments[].body | split("\n") | .[0]] | join("\u0001")), .updatedAt, (.stateReason // "")] | @tsv'
 TQ='[.state, ([.assignees[].login] | join(",")), .createdAt] | @tsv'
 AQ='.[] | [.number, ([.labels[].name] | join(",")), ([.comments[].body | split("\n") | .[0]] | join("\u0001")), .title] | @tsv'
 SQ='.[] | [.number, .state, .title, ([.assignees[].login] | join(","))] | @tsv'
@@ -152,7 +155,7 @@ case "$CMD" in
   'issue comment'|'pr comment')
     n=$3; shift 3; chkrepo "$@"; wlog "$REPO" "comment $n"; d=$F/issues/$n; [ -d "$d" ] || d=$F/prs/$n; [ -d "$d" ] || die "no issue or pull request $n"
     mkdir -p "$d/comments"; k=$(( $(ls "$d/comments" | grep -c . || true) + 1 )); body_from "$@" > "$d/comments/$k"; echo "https://github.com/$REPO/issues/$n#issuecomment-$((n * 1000 + k))"; exit 0 ;;
-  'issue close') n=$3; wlog "$REPO" "issue close $n"; [ -d "$F/issues/$n" ] || die "no issue $n"; echo CLOSED > "$F/issues/$n/state"; exit 0 ;;
+  'issue close') n=$3; wlog "$REPO" "issue close $n"; [ -d "$F/issues/$n" ] || die "no issue $n"; echo CLOSED > "$F/issues/$n/state"; case "$(opt --reason "$@")" in 'not planned') echo NOT_PLANNED ;; duplicate) echo DUPLICATE ;; *) echo COMPLETED ;; esac > "$F/issues/$n/reason"; exit 0 ;;   # FB-6 A1.1
   'issue reopen') n=$3; wlog "$REPO" "issue reopen $n"; [ -d "$F/issues/$n" ] || die "no issue $n"; echo OPEN > "$F/issues/$n/state"; exit 0 ;;
   'issue view')
     n=$3; shift 3; chkrepo "$@"; d=$F/issues/$n; [ -d "$d" ] || die "GraphQL: Could not resolve to an issue or pull request with the number of $n. (repository.issue)" 1; q=$(opt --jq "$@")   # FB-3 C3: gh's own words
@@ -161,6 +164,7 @@ case "$CMD" in
       .body) cat "$d/body" ;;
       "$TQ") printf '%s\t%s\t%s\n' "$(cat "$d/state")" "$(asg "$d")" "$(cat "$d/created" 2>/dev/null || echo 2026-11-01T09:00:00Z)" ;;
       '.state + "\t" + ([.labels[].name] | join(","))') printf '%s\t%s\n' "$(cat "$d/state")" "$(labels_of "$d")" ;;
+      "$CLQ") [ ! -f "$d/view-fail" ] || die "$(cat "$d/view-fail")" 1; printf '%s\t%s\t%s\t%s\n' "$(labels_of "$d")" "$(heads "$d")" "$(upd "$d")" "$([ "$(cat "$d/state")" = OPEN ] || cat "$d/reason" 2>/dev/null || echo COMPLETED)" ;;
       "$RPL") rpl "$d" ;;
       "$CDQ") cdq "$d" ;;
       .comments*) comments "$d" "$q" ;;
