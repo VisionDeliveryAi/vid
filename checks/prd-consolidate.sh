@@ -32,7 +32,7 @@
 # are the input's, row for row.
 # 7a can only produce UNCHANGED rows and CHANGED-by-field-removal rows —
 # anything else is a script defect and refuses.
-# Usage: sh checks/prd-consolidate.sh [PRD.md] [--date YYYY-MM-DD]
+# Usage: sh checks/prd-consolidate.sh [PRD.md] [--date YYYY-MM-DD]   (today, UTC, when not given; never after it, FB-5 C1)
 # serves: both (0.26.10.28.4, M9)
 set -eu
 IFS='
@@ -41,7 +41,9 @@ PRD=./PRD.md; DATE=''
 while [ $# -gt 0 ]; do
   case "$1" in --date) DATE=$2; shift 2 ;; *) PRD=$1; shift ;; esac
 done
-[ -n "$DATE" ] || DATE=$(date -u +%Y-%m-%d)
+TD=$(date -u +%Y-%m-%d); [ -n "$DATE" ] || DATE=$TD
+# FB-5 C1: a date after today (UTC) is refused, its year, month and day compared as numbers
+! awk -v d="$DATE" -v t="$TD" 'function n(x,   a) { split(x, a, "-"); return a[1] * 10000 + a[2] * 100 + a[3] } BEGIN { exit !(n(d) > n(t)) }' || { echo "ViD consolidate: refused — --date $DATE is after today, $TD (UTC): leave --date out, and today is written — nothing written." >&2; exit 1; }
 [ -f "$PRD" ] || { echo "ViD consolidate: '$PRD' missing." >&2; exit 1; }
 grep -q '^```vid-prd$' "$PRD" || { echo 'ViD consolidate: no ```vid-prd block — only the enriched grammar consolidates.' >&2; exit 1; }
 HERE=$(cd "$(dirname "$0")" && pwd); COURT="$HERE/prd.sh"

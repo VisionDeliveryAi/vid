@@ -1,7 +1,7 @@
 #!/bin/sh
 # Purpose: selftest case — three notes of the call's lines (FB-3 A2, A3, A4), on the planner's toy in GitHub manual. Each report branch
-# left out (.vid/round/reports-skipped) is one `context report <id> <words>`, its ticket's number named when its id holds one, and a box
-# of the plan page; the text for the team (`results.sh team`, here a stand-in script beside the real ones) is one `context
+# left out (.vid/round/reports-skipped) is one `context report <id> <words>`, its ticket's number named when its id holds one, and one
+# of the counts of the owner's list (FB-5 A1); the text for the team (`results.sh team`, here a stand-in script beside the real ones) is one `context
 # team-reports <why>` while none was handed over or it changed since, and nothing once handed as it stands or where results.sh has no
 # such verb; and a row accepted by ruling in no published ticket is not counted as not yet with the team, nor raised as to place, until the spec rewords it (reset). In
 # GitHub auto there is neither note. Env: CHECKS.
@@ -14,7 +14,7 @@ TB=$(printf '\t'); HOME=$T/home; export HOME; mkdir -p "$HOME" "$T/ck"
 for e in "$CHECKS"/*; do case ${e##*/} in selftest) ;; *) cp -R "$e" "$T/ck/" ;; esac; done
 pt_toy "$T/toy"; git init -q; printf '.vid/\n' > .gitignore; g add -A; g commit -qm 'the spec'
 printf 'setup-answered key=github-mode value="manual" words="the toy, manual" at=2026-11-19T09:00:00Z\n' >> .vid/plan/setup
-mkdir -p .vid/round .vid/tw/out .vid/next .vid/decide; git rev-parse HEAD > .vid/tw/applied; : > .vid/tw/handed
+mkdir -p .vid/round .vid/tw/out .vid/next .vid/decide; git rev-parse HEAD > .vid/tw/applied; : > .vid/tw/handed; : > .vid/tw/settings   # FB-5 A1: the list is a ticket-mode project's, which has one
 printf 'published 2 kind=step step=S02 rows=ROW-001,ROW-005 plan=p1 base=b1 export=e1 parts=1 taken-over=comments at=2026-11-10T09:00:00Z\n' > .vid/tw/log
 printf '# Step ticket S02\n\n## Rows\n\n> %s\n' "$(grep '^ROW-001 ' INVENTORY.md)" > .vid/tw/out/issue-2.md
 printf 'ticket\t2\tOPEN\t-\t2026-11-10T09:00:00Z\n' > .vid/round/read
@@ -32,9 +32,9 @@ C=0123456789abcdef0123456789abcdef01234567; grep -q "^context${TB}report${TB}" "
 tr_ 'left out'; W="the branch vid-results/step-2-$(printf %.12s $C)-1 (its newest commit $(printf %.12s $C) by Ana, 2026-11-20) reports on #2: no folder of its name. Put the report's files in a folder named step-2-$(printf %.12s $C)-1 on that branch and push it again; whatever else the branch holds is not read."
 grep -qxF "context${TB}report${TB}step-2-$(printf %.12s $C)-1${TB}$W" "$T/L" || fail 'a report branch left out is not said, with its ticket, its commit, author and date and what to do'
 grep "^context${TB}report${TB}stopped-a${TB}" "$T/L" | grep -q 'by Bo, 2026-11-21): a file of its name' || fail 'a branch whose id holds no number names one'
-sh "$T/ck/queue.sh" raise "$T/L" > "$T/out" 2>&1 || fail 'queue.sh raise failed'; sh "$T/ck/next-page.sh" write "$T/L" > "$T/out" 2>&1 || fail 'the page was not written'
-P=$(sed -n 's/^page //p' "$T/out"); grep -q 'id="reports"' "$P" && grep -q 'vid-results/stopped-a' "$P" || fail 'the page shows no box of the reports left out'
-rm -f .vid/round/reports-skipped; tr_ 'none left'; sh "$T/ck/next-page.sh" write "$T/L" > "$T/out" 2>&1 || fail 'the page was not written'; grep -q 'id="reports"' "$P" && fail 'the box stays with none left out'
+sh "$T/ck/queue.sh" raise "$T/L" > "$T/out" 2>&1 || fail 'queue.sh raise failed'; sh "$T/ck/next-page.sh" write "$T/L" > "$T/out" 2>&1 || fail 'the list was not written'
+P=.vid/face/list.json; grep -q 'report branches left out' "$P" && grep -q 'vid-results/stopped-a' "$P" || fail 'the list counts no report left out'
+rm -f .vid/round/reports-skipped; tr_ 'none left'; sh "$T/ck/next-page.sh" write "$T/L" > "$T/out" 2>&1 || fail 'the list was not written'; grep -q 'report branches left out' "$P" && fail 'the count stays with none left out'
 # A4: accepted by ruling, in no ticket
 for r in ROW-017 ROW-018; do grep -q "^counted${TB}unpublished${TB}$r${TB}" "$T/L" || fail "$r is not counted before"; done; N0=$(sed -n "s/^count${TB}total${TB}//p" "$T/L")
 printf 'row ROW-017 accepted-by-ruling | stand-in: owner at 2026-11-24T09:00:00Z, words "accepted before"\n' > .vid/tw/handed; printf 'ROW-018\taccepted by ruling\t-\t-\n' > .vid/decide/state

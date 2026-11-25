@@ -1,6 +1,6 @@
 ---
 name: vid-next
-description: GitHub manual — one call, which the owner makes by hand: connect, read GitHub (and Slack when set up), then show what is not yet with the team, the team's changes, the re-plan triggers in their tiers, the warnings and the moves; then do the moves the owner names in the call, in the owner's order, and write the plan page. Use when the owner says "vid next", or "/vid next <moves>".
+description: GitHub manual — one call, which the owner makes by hand: connect, read GitHub (and Slack when set up), then show what is not yet with the team, the team's changes, the re-plan triggers in their tiers, the warnings and the moves; then do the moves the owner names in the call, in the owner's order, and sort the owner's list, in the panel beside the chat. Use when the owner says "vid next", or "/vid next <moves>".
 ---
 
 # /vid:vid-next
@@ -30,9 +30,8 @@ The call's order, nothing more: every tier, warning, count, check and every move
 3. **Read.** Invoke the `vid-read` skill.
 4. **Triggers, warnings, moves.** Invoke the `vid-triggers` skill.
 5. **Show.** The lines as `next.sh triggers --short` printed them. With no move named, `sh "${CLAUDE_PLUGIN_ROOT}/checks/next-move.sh" call`:
-   it keeps what was shown in the owner's queue and writes the plan page, then prints each open `Q<n>` line with the answers it
-   takes, one line a kind. Say its lines; a `proposal due` line is a question of the owner's, its yes the move it names. End with
-   the `next:` line of `queue.sh backlog` (the vid-answer skill, the backlog).
+   it keeps what was shown in the owner's queue and prints the re-plan's question when one is due: a `proposal due` line, its yes the
+   move it names. No list is said in the chat: the panel has it, once sorted (step 7).
 6. **The moves named.** With `/vid next <moves>`, in place of step 5's call:
    `sh "${CLAUDE_PLUGIN_ROOT}/checks/next-move.sh" call <move> [-- <move>]…`, each move as the owner named it, in the
    owner's order, `--` between two, one argument each, quoted (a bare `#` would open a shell comment), the owner's words the
@@ -63,11 +62,12 @@ The call's order, nothing more: every tier, warning, count, check and every move
    call's listing made again from the new proposal: `sh "${CLAUDE_PLUGIN_ROOT}/checks/next-move.sh" call`, with no move, its
    lines said as step 5 says them. The listing printed before the analysis offers the moves as they stood without it; this one
    keeps the analysis's own move in the owner's queue, so `/vid next implement-replan "<their words>"` applies it next call.
-7. **Save.** vid-connect's end: the records saved, the lock freed. Run it however the call ends once the start held the
+7. **Sort,** in a call with moves or without, after the moves and the analysis's listing. Invoke the `vid-sort` skill (the Skill tool): it sorts what the call
+   left open into the owner's panel. Say its one line, the last of the call's; a sort that could not be made stops nothing.
+8. **Save.** vid-connect's end: the records saved, the lock freed. Run it however the call ends once the start held the
    lock, a failure included.
 
-**After the call: the plan page,** the `vid-triggers` skill's show of it (GM-4 K9), once vid-connect's end has saved the
-records and freed the lock: its section "The plan page", with the page `page <path>` names. When the call made a re-plan proposal,
-the `vid-replan` skill's show of it then too: its section "The re-plan page".
+**After the call,** once vid-connect's end has saved the records and freed the lock: when it made a re-plan proposal, the
+`vid-replan` skill's show of it, its section "The re-plan page". Where there is no panel, `/vid:vid-answer backlog` (`sh checks/queue.sh backlog`) says the list, when the owner asks.
 
 Nothing goes to the code repository, the spec repository or Slack but what a move named in the call posts.

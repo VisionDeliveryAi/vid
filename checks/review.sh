@@ -47,10 +47,12 @@ ask_() { AF=''; case $1 in
 live_() { awk '$1 == "published" { p[$2] = 1 } $1 == "withdrawn" { delete p[$2] } END { for (n in p) print n }' "$LOG" 2>/dev/null | sort -n; }
 # plist <commit> [<vs commit>]: $X/pl, the merged pull requests of the tickets in $X/t, `<p> TAB <ticket> TAB <merge> TAB c|vs|both`, by which
 # of the two commits hold the merge: a unit's record (decide.sh umap), this call's read (a ticket line, a sub-issue's too), the merges
-# recorded in GitHub auto, GitHub's closing references, and the list a ticket's own review kept
+# recorded in GitHub auto, GitHub's closing references, and the list a ticket's own review kept; FB-5 B1.4: at the commit its ask names, the step's
+# own pull request (pr-asks), merged or not
 plist() { _r=$RD; [ -f "$_r" ] || _r=/dev/null; awk -F'\t' -v T="$X/t" 'BEGIN { while ((getline l < T) > 0) t[l] = 1 } $1 == "sub" && ($2 in t) { print $4 "\t" $2 }' "$_r" > "$X/sub"
   { cat "$X/t"; cut -f1 "$X/sub"; } | sort -un > "$X/num"; gh_ closing-prs $(cat "$X/num") > "$X/cl" 2> "$X/e" || die "$(tail -n 1 "$X/e")"
-  { sh "$HERE/decide.sh" umap 2>/dev/null | awk -F'\t' '{ print $1 "\t" $2 "\t" $4 }'; awk -F'\t' '$1 ~ /^[0-9]+$/ { print $1 "\t" $2 "\t" $4 }' "$D/merges" 2>/dev/null
+  # FB-5 B1.4: and, at the commit its ask names, a step's own pull request (pr-asks)
+  { awk -F'\t' -v c="$1" '$3 == c { print $1 "\t" $2 "\t" $3 }' "$D/pr-asks" 2>/dev/null; sh "$HERE/decide.sh" umap 2>/dev/null | awk -F'\t' '{ print $1 "\t" $2 "\t" $4 }'; awk -F'\t' '$1 ~ /^[0-9]+$/ { print $1 "\t" $2 "\t" $4 }' "$D/merges" 2>/dev/null
     awk -F'\t' '$1 == "merged" { print $2 "\t" $3 "\t" $5 }' "$_r"; awk -F'\t' '{ print $2 "\t" $1 "\t" $3 }' "$X/cl"
     while read -r t; do cat "$RV/grade-step-$t-"*/prs 2>/dev/null | cut -f1-3; done < "$X/t"; } |
   awk -F'\t' -v T="$X/t" -v S="$X/sub" 'BEGIN { while ((getline l < T) > 0) t[l] = l; while ((getline l < S) > 0) { split(l, x, "\t"); t[x[1]] = x[2] } } ($2 in t) && $3 ~ /^[0-9a-f]+$/ && !s[$1]++ { print $1 "\t" t[$2] "\t" $3 }' | sort -n > "$X/pa"

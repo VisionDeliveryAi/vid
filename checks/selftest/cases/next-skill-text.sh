@@ -13,7 +13,8 @@
 # decline moves, one line each, and holds none of their forms (vid-answer holds them); no `accept-spec-change` move (a draft is
 # answered through vid-answer). GM-4 K11's step 6 (4b): publish, amend, withdraw and reopen one line each naming vid-tickets,
 # team-change and done vid-answer, planning-analysis and implement-replan vid-replan, each move's form in its skill and none in
-# vid-next; K9: the plan page vid-triggers', named after step 7, its rules gone from vid-next. GM-4 K11's step 2 (4c): ViD's own work
+# vid-next; FB-5 A1: the owner's list sorted by the vid-sort skill, step 7, before the save, step 8; no plan page in vid-next or
+# vid-triggers, the re-plan page's show vid-replan's, named after the save, its rules there alone. GM-4 K11's step 2 (4c): ViD's own work
 # a list of skill calls in order, one line each: vid-accept-step (`round.sh step`, then `round.sh accept` for each `decide` line),
 # vid-step-close, then `round.sh asks`; behind the owner's switch (`next.sh own-work`: until on, one line saying it is off, listing the
 # move `own-work on`, and each `context ask` line said with its command); none of those skills' lines in vid-next. Step 6 (F16): the
@@ -31,7 +32,7 @@ fail() { echo "next-skill-text: $*" >&2; exit 1; }
 [ -f "$S/vid-next/SKILL.md" ] && [ -f "$S/vid-connect/SKILL.md" ] && [ -f "$S/vid-read/SKILL.md" ] && [ -f "$S/vid-mode/SKILL.md" ] || fail "a skill of /vid next or /vid mode is missing"
 N=$S/vid-next/SKILL.md; C=$S/vid-connect/SKILL.md; R=$S/vid-read/SKILL.md; M=$S/vid-mode/SKILL.md
 T0=$(mktemp); trap 'rm -f "$T0"' EXIT
-awk '/^[0-9]\. \*\*/ { print $1 }' "$N" | paste -sd' ' - | grep -qx '0. 1. 2. 3. 4. 5. 6. 7.' || fail 'vid-next does not name its steps 0 to 7 in order'
+awk '/^[0-9]\. \*\*/ { print $1 }' "$N" | paste -sd' ' - | grep -qx '0. 1. 2. 3. 4. 5. 6. 7. 8.' || fail 'vid-next does not name its steps 0 to 8 in order'
 for k in 'devagent-start.sh" mode' vid-connect vid-read vid-triggers; do grep -q "$k" "$N" || fail "vid-next does not call $k"; done
 # FB-2 A2: step 0's none, with no ratified line, plans first through the vid-plan skill, its yes the GitHub manual route through the
 # vid-mode skill, then step 1; DevAgent's answer names /vid:vid-run; no "/vid:vid-plan plans it" ending
@@ -76,11 +77,13 @@ for mv in publish:vid-tickets amend:vid-tickets withdraw:vid-tickets reopen:vid-
 TK=$S/vid-tickets/SKILL.md
 for mf in 'vid-tickets|publish <step> "<words>"' 'vid-tickets|--title "<title>"' 'vid-tickets|amend "#<n>" "<words>"' 'vid-tickets|withdraw "#<n>" "<words>"' 'vid-tickets|reopen "#<n>" "<words>"' 'vid-answer|team-change "#<n>" <id> yes "<words>"' 'vid-answer|done "<kind> <subject>" "<words>"' 'vid-replan|implement-replan "<words>"'; do
   k=${mf%%|*}; f=${mf#*|}; ! grep -qF -- "$f" "$N" || fail "vid-next still holds the move's form $f"; grep -qF -- "$f" "$S/$k/SKILL.md" || fail "$k does not hold the move's form $f"; done
-# GM-4 K9: the plan page is vid-triggers' show, named by vid-next after its step 7; vid-next holds none of its rules
-e=$(grep -n '^7\. \*\*' "$N" | cut -d: -f1); p=$(grep -n 'plan page' "$N" | grep 'vid-triggers' | tail -n 1 | cut -d: -f1)
-[ -n "$e" ] && [ -n "$p" ] && [ "$p" -gt "$e" ] || fail "vid-next does not name vid-triggers' plan page after its step 7"
-for f in 'next-move.sh shell' 'planner.sh setup plan-page' 'action: "read"'; do ! grep -qF -- "$f" "$N" || fail "vid-next still holds the plan page's rule: $f"
-  grep -qF -- "$f" "$S/vid-triggers/SKILL.md" || fail "vid-triggers does not hold the plan page's rule: $f"; done
+# FB-5 A1: no plan page; the sort a step of its own before the save; the re-plan page vid-replan's show, after it, its rules there alone
+! grep -qi 'plan page' "$S/vid-triggers/SKILL.md" && ! grep -qiE '(^|[^-])plan page' "$N" || fail 'vid-next or vid-triggers still names the plan page'
+grep -n '^7\. \*\*Sort' "$N" | grep -q . && awk '/^7\. \*\*/ { on = 1 } /^8\. \*\*/ { exit } on' "$N" | grep -qF 'Invoke the `vid-sort` skill' && grep -q '^8\. \*\*Save' "$N" || fail 'vid-next does not sort through vid-sort before its save'
+e=$(grep -n '^8\. \*\*' "$N" | cut -d: -f1); p=$(grep -n 'The re-plan page' "$N" | tail -n 1 | cut -d: -f1)
+[ -n "$e" ] && [ -n "$p" ] && [ "$p" -gt "$e" ] || fail "vid-next does not name the re-plan page after its step 8"
+for f in 'next-move.sh shell' 'action: "read"'; do ! grep -qF -- "$f" "$N" || fail "vid-next holds the re-plan page's rule: $f"
+  grep -qF -- "$f" "$S/vid-replan/SKILL.md" || fail "vid-replan does not hold the re-plan page's rule: $f"; done
 # GM-4 K11 step 2 (4c): the skills in order, one line each, behind the owner's switch; none of their lines here
 K2=$S/vid-accept-step/SKILL.md; K3=$S/vid-step-close/SKILL.md; [ -f "$K2" ] && [ -f "$K3" ] || fail 'vid-accept-step or vid-step-close is missing'
 S2=$(awk '/^2\. \*\*/ { on = 1 } on && /^3\. \*\*/ { exit } on' "$N")

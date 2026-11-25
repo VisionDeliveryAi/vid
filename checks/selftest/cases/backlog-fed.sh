@@ -4,11 +4,11 @@
 # came, its next action the answers it takes; the same lines raised again leave the file byte for byte. A trigger whose evidence
 # changed keeps its place, its mark and the next action set for it, its Q number and words fresh, and a new move lands at the end.
 # A call read in part closes nothing and makes no second line of a trigger whose evidence changed. An answer closes its line with
-# the owner's words; a line no longer raised by a whole call is done, `no longer there`. `queue.sh backlog` prints the open lines
-# in order, then `next:`, always with an open line. Env: CHECKS.
+# the owner's words; a line no longer raised by a whole call is done, `no longer there`. `queue.sh backlog` (FB-5 A1: as text)
+# holds the open lines in order, then `next:`, always with an open line. Env: CHECKS.
 set -eu
 unset CLAUDE_CODE_SESSION_ID VID_CALLER 2>/dev/null || true
-T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
+T=$(mktemp -d); trap 'rm -rf "$T"' EXIT; HOME=$T/home; export HOME; mkdir -p "$HOME"
 . "$CHECKS/selftest/fixtures/planner-toy.sh"; . "$CHECKS/selftest/fixtures/tickets.sh"; . "$CHECKS/selftest/fixtures/manual.sh"
 fail() { echo "backlog-fed: $*" >&2; cat "$T/out" >&2 2>/dev/null; cat .vid/decide/queue/backlog >&2 2>/dev/null; exit 1; }
 mn_project "$T/p"; printf 'mode: tickets\nplan: required\nrun: waiting\n' > .vid/RUN-STATE.md
@@ -48,6 +48,6 @@ ln move publish S04 1123456789abcdef 'publishes the ticket of S04' > "$T/L4"; qs
 awk -F'\t' '$3 == "done" && index($2, "move:publish") == 1 && $5 ~ /S03/ && $7 == "no longer there" { x = 1 } END { exit !x }' "$B" || fail 'a move no longer raised is not done, no longer there'
 [ "$(row '' | grep -c .)" = 1 ] || fail 'more than the one raised line is open'
 sh "$QS" backlog > "$T/out" 2>&1 || fail 'queue.sh backlog failed'
-[ "$(grep -c '' "$T/out")" = 2 ] && sed -n 1p "$T/out" | grep -q '^Q[0-9].*S04' && sed -n 2p "$T/out" | grep -q '^next: Q[0-9]* · .*S04.* · done "<words>" · you$' || fail 'queue.sh backlog does not print the open line, then next:'
+[ "$(grep -c '^Q[0-9]' "$T/out")" = 1 ] && grep -q '^Q[0-9].*S04' "$T/out" && grep '^next: ' "$T/out" | grep -q '^next: Q[0-9]* · .*S04.* · done "<words>" · you$' || fail 'queue.sh backlog does not hold the open line, then next:'
 QL=$(f move:publish: 1); qs backlog set "$QL" --state aside; sh "$QS" backlog > "$T/out"; grep -q '^next: none' "$T/out" || fail 'with every open line aside no next: is printed'
 exit 0

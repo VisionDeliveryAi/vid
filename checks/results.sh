@@ -49,9 +49,10 @@
 #   lines or fault folders; a row's transitions and marks come from the newest ticket holding it, by .vid/tw/log
 # FB-3 A2: skipped [--ticket <n>]               the report branches github.sh results-fetch left out, with the owner's words for each (a flag's); a
 #   ticket's, a `report left out — vid-results/<id>: <why>` line each. `read` says each of the ticket's, `report skipped <id> <why>`
+# FB-5 B1.8: lacks --ticket <n> --at <commit>   (GitHub manual) what the team's older form lacked in the evidence last read there, a lack a line
 # FB-3 A3: team [--hand]                       the text telling the team what its reports hold, in the project's mode, for the owner to hand over;
-#   --hand writes it to .vid/plan/TEAM-REPORTS.md too. No lock, no GitHub
-# Usage: sh checks/results.sh check|read|page|declare|close|skipped|at|team …
+#   --hand writes it to .vid/plan/TEAM-REPORTS.md too (FB-5 B1.7: not while the team's own rules are on record). No lock, no GitHub
+# Usage: sh checks/results.sh check|read|page|declare|close|skipped|lacks|at|team …
 # serves: tickets (0.26.10.28.4, M9)
 set -eu
 LC_ALL=C; export LC_ALL   # a report's bytes are bytes: one that is no character stops nothing
@@ -212,6 +213,22 @@ left() { skips > "$T/sk"; [ -s "$T/sk" ] || [ -n "$MAN" ] || return 0; if [ -n "
 # skipped: each left-out branch, `<id> TAB <the flag's words>`; skipped --ticket <n> [--at <commit>]: the ticket's, a `report left out — …` line each
 cmd_skipped() { if [ "${1:-}" = --ticket ] && [ -n "${2:-}" ]; then left "$2" '' "${4:-}" | while IFS=$TAB read -r i y; do echo "report left out — vid-results/$i: $y"; done; return 0; fi; [ $# -eq 0 ] || die 'usage — sh checks/results.sh skipped [--ticket <n>]'
   skips | while IFS=$TAB read -r i n c a d y; do [ "$n" = - ] && o='' || o=" reports on #$n"; printf "%s\tthe branch vid-results/%s (its newest commit %s by %s, %s)%s: %s. Put the report's files in a folder named %s on that branch and push it again; whatever else the branch holds is not read.\n" "$i" "$i" "$(printf %s "$c" | cut -c1-12)" "$a" "$d" "$o" "$y" "$i"; done; }
+# FB-5 B1.8: lacks, from the evidence file and the reports at the commit: a transition no test names, a row's id written with other digits, results
+# older than a row's amendment, a report's branch, a file or a break's folder left out, no engine named. Read for the owner alone; it changes nothing
+cmd_lacks() { [ -n "$MAN" ] && [ "${1:-}" = --ticket ] && [ -n "${2:-}" ] && [ "${3:-}" = --at ] && [ -n "${4:-}" ] || die 'usage — sh checks/results.sh lacks --ticket <n> --at <commit> (GitHub manual)'
+  N=$2; HD=$(G rev-parse -q --verify "$4^{commit}" 2>/dev/null || echo "$4"); E=.vid/results/step-$N-$(printf %.12s "$HD").txt; [ -f "$E" ] || return 0; KIND=''; : > "$T/lc"
+  awk -F'\t' 'NF == 6 { if ($6 ~ /(^|; )no case($|;)/) print $1; n = split($6, w, /; /); for (i = 1; i <= n; i++) if (w[i] ~ /^T[0-9]+: no case$/) { t = w[i]; sub(/:.*/, "", t); print $1 "-" t } }' "$E" > "$T/ln"
+  [ ! -s "$T/ln" ] || for i in $(atids "$HD"); do form "$i" "$HD" || continue; awk -F'\t' '$1 == "c" { print $2 }' "$T/cx/$i/"[0-9]*; done > "$T/lc"
+  awk 'function out(s) { if (!d[s]++) print s }
+    FILENAME == ARGV[1] { if (!s[$0]++) { o[++n] = $0; b = $0; sub(/-T[0-9]+$/, "", b); B[n] = b } next }
+    { for (i = 1; i <= n; i++) { b = B[i]; if ((b in W) || !match(b, /-[0-9]+$/)) continue; p = substr(b, 1, RSTART - 1); k = substr(b, RSTART + 1); sub(/^0+/, "", k); if (k == "") k = "0"; gsub(/-/, "[-_.]", p)
+        if (match($0, "(^|[^A-Za-z0-9])" p "[-_.]0*" k "($|[^A-Za-z0-9])")) { x = substr($0, RSTART, RLENGTH); sub(/^[^A-Za-z0-9]/, "", x); sub(/[^A-Za-z0-9]$/, "", x); y = x; gsub(/[_.]/, "-", y); if (y != b) W[b] = x } } }
+    END { t = ""; for (i = 1; i <= n; i++) if (B[i] in W) out(B[i] " written " W[B[i]]); else if (o[i] != B[i]) t = t (t == "" ? "" : " ") o[i]; if (t != "") print t ": no test of its own name" }' "$T/ln" "$T/lc"
+  awk -F'\t' 'NF == 6 && $6 ~ /since its amendment/ { r = r (r == "" ? "" : " ") $1 } END { if (r != "") print r ": results older than its amendment" }' "$E"
+  sed -n 's/^report skipped \([^ ]*\) \(.*\)$/vid-results\/\1 left out: \2/p' "$E"
+  sed -n "s/^report head \([^ ]*\) read:\(.*\)\$/\1$TAB\2/p" "$E" | awk -F'\t' '{ n = split($2, w, /;/); for (i = 1; i <= n; i++) if (w[i] ~ /, not whole$/) { f = w[i]; sub(/^ /, "", f); sub(/ [0-9]+ passed, .*$/, "", f); print $1 " " f ": not whole" } }'
+  sed -n 's/^fault folder for no row: \(.*\)$/faults\/\1: a break of no row/p' "$E"
+  grep -q '^engines: ' "$E" || echo 'no engine named'; }
 # FB-3 A3: team [--hand], the text telling the team what its reports hold, for the owner to hand over: GitHub manual's rules (mform, pool, A1.5)
 # in plain words, GitHub auto's own ids there; filled with the code repository and the label prefix. A change of those rules changes it here.
 # --hand writes it to .vid/plan/TEAM-REPORTS.md too. The case team-text-join holds its ids and the reader's together
@@ -321,7 +338,8 @@ W
 }
 cmd_team() { case "$#:${1:-}" in 0:|1:--hand) ;; *) die 'usage — sh checks/results.sh team [--hand]' ;; esac; _r=$(skey repo); _p=$(skey labels-prefix)
   { if [ -n "$MAN" ]; then tmanual; else tauto; fi; } | awk -v r="${_r:-the code repository}" -v p="$_p" 'function sub1(s, k, v,   i) { while ((i = index(s, k)) > 0) s = substr(s, 1, i - 1) v substr(s, i + length(k)); return s } { print sub1(sub1($0, "@REPO@", r), "@PX@", p) }' > "$T/team" || exit 1
-  [ $# = 0 ] || { mkdir -p .vid/plan && put .vid/plan/TEAM-REPORTS.md < "$T/team"; } || exit 1; cat "$T/team"; }
+  # FB-5 B1.7: in GitHub manual, with the team's own rules on record (team-rules), --hand prints the text and writes nothing
+  [ $# = 0 ] || { [ -n "$MAN" ] && [ -n "$(skey team-rules)" ]; } || { mkdir -p .vid/plan && put .vid/plan/TEAM-REPORTS.md < "$T/team"; } || exit 1; cat "$T/team"; }
 # the evidence, from the stream $T/in: the format's matching, red rule and faults
 EV='function norm(s) { gsub(/[-_.]/, "-", s); return s }
   function hit(n, id,   o, p, a, b, s) { id = norm(id); o = 1
@@ -520,8 +538,8 @@ cmd_declare() { P=''; HD=''; K=''; EN=''; WD=''; WS=''; while [ $# -ge 2 ]; do c
   [ -n "$K" ] && [ -n "$HD" ] || die 'usage — sh checks/results.sh declare --pr <p> --head <commit> | --ticket <n> --at <commit> | --engines "<primary> <other>…" --words "<w>"'
   HD=$(G rev-parse -q --verify "$HD^{commit}" 2>/dev/null || echo "$HD"); H=$(printf %s "$HD" | cut -c1-12); if [ -n "$MAN" ]; then mdeclare; return 0; fi; k=$(newest "$K-$H"); [ -n "$k" ] || { echo "no head report at $H"; return 0; }; i=$K-$H-$k; KIND=''
   form "$i" "$HD" || { echo "refused $WHY"; return 0; }; E=$(sl "$i" engines | head -n 1); M=$(sl "$i" environments | head -n 1); declared; }
-# FB-3 A1.3 (GitHub manual): the engines and the environments, when given, of the reports at the commit, each the first report's that names them
-mdeclare() { E=''; M=''; KIND=''; for i in $(atids "$HD"); do form "$i" "$HD" || continue; [ -n "$E" ] || E=$(sl "$i" engines | tr -d '\r' | head -n 1); [ -n "$M" ] || M=$(sl "$i" environments | tr -d '\r' | head -n 1); done; [ -n "$E$M" ] || { echo "no engines or environments declared at $H"; return 0; }; declared; }
+# FB-3 A1.3 (GitHub manual): the engines (by spaces or commas, FB-5 B1.3) and the environments, when given, of the reports at the commit, each the first report's that names them
+mdeclare() { E=''; M=''; KIND=''; for i in $(atids "$HD"); do form "$i" "$HD" || continue; [ -n "$E" ] || E=$(sl "$i" engines | tr -d '\r' | head -n 1 | tr ', ' '  ' | tr -s ' ' | sed 's/ $//'); [ -n "$M" ] || M=$(sl "$i" environments | tr -d '\r' | head -n 1); done; [ -n "$E$M" ] || { echo "no engines or environments declared at $H"; return 0; }; declared; }
 declared() {
   if [ -n "$E" ]; then mkdir -p .vid/tw; { grep -v '^engines ' .vid/tw/handed 2>/dev/null || true; printf 'engines %s | stand-in: results reader\n' "$E"; } > "$T/h" || exit 1; put .vid/tw/handed < "$T/h" || exit 1; fi
   # 0.26.10.29.2 (R10): stacks= and unverified-rows= are rewritten only when the declared count differs from stacks=; the same
@@ -567,7 +585,8 @@ CL='function norm(s) { gsub(/[-_.]/, "-", s); return s }
     print "chunk\t" C "\t" (red ? "red" : inc ? "incomplete" : "green") "\t" K; for (i = 1; i <= nl; i++) print L[i]; for (i = 1; i <= nx; i++) print X[i] }'
 # acc <row> <engines>: h lines, the cases of the row's newest accepted head report whose head is an ancestor of the close's commit (CK-R-160)
 acc() { awk -F'\t' -v r="$1" '($4 == r || index($4, r "-T") == 1) && $5 ~ /^(accepted|accepted by ruling|passing)$/ { print NR "\t" $2 "\t" $3 }' .vid/decide/log 2>/dev/null | sort -rn | while IFS=$TAB read -r _n p h; do
-    G merge-base --is-ancestor "$h" "$C" 2>/dev/null || continue
+    # FB-5 B1.4: a head accepted on its own pull request is on record at its merge (merges), a squash of it too: it is read by that merge's ancestry
+    mh=$(awk -F'\t' -v k="$p-$h" '$1 == k { m = $4 } END { if (m != "") print m }' .vid/decide/merges 2>/dev/null || true); G merge-base --is-ancestor "${mh:-$h}" "$C" 2>/dev/null || continue
     # FB-3 A1.5 (GitHub manual): the accepted reports at the commit the ticket was decided at; an engine's names from a file named cases-<engine>.xml alone
     if [ -n "$MAN" ]; then fh=$(G rev-parse -q --verify "$h^{commit}" 2>/dev/null || true); [ -n "$fh" ] || continue; for q in $(atids "$fh"); do form "$q" "$fh" || continue; for e in $2; do awk -F'\t' -v n="cases-$e.xml" '$4 == n && $2 == 1 { print $1 }' "$T/cx/$q/names" | while read -r x; do awk -F'\t' -v e="$e" -v r="$1" '$1 == "c" { print "h\t" e "\t" r "\t" $2 }' "$T/cx/$q/$x"; done; done; done; break; fi
     case $p in step-*) kq=$p ;; *) kq=pr-$p ;; esac; q=$(newest "$kq-$h"); [ -n "$q" ] || continue; q=$kq-$h-$q   # GM-4 E2: a ticket's too
@@ -766,6 +785,6 @@ CMD=${1:-}; [ $# -gt 0 ] && shift
 case $CMD in
   cases) cases "${1:?}" ;;   # FB-3 A1.4: one results file's cases, for checks/review.sh's brief
   grade) cmd_grade "$@" ;; deploy) cmd_deploy "$@" ;;
-  check) cmd_check "$@" ;; read) cmd_read "$@" ;; page) cmd_page "$@" ;; declare) cmd_declare "$@" ;; close) cmd_close "$@" ;; skipped) cmd_skipped "$@" ;; at) cmd_at "$@" ;; team) cmd_team "$@" ;;
+  check) cmd_check "$@" ;; read) cmd_read "$@" ;; page) cmd_page "$@" ;; declare) cmd_declare "$@" ;; close) cmd_close "$@" ;; skipped) cmd_skipped "$@" ;; lacks) cmd_lacks "$@" ;; at) cmd_at "$@" ;; team) cmd_team "$@" ;;
   *) die 'usage — sh checks/results.sh check|read|page|declare|close|skipped|at|team …' ;;
 esac

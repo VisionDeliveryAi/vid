@@ -7,6 +7,11 @@ description: Internal — the start and the end of every ViD call in ticket mode
 
 One job: connect a call, and close it. It decides nothing. Every rule is in `checks/connect.sh` and `checks/github.sh` (GM-4 F2).
 
+## In every call
+
+- **Dates (FB-5 C1).** A date or a time written anywhere is read from a command (`date -u +%Y-%m-%d`, `date -u +%Y-%m-%dT%H:%M:%SZ`), never from the conversation.
+- **Search, then ask (FB-5 C3).** Before a question to the owner, search the answers, the decisions and the spec: a line that settles it is done and told in one line, never asked. Before saying that the spec settles something, quote the line's id and words: with no line, it is open, and the owner's.
+
 ## The connect, for every caller
 
 1. `sh "${CLAUDE_PLUGIN_ROOT}/checks/connect.sh" start`, the plugin's own copy, from the project's top level. In an empty folder

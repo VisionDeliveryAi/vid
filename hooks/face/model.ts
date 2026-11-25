@@ -171,24 +171,23 @@ export function live(standing: Standing, run: Run | null): boolean {
   return Number.isNaN(written) || Number.isNaN(since) || written >= since
 }
 
-// FB-3 D1: the list as the panel draws it, each group in the list's own order; and its counts in one line
-export function listed(b: Backlog): { doing: BacklogItem[]; todo: BacklogItem[]; waiting: BacklogItem[]; aside: BacklogItem[]; counts: string } {
-  const of = (s: string) => b.items.filter(i => i.state === s)
-  const g = { doing: of('doing'), todo: of('to do'), waiting: of('waiting'), aside: of('aside') }
-  const counts = [
-    [g.todo.length, 'to do'],
-    [g.doing.length, 'in progress'],
-    [g.waiting.length, 'waiting'],
-    [g.aside.length, 'set aside'],
+// FB-3 D1: the backlog's counts in one line
+export function counts(b: Backlog): string {
+  const of = (s: string) => b.items.filter(i => i.state === s).length
+  const out = [
+    [of('to do'), 'to do'],
+    [of('doing'), 'in progress'],
+    [of('waiting'), 'waiting'],
+    [of('aside'), 'set aside'],
   ]
     .filter(([n]) => n)
     .map(([n, w]) => `${n} ${w}`)
     .join(' · ')
-  return { ...g, counts: counts || 'Nothing is open' }
+  return out || 'Nothing is open'
 }
 export const cut = (t: string): string => (t.length > 300 ? t.slice(0, 299).trimEnd() + '…' : t)
 
-export function modeOf(standing: Standing | null, sitting: Sitting | null, marks: Marks, problem: string, project: boolean, run: Run | null): Mode {
+export function modeOf(standing: Standing | null, sitting: Sitting | null, marks: Marks, problem: string, project: boolean, run: Run | null, hasList = false): Mode {
   if (problem) return 'problem'
   if (!project) return 'none'
   if (!standing) return 'idle'
@@ -196,7 +195,8 @@ export function modeOf(standing: Standing | null, sitting: Sitting | null, marks
   // usability (P13): a draft at the current stop or a later one is shown, never as waiting on the person
   if (sitting !== null && sitting.state === 'drafting' && standing.current <= sitting.stop) return 'drafting'
   // FB-3 D1, D2: a run: the owner's list, or a long call's parts or stop, whatever stop the map is at
-  if (runs(standing)) return 'run'
+  // FB-5 A1: the owner's list too, with nothing in the backlog
+  if (runs(standing) || (hasList && standing.backlog !== null)) return 'run'
   if (standing.current > standing.stops.length) return 'done'
   if (standing.current <= 1) return 'idle'
   return running(run) ? 'working' : 'stopped'

@@ -22,7 +22,7 @@ call() { sh "$CHECKS/next.sh" read > "$T/out" 2>&1 || fail 'next.sh read failed'
 ir() { grep -c "^move${TB}implement-replan${TB}" "$T/L" || :; }
 off() { [ "$(ir)" = 0 ] || fail "$1: implement-replan is listed"; ! grep -q '^proposal due' "$T/out" || fail "$1: the call asks to make it"
   ! sh "$CHECKS/queue.sh" list 2>/dev/null | grep -q "${TB}move:implement-replan:" || fail "$1: the queue offers it"
-  P=$(sed -n 's/^page //p' "$T/out"); [ -f "$P" ] && ! grep -q 'vid next implement-replan' "$P" || fail "$1: the page offers it"
+  ! grep -q "^move${TB}implement-replan${TB}" .vid/next/lines || fail "$1: the lines kept for the owner's list offer it"
   grep "^move${TB}planning-analysis${TB}" "$T/L" | grep -q 'implement-replan is not listed, its own proposal could not be made: ViD writer: refused — \.vid/tw/handed' || { cp "$T/L" "$T/out"; fail "$1: planning-analysis does not say why"; }; }
 call; [ "$(ir)" = 1 ] && grep -q '^proposal due' "$T/out" || { cat "$T/L" >> "$T/out"; fail 'implement-replan is not offered and asked'; }
 # f: the team with no lane, declined by its name

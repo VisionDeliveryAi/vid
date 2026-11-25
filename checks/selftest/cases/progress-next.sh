@@ -3,7 +3,7 @@
 # its checks/ a copy whose face.sh records its arguments: connect.sh start, once it holds the lock, names the call's parts, the first
 # running, ViD's own work among them only when it is on, and says what it does as it goes; round.sh step is ViD's own work; the one
 # read is Reading GitHub, `ticket <i> of <n>` each, and, read, Working out what changed; results-fetch and the closes' report reads say
-# so; connect.sh end is Saving the records and leaves no parts, but keeps a stop. GitHub auto names the same. A start refused before
+# so, and so does the sort of the list (FB-5 A1); connect.sh end is Saving the records and leaves no parts, but keeps a stop. GitHub auto names the same. A start refused before
 # the lock writes nothing under .vid/face; one that ends after it leaves the part stopped, with what it needs. In /vid mode's own call
 # the connect names and clears no parts, and says its words alone. A read with no parts named writes nothing under .vid/face; a
 # face.sh that fails fails no call. Env: CHECKS.
@@ -35,7 +35,7 @@ git push -q "$(mn_state)" :refs/heads/vid-state/lock; rm -f .vid/connect-stage .
 sh checks/round.sh read > "$T/out" 2>&1 || fail 'the read alone failed'; [ ! -e .vid/face ] || fail 'a read with no parts named wrote under .vid/face'
 # the whole call, own work off
 C start; [ "$RC" = 0 ] || fail "the start exited $RC"
-calls; [ "$(grep -v '^now' "$T/w" | head -n 2)" = 'parts Connecting and checking the project Reading GitHub Working out what changed Your list and the plan page Saving the records
+calls; [ "$(grep -v '^now' "$T/w" | head -n 2)" = 'parts Connecting and checking the project Reading GitHub Working out what changed Your list Saving the records
 on Connecting and checking the project' ] || fail 'the start did not name the parts, the first running'
 has "now checking the project's rules" 'the start does not say what it does'; has 'now checking GitHub access' 'the start does not say what it does'
 [ "$(run_)" = 'Connecting and checking the project' ] || fail "after the start the running part is $(run_)"
@@ -43,14 +43,15 @@ has "now checking the project's rules" 'the start does not say what it does'; ha
 calls; printf '%s\n' 'on Reading GitHub' 'now ticket 1 of 2' 'now ticket 2 of 2' 'on Working out what changed' > "$T/x"; cmp -s "$T/x" "$T/w" || fail 'the read does not say its part, each ticket and the next part, in order'
 [ "$(run_)" = 'Working out what changed' ] || fail "after the read the running part is $(run_)"
 : > "$T/calls"; sh checks/next-move.sh call > "$T/out" 2>&1 || fail 'the call'"'"'s show failed'
-calls; printf '%s\n' 'on Working out what changed' 'on Your list and the plan page' > "$T/x"; cmp -s "$T/x" "$T/w" || fail 'the call does not say its last two parts, in order'
-[ "$(run_)" = 'Your list and the plan page' ] || fail "after the call the running part is $(run_)"
+calls; printf '%s\n' 'on Working out what changed' 'on Your list' > "$T/x"; cmp -s "$T/x" "$T/w" || fail 'the call does not say its last two parts, in order'
+[ "$(run_)" = 'Your list' ] || fail "after the call the running part is $(run_)"
+: > "$T/calls"; : > "$T/empty"; sh checks/queue.sh sort "$T/empty" > "$T/out" 2>&1 || :; has 'now sorting your list' 'the sort does not say its part'
 : > "$T/calls"; sh checks/github.sh results-fetch > "$T/out" 2>&1 || fail 'results-fetch failed'; has "now fetching the team's reports"
 C end; [ "$RC" = 0 ] || fail "the end exited $RC"; calls; [ "$(paste -sd '|' "$T/w")" = 'on Saving the records|done' ] || fail 'the end is not Saving the records, then done'
 [ ! -e .vid/face/wait ] || fail 'an ended call left its parts'
 # own work on: its part is named, and round.sh step is it
 printf 'setup-answered key=own-work value="on" words="yes" at=2026-11-20T09:00:00Z\n' >> .vid/plan/setup
-C start; [ "$RC" = 0 ] || fail "the start with own work on exited $RC"; calls; grep -qxF "parts Connecting and checking the project ViD's own work Reading GitHub Working out what changed Your list and the plan page Saving the records" "$T/w" || fail 'with own work on its part is not named'
+C start; [ "$RC" = 0 ] || fail "the start with own work on exited $RC"; calls; grep -qxF "parts Connecting and checking the project ViD's own work Reading GitHub Working out what changed Your list Saving the records" "$T/w" || fail 'with own work on its part is not named'
 : > "$T/calls"; sh checks/round.sh step > "$T/out" 2>&1 || fail 'the round'"'"'s step failed'; calls; [ "$(grep -v '^now ' "$T/w" | head -n 1)" = "on ViD's own work" ] || fail "round.sh step is not ViD's own work"
 [ "$(run_)" = "ViD's own work" ] || fail "in the round's step the running part is $(run_)"
 sh checks/face-real.sh wait stop 'your yes' > /dev/null 2>&1; C end; [ "$RC" = 0 ] || fail 'the end failed'; st | grep -q '"stop":"your yes"' || fail 'the end dropped a stop'
@@ -58,10 +59,11 @@ grep -v 'key=own-work' .vid/plan/setup > "$T/s"; cat "$T/s" > .vid/plan/setup
 # a call that fails on the way: the part it was at stopped, with what it needs, kept by the end
 mv_() { : > "$T/calls"; RC=0; sh checks/next-move.sh call "$@" > "$T/out" 2>&1 || RC=$?; calls; }
 lst() { [ "$(tail -n 1 "$T/w")" = "stop $1" ] || fail "the last word is not: stop $1"; }
-C start; sh checks/round.sh read > /dev/null 2>&1; mv "$HOME/ViD Viewer" "$T/vv"; : > "$HOME/ViD Viewer"; mv_; [ "$RC" = 1 ] && grep -q '^page: not written' "$T/out" || fail "with the page not to be written the call exited $RC"
-lst 'a look at the chat: the plan page was not written'; st | grep -qF '{"name":"Your list and the plan page","state":"stopped"}' || fail "the part the page failed at is not stopped: $(st)"
-C end; [ "$RC" = 0 ] || fail 'the end failed'; st | grep -q '"stop":"a look at the chat: the plan page' || fail 'the end dropped the stop of a call whose page was not written'
-rm "$HOME/ViD Viewer"; mv "$T/vv" "$HOME/ViD Viewer"
+C start; sh checks/round.sh read > /dev/null 2>&1; cp checks/queue.sh "$T/qreal.sh"; mv checks/queue.sh checks/queue-real.sh; printf '#!/bin/sh\n[ "$1" != raise ] || { echo "the list is held" >&2; exit 1; }\nexec sh "${0%%/*}/queue-real.sh" "$@"\n' > checks/queue.sh
+mv_; [ "$RC" = 1 ] && grep -q 'could not be kept' "$T/out" || fail "with the list not to be kept the call exited $RC"
+lst 'a look at the chat: your list could not be kept'; st | grep -qF '{"name":"Your list","state":"stopped"}' || fail "the part the list failed at is not stopped: $(st)"
+C end; [ "$RC" = 0 ] || fail 'the end failed'; st | grep -q '"stop":"a look at the chat: your list' || fail 'the end dropped the stop of a call whose list was not kept'
+rm checks/queue-real.sh; mv "$T/qreal.sh" checks/queue.sh
 C start; sh checks/round.sh read > /dev/null 2>&1; mkdir "$T/nosave"; printf '#!/bin/sh\ncase "$*" in *vid-state*) exit 1 ;; esac\nexec %s "$@"\n' "$(command -v gh)" > "$T/nosave/gh"; chmod +x "$T/nosave/gh"
 : > "$T/calls"; RC=0; PATH="$T/nosave:$PATH" sh checks/next-move.sh call own-work off 'no more' > "$T/out" 2>&1 || RC=$?; calls; [ "$RC" = 1 ] && grep -q '^not saved' "$T/out" || fail "with the records not to be saved the call exited $RC"
 lst 'a look at the chat: the records were not saved, so the moves after it were not done'; C end
@@ -100,7 +102,7 @@ has 'now bringing the records up to date'; has 'now taking the turn'; has 'now c
 VID_CALLER=mode sh checks/connect.sh end > "$T/out" 2>&1 || fail "in /vid mode's call the end failed"; [ -s .vid/face/wait ] || fail "in /vid mode's call the end cleared the parts"
 # GitHub auto: the same parts, none of own work
 printf 'setup-answered key=github-mode value="auto" words="ViD builds it" at=2026-11-21T09:00:00Z\n' >> .vid/plan/setup
-C start; [ "$RC" = 0 ] || fail "in GitHub auto the start exited $RC"; calls; grep -qxF 'parts Connecting and checking the project Reading GitHub Working out what changed Your list and the plan page Saving the records' "$T/w" || fail 'GitHub auto does not name the same parts'
+C start; [ "$RC" = 0 ] || fail "in GitHub auto the start exited $RC"; calls; grep -qxF 'parts Connecting and checking the project Reading GitHub Working out what changed Your list Saving the records' "$T/w" || fail 'GitHub auto does not name the same parts'
 C end; [ "$RC" = 0 ] && [ ! -e .vid/face/wait ] || fail 'in GitHub auto the end left the parts'
 # the closes' report reads
 grep -q 'prog now' checks/close-decide.sh && grep -q 'prog now' checks/close-candidate.sh || fail 'a close'"'"'s report read does not say itself'

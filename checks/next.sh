@@ -91,12 +91,15 @@
 #     context sub <#ticket> <#parent> <#child> <state> <assignees> <title>
 #     context own-work off <the move>     (GM-4 K11) while own work is off (next.sh own-work): step 2 writes nothing until the move
 #     context ask <#n> <commit12> <the command that decides it>   (GM-4 K11, E1) each published ticket's unanswered `vid: decide`
-#                                         ask in the read, /vid:vid-accept-step <n> <commit12>
+#                                         ask in the read, on its issue or (FB-5 B1.4) at the head of its own pull request,
+#                                         /vid:vid-accept-step <n> <commit12>
 #     context assigned <#n> <labels> <title>
 #     context report <id> <words>         (FB-3 A2) in GitHub manual, a report branch left out, its words what to do
 #     context team-reports <why>          (FB-3 A3) in GitHub manual, the text telling the team what its reports hold is not the one handed
 #     context folder <words>              (FB-4 B1) in GitHub manual with one repository, the commit the folder's spec is of, when not the applied
 #                                         version, or that it is of none or not on main (.vid/round/folder); none while its publish is open or owed
+#     context publish <#n> <words>        (FB-5 C2) in GitHub manual, what stands on each open pull request of the owner's own, or logged as a
+#                                         publish (the read's publish lines, lib.sh pubwords), at every call
 #     context proposal due <what it covers and touches, by count>   (FB-3 C5) implement-replan's own proposal due and not made (or stale)
 #     move <kind> <subject> <hash> <what it needs or does>   (GM-2 T10) named by kind and subject: publish <step>, amend #<n> and
 #                                         withdraw #<n> (writer.sh due's lines as it gives them), team-change #<n> <id>,
@@ -309,11 +312,6 @@ rpfp_() { { printf '== target\n'; git rev-parse HEAD; printf '== reads\n'; sh "$
 
 # GM-4 K11 (L1): ownwork_, `on` or `off`, the newest own-work line of the setup
 ownwork_() { _o=$(sed -n 's/^setup-answered key=own-work value="\([a-z]*\)".*/\1/p' .vid/plan/setup 2> /dev/null | tail -n 1); [ "$_o" = on ] && echo on || echo off; }
-# GM-4 E1: tasks_, each published ticket not withdrawn whose newest `vid: decide <a full commit>` comment no `vid: decision <it>`
-# follows, `<n> TAB <commit>`, from the read's issue lines, as round.sh reads them
-tasks_() { [ -f "$RD" ] || return 0; awk -F'\t' -v L="$LOG" 'BEGIN { while ((getline l < L) > 0) { split(l, x, " "); if (x[1] == "published") P[x[2]] = 1; else if (x[1] == "withdrawn") delete P[x[2]] } }
-  $1 == "issue" && ($2 in P) { n = split($4, c, "\001"); a = ""; for (i = 1; i <= n; i++) { if (c[i] ~ /^vid: decide [0-9a-f]+[ \t]*$/) { y = c[i]; sub(/^vid: decide /, "", y); sub(/[ \t]*$/, "", y); if (length(y) == 40) { a = y; k = i } } }
-    if (a == "") next; for (i = k + 1; i <= n; i++) if (c[i] ~ ("^vid: decision " a)) next; print $2 "\t" a }' "$RD"; }
 # GM-4 E10 (GM M11): slow_, `SS TAB <step> TAB <evidence>` for each published step ticket open in the read and not accepted (no
 # accepted-at line, no merge on record), out longer than twice the median time from publish to first acceptance of the step tickets
 # accepted, once three have one
@@ -367,8 +365,8 @@ triggers_() {
       # GM-4 proof D3: and the analysis's proposal as its page shows it (.vid/next/proposal/hash), so the owner can match the two
       [ "$_k" != analysis ] || printf 'RDY\tph\t%s\n' "$(cat .vid/next/proposal/hash 2> /dev/null)" >> "$T/f"
     else printf 'RDY\tfailed\t%s\n' "$(grep -v '^[[:space:]]*$' "$T/rdye" | tail -n 1 | sed 's/^ViD replan: //' | tr '\t' ' ')" >> "$T/f"; fi; fi
-  # GM-4 K11: own work's switch, and each ticket's unanswered ask (round.sh's tasks_ reading); E10: the step tickets out too long
-  printf 'OW\t%s\n' "$(ownwork_)" >> "$T/f"; tasks_ | sed 's/^/CA	/' >> "$T/f"; slow_ >> "$T/f"
+  # GM-4 K11: own work's switch, and each unanswered ask (lib.sh tasks_; FB-5 B1.4: a step's own pull request's too); E10: the step tickets out too long
+  printf 'OW\t%s\n' "$(ownwork_)" >> "$T/f"; tasks_ "$RD" | sed 's/^/CA	/' >> "$T/f"; slow_ >> "$T/f"
   # GM-4 K4 (GM M16): while own work is on, step 2's walk, walk-read and summary lines (round.sh step keeps them whole in
   # .vid/next/stage-moves), each with its stage's newest candidate, for the moves walk-stage, read-walk and write-summary
   if manual && [ "$(ownwork_)" = on ]; then awk '$1 ~ /^(walk|walk-read|summary)$/ && $2 ~ /^[0-9]+$/ { print $1 "\t" $2 }' .vid/next/stage-moves 2> /dev/null |
@@ -380,13 +378,15 @@ triggers_() {
   if [ -n "$MN" ]; then
     { awk -F'\t' 'NF >= 5 { n = ""; m = ($1 ~ /^stopped-/) ? 0 : split($1, p, "-"); for (i = 1; i <= m; i++) if (p[i] ~ /^[0-9]+$/) { n = p[i]; break }
         print "RSK\t" $1 "\tthe branch vid-results/" $1 " (its newest commit " substr($2, 1, 12) " by " $3 ", " $4 ")" (n == "" ? "" : " reports on #" n) ": " $5 ". Put the report\047s files in a folder named " $1 " on that branch and push it again; whatever else the branch holds is not read." }' .vid/round/reports-skipped 2> /dev/null || true; } >> "$T/f"
-    if sh "$HERE/results.sh" team > "$T/team" 2> /dev/null && [ -s "$T/team" ]; then _tr='/vid:vid-accept-step reports writes it to .vid/plan/TEAM-REPORTS.md and shows it, for you to hand to the team'
+    # FB-5 B1.7: nothing of it while the team's own rules are on record (team-rules)
+    if [ -z "$(skey team-rules)" ] && sh "$HERE/results.sh" team > "$T/team" 2> /dev/null && [ -s "$T/team" ]; then _tr='/vid:vid-accept-step reports writes it to .vid/plan/TEAM-REPORTS.md and shows it, for you to hand to the team'
       if [ ! -f .vid/plan/TEAM-REPORTS.md ]; then printf 'TRP\tthe text telling the team what its reports hold was never handed over: %s\n' "$_tr" >> "$T/f"
       elif ! cmp -s "$T/team" .vid/plan/TEAM-REPORTS.md; then printf 'TRP\tthe text telling the team what its reports hold changed since it was handed over: %s\n' "$_tr" >> "$T/f"; fi; fi; fi
   printf 'PX\t%s\nNOW\t%s\n' "$(twkey labels-prefix)" "$(date -u +%s)" >> "$T/f"
   if [ -f "$RD" ]; then
     awk -F'\t' -v OFS='\t' '$1 == "unread" { print "U", $2, $3, substr($0, length($1 $2 $3) + 4) } $1 == "issue" { print "ISS", $2, $3, $4 } $1 == "open" { print "OPR", $2, $10 }
       $1 == "sub" || $1 == "assigned" { print }' "$RD" >> "$T/f"
+    [ -z "$MN" ] || pubwords "$RD" | awk '{ print "PBW\t" $0 }' >> "$T/f"   # FB-5 C2
     awk -F'\t' '$1 == "ticket" { print $2 "\t" $3 "\t" $4 "\t" $5 }' "$RD" | while IFS="$TAB" read -r n s a c; do printf 'TK\t%s\t%s\t%s\t%s\t%s\n' "$n" "$s" "$a" "$c" "$(epoch "$c")"; done >> "$T/f"
     changes_ | awk -F'\t' -v OFS='\t' '$1 == "unread" { print "U", $2, $3, $4; next } { print "CHG", $1, $2, $3, $4, $5 }' >> "$T/f"
     cut -f1 "$T/pub" | while read -r n; do [ -f ".vid/tw/out/issue-$n.md" ] || continue; ( differ_ "$n" ) 2> /dev/null | sed 's/^differ/DIF/' || true; done >> "$T/f"
@@ -422,7 +422,7 @@ triggers_() {
   if [ -n "$MN" ] && [ ! -f .vid/tw/spec-owed ] && ! grep -q "^AO${TAB}spec-publish${TAB}" "$T/f"; then foldersay | awk -F'\t' '$1 ~ /^(differs|none|absent)$/ { print "FLD\t" $2 }' > "$T/fld"
     [ ! -s "$T/fld" ] || awk -F'\t' -v L="$LOG" 'BEGIN { while ((getline l < L) > 0) if (l ~ /^spec-published /) { p = index(l, " words=\""); if (p) l = substr(l, 1, p - 1); v = ""; n = (l ~ / by=hand( |$)/) ? 0 : split(l, w, " "); for (i = 2; i <= n; i++) if (w[i] ~ /^pr=/) v = substr(w[i], 4) } }
       $1 == "open" && v != "" && $2 == v { f = 1 } END { exit !f }' "$([ -f "$RD" ] && echo "$RD" || echo /dev/null)" || cat "$T/fld" >> "$T/f"; fi
-  awk -F'\t' -v OFS='\t' -v WR="$HERE/writer.sh" -v MN="$MN" '
+  awk -F'\t' -v OFS='\t' -v WR="$HERE/writer.sh" -v MN="$MN" "$BLKL"'
     function num(s) { return s ~ /^[0-9]+$/ }
     function abr(r) { return ST[r] ~ /^accepted[- ]by[- ]ruling$/ }   # FB-3 A4
     function add(a, x) { return a == "" ? x : a "," x }
@@ -452,8 +452,8 @@ triggers_() {
     $1 == "AO" { AOO[++nao] = $3; AO[$3] = $4; next }
     $1 == "DIF" { DIF[$3] = add(DIF[$3], $2); next }
     $1 == "WD" { if (!($2 in WDS)) WDO[++nwd] = $2; WDS[$2] = $3; next }
-    $1 == "OW" { OWK = $2; next } $1 == "CA" { CAO[++nca] = $2; CAC[$2] = substr($3, 1, 12); next } $1 == "SS" { SSO[++nss] = $2 "\t" $3; next }
-    $1 == "RSK" { RSO[++nrs] = $2 "\t" $3; next } $1 == "TRP" { TRP = $2; next } $1 == "FLD" { FLD = $2; next }
+    $1 == "OW" { OWK = $2; next } $1 == "CA" { CAO[++nca] = $2; CAC[nca] = substr($3, 1, 12); next } $1 == "SS" { SSO[++nss] = $2 "\t" $3; next }
+    $1 == "RSK" { RSO[++nrs] = $2 "\t" $3; next } $1 == "TRP" { TRP = $2; next } $1 == "FLD" { FLD = $2; next } $1 == "PBW" { PBL[++npb] = "#" $2 "\t" $3; next }
     $1 == "SM" { if (!(($2, $3) in SMS)) { SMS[$2, $3] = 1; SMK[++nsm] = $2; SMN[nsm] = $3; SMC[nsm] = $4 } next }
     END {
       # with exactly one lane, a step naming none is that lane'"'"'s, as the planner reads it
@@ -494,7 +494,7 @@ triggers_() {
         else if (P[r, "added"] && !ac) trig("minor", "added-inactive", r, "pending added; stage " (g == "" ? "?" : g) " has no open ticket")
         else if (P[r, "reset"] && !it && !ac) trig("minor", "reset-inactive", r, "pending reset; stage " (g == "" ? "?" : g) " has no open ticket") }
       for (i = 1; i <= nc; i++) trig("minor", "record", REC[i], "a record changed since the applied version")
-      for (n in IL) if (index(IL[n], "," PX "blocked,")) trig("critical", "blocked", "#" n, "label " PX "blocked")
+      for (n in IL) if ((x = blkl(IL[n], PX)) != "") trig("critical", "blocked", "#" n, "label " x)   # FB-5 B1.1
       # GM-3 U4, U6: a post the newest apply left owed, its cause the apply
       for (i = 1; i <= nao; i++) { x = AOO[i]; if (x == "spec-publish") { trig("critical", "apply-owed", x, (AO[x] ~ /^owed:/ ? "a call to GitHub in the folder publish of export " substr(AO[x], 6) " did not finish, which" : "the apply " AO[x]) " left the spec'"'"'s publish into the code repository'"'"'s folder owed: no ticket quoting it goes out before it; /vid:vid-spec-publish publishes it, and each post publishes it first"); continue }
         trig("critical", "apply-owed", x, "the apply " AO[x] " left it owed: its post did not go out; the " (x ~ /^#/ ? "amend" : "publish") " move posts it") }
@@ -512,10 +512,11 @@ triggers_() {
       for (i = 1; i <= nas; i++) { split(ASL[i], a, "\t"); print "context", "assigned", "#" a[2], a[3], a[6] }
       # GM-4 K11: own work off, its move listed; each unanswered ticket ask with the command that decides it
       if (MN && OWK != "on") print "context", "own-work", "off", "own-work on \"<your words>\": until you name it, step 2 decides, asks and posts nothing"
-      for (i = 1; i <= nca; i++) { n = CAO[i]; print "context", "ask", "#" n, CAC[n], "/vid:vid-accept-step " n " " CAC[n] }
+      for (i = 1; i <= nca; i++) { n = CAO[i]; print "context", "ask", "#" n, CAC[i], "/vid:vid-accept-step " n " " CAC[i] }
       for (i = 1; i <= nrs; i++) print "context", "report", RSO[i]   # FB-3 A2
       if (TRP != "") print "context", "team-reports", TRP   # FB-3 A3
       if (FLD != "") print "context", "folder", FLD   # FB-4 B1
+      for (i = 1; i <= npb; i++) print "context", "publish", PBL[i]   # FB-5 C2
       # FB-3 C5 (g): what the own proposal, due and not made, would cover and touch, by count (next-move.sh asks it)
       if (RYS == "own" && RYO == "due") { ot = 0; tt = 0; tr_ = 0
         for (i = 1; i <= nt; i++) if (TKS[TO[i]] != "CLOSED") { ot++; OTK[TO[i]] = 1 }

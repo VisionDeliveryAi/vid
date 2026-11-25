@@ -192,7 +192,9 @@ FOLDREAD=''   # FB-4 B1: spec-folder's read of the folder's names and ids, its s
 STAMPREAD=''; SPF=''; SMN=''   # GM-4 K13: spec-stamp's read of the stamp file, its switch never from the environment
 SPX=''   # FB-2 B1: spec-publish's flag (gref, keeperr), never from the environment
 # one read a tick (R3): the same three reads as DevAgent's dm.sh next, its own copy
-RPQ='.[] | [.number, .headRefName, .isDraft, .headRefOid, ([.labels[].name] | join(",")), (.body | split("\n") | .[0]), ([.comments[].body | split("\n") | .[0]] | join("\u0001")), (([.comments[] | select(.body | startswith("vid: decision "))] | last | .body) // ""), .updatedAt] | @tsv'
+RPQ='.[] | [.number, .headRefName, .isDraft, .headRefOid, ([.labels[].name] | join(",")), (.body | split("\n") | .[0]), ([.comments[].body | split("\n") | .[0]] | join("\u0001")), (([.comments[] | select(.body | startswith("vid: decision "))] | last | .body) // ""), .updatedAt, (.author.login // "-")] | @tsv'
+# FB-5 C2: PBQ, one open pull request's author, commits, reviews and comments, a line each, for round-read's publish lines (pubrev)
+PBQ='def l1: ((.body // "") | split("\n") | .[0] // "" | rtrimstr("\r")); ["a", (.author.login // "-")], (.commits[] | ["c", .committedDate]), (.reviews[] | ["r", (.author.login // "-"), .state, (.submittedAt // ""), l1]), (.comments[] | ["m", (.author.login // "-"), (.viewerDidAuthor // false), .createdAt, l1]) | @tsv'
 RMQ='.[] | [.number, .headRefOid, (.mergeCommit.oid // "-"), (.body | split("\n") | .[0]), ([.comments[].body | split("\n") | .[0]] | join("\u0001"))] | @tsv'
 RIQ='.[] | [.number, ([.labels[].name] | join(",")), ([.comments[].body | split("\n") | .[0]] | join("\u0001")), .updatedAt] | @tsv'
 # ghc: the one way to call gh — the allow-list, checked at every call
@@ -327,6 +329,24 @@ tw() {
   REPO=$(twkey repo); [ -n "$REPO" ] || gref ".vid/tw/settings names no repo: <owner>/<name>"
   SPEC=$(twkey spec-repo); PFX=$(twkey labels-prefix); auth
 }
+# FB-5 C2: ghme, the login gh's own `auth status` names (kept by auth), the active account's, with several; nothing when it names none.
+# pubprs, the open pull requests ($W/o) whose reviews the read takes, one number a line: each a `spec-published` line of .vid/tw/log names
+# and none replaced (both modes; the line read up to the owner's words), and in GitHub manual each of that login's (in GitHub auto the dev side
+# may share the account). pubrev <n>: PBQ's lines in, the read's publish lines out (round-read)
+ghme() { awk '/Logged in to / { l = ""; for (i = 1; i < NF; i++) if ($i == "account" || $i == "as") { l = $(i + 1); break } if (f == "") f = l } /Active account: true/ { print l; d = 1; exit } END { if (!d) print f }' "$W/auth" 2>/dev/null; }
+pubprs() { awk -F'\t' -v L=.vid/tw/log -v MN="$(! manual || echo 1)" -v ME="$ME" 'BEGIN { while ((getline l < L) > 0) { p = index(l, " words=\""); if (p) l = substr(l, 1, p - 1); if (l !~ /^spec-(published|replaced) pr=[0-9]+ /) continue
+    v = l; sub(/^[^=]*=/, "", v); sub(/ .*/, "", v); if (l ~ /^spec-replaced/) delete P[v]; else P[v] = 1 } }
+  ($1 in P) || (MN && ME != "" && tolower($10) == tolower(ME)) { print $1 }' "$W/o"; }
+pubrev() { awk -F'\t' -v OFS='\t' -v n="$1" -v me="$ME" '
+  function mine(w) { w = tolower(w); return w != "" && w != "-" && (w == tolower(a) || me != "" && w == tolower(me)) }
+  $1 == "a" { a = $2 } $1 == "c" && ($2 "") > (cp "") { cp = $2 } $1 == "r" || $1 == "m" { L[++k] = $0 }
+  END { s = cp
+    for (i = 1; i <= k; i++) { split(L[i], x, "\t"); M[i] = (x[1] == "m" && x[3] == "true" || mine(x[2])); A[i] = (x[1] == "m" || x[3] == "COMMENTED")
+      if (A[i] && M[i] && (x[4] "") > (s "")) s = x[4]
+      if (x[1] == "r" && x[3] ~ /^(APPROVED|CHANGES_REQUESTED|DISMISSED)$/ && (x[4] "") >= (T[x[2]] "")) { T[x[2]] = x[4]; S[x[2]] = x[3] } }
+    print 0, "-", "publish", n, "push", (a == "" ? "-" : a), cp
+    for (w in S) if (S[w] != "DISMISSED") print 1, T[w], "publish", n, "state", w, S[w], T[w], ((T[w] "") > (s "") ? "after" : "before")
+    for (i = 1; i <= k; i++) { split(L[i], x, "\t"); if (A[i] && !M[i] && (x[4] "") > (s "")) print 2, x[4], "publish", n, "said", x[2], x[4], x[5] } }' | LC_ALL=C sort -t "$(printf '\t')" -k1,1 -k2,2r | cut -f3-; }
 # codemain (v0.26.10.28.2, R3): the code repository's main as git ls-remote reads it, its commit; `none` when the read succeeds and lists no head at all, an empty
 # repository; `absent` when it lists heads but no main; a failed read returns 1 and says nothing. codemain <its address> reads that address, no gh call
 codemain() { _u=${1:-}; [ -n "$_u" ] || { _u=$(ghc repo view "$REPO" --json url --jq .url 2>/dev/null) && [ -n "$_u" ]; } || return 1; git ls-remote "$_u" > "$W/lsr" 2>/dev/null || return 1
@@ -384,7 +404,7 @@ stloc() { ST=$(twkey state-repo); [ -n "$ST" ] || ST=$SPEC; }
 # 0.26.10.29.2 (R3, R11): oprs <n>, the open pull requests naming ticket n (the body's first line `ticket: #<n>`), one a line, from the
 # list of open pull requests, as the round's read takes it (no search, which GitHub indexes late), read whole: a list as long as
 # the limit (VID_OPRS_LIMIT, 1000) is a refusal, never a short list
-oprs() { _lm=${VID_OPRS_LIMIT:-1000}; ghc pr list -R "$REPO" --state open --limit "$_lm" --json number,headRefName,isDraft,headRefOid,labels,body,comments,updatedAt --jq "$RPQ" > "$W/op" || gref "the open pull requests naming #$1 could not be read — nothing posted"
+oprs() { _lm=${VID_OPRS_LIMIT:-1000}; ghc pr list -R "$REPO" --state open --limit "$_lm" --json number,headRefName,isDraft,headRefOid,labels,body,comments,updatedAt,author --jq "$RPQ" > "$W/op" || gref "the open pull requests naming #$1 could not be read — nothing posted"
   [ "$(grep -c . "$W/op")" -lt "$_lm" ] || gref "the open pull requests could not be read whole ($_lm or more), so those naming #$1 are not known — nothing posted"
   awk -F'\t' -v n="$1" '{ t = $6; if (t !~ /^ticket: #/) next; sub(/^ticket: #/, "", t); sub(/[^0-9].*$/, "", t); if (t == n) print $1 }' "$W/op"; }
 # rhd: the saved records' head (empty while none is saved); a failed read is a refusal, never "none"
@@ -1217,7 +1237,7 @@ $1"; shift ;; esac; done
   decide-blocked)   # v0.26.10.24.6 (R2): prints blocked when the issue or the pull request carries the label; a label it cannot read is refused
     tw; [ -n "${1:-}" ] && [ -n "${2:-}" ] || usage; L=$(ghc issue view "$1" -R "$REPO" --json state,labels --jq '.state + "\t" + ([.labels[].name] | join(","))') || gref "the labels of #$1 could not be read"
     M=$(ghc pr view "$2" -R "$REPO" --json labels --jq '[.labels[].name] | join(",")') || gref "the labels of pull request $2 could not be read"
-    case ",$(printf %s "$L" | cut -f2),$M," in *",${PFX}blocked,"*) echo blocked ;; esac; exit 0 ;;
+    [ -z "$(blkl "$(printf %s "$L" | cut -f2),$M" "$PFX")" ] || echo blocked; exit 0 ;;   # FB-5 B1.1
 
   pr-body)   # 0.26.10.29.5 (DP-1 R2, R8): the pull request's description, whole; a description that cannot be read is refused, never empty
     tw; [ -n "${1:-}" ] || usage; ghc pr view "$1" -R "$REPO" --json body --jq .body || gref "the description of pull request $1 could not be read"; exit 0 ;;
@@ -1354,6 +1374,12 @@ $1"; shift ;; esac; done
     # <state> <assignees> <title>` for each sub-issue under one, at every depth, breadth first; `assigned <n> <labels> <comment first lines,
     # \001 between> <title>` and `abody <n> <line>` for each open issue assigned to the owner (gh's @me). An empty list is `-`. A read that
     # fails is `unread <part> <n or -> <gh's words>`, and the rest is read: it never stops the call. round.sh read gives it in GitHub manual
+    # FB-5 C2: an `open` line ends with the pull request's comments' first lines and its author; and for each open pull request that is a
+    # logged publish (pubprs) or, in GitHub manual, the owner's own, one `pr view` and, tab-separated: `publish <n> push <author> <its newest
+    # commit's time>`; `publish <n> state <who> <CHANGES_REQUESTED|APPROVED> <when> <before|after>`, each person's newest as GitHub
+    # holds it, a dismissed one none, `after` when it came after that commit and the author's or the viewer's newest answer (a comment or a
+    # comment review); `publish <n> said <who> <when> <first line>`, the comments and comment reviews of others after both; newest first. A view
+    # that fails is `publish <n> unread <gh's words>`, never an `unread` line: the read is whole. The words are lib.sh pubwords'
     case ${1:-} in '') ;; --bodies) [ $# -eq 1 ] || usage ;; *) usage ;; esac
     if [ "${1:-}" = --bodies ]; then
     tw; TQ='[.state, ([.assignees[].login] | join(",")), .createdAt] | @tsv'; SQ='.[] | [.number, .state, .title, ([.assignees[].login] | join(","))] | @tsv'
@@ -1375,12 +1401,14 @@ $1"; shift ;; esac; done
       tr -d '\r' < "$W/a" > "$W/a1"; for n in $(cut -f1 "$W/a1"); do awk -F'\t' -v OFS='\t' -v n="$n" '$1 == n { print "assigned", n, ($2 == "" ? "-" : $2), ($3 == "" ? "-" : $3), $4; exit }' "$W/a1"
         if ghc issue view "$n" -R "$REPO" --json body --jq .body > "$W/ab" 2> "$W/e"; then tr -d '\r' < "$W/ab" | awk -v n="$n" '{ L[NR] = $0 } END { while (NR > 0 && L[NR] == "") NR--; for (i = 1; i <= NR; i++) print "abody\t" n "\t" L[i] }'; else un abody "$n"; fi; done
     else un assigned -; fi; exit 0; fi
-    tw; ghc pr list -R "$REPO" --state open --limit 200 --json number,headRefName,isDraft,headRefOid,labels,body,comments,updatedAt --jq "$RPQ" > "$W/o" || gref 'the open pull requests could not be read'
+    tw; ghc pr list -R "$REPO" --state open --limit 200 --json number,headRefName,isDraft,headRefOid,labels,body,comments,updatedAt,author --jq "$RPQ" > "$W/o" || gref 'the open pull requests could not be read'
     L=20; while :; do ghc pr list -R "$REPO" --state merged --limit "$L" --search 'sort:updated-desc' --json number,headRefOid,mergeCommit,body,comments --jq "$RMQ" > "$W/m" || gref 'the merged pull requests could not be read'
       [ "$(grep -c . "$W/m")" -ge "$L" ] || break; ! { cat .vid/decide/merged-prs 2>/dev/null; cut -f1 .vid/decide/unit-merges 2>/dev/null; } | grep -qx "$(tail -n 1 "$W/m" | cut -f1)" || break; L=$((L * 10)); done   # GM-4 E5: unit-merges counts
     ghc issue list -R "$REPO" --state open --limit 1000 --json number,labels,comments,updatedAt --jq "$RIQ" > "$W/i" || gref 'the open issues could not be read'
-    awk -F'\t' -v OFS='\t' '{ t = $6; sub(/^ticket: #/, "", t); sub(/[^0-9].*$/, "", t); if (t == "") t = "-"; n = split($7, c, "\001"); d = 0; e = 0; for (i = 1; i <= n; i++) { if (c[i] == "vid: decide " $4) d = i; if (c[i] == "vid: decision " $4) e = i } print "open", $1, t, $4, $3, $5, d, e, $9, $7 }' "$W/o"
+    awk -F'\t' -v OFS='\t' '{ t = $6; sub(/^ticket: #/, "", t); sub(/[^0-9].*$/, "", t); if (t == "") t = "-"; n = split($7, c, "\001"); d = 0; e = 0; for (i = 1; i <= n; i++) { if (c[i] == "vid: decide " $4) d = i; if (c[i] == "vid: decision " $4) e = i } print "open", $1, t, $4, $3, $5, d, e, $9, $7, ($10 == "" ? "-" : $10) }' "$W/o"
     awk -F'\t' -v OFS='\t' '{ t = $4; sub(/^ticket: #/, "", t); sub(/[^0-9].*$/, "", t); print "merged", $1, (t == "" ? "-" : t), $2, $3, $5 }' "$W/m"; sed 's/^/issue	/' "$W/i"
+    ME=$(ghme); for n in $(pubprs); do if ghc pr view "$n" -R "$REPO" --json author,commits,reviews,comments --jq "$PBQ" > "$W/pv" 2> "$W/e"; then pubrev "$n" < "$W/pv"   # FB-5 C2
+      else printf 'publish\t%s\tunread\t%s\n' "$n" "$(tr '\n\t' '  ' < "$W/e" | cut -c1-200)"; fi; done
     # v0.26.10.28.2 (R4): main <the code repository's main, none or absent>; a failed read gives the last one read, so it changes nothing
     # its address kept in .vid/round/code-url, so a tick stays four gh calls; a failed read drops it, and the next read asks gh again
     mkdir -p .vid/round; CU=$(sed -n "s|^$REPO ||p" .vid/round/code-url 2>/dev/null | head -n 1); [ -n "$CU" ] || { CU=$(ghc repo view "$REPO" --json url --jq .url 2>/dev/null) && [ -n "$CU" ] && echo "$REPO $CU" > .vid/round/code-url || CU=''; }   # keyed by repo
@@ -1463,9 +1491,11 @@ $1"; shift ;; esac; done
     echo "ViD github: commented on #$n"; exit 0 ;;
 
   label)
-    if [ -f .vid/RUN-STATE.md ]; then planner; else devagent; devagent_repo; PFX=$(cat "$(GD)/vid/labels-prefix" 2>/dev/null); fi
+    # FB-5 B1.1: on ViD's side --remove blocked takes off each label the call's read shows on it that says a question stops it (lib.sh blkl), the
+    # prefix's own with none there
+    BS=''; if [ -f .vid/RUN-STATE.md ]; then planner; [ ! -f .vid/round/read ] || BS=$(blkl "$(awk -F'\t' -v n="${1:-}" '$1 == "issue" && $2 == n { print $3; exit } $1 == "open" && $2 == n { print $6; exit }' .vid/round/read)" "$PFX"); else devagent; devagent_repo; PFX=$(cat "$(GD)/vid/labels-prefix" 2>/dev/null); fi
     n=${1:-}; [ -n "$n" ] || usage; shift; set -- "$@"; A=''; R=''
-    while [ $# -gt 0 ]; do case "$1" in --add) A="$A${A:+,}$PFX${2:-}"; shift 2 ;; --remove) R="$R${R:+,}$PFX${2:-}"; shift 2 ;; *) usage ;; esac; done
+    while [ $# -gt 0 ]; do case "$1" in --add) A="$A${A:+,}$PFX${2:-}"; shift 2 ;; --remove) if [ "${2:-}" = blocked ] && [ -n "$BS" ]; then R="$R${R:+,}$BS"; else R="$R${R:+,}$PFX${2:-}"; fi; shift 2 ;; *) usage ;; esac; done
     [ -n "$A$R" ] || usage
     if [ -n "$A" ] && [ -n "$R" ]; then ghc issue edit "$n" -R "$REPO" --add-label "$A" --remove-label "$R" > /dev/null
     elif [ -n "$A" ]; then ghc issue edit "$n" -R "$REPO" --add-label "$A" > /dev/null; else ghc issue edit "$n" -R "$REPO" --remove-label "$R" > /dev/null; fi || gref "the labels of #$n could not be changed"

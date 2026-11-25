@@ -23,7 +23,7 @@ This is ViD's *GitHub manual* mode: your own developers build through GitHub tic
 
 **How this tutorial was checked.** Part 1 was done once, on this practice product, against real GitHub repositories, and every ticket was accepted, in this mode's older form: one long ViD session read GitHub by itself, and each decision was asked for and given in the pull request's comments, before the merge. GitHub manual keeps that run's rows, its code and its tests. What it changes is who starts ViD's turns (you, with `/vid:vid-next`), what reaches your developers (only what you publish or apply), where the work is decided (on the ticket, at a commit of `main`, after the merge), and what decides it (your own test results and ViD's own review; that run's dev side also sent failing runs, breaks and grades). Those parts are written here from ViD's own rules, its commands and its results format, and were not run for this tutorial. The excerpts are the checked run's; where GitHub manual shows something else, the text says so. The dev seat's commands are written from that run's record: shell variables stand where it had its own numbers, the lines that fill in a report's commit were written by hand there, and its false starts are left out. One thing here was not typed in that run and is marked where it comes: finding the `checks/` folder of an installed ViD. The lab's test command was run again on the lab's own files after this tutorial was written, at stop 5's commit. In that run ViD's session was driven by a script, not typed by a person. Where a typed session should behave differently (it asks you a question the script could not be asked, for example), the text says *typed session*. Part 2 was not run for this tutorial.
 
-**Time.** Run by script without a pause, in the older form, Part 1 took 48 minutes. ViD's first plan took 4 minutes 25 seconds, and each of its other turns between one and two minutes. A call that makes ViD's review takes longer; its time is not measured yet. Reading as you go, allow an afternoon.
+**Time.** Run by script without a pause, in the older form, Part 1 took 48 minutes. ViD's first plan took 4 minutes 25 seconds, and each of its other turns between one and two minutes. A call that makes ViD's review, or has much that is new to sort into your list, takes longer; neither time is measured yet. Reading as you go, allow an afternoon.
 
 ---
 
@@ -198,7 +198,7 @@ Then it shows the plan page again. **Approve.** Your words are recorded as the a
 Yes, I approve this plan as it stands on the page, for GitHub manual.
 ```
 
-ViD says what it recorded, the mode last: GitHub manual, recorded. It also shows you one page, `.vid/plan/TEAM-REPORTS.md`: what your team sends, and when it counts. In real work you hand it to your team. If ViD says that no engines are named yet, leave it: the skeleton's results name them. The switch has made the three repositories, private; the code repository is empty. The call then goes on as every call does, reads GitHub and shows its lines.
+ViD says what it recorded, the mode last: GitHub manual, recorded. It also shows you one page, `.vid/plan/TEAM-REPORTS.md`: what your team sends, and when it counts. In real work you hand it to your team. If ViD says that no engines are named yet, leave it: the skeleton's results name them. The switch has made the three repositories, private; the code repository is empty. The call then goes on as every call does: it reads GitHub and sorts what is open into your list (below).
 
 **The code repository's first commit.** *Dev seat.* Give it the lab's starter code on `main`, because the first ticket names the commit it starts from:
 
@@ -211,13 +211,19 @@ git add -A && git commit -m "Initial commit"
 git push -u origin main
 ```
 
-*Lead's seat.* From here on, every turn of ViD's is a call you make, `/vid:vid-next`. Its lines say what is not yet with your team, the moves you may name, and that its own work is off. Name two moves, each with your own words:
+*Lead's seat.* From here on, every turn of ViD's is a call you make, `/vid:vid-next`. It says that its own work is off, sorts what is open into your list, and ends with one line: how many things are yours, and the first of them. **The list** has numbered sections: My to do, Waiting, Changed, The rest, The plan, and one for each team, here your one. In the Claude desktop app it is the panel beside the chat, and an answer you press there goes into the chat as your own words. A terminal shows no panel; there you read the same sections as text:
+
+```
+/vid:vid-answer backlog
+```
+
+Now name two moves, each with your own words:
 
 ```
 /vid:vid-next own-work on "ViD decides, asks and closes at each of my calls from now on." publish S1 "Publish the skeleton ticket."
 ```
 
-`own-work on` lets each later call decide what your team asks on a ticket, ask a step's close and a stage's full run, and post the okays. `publish S1` sends the skeleton's ticket, and the spec reaches the spec repository with it. `S1` is the skeleton's step in the checked run's plan: use the name your call's `publish` move gives it.
+`own-work on` lets each later call decide what your team asks on a ticket, ask a step's close and a stage's full run, and post the okays. `publish S1` sends the skeleton's ticket, and the spec reaches the spec repository with it. `S1` is the skeleton's step in the checked run's plan: use your plan's name for it.
 
 **Look at the spec repository on GitHub now.** Its `main` holds the spec as your developers see it. *Dev seat:*
 
@@ -449,7 +455,7 @@ Issue 4, *Deploy to staging: stage 0, candidate 1*, asks your side to deploy the
 
 **This lab has no test site, so you leave that issue open.** Nothing waits on it. The checked run held the next stage here until the lead said `continue`; GitHub manual writes no hold, and the next ticket goes out when you publish it.
 
-*Lead's seat:* `/vid:vid-next` shows the move `publish S5`: the step of ROW-006 alone, in the checked run's plan (use your plan's name for it). A warning may stand beside it, a risk ViD saw; it never holds the move back. Name it:
+*Lead's seat:* call `/vid:vid-next`. Your list now holds the move `publish S5`: the step of ROW-006 alone, in the checked run's plan (use your plan's name for it). It may be in My to do, or under The rest. ViD may name a risk with it; that never holds the move back. Name it:
 
 ```
 /vid:vid-next publish S5 "Publish the ticket of ROW-006, the header and footer on every page."
@@ -577,10 +583,10 @@ gh issue comment $C --body "vid: reported p1c1-1"
 
 `13 passed`.
 
-**The lead answers the question, and publishes the next ticket.** *Lead's seat:* `/vid:vid-next`. This call reads the close and closes the step: ticket 5 gets the comment `vid: closed — the step's close passed at <commit12>` and is closed. It also shows your developers' question as a line of your queue, with its place on GitHub, `#5:<k>`: in GitHub manual every question is yours. And it shows the move `publish S6`, the step of ROW-019 in the checked run's plan. Name both, the answer in your words, with the place as the call shows it:
+**The lead answers the question, and publishes the next ticket.** *Lead's seat:* `/vid:vid-next`. This call reads the close and closes the step: ticket 5 gets the comment `vid: closed — the step's close passed at <commit12>` and is closed. Your developers' question is now in your list, summed up: in GitHub manual every question is yours. Its id, `Q<n>`, is beside the line in the text (`/vid:vid-answer backlog`), and in the panel under The rest, in *Everything ViD holds*. The list also holds the move `publish S6`, the step of ROW-019 in the checked run's plan. Name both, the answer in your words, with the id as the list gives it:
 
 ```
-/vid:vid-next answer "#5:<k>" "1. The support address is support@jobdigest.example, and the support team reads it. 2. The unsubscribe help link opens the product's own page at /help/unsubscribe, with the same header and footer and a few plain words on how to unsubscribe." publish S6 "Publish the ticket of ROW-019, the support address in every digest's footer."
+/vid:vid-next answer Q<n> "1. The support address is support@jobdigest.example, and the support team reads it. 2. The unsubscribe help link opens the product's own page at /help/unsubscribe, with the same header and footer and a few plain words on how to unsubscribe." publish S6 "Publish the ticket of ROW-019, the support address in every digest's footer."
 ```
 
 ViD posts your answer on the ticket as a comment beginning `RM:`, under the question's own first line. *Dev seat:* `gh issue view 5 --comments`. That comment is how an answer reaches your developers. Until it is there they hear nothing, which is why a question must carry a default. The ticket was decided with the question still open, because the question did not stop the work.
@@ -636,7 +642,7 @@ REQ-012 AMENDED | functional | T2 | Every digest footer carries a support contac
 
 The old text is still above it, word for word. That is what lets an old ticket quote the spec it was built from and stay true.
 
-**Apply it.** The change is in ViD's folder alone. *Lead's seat:* `/vid:vid-next`. The call shows the change as pending, and the move `planning-analysis`, since the change added a row to place. Name it:
+**Apply it.** The change is in ViD's folder alone. *Lead's seat:* `/vid:vid-next`. The list holds the change, not yet with your team, and the move `planning-analysis`, since the change added a row to place. Name it:
 
 ```
 /vid:vid-next planning-analysis
@@ -739,7 +745,7 @@ gh issue comment $C --body "vid: reported p1c1-1"
 
 `17 passed`. *Lead's seat:* `/vid:vid-next`. ViD reads the close, closes the step, and closes ticket 8 with its `vid: closed` comment.
 
-The checked run's lead read a status page here. In GitHub manual, where things stand is what each call shows, and the plan page it writes: each step, what is left, and what waits on you. In the Claude desktop app the panel beside the chat shows the lasting list of what is open, and the parts of a long call as they happen; `/vid:vid-answer backlog` prints that list. Each number on it is a count of evidence your side sent and ViD read. Nothing in it is anyone's estimate.
+The checked run's lead read a status page here. In GitHub manual, where things stand is the list each call sorts: the panel beside the chat, or, in a terminal, `/vid:vid-answer backlog`. Read it through once. My to do, Waiting, Changed and The rest come first. The plan has a row for each stage and a box for each step, and your team's section a card for each step: where it stands, who has it, its pull requests. `/vid:vid-sort` sorts the list again when you ask. What ViD sorts, and in which order, is its judgement; each number in The plan and in the team's section is a count of evidence your side sent and ViD read, and nobody's estimate.
 
 ### Stop 13. Stop, and what is left
 
@@ -751,7 +757,7 @@ Left open on purpose, and worth a look before you tidy:
 
 - The staging deploy issue from stop 7, never deployed.
 - The follow-up ticket of ROW-006 from stop 10, never claimed.
-- In the lead's queue, the findings of ViD's reviews and of its grade of stage 0, if any, which wait for the lead's ruling. Each can be ruled a fix, a new row, a known limit or nothing. The overview's section 6 says what each means.
+- In the lead's list, the findings of ViD's reviews and of its grade of stage 0, if any, which wait for the lead's ruling. Each can be ruled a fix, a new row, a known limit or nothing. The overview's section 6 says what each means.
 
 To tidy: delete the three repositories on GitHub (the code, the spec, and ViD's state repository) and the `$WORK` folder. Deleting a repository is permanent; check the name twice.
 
@@ -793,7 +799,7 @@ Part 1 used a spec that was already written. With your own product you write it 
 | Marks a test that could not run apart from one that failed | A broken setup is not a product failure |
 | Pushes one folder as one branch | How a report travels |
 
-**4. Share the work out.** In Part 1 you were everyone. A team shares the work as it likes; the overview's section 4.2 says what ViD needs to know. Two habits make tests worth more: whoever writes a row's test does not build it, and the builder never weakens a test. Your team grades nothing. Hand it the page the switch wrote, `.vid/plan/TEAM-REPORTS.md`; `/vid:vid-accept-step reports` shows it again.
+**4. Share the work out.** In Part 1 you were everyone. A team shares the work as it likes; the overview's section 4.2 says what ViD needs to know. Two habits make tests worth more: whoever writes a row's test does not build it, and the builder never weakens a test. Your team grades nothing. Hand it the page the switch wrote, `.vid/plan/TEAM-REPORTS.md`; `/vid:vid-accept-step reports` shows it again. A team that already works to rules of its own keeps them; the overview's section 4.4 says what to tell ViD.
 
 ---
 
@@ -806,7 +812,9 @@ Part 1 used a spec that was already written. With your own product you write it 
 | The plan says the repositories are not named | The setup was not answered | Give the two repositories in words, as in stop 3 |
 | The draft plan has no small step for ROW-006 | The planner cut it differently | Ask for the change in stop 3. Check the result by its rows, not its step names |
 | The plan page does not open | The session could not publish it as a page | It gives a file's path instead; open that file in a browser |
-| A move is shown again and not done | The call checks each move against what the last call listed | Call `/vid:vid-next` once, then name the move as it now shows it |
+| A move is shown again and not done | The call checks each move against what the last call listed | Call `/vid:vid-next` once, then name the move as the list now holds it |
+| You see no panel | The terminal, VS Code and the mobile app show none | `/vid:vid-answer backlog` says the same sections as text |
+| A call ends with *not sorted* | What it found is kept, but not sorted into the list | `/vid:vid-sort` |
 | No ticket comes after the skeleton's stage run | In GitHub manual a ticket goes out only when you publish it | `/vid:vid-next`, then its `publish` move (stop 7) |
 | Nothing is decided though your team asked | ViD decides only at a call, with its own work on | `/vid:vid-next`. With its own work off, the call shows the ask with the command that decides it, `/vid:vid-accept-step <ticket> <commit>` |
 | `run-tests.sh` stops with `setup: the product did not start` and an empty log | The base image could not be fetched | Check the network, `docker pull python:3.12-slim-bookworm`, then run again |
@@ -818,7 +826,7 @@ Part 1 used a spec that was already written. With your own product you write it 
 | The decision reads `review missing — no merged pull request names this ticket` | The pull request's description lacks its first line | Begin it `ticket: #<n>` (`gh pr edit <n> --body …`), and ask again |
 | The decision reads `not yet` | Something your side sent is missing or wrong | Read each row's line; it names what is short. The commonest causes here: a branch whose folder has not its own id, or `SHA` not the commit of `main` you asked at |
 | No decision comes, and the call says `no results` | No result report counts at that commit | Check that a report's `commit:` is that commit, and that its folder holds the results file. The call names each branch it left out |
-| A question sits unanswered on a ticket | It is in the lead's queue, and nothing is said on GitHub until the lead answers | Lead's seat: `/vid:vid-next`, then its `answer` move |
+| A question sits unanswered on a ticket | It is in the lead's list, and nothing is said on GitHub until the lead answers | Lead's seat: `/vid:vid-next`, then its `answer` move |
 
 ---
 
@@ -858,4 +866,4 @@ Part 1 used a spec that was already written. With your own product you write it 
 | An issue labelled `run` | A run asked in chunks: a step's close, or a stage's full run |
 | An issue labelled `deploy` | The okay to deploy a commit |
 
-**What the lead types,** in a Claude Code session in the spec folder: `/vid:vid-next`, the first call planning and switching to GitHub manual, then alone or with its moves, each in the lead's own words (`own-work on`, `publish <step>`, `answer <its place or Q<n>> …`, `planning-analysis`, `implement-replan`); and `/vid:vid-fix <the change, in words>`.
+**What the lead types,** in a Claude Code session in the spec folder: `/vid:vid-next`, the first call planning and switching to GitHub manual, then alone or with its moves, each in the lead's own words (`own-work on`, `publish <step>`, `answer <its place or Q<n>> …`, `planning-analysis`, `implement-replan`); `/vid:vid-answer backlog` to read the list where there is no panel, and `/vid:vid-sort` to have it sorted again; and `/vid:vid-fix <the change, in words>`.

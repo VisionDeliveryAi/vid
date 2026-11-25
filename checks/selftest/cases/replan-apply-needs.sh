@@ -2,7 +2,7 @@
 # Purpose: selftest case — what the apply's posts need is said before the owner's yes, and first by the apply, and refuses nothing
 # (FB-4 A3). On the form fixture's toy in GitHub manual, S02 posted as #N2, ROW-012 reworded and committed, no engines line on record and
 # no labels-prefix: in the settings: `replan.sh ready` prints a `needs` line for each, `next.sh triggers`' implement-replan move, the
-# call's `proposal due` question, its queue line and the plan page each say them with their commands, and the read writes no .git/index.
+# call's `proposal due` question, its queue line and the line kept for the owner's list each say them with their commands, and the read writes no .git/index.
 # Named: the own proposal is made and shown, the missing lines first, as today. The words are outside the
 # move's hash: the making listed with them missing and with all met carries one hash, and an implement-replan listed with the settings
 # missing is not refused as changed once they are whole. Missing again, the apply prints
@@ -39,7 +39,7 @@ says 'the listed implement-replan' "$T/mv"; HM=$(cut -f4 "$T/mv")
 whole; mv_; quiet 'the listed making' "$T/mv"; [ "$(cut -f4 "$T/mv")" = "$HM" ] || fail 'the needs change the hash of the move that makes the proposal'; out
 call; cp "$T/out" "$T/c1"; grep '^proposal due' "$T/c1" > "$T/pd" || fail 'the call asks no own proposal'; says 'the question of the own proposal' "$T/pd"
 sh "$CHECKS/queue.sh" list > "$T/ql" 2>/dev/null; grep 'implement-replan' "$T/ql" > "$T/qi" || true; says 'the queue line' "$T/qi"
-sed 's/&lt;/</g; s/&gt;/>/g; s/&quot;/"/g' "$(sed -n 's/^page //p' "$T/c1" | head -n 1)" > "$T/pg"; says 'the plan page' "$T/pg"
+grep "^move${TB}implement-replan${TB}" .vid/next/lines > "$T/pg" || true; says 'the line kept for the owner'"'"'s list' "$T/pg"
 # named: made and shown, the missing lines first
 RC=0; sh "$CHECKS/replan.sh" apply --words 'Yes, make it' > "$T/out" 2>&1 || RC=$?; [ "$RC" = 4 ] && [ "$(cat .vid/next/proposal/made)" = own ] || fail "the apply with no proposal shown exited $RC"
 sed -n 1,2p "$T/out" > "$T/l2"; grep -q "^needs${TB}engines${TB}missing" "$T/l2" && grep -q "^needs${TB}settings${TB}missing" "$T/l2" || fail 'the apply does not print the missing lines first'; rm -rf .vid/next/proposal

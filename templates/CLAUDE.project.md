@@ -102,6 +102,8 @@ D-entry citing it.
 
 ## Ledger and docs laws
 
+- A date or a time written anywhere is read from a command (`date -u
+  +%Y-%m-%d`, `date -u +%Y-%m-%dT%H:%M:%SZ`), never from the conversation.
 - tests/invariants/ is the ledger: tests keyed to REQ IDs in their names,
   behavior-keyed through public surfaces only — never implementation-keyed.
   **Two tiers (v0.8.1d):** tests/scaffolding/ is the builder's non-law

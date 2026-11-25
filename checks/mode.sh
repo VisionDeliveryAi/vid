@@ -483,6 +483,7 @@ else oq all || ref ".vid/tw/settings could not be written (owner-questions)"; ev
 # FB-3 E2: the engines asked, in GitHub manual, while none is named; it ends nothing
 [ "$TG" = auto ] || ! engnone || echo "$ENGASK"
 # FB-3 A3: the text telling the team what its reports hold, written for the owner to hand over, with what differs from the one handed
-if [ "$TG" != auto ]; then F=.vid/plan/TEAM-REPORTS.md; w=new; [ ! -f "$F" ] || { w=unchanged; sh "$HERE/results.sh" team 2> /dev/null | cmp -s - "$F" || w=changed; }
+# FB-5 B1.7: none while the owner has put the team's own rules on record (team-rules)
+if [ "$TG" != auto ] && [ -z "$(skey team-rules)" ]; then F=.vid/plan/TEAM-REPORTS.md; w=new; [ ! -f "$F" ] || { w=unchanged; sh "$HERE/results.sh" team 2> /dev/null | cmp -s - "$F" || w=changed; }
   if sh "$HERE/results.sh" team --hand > /dev/null 2> "$W/tr"; then echo "team-reports $F $w"; else sed 's/^/    /' "$W/tr" >&2; echo "ViD mode: the text for the team could not be written; /vid:vid-accept-step reports writes it" >&2; fi; fi
 done_ 0

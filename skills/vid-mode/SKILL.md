@@ -59,7 +59,8 @@ to GitHub auto, or takes stock again in it (GM M2). From any other mode, `auto` 
      In GitHub manual a last line names the text that tells the team what its reports hold (FB-3 A3):
      `team-reports .vid/plan/TEAM-REPORTS.md new`, `changed` or `unchanged`. At `new` or `changed`, show the owner that file whole
      and say it is theirs to hand to the team; ViD posts it nowhere. At `unchanged`, nothing.
-     `/vid:vid-accept-step reports` shows it again at any time.
+     `/vid:vid-accept-step reports` shows it again at any time. With the team's own rules on record (FB-5 B1.7, the setup's `team-rules`,
+     the owner's words alone, never asked) there is no such line: nothing is written or shown.
      `engines not named — …` (FB-3 E2): no engines are on record. Ask the owner which engines the team runs, the primary first, and on
      their words do `/vid:vid-accept-step engines "<them>" "<words>"` (the vid-accept-step skill) once this call has ended.
 

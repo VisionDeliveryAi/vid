@@ -103,7 +103,7 @@
 #             repository, never repo: or spec-repo: (FB-3 B2: with layout: one the old spec repository may be it, asked before
 #             the switch to manual too; and outside GitHub auto spec-repo "not yet" is refused while pushed exports are not moved into the project)) or slack-channels (names, comma-separated, or none); GM-2 (§5): issue-form (a path in
 #             ViD's repository, from its top, no .., never one of the spec export's own files), issue-parent (an issue number, or
-#             none) or plan-page (artifact, its link once made, or none); written to .vid/tw/settings, and `setup-answered key=` in
+#             none) or plan-page (artifact, its link once made, or none), or team-rules (FB-5 B1.7: where the team's own rules for its reports are, a path or a link, or none; never asked); written to .vid/tw/settings, and `setup-answered key=` in
 #             .vid/plan/setup, the planner's own record (it writes no event) — until
 #             the first ratify, check flags `setup <key>` for each of layout, team, split, repo, spec-repo (FB-3 B2: with
 #             layout: one in GitHub auto alone, the export being kept in the project in manual) and github-mode that no such event covers; in GitHub manual (GM-1 S1) state-repo too, and github-mode
@@ -992,11 +992,11 @@ case "$CMD" in
     echo "planner: ratified, hash $H, in the owner's words" ;;
   setup)   # v0.26.10.26.7 (R11, W-13): one setup answer, as the owner gave it: its key in .vid/tw/settings and setup-answered
     K=${1:-}; V=${2:-}; [ $# -ge 2 ] && shift 2; OW=''; [ "${1:-}" = --words ] && OW=${2:-}
-    [ -n "$K" ] && [ -n "$V" ] && [ -n "$OW" ] || die 'usage — sh checks/planner.sh setup <layout|team|split|repo|spec-repo|spec-path|spec-stamp|spec-publish|state-repo|slack-channels|github-mode|issue-form|issue-parent|plan-page> <the answer, or "not yet" for a repository> --words "<the owner'"'"'s words>"'
-    case $K in layout|team|split|repo|spec-repo|spec-path|spec-stamp|spec-publish|state-repo|slack-channels|github-mode|issue-form|issue-parent|plan-page) ;; *) die "setup $K: no setup question has that key" ;; esac
+    [ -n "$K" ] && [ -n "$V" ] && [ -n "$OW" ] || die 'usage — sh checks/planner.sh setup <layout|team|split|repo|spec-repo|spec-path|spec-stamp|spec-publish|state-repo|slack-channels|github-mode|issue-form|issue-parent|plan-page|team-rules> <the answer, or "not yet" for a repository> --words "<the owner'"'"'s words>"'
+    case $K in layout|team|split|repo|spec-repo|spec-path|spec-stamp|spec-publish|state-repo|slack-channels|github-mode|issue-form|issue-parent|plan-page|team-rules) ;; *) die "setup $K: no setup question has that key" ;; esac
     # FB-1 C1: the old team mode is retired
     [ "$K:$V" != github-mode:team ] || die "setup github-mode team: GitHub team is retired: a team of people works the tickets in GitHub manual (/vid mode manual); ViD's own DevAgent, in GitHub auto"
-    case "$K:$V" in layout:separate|layout:one|split:journey|split:fine|team:*|repo:*|spec-repo:*|spec-path:*|spec-stamp:*|spec-publish:vid|spec-publish:hand|github-mode:auto|github-mode:manual|state-repo:*|slack-channels:*|issue-form:*|issue-parent:*|plan-page:*) ;; *) die "setup $K: $V is no answer to it" ;; esac
+    case "$K:$V" in layout:separate|layout:one|split:journey|split:fine|team:*|repo:*|spec-repo:*|spec-path:*|spec-stamp:*|spec-publish:vid|spec-publish:hand|github-mode:auto|github-mode:manual|state-repo:*|slack-channels:*|issue-form:*|issue-parent:*|plan-page:*|team-rules:*) ;; *) die "setup $K: $V is no answer to it" ;; esac
     # GM-1 S1, GM M2: GitHub manual is entered and left only by /vid mode, which marks its own calls (VID_CALLER=mode)
     # GM-4 F13: and /vid mode's switch to auto (VID_CALLER=mode-auto) records github-mode auto last, as the switch to manual does
     if [ "$K" = github-mode ] && case ${VID_CALLER:-} in mode|mode-auto) false ;; *) true ;; esac && { [ "$V" = manual ] || [ "$(ghmode)" = manual ]; }; then
@@ -1022,11 +1022,13 @@ case "$CMD" in
         case $V in PRD.md|DECISIONS.md|BASELINE.md|ARCHITECTURE.md|GRADING-CHECKLIST.md|TEST-DIFFERENCES.md|INVENTORY.md|STAGES.md|PLAN.md|design|design/*) die "setup issue-form: $V is one of the spec's own files; the form is a file of its own" ;; esac ;;
       issue-parent:*) [ "$V" = none ] || printf %s "$V" | grep -Eq '^[1-9][0-9]*$' || die "setup issue-parent: $V is not an issue number, or none" ;;
       plan-page:*) case $V in artifact|none) ;; https://*) printf %s "$V" | grep -Eq '^https://[^[:space:]]+$' || die "setup plan-page: $V is not a link" ;; *) die "setup plan-page: $V is not artifact, a link, or none" ;; esac ;;
+      # FB-5 B1.7: the rules the team already works to, where they are, as the owner says they were handed; never asked, read by nothing
+      team-rules:*) printf %s "$V" | grep -Eq '^(https://[^[:space:]]+|[A-Za-z0-9_.~/-]+)$' || die "setup team-rules: $V is not a path, a link, or none" ;;
     esac
     mkdir -p .vid/tw; touch .vid/tw/settings
     grep -q '^labels-prefix:' .vid/tw/settings || echo 'labels-prefix:' >> .vid/tw/settings   # no question asks it; the writer needs the line (the walk)
     case "$K:$V" in
-      repo:'not yet'|spec-repo:'not yet'|spec-stamp:none) grep -v "^$K:" .vid/tw/settings > "$T/st" || true; put .vid/tw/settings < "$T/st" || exit 1 ;;   # a written default goes; no stamp, no key
+      repo:'not yet'|spec-repo:'not yet'|spec-stamp:none|team-rules:none) grep -v "^$K:" .vid/tw/settings > "$T/st" || true; put .vid/tw/settings < "$T/st" || exit 1 ;;   # a written default goes; no stamp, no key
       team:*) V=$(printf '%s\n' "$V" | awk -F'|' -v OFS='|' '{ $1 = tolower($1) } 1')   # GM-3 S2, GM-4 F11: the name lower-cased, in both modes
         grep -q '^setup-answered key=team ' .vid/plan/setup 2>/dev/null || { grep -v '^team:' .vid/tw/settings > "$T/st" || true; put .vid/tw/settings < "$T/st" || exit 1; }   # the first answer replaces a written default
         grep -qxF "team: $V" .vid/tw/settings || echo "team: $V" >> .vid/tw/settings ;;

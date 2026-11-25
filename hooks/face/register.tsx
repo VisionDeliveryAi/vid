@@ -1,8 +1,11 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-import type { BacklogItem, FaceItem, FaceSection, Marks, Run, Sitting, Standing, View } from './types'
-import { aloneLine, answerable, asRecommended, atStart, besides, blankMarks, compose, cut, filterList, footLine, isAlone, keyOf, listed, live, marked, merged, mk, modeOf, needsAnswer, parseRun, parseSitting, parseStanding, presetMarks, restorable, running, sendable, shown, startOf, tally, versionNote, waitLines } from './model'
+import type { FaceItem, FaceSection, List, ListMarks, ListTodo, Marks, Run, Said, Sitting, Standing, View } from './types'
+import { aloneLine, answerable, asRecommended, atStart, besides, blankMarks, compose, counts, cut, filterList, footLine, isAlone, keyOf, live, marked, merged, mk, modeOf, needsAnswer, parseRun, parseSitting, parseStanding, presetMarks, restorable, running, sendable, shown, startOf, tally, versionNote, waitLines } from './model'
+import { answersOf, blankList, dayTime, lineKey, parseList, receipts, sayLine } from './list'
+import { goTo } from './go'
+import { WHOLE, drawList as drawOwners, fits } from './listdraw'
 import { recordStop } from './recorder'
 
 // ViD's face, step 1a (0.26.10.29): the panel in the Claude desktop app for
@@ -29,11 +32,13 @@ const TONE: Record<string, string> = { keep: 'success', ok: 'success', in: 'succ
 
 // usability (P4, P5): the view holds its conversation's run file and the minute it was read, so the wait is redrawn
 // when the minute changes
-const blankView: View = { standing: null, sitting: null, run: null, problem: '', project: false, here: '', version: '', opened: '', ranOpen: '', minute: 0, now: 0, moved: { from: 0, to: 0, at: 0 } }
-const view = atom({ plugin: 'vid', key: 'view' } as const, blankView, { shape: 'face-view-5' })
+const blankView: View = { standing: null, sitting: null, run: null, list: null, listProblem: '', problem: '', project: false, here: '', version: '', opened: '', ranOpen: '', minute: 0, now: 0, moved: { from: 0, to: 0, at: 0 } }
+const view = atom({ plugin: 'vid', key: 'view' } as const, blankView, { shape: 'face-view-6' })
 // usability (P11): how long a new stretch of the map's line is drawn moving after the stop moved on
 const MOVING_MS = 4000
 const marks = atom({ plugin: 'vid', key: 'marks' } as const, {}, { shape: 'face-marks-1' })
+// FB-5 A1: what the owner pressed on the list
+const pressed = atom({ plugin: 'vid', key: 'list' } as const, blankList(), { shape: 'face-list-1' })
 
 async function exists($: EngineInterface, path: string): Promise<boolean> {
   try {
@@ -43,7 +48,7 @@ async function exists($: EngineInterface, path: string): Promise<boolean> {
   }
 }
 
-// Reads the three files. A missing file is "nothing yet"; one that cannot be
+// Reads its files. A missing file is "nothing yet"; one that cannot be
 // read is said in one line, never drawn half. usability (P4): with no run file for its conversation the session
 // is taken as stopped.
 async function refresh($: EngineInterface): Promise<View> {
@@ -69,6 +74,18 @@ async function refresh($: EngineInterface): Promise<View> {
       problem = p.problem
     } catch {
       problem = 'The sitting file could not be read.'
+    }
+  }
+  // FB-5 A1: the owner's list; one it cannot read is said where the list is drawn, the rest of the panel as it stands
+  let list: List | null = null
+  let listProblem = ''
+  if (await exists($, `${dir}/list.json`)) {
+    try {
+      const p = parseList(String(await $.fs.read(`${dir}/list.json`)))
+      list = p.value
+      listProblem = p.problem
+    } catch {
+      listProblem = 'Your list could not be read.'
     }
   }
   let here = ''
@@ -101,8 +118,10 @@ async function refresh($: EngineInterface): Promise<View> {
   const before = await read($, view)
   // usability (P11): the stop moved on since the panel last read the standing
   const moved = before.standing && standing && standing.current > before.standing.current ? { from: before.standing.current, to: standing.current, at: nowMs } : before.moved
-  const next: View = { standing, sitting, run, problem, project, here, version, opened: before.opened, ranOpen: before.ranOpen, minute: Math.floor(nowMs / 60000), now: nowMs, moved }
-  await update($, view, () => next)
+  const next: View = { standing, sitting, run, list, listProblem, problem, project, here, version, opened: before.opened, ranOpen: before.ranOpen, minute: Math.floor(nowMs / 60000), now: nowMs, moved }
+  // FB-5 A1: a long list is not drawn again every few seconds: only when something it reads changed, or a movement ends
+  if (nowMs - moved.at < 4 * MOVING_MS || JSON.stringify({ ...before, now: 0 }) !== JSON.stringify({ ...next, now: 0 })) await update($, view, () => next)
+  if (list) await refreshPressed($, list)
   // marks made on one sitting never appear on another: a new sitting drops the rest
   if (sitting) {
     const key = keyOf(sitting)
@@ -142,6 +161,110 @@ async function unsend($: EngineInterface, key: string, refused: string): Promise
   }
 }
 
+// FB-5 A1: what was sent and asked of the list, as the store holds it for every conversation; null when the store cannot say.
+async function storedList($: EngineInterface): Promise<{ sent: Record<string, Said>; asked: Record<string, Said> } | null> {
+  try {
+    const kept = await $.store.get('list')
+    const o = kept && typeof kept === 'object' ? (kept as { sent?: Record<string, Said>; asked?: Record<string, Said> }) : {}
+    return { sent: o.sent ?? {}, asked: o.asked ?? {} }
+  } catch {
+    return null
+  }
+}
+
+async function refreshPressed($: EngineInterface, list: List): Promise<void> {
+  const kept = await storedList($)
+  if (!kept) return
+  const now = await read($, pressed)
+  const sent = receipts(list, kept.sent, now.sent), asked = receipts(list, kept.asked, now.asked)
+  if (JSON.stringify([sent, asked]) === JSON.stringify([now.sent, now.asked])) return
+  await update($, pressed, cur => ({ ...cur, sent: receipts(list, kept.sent, cur.sent), asked: receipts(list, kept.asked, cur.asked) }))
+}
+
+// One receipt in the store, set, or taken back (null), keeping the others of its sort.
+async function keepReceipt($: EngineInterface, list: List, kind: 'sent' | 'asked', key: string, said: Said | null): Promise<void> {
+  const kept = await storedList($)
+  if (!kept) return
+  const one = { sent: receipts(list, kept.sent, {}), asked: receipts(list, kept.asked, {}) }
+  if (said) one[kind][key] = said
+  else delete one[kind][key]
+  try {
+    await $.store.set('list', one)
+  } catch {
+    // the store refused: the panel still knows it for this session
+  }
+}
+
+// FB-5 A1: a press on a line, said in the chat as the owner's words, once: claimed first here and in the store, so neither a
+// second press nor another conversation sends it again. Refused there, the words go in the message box, after what is in it;
+// refused there too, the line takes an answer again.
+async function sayIt($: EngineInterface, list: List, t: ListTodo, kind: 'sent' | 'asked', answers: string[]): Promise<void> {
+  const key = lineKey(list, t)
+  const kept = await storedList($)
+  const other = kept?.[kind][key] ?? kept?.sent[key]
+  if (other) {
+    await update($, pressed, cur => ({ ...cur, [kept!.sent[key] ? 'sent' : kind]: { ...cur[kept!.sent[key] ? 'sent' : kind], [key]: other } }))
+    return
+  }
+  const t0 = new Date()
+  const at = String(t0.getHours()).padStart(2, '0') + ':' + String(t0.getMinutes()).padStart(2, '0')
+  const said: Said = { at, how: 'sending', words: answers.join('; ') }
+  let mine = false
+  let boxed = false
+  await update($, pressed, cur => {
+    mine = !cur[kind][key] && !cur.sent[key]
+    boxed = [...Object.values(cur.sent), ...Object.values(cur.asked)].some(x => x.how === 'filled')
+    return mine ? { ...cur, [kind]: { ...cur[kind], [key]: said }, open: kind === 'sent' && cur.open === key ? '' : cur.open, shut: kind === 'sent' ? false : cur.shut, refused: { ...cur.refused, [key]: '' } } : cur
+  })
+  if (!mine) return
+  await keepReceipt($, list, kind, key, { ...said, how: 'sent' })
+  const text = sayLine(t, answers)
+  let how = 'sent'
+  let refused = ''
+  try {
+    const r = await $.prompt.submit({ text, asUser: true })
+    if (r && typeof r === 'object' && 'drop' in r && r.drop !== undefined) refused = String(r.drop || 'the app did not take it')
+  } catch (err) {
+    refused = err instanceof Error ? err.message : 'the app did not take it'
+  }
+  if (refused) {
+    try {
+      const r = await $.prompt.fill({ text: boxed ? `\n${text}` : text, mode: 'append' })
+      if (!(r && typeof r === 'object' && 'isFilled' in r && (r as { isFilled: unknown }).isFilled === false)) how = 'filled'
+      else how = ''
+    } catch {
+      how = ''
+    }
+  }
+  if (how) {
+    if (how === 'filled') await keepReceipt($, list, kind, key, { ...said, how })
+    await update($, pressed, cur => ({ ...cur, [kind]: { ...cur[kind], [key]: { ...said, how } } }))
+    return
+  }
+  await keepReceipt($, list, kind, key, null)
+  await update($, pressed, cur => {
+    const left = { ...cur[kind] }
+    delete left[key]
+    return { ...cur, [kind]: left, open: key, refused: { ...cur.refused, [key]: refused } }
+  })
+}
+
+// A press on a choice: kept until every question of the line has one, then all said together.
+async function pickIt($: EngineInterface, list: List, t: ListTodo, ask: number, words: string): Promise<void> {
+  const key = lineKey(list, t)
+  let picks: Record<string, string> = {}
+  await update($, pressed, cur => {
+    picks = { ...(cur.picks[key] ?? {}), [String(ask)]: words }
+    return { ...cur, picks: { ...cur.picks, [key]: picks } }
+  })
+  const answers = answersOf(t, picks)
+  if (answers) await sayIt($, list, t, 'sent', answers)
+}
+
+async function mark($: EngineInterface, fn: (m: ListMarks) => ListMarks): Promise<void> {
+  await update($, pressed, fn)
+}
+
 async function save($: EngineInterface, all: Record<string, Marks>): Promise<void> {
   try {
     const before = await stored($)
@@ -174,13 +297,13 @@ async function onDesktop($: EngineInterface): Promise<boolean> {
 
 // Opens the panel by itself once per sitting that waits; never with the keys. FB-3 D1: and once a conversation for the backlog.
 async function openIfWaiting($: EngineInterface, v: View): Promise<void> {
-  if (v.standing && !v.problem && v.here && v.ranOpen !== v.here && modeOf(v.standing, v.sitting, blankMarks(), '', v.project, v.run) === 'run' && (await onDesktop($))) {
+  if (v.standing && !v.problem && v.here && v.ranOpen !== v.here && modeOf(v.standing, v.sitting, blankMarks(), '', v.project, v.run, v.list !== null) === 'run' && (await onDesktop($))) {
     await update($, view, cur => ({ ...cur, ranOpen: v.here }))
     await $.ui.open({ id: PANE, title: TITLE })
     return
   }
   if (!v.sitting || !v.standing || v.problem) return
-  if (modeOf(v.standing, v.sitting, blankMarks(), '', v.project, v.run) !== 'sitting') return
+  if (modeOf(v.standing, v.sitting, blankMarks(), '', v.project, v.run, v.list !== null) !== 'sitting') return
   const key = keyOf(v.sitting)
   if (v.opened === key || !(await onDesktop($))) return
   await update($, view, cur => ({ ...cur, opened: key }))
@@ -192,7 +315,7 @@ async function openIfWaiting($: EngineInterface, v: View): Promise<void> {
 async function retitle($: EngineInterface, v: View): Promise<void> {
   try {
     const m = v.sitting ? marksOf(v.sitting, (await read($, marks))[keyOf(v.sitting)]) : blankMarks()
-    if (modeOf(v.standing, v.sitting, m, v.problem, v.project, v.run) === 'sitting') return
+    if (modeOf(v.standing, v.sitting, m, v.problem, v.project, v.run, v.list !== null) === 'sitting') return
     const pane = (await $.ui.panes()).find(x => x.id === PANE)
     if (pane && pane.title !== TITLE) await $.ui.open({ id: PANE, title: TITLE })
   } catch {
@@ -333,7 +456,7 @@ export const register: Register = on => {
   on('command.run', { command: 'vid-panel' }, async $ => {
     if (!(await onDesktop($))) return { text: "ViD's panel is in the Claude desktop app only. Here, everything ViD asks is in the chat." }
     const v = await refresh($)
-    const waiting = v.sitting && modeOf(v.standing, v.sitting, marksOf(v.sitting, (await read($, marks))[keyOf(v.sitting)]), v.problem, v.project, v.run) === 'sitting'
+    const waiting = v.sitting && modeOf(v.standing, v.sitting, marksOf(v.sitting, (await read($, marks))[keyOf(v.sitting)]), v.problem, v.project, v.run, v.list !== null) === 'sitting'
     await $.ui.open({ id: PANE, title: waiting && v.sitting?.ready ? v.sitting.ready : TITLE })
     return { text: "ViD's panel opened." }
   })
@@ -348,7 +471,7 @@ export const register: Register = on => {
     const s = v.sitting
     const key = s ? keyOf(s) : ''
     const m: Marks = s ? marksOf(s, all[key]) : blankMarks()
-    const mode = modeOf(v.standing, s, m, v.problem, v.project, v.run)
+    const mode = modeOf(v.standing, s, m, v.problem, v.project, v.run, v.list !== null)
     const cols = e.props.bodyColumns ?? 44
     const wide = cols >= 90
     const px = Math.max(240, Math.min(848, (cols - 4) * 8))
@@ -363,7 +486,17 @@ export const register: Register = on => {
     const dot = (tone: string, filled = true) => <Text color={tone}>{filled ? '●' : '○'}</Text>
 
     const st = v.standing
-    const list = st && st.backlog ? listed(st.backlog) : null
+    const lm = await read($, pressed)
+    const pages = st && st.pages.length ? (
+      <Box flexDirection="column">
+        <Text size="caption" weight="semibold" color="subtle">
+          To read:
+        </Text>
+        {st.pages.map(p => (
+          <Box key={`page-${p.id}`}>{p.link ? <Link href={p.link} label={p.title} /> : <Text size="footnote">{`${p.title}: ${p.file}`}</Text>}</Box>
+        ))}
+      </Box>
+    ) : null
     const stops = st ? st.stops : []
     const cur = st ? st.current : 1
     const here = stops[cur - 1]
@@ -392,22 +525,13 @@ export const register: Register = on => {
           })}
         </Box>}
         {/* usability (P9): what there is to read, under the map and above everything else */}
-        {st.pages.length ? (
-          <Box flexDirection="column">
-            <Text size="caption" weight="semibold" color="subtle">
-              To read:
-            </Text>
-            {st.pages.map(p => (
-              <Box key={`page-${p.id}`}>{p.link ? <Link href={p.link} label={p.title} /> : <Text size="footnote">{`${p.title}: ${p.file}`}</Text>}</Box>
-            ))}
-          </Box>
-        ) : null}
+        {mode === 'run' ? null : pages}
         <Box flexDirection="column">
           <Text size="title" weight="semibold">
-            {mode === 'run' ? 'Your list' : mode === 'done' ? 'Defining the project is done' : (here?.name ?? '')}
+            {mode === 'run' ? (v.list?.title || TITLE) : mode === 'done' ? 'Defining the project is done' : (here?.name ?? '')}
           </Text>
           <Text size="footnote" color="subtle" tabular>
-            {mode === 'run' ? (list ? list.counts : '') : mode === 'done' ? `All ${stops.length} steps done` : `Step ${cur} of ${stops.length} · ${turn}${st.next ? ` · Next: ${st.next}` : ''}`}
+            {mode === 'run' ? (v.list?.sortedAt ? `sorted ${dayTime(v.list.sortedAt)}` : '') : mode === 'done' ? `All ${stops.length} steps done` : `Step ${cur} of ${stops.length} · ${turn}${st.next ? ` · Next: ${st.next}` : ''}`}
           </Text>
         </Box>
       </Box>
@@ -425,6 +549,8 @@ export const register: Register = on => {
       </Box>
     )
 
+    // a sitting's lists are drawn whole, or, past what the app draws, per items at a time (FB-5 A1)
+    const drawWhole = (per: number): any => {
     let body: unknown = null
     if (mode === 'problem') {
       body = state(ICON.problem, "This panel can't show this sitting", 'Carry on in the chat. ViD has asked the same things there, and nothing is lost.', v.problem)
@@ -473,39 +599,21 @@ export const register: Register = on => {
                   {x.title}
                 </Text>
                 <Box flexDirection="column" borderStyle="round" borderColor={LINE}>
-                  {x.items.map(it => (
+                  {x.items.slice(0, per).map(it => (
                     <Box flexDirection="column" paddingX={2} paddingY={1}>
                       {m.ids ? subtle(it.id, 'caption') : null}
                       <Text>{it.text}</Text>
                       {shown(it.detail, m.ids).map(d => subtle(d))}
                     </Box>
                   ))}
+                  {x.items.length > per ? <Box paddingX={2} paddingY={1}>{subtle(`and ${x.items.length - per} more, to see when ViD has finished`)}</Box> : null}
                 </Box>
               </Box>
             ))}
         </Box>
       )
     } else if (mode === 'run' && st) {
-      // FB-3 D1, D2: the stop of a call, or its parts while the session runs; then the list
-      const row = (x: BacklogItem) => (
-        <Box key={`bl-${x.state}-${x.id}`} flexDirection="column" paddingX={2} paddingY={1}>
-          {subtle(`${x.id} · ${x.who}`, 'caption')}
-          <Text weight={x.state === 'doing' ? 'semibold' : 'regular'}>{cut(x.words)}</Text>
-          {x.next && x.state !== 'done' ? subtle(`Next: ${cut(x.next)}`) : null}
-          {x.note ? <Text size="footnote">{cut(x.note)}</Text> : null}
-        </Box>
-      )
-      const group = (title: string, rows: BacklogItem[], tint = FILL) =>
-        rows.length ? (
-          <Box key={`blg-${title}`} flexDirection="column" borderStyle="round" borderColor={LINE}>
-            <Box paddingX={2} paddingY={1} backgroundColor={tint}>
-              <Text size="caption" weight="semibold" color="subtle">
-                {title}
-              </Text>
-            </Box>
-            {rows.map(row)}
-          </Box>
-        ) : null
+      // FB-3 D1, D2: the stop of a call, or its parts while the session runs; then the owner's list (FB-5 A1)
       const at = st.wait.parts.find(p => p.state === 'stopped')
       body = (
         <Box flexDirection="column" gap={2}>
@@ -527,11 +635,20 @@ export const register: Register = on => {
               {waitBits(live(st, v.run))}
             </Box>
           ) : null}
-          {list ? group('In progress', list.doing, TINT.claude) : null}
-          {list ? group('To do, in order', list.todo) : null}
-          {list ? group('Waiting', list.waiting) : null}
-          {list ? group('Set aside', list.aside) : null}
-          {st.backlog && st.backlog.done.length ? group(`Done · ${st.backlog.doneCount} in all, the newest ${st.backlog.done.length} here`, st.backlog.done) : null}
+          {v.listProblem ? <Text color="warning">{v.listProblem}</Text> : null}
+          {v.list
+            ? drawOwners({ Box, Text, Button, Link, pic, cols, px }, v.list, lm, {
+                open: k => mark($, x => ({ ...x, open: k, shut: k === '' })),
+                pick: (t, i, words) => pickIt($, v.list!, t, i, words),
+                off: t => sayIt($, v.list!, t, 'sent', ['Put it off']),
+                explain: t => sayIt($, v.list!, t, 'asked', ['Explain it']),
+                show: k => mark($, x => ({ ...x, shown: { ...x.shown, [k]: !x.shown[k] } })),
+                go: n => goTo($, PANE, n),
+              })
+            : v.listProblem || !st.backlog
+              ? null
+              : [<Text weight="semibold">Your list is not written yet. ViD writes it at its next call.</Text>, subtle(counts(st.backlog))]}
+          {pages}
           {subtle('The list is kept in the project. Change it in the chat: what comes first, what waits, what to set aside.', 'caption')}
         </Box>
       )
@@ -627,6 +744,15 @@ export const register: Register = on => {
           </Button>
         )
 
+      // FB-5 A1: an item pressed while all is drawn is on show when that press makes the sitting too long to draw whole
+      const keepOn = (sec: FaceSection, it: FaceItem, x: Marks): Marks => (per === Infinity && sec.items.length > 20 ? { ...x, part: { ...x.part, [sec.id]: sec.items.indexOf(it) } } : x)
+      const inParts = s.sections.some(x => !x.empty && (answerable(x) || x.kind === 'decided') && x.items.length > per)
+      const forAll = inParts ? (
+        <Text size="footnote" weight="semibold" color="claude">
+          Not every item is on show: each list says which part is. Send is for all of them, the parts not shown too.
+        </Text>
+      ) : null
+
       const waits = (
         <Box flexDirection="column" gap={1} padding={2} backgroundColor={TINT.claude}>
           <Box flexDirection="row" gap={1}>
@@ -639,6 +765,7 @@ export const register: Register = on => {
             {foot}
           </Text>
           {readSec ? subtle(`Also to read, below: ${readSec.title.charAt(0).toLowerCase() + readSec.title.slice(1)}.`) : null}
+          {forAll}
           <Box flexDirection="row" gap={1} flexWrap="wrap" paddingTop={1}>
             {sendOr('send')}
             {anyBack ? (
@@ -735,7 +862,7 @@ export const register: Register = on => {
             ) : null}
             <Box flexDirection="row" gap={2} flexWrap="wrap">
               {has('own') ? (
-                <Button key={`${k}-write`} plain onPress={() => set(x => ({ ...x, open: { ...x.open, [k]: !x.open[k] } }))}>
+                <Button key={`${k}-write`} plain onPress={() => set(x => keepOn(sec, q, { ...x, open: { ...x.open, [k]: !x.open[k] } }))}>
                   <Text size="footnote" color="subtle">
                     {open ? 'Cancel' : val === 'own' ? 'Change my answer' : 'Write my own answer'}
                   </Text>
@@ -784,7 +911,7 @@ export const register: Register = on => {
                       {sec.acts.map(k => {
                         const sel = val === k.id
                         return (
-                          <Button key={`${xk}-${k.id}`} onPress={() => set(y => marked(y, sec, x, k.id))}>
+                          <Button key={`${xk}-${k.id}`} onPress={() => set(y => keepOn(sec, x, marked(y, sec, x, k.id)))}>
                             <Text color={sel ? (TONE[k.id] ?? 'suggestion') : 'inactive'}>{sel ? '●' : '○'}</Text> <Text weight={sel ? 'semibold' : 'regular'}>{k.label}</Text>
                           </Button>
                         )
@@ -828,6 +955,29 @@ export const register: Register = on => {
           </Text>
         ) : null
 
+      // the items of a section's part on show, and the way to the others; nothing of it when all are
+      const partOf = (sec: FaceSection, all: FaceItem[]) => {
+        if (all.length <= per) return { some: all, bar: (_: string): unknown => null }
+        const at = Math.min(Math.floor((m.part?.[sec.id] ?? 0) / per), Math.ceil(all.length / per) - 1)
+        const some = all.slice(at * per, (at + 1) * per)
+        const to = (k: string, words: string, n: number) => (
+          <Button key={k} plain onPress={() => set(x => ({ ...x, part: { ...x.part, [sec.id]: n } }))}>
+            <Text size="footnote" weight="medium" color="suggestion">
+              {words}
+            </Text>
+          </Button>
+        )
+        const bar = (k: string): unknown => (
+          <Box key={`${sec.id}-part-${k}`} flexDirection="row" flexWrap="wrap" gap={2}>
+            <Text size="footnote" weight="semibold" tabular>
+              {`${at * per + 1} to ${at * per + some.length} of ${all.length}`}
+            </Text>
+            {at > 0 ? to(`${sec.id}-earlier-${k}`, 'Earlier', (at - 1) * per) : null}
+            {(at + 1) * per < all.length ? to(`${sec.id}-later-${k}`, 'Later', (at + 1) * per) : null}
+          </Box>
+        )
+        return { some, bar }
+      }
       const drawList = (sec: FaceSection) => {
         const n = sec.items.length
         const decided = sec.kind === 'decided'
@@ -836,6 +986,7 @@ export const register: Register = on => {
         // usability (P10): "only unmarked" keeps an item whose critic's note still needs an answer
         const open = (x: FaceItem) => !m.a[mk(sec, x)] || (bes.at[mk(sec, x)] ?? []).some(f => !m.a[mk(f.sec, f.item)])
         const vis = sec.items.filter(x => !bes.placed.has(mk(sec, x)) && (!only || open(x)))
+        const part = partOf(sec, vis)
         const noteOpen = m.noteOpen[sec.id] === true
         return (
           <Box flexDirection="column" gap={1}>
@@ -864,18 +1015,21 @@ export const register: Register = on => {
                 </Button>
               </Box>
             ) : null}
+            {part.bar('top')}
             <Box flexDirection="column" borderStyle="round" borderColor={LINE}>
-              {pointed(sec, vis, x => drawRow(sec, x, false))}
+              {pointed(sec, part.some, x => drawRow(sec, x, false))}
               {vis.length === 0 ? <Box padding={2}>{subtle('Every item is marked.')}</Box> : null}
               {n >= 10 ? (
                 <Box flexDirection="row" flexWrap="wrap" justifyContent="space-between" gap={1} paddingX={2} paddingY={1} backgroundColor={FILL}>
                   <Text size="footnote" color="subtle" tabular>
                     {foot}
                   </Text>
+                  {forAll}
                   {sendOr(`${sec.id}-send`)}
                 </Box>
               ) : null}
             </Box>
+            {part.bar('foot')}
             {!noteOpen ? (
               <Button key={`${sec.id}-note`} plain onPress={() => set(y => ({ ...y, noteOpen: { ...y.noteOpen, [sec.id]: true } }))}>
                 <Text size="footnote" color="subtle">
@@ -895,6 +1049,7 @@ export const register: Register = on => {
       const empties = s.sections.filter(x => x.empty)
       const drawSection = (sec: FaceSection, idx: number) => {
         if (sec.empty) return null
+        const asked = partOf(sec, sec.items)
         let countLine = ''
         if (sec.kind === 'questions' || sec.kind === 'alone') countLine = `${sec.items.filter(q => m.a[mk(sec, q)]).length} of ${sec.items.length} answered`
         else if (sec.kind === 'decided') {
@@ -935,7 +1090,7 @@ export const register: Register = on => {
                 </Text>
               </Button>
             ) : null}
-            {!sec.empty && (sec.kind === 'questions' || sec.kind === 'alone') ? <Box flexDirection="column" gap={1}>{pointed(sec, sec.items, q => drawQ(sec, q))}</Box> : null}
+            {!sec.empty && (sec.kind === 'questions' || sec.kind === 'alone') ? <Box flexDirection="column" gap={1}>{asked.bar('top')}{pointed(sec, asked.some, q => drawQ(sec, q))}{asked.bar('foot')}</Box> : null}
             {!sec.empty && (sec.kind === 'list' || sec.kind === 'objections' || sec.kind === 'decided') ? drawList(sec) : null}
             {!sec.empty && sec.kind === 'figures' ? (
               <Box flexDirection="column" gap={1} paddingX={2} paddingY={1} backgroundColor={FILL}>
@@ -999,7 +1154,7 @@ export const register: Register = on => {
       )
     }
 
-    return (
+    const whole = (
       <Box flexDirection="column" gap={3} padding={2}>
         {/* usability (P12): the sitting's phrase, the panel's first line while it waits */}
         {mode === 'sitting' && s && s.ready ? (
@@ -1010,6 +1165,25 @@ export const register: Register = on => {
         {head}
         {body}
         {vnote ? subtle(vnote, 'caption') : null}
+      </Box>
+    )
+    return whole
+    }
+    // past the app's bounds it would draw nothing and say "nothing to show yet" (FB-5 A1)
+    for (const per of mode === 'sitting' || mode === 'drafting' ? [Infinity, 40, 20, 10, 5, 2, 1] : [Infinity]) {
+      const whole = drawWhole(per)
+      if (fits(whole, WHOLE)) return whole
+    }
+    const fold = async () => {
+      set(x => ({ ...x, open: {}, noteOpen: {}, ids: false, raw: false }))
+      await mark($, x => ({ ...x, shown: {}, open: '', shut: true }))
+    }
+    return (
+      <Box flexDirection="column" gap={3} padding={2}>
+        {state(ICON.problem, 'This panel is too long for the app to draw', 'Your answers here are kept. What is unfolded can be folded, or carry on in the chat.', '')}
+        <Button key="fold" variant="primary" onPress={fold}>
+          Fold everything and draw it again
+        </Button>
       </Box>
     )
   })

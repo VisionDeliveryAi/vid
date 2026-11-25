@@ -64,7 +64,7 @@ MC=''; case ${VID_CALLER:-} in mode|mode-auto) MC=1 ;; esac; OWN=''
 pstop() { [ -z "$OWN" ] || prog stop "${1:-a look at the chat, which says why it stopped}"; OWN=''; }
 pcall() { [ -z "$MC" ] || return 0; if [ -n "$RUN" ]; then [ ! -f .vid/face/wait ] || prog 'done'; return 0; fi
   set -- 'Connecting and checking the project'; [ "$(sh "$HERE/next.sh" own-work 2>/dev/null)" != on ] || set -- "$@" "ViD's own work"
-  prog parts "$@" 'Reading GitHub' 'Working out what changed' 'Your list and the plan page' 'Saving the records'; OWN=1; prog on 'Connecting and checking the project'; }
+  prog parts "$@" 'Reading GitHub' 'Working out what changed' 'Your list' 'Saving the records'; OWN=1; prog on 'Connecting and checking the project'; }
 # stop_ <line>: a start ended once the lock is held: the line, the records saved, the lock freed, exit 1
 stop_() { echo "$1"; pstop; trap 'rm -rf "$W"' EXIT; gh_ state-save > /dev/null 2>&1 || echo 'connect records: not saved'; gh_ lock-free > /dev/null 2>&1 || echo 'connect lock: could not be freed'; exit 1; }
 # hooks_ (FB-1 A1): the commit checks switched on once the project's courts pass on the tree, or what refuses while they do not

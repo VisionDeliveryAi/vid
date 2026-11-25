@@ -5,7 +5,7 @@
 # D-NNN` (a rule row's REQ after it), a line that brings no row named `left: DECISIONS.md`, the replaced lines carried and the
 # rows on their REQs checked against the replacing rule, a CHANGED row amended or named `left: INVENTORY.md`, and the buckets
 # ratified on their own. vid-stage's one table: the counts per stage hold the rows provable only at a later stage and a
-# re-cut's moved rows (0.26.11.1.4, R9). vid-help's /vid:vid-next row: it does the moves the owner names and writes the plan page
+# re-cut's moved rows (0.26.11.1.4, R9). vid-help's /vid:vid-next row: it does the moves the owner names and sorts what is open into the panel (FB-5 A1)
 # (GM-2 T10). The DECISIONS.md template: labels and replaced-by marks the one edit allowed, the mark's form and place, the
 # named lines win, the mark keeps its ids (IR I2). The INVENTORY.md template: the `origin: incorporation` form (IR I4). Skips
 # where skills/ and templates/ are absent (a project's layout). Env: CHECKS.
@@ -30,7 +30,7 @@ has "$TI" "or an incorporation's decision lines, with the REQs each one serves" 
   'a yes to the map never stands for their ratification'
 has "$VS" 'the counts per stage (its rows provable only at a later stage among them, and on a re-cut its moved rows)'
 R=$(grep '^| \*\*/vid:vid-next\*\* |' "$VH") || fail 'vid-help has no /vid:vid-next row'
-inx "vid-help's /vid:vid-next row" "$R" 'then it does the moves the owner names in the call, in your words' 'and writes the plan page'
+inx "vid-help's /vid:vid-next row" "$R" 'then it does the moves the owner names in the call, in your words' 'sorts what is open into your panel beside the chat'
 has "$TD" 'Append-only, except labels and replaced-by marks.' \
   'is marked, and only marked: `| replaced-by: D-NNN[, D-MMM]` in its rule part, right before ` | why:`' \
   'Where the lines differ, the named lines win' 'wherever it is quoted the lines it names follow it' \

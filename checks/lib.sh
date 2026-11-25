@@ -82,6 +82,31 @@ RNG='function rng(y,   a, b, p, lo, hi, w, k, r) { if (y !~ /\.\./) return y; a 
 PROF='function profw(w) { return tolower(w) ~ /^(f+u+c+k[a-z0-9_]*|shit[a-z0-9_]*|bullshit[a-z0-9_]*|damn[a-z0-9_]*|goddam[a-z0-9_]*|crap[a-z0-9_]*|bitch[a-z0-9_]*|bastard[a-z0-9_]*|asshole[a-z0-9_]*|arsehole[a-z0-9_]*|piss[a-z0-9_]*|cunt[a-z0-9_]*|dick(head)?s?|wtf|motherf[a-z0-9_]*|bloody|bollocks)$/ }
   function prof(l,   n, w, i) { n = split(tolower(l), w, /[^a-z0-9_]+/); for (i = 1; i <= n; i++) if (profw(w[i])) return w[i]; return "" }
   function profx(l,   r, w) { r = ""; while (match(l, /[A-Za-z0-9_]+/)) { w = substr(l, RSTART, RLENGTH); r = r substr(l, 1, RSTART - 1) (profw(w) ? "(a word)" : w); l = substr(l, RSTART + RLENGTH) } return r l }'
+# BLKL (FB-5 B1.1): the awk function blkl(<an issue's labels, comma-joined>, <the labels' prefix>), those of them that say a question stops it: the
+# prefix's `blocked`, and any label that ends `:blocked`, comma-joined, "" with none; prepended to an awk program, the one reading of it in both
+# modes. blkl <labels> <prefix>, the same from the shell
+BLKL='function blkl(s, px,   a, i, n, r) { n = split(s, a, ","); r = ""; for (i = 1; i <= n; i++) if (a[i] == px "blocked" || a[i] ~ /:blocked$/) r = r (r == "" ? "" : ",") a[i]; return r }'
+blkl() { printf '%s\n' "$1" | awk -v px="$2" "$BLKL"'{ print blkl($0, px) }'; }
+# ASKF (FB-5 B1.3): the awk function askd(<the first lines of an issue's or a pull request's comments, as the read holds them>): AK its newest `vid:
+# decide <7 to 40 characters of a commit>`, a CR at the line's end dropped (@tsv writes it as two characters), AKD 1 when a `vid: decision
+# <it…>` follows; 0 with no ask. The one reading of an ask
+ASKF='function askd(h,   c, n, i, y, k) { n = split(h, c, "\001"); AK = ""; AKD = 0; k = 0
+    for (i = 1; i <= n; i++) { y = c[i]; if (y !~ /^vid: decide [0-9a-f]/) continue; sub(/(\\r|\r|[ \t])*$/, "", y); sub(/^vid: decide /, "", y); if (y ~ /^[0-9a-f]+$/ && length(y) >= 7 && length(y) <= 40) { AK = y; k = i } }
+    if (AK == "") return 0; for (i = k + 1; i <= n; i++) if (index(c[i], "vid: decision " AK) == 1) AKD = 1; return 1 }'
+# askall_ <read> (GM-4 E1, FB-5 B1.4, GitHub manual): the newest ask of each place a ticket is asked at, `<n> TAB <its commit, as it is asked> TAB <- or
+# the pull request> TAB <1 answered, or 0> TAB <- or its head>`: the issue of a published ticket not withdrawn, and each pull request whose
+# ticket line is such a ticket, an open one, or a merged one this read is the first to show (in neither unit-merges nor merged-prs) or that
+# stands in pr-asks; an ask that begins its head is that head, full; and an ask of pr-asks at the head unit-merges has of its pull request, no
+# decision posted there, though the read's list of merged ones shows it no more. tasks_ <read>: those owed an answer, a pull request's at its head
+# alone, `<n> TAB <commit> TAB <- or the pull request>`
+askall_() { [ -f "$1" ] || return 0; awk -F'\t' "$ASKF"'BEGIN { OFS = "\t"; while ((getline l < ".vid/tw/log") > 0) { split(l, x, " "); if (x[1] == "published") P[x[2]] = 1; else if (x[1] == "withdrawn") delete P[x[2]] }
+      while ((getline l < ".vid/decide/merged-prs") > 0) M[l] = 1; while ((getline l < ".vid/decide/unit-merges") > 0) { split(l, x, "\t"); M[x[1]] = 1 } while ((getline l < ".vid/decide/pr-asks") > 0) { split(l, x, "\t"); delete M[x[1]] } }
+    $1 == "issue" && ($2 in P) { if (askd($4)) print $2, AK, "-", AKD, "-"; next }
+    ($1 == "open" || ($1 == "merged" && !($2 in M))) && ($3 in P) { if (askd($1 == "open" ? $10 : $6)) print $3, (index($4, AK) == 1 ? $4 : AK), $2, AKD, $4 }
+    $1 == "open" || $1 == "merged" { SN[$2] = 1 }
+    END { close(".vid/decide/unit-merges"); while ((getline l < ".vid/decide/unit-merges") > 0) { split(l, x, "\t"); UH[x[1]] = x[3] } close(".vid/decide/pr-asks"); while ((getline l < ".vid/decide/pr-asks") > 0) { split(l, x, "\t"); if ((x[1] in SN) || !(x[2] in P) || UH[x[1]] != x[3]) continue
+        f = ".vid/decide/posted-step-" x[2] "-" substr(x[3], 1, 12); if ((getline y < f) >= 0) { close(f); continue } print x[2], x[3], x[1], 0, x[3] } }' "$1"; }
+tasks_() { askall_ "$1" | awk -F'\t' '$4 == 0 && ($3 == "-" || $2 == $5) { print $1 "\t" $2 "\t" $3 }'; }
 # epoch <UTC ISO time>: its seconds, BSD's date or GNU's, else 0
 epoch() { date -u -j -f '%Y-%m-%dT%H:%M:%SZ' "$1" +%s 2>/dev/null || date -u -d "$1" +%s 2>/dev/null || echo 0; }
 # stamp, now: the UTC time, ISO
@@ -121,6 +146,17 @@ pstamp() { if [ -r "/proc/$1/stat" ]; then _t=$(sed 's/^.*) //' "/proc/$1/stat" 
 # palive <pid> <start>: it lives and is the process that start names (under Git Bash, within the second the two round to)
 palive() { kill -0 "$1" 2>/dev/null || return 1; _s=$(pstamp "$1"); [ -n "$_s" ] || return 1; [ "$_s" = "$2" ] && return 0
   case $(uname -s) in MINGW*|MSYS*|CYGWIN*) case $2$_s in *[!0-9-]*) return 1 ;; esac; [ $((_s - $2)) -ge -1 ] && [ $((_s - $2)) -le 1 ] ;; *) return 1 ;; esac; }
+# FB-5 C2: pubwords <read>, what stands on each of the read's publish pull requests, `<n> TAB <words>`, GitHub's state alone deciding: a
+# standing request for changes first, then an approval, then a comment since the last push or answer, else an approval waited for; then
+# what others said since, newest first
+pubwords() { awk -F'\t' 'function j(s, x) { return s == "" ? x : s "; " x }
+  $1 != "publish" { next } !($2 in K) { K[$2] = 1; O[++k] = $2 } $3 == "unread" { U[$2] = 1 }
+  $3 == "state" && $5 == "CHANGES_REQUESTED" && $7 == "after" { A[$2] = j(A[$2], $4 " asks for changes") }
+  $3 == "state" && $5 == "CHANGES_REQUESTED" && $7 != "after" { B[$2] = j(B[$2], "changed since " $4 " asked; waits for them to look again") }
+  $3 == "state" && $5 == "APPROVED" { P[$2] = j(P[$2], $4 " approved") }
+  $3 == "said" { if (!(($2, $4) in G)) { G[$2, $4] = 1; C[$2] = j(C[$2], $4 " commented") } S[$2] = S[$2] " · " $4 ", " $5 ": " ($6 == "" ? "(no words of its own)" : $6) }
+  END { for (i = 1; i <= k; i++) { n = O[i]; w = A[n]; if (B[n] != "") w = j(w, B[n]); if (w == "") w = P[n]; if (w == "") w = C[n]; if (w == "") w = "waits for an approval"
+    print n "\t" ((n in U) ? "its reviews could not be read" : w S[n]) } }' "$1" 2>/dev/null; }
 lage() { [ -n "$(find "$1" -prune -mmin +1 2>/dev/null)" ]; }
 # lheld <folder>: a live holder holds it, or one is still naming itself (a lock younger than a minute with no h yet)
 lheld() { [ -d "$1" ] || return 1; _hl=$(cat "$1/h" 2>/dev/null || true); if [ -n "${_hl#* }" ] && [ "${_hl#* }" != "$_hl" ]; then palive "${_hl%% *}" "${_hl#* }"; else ! lage "$1"; fi; }   # a start not read is no start: held a minute

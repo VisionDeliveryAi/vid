@@ -12,7 +12,7 @@
 # analysis writes its proposal, implement-replan is listed with the proposal's plan; after a change to what the proposal read, it
 # is shown again, not done. A move the owner did not name is never done. Implement-replan's line carries the
 # proposal's own fingerprint beside its plan, so the proposal made again from the same block with another scope (a kind named)
-# changes the line, and the named move is shown again, nothing applied; and the plan page names the moves as next-move.sh takes
+# changes the line, and the named move is shown again, nothing applied; and the owner's list holds the moves next-move.sh takes
 # them (`/vid next planning-analysis`, `/vid next implement-replan "…"`), never with a `-` subject. Env: CHECKS.
 set -eu
 unset CLAUDE_CODE_SESSION_ID VID_CALLER 2>/dev/null || true
@@ -99,10 +99,7 @@ call implement-replan 'Yes, apply the re-plan'
 [ "$RC" = 0 ] && grep -q '^again implement-replan -: what it would do, or its warnings, changed since the listing; shown again, not done' "$T/out" || fail 'implement-replan, its proposal made again since the listing, is not shown again'
 ! grep -q '^done implement-replan' "$T/out" || fail 'implement-replan was done though its proposal was stale'
 [ "$(cat .vid/tw/applied)" = "$A1" ] && ! grep -q '^amended ' .vid/tw/log && diff -r "$T/prop0" .vid/next/proposal > /dev/null || fail 'the stale implement-replan applied something'
-# the plan page's to-dos name the re-plan moves as next-move.sh takes them
-PG=$(sed -n 's/^page //p' "$T/out" | tail -n 1); [ -f "$PG" ] || fail 'the call wrote no plan page'
-grep -o '<span class="cmd">/vid next [^<]*</span>' "$PG" | grep -v '/vid next done ' > "$T/cmds" || :
-grep -qx '<span class="cmd">/vid next planning-analysis</span>' "$T/cmds" && grep -qx '<span class="cmd">/vid next implement-replan &quot;…&quot;</span>' "$T/cmds" ||
-  { cp "$T/cmds" "$T/out"; fail 'the page does not name planning-analysis and implement-replan as next-move.sh takes them'; }
-! grep -q 'planning-analysis -\|implement-replan -' "$T/cmds" || { cp "$T/cmds" "$T/out"; fail 'the page names a re-plan move with a - subject'; }
+# the owner's list holds the re-plan moves, each a line of the queue (FB-5 A1: no page)
+sh "$CHECKS/queue.sh" open > "$T/cmds" 2> "$T/out" || fail 'queue.sh open failed'
+for m in planning-analysis implement-replan; do grep -qE "$(printf '\t')move:$m:[0-9a-f]+:-@" "$T/cmds" || { cp "$T/cmds" "$T/out"; fail "the owner's list does not hold the move $m"; }; done
 exit 0

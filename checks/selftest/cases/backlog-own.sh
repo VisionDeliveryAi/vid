@@ -2,11 +2,11 @@
 # Purpose: selftest case — the owner's and the session's own backlog items, and the marks (FB-3 D1). `queue.sh backlog add "<words>"
 # [--who --next --note]` is a B<n> at the end, in no RUN-STATE line and not in its count; `backlog set <id>` changes its state, who,
 # next action, note and place (top, after <id>); one item at most is doing, setting one puts the other back to do; `done` ends a
-# B<n>, kept; `done` on a Q<n> is refused, its answer named; no sync loses a set; an unknown state, id or option, an item with no
+# B<n>, kept; `done` on a Q<n> is refused, its answer named; no sync loses a set; a plan with no step is said as 0 steps; an unknown state, id or option, an item with no
 # words, and a project with no ticket mode are refused, the file byte for byte as it was. Env: CHECKS.
 set -eu
 unset CLAUDE_CODE_SESSION_ID VID_CALLER 2>/dev/null || true
-T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
+T=$(mktemp -d); trap 'rm -rf "$T"' EXIT; HOME=$T/home; export HOME; mkdir -p "$HOME"
 . "$CHECKS/selftest/fixtures/planner-toy.sh"; . "$CHECKS/selftest/fixtures/tickets.sh"; . "$CHECKS/selftest/fixtures/manual.sh"
 fail() { echo "backlog-own: $*" >&2; cat "$T/out" >&2 2>/dev/null; cat .vid/decide/queue/backlog >&2 2>/dev/null; exit 1; }
 mn_project "$T/p"; printf 'mode: tickets\nplan: required\nrun: waiting\n' > .vid/RUN-STATE.md
@@ -31,7 +31,8 @@ qs backlog set B1 --state doing; qs backlog set Q1 --state doing
 qs backlog set B3 --state waiting --note 'on the bank, asked on Tuesday' --who 'the bank'; qs backlog set B1 --state aside
 cp "$B" "$T/b"; qs sync; qs list; cmp -s "$T/b" "$B" || fail 'a sync lost a set'
 sh "$QS" backlog > "$T/out" 2>&1 || fail 'queue.sh backlog failed'
-[ "$(sed '$d' "$T/out" | cut -f1 | paste -sd ' ' -)" = 'B3 B1 B2 Q1' ] && tail -n 1 "$T/out" | grep -qx 'next: B2 · wait for Ann · ask again on Friday · Ann' || fail 'the list or its next: is not the top open item neither waiting nor aside'
+[ "$(grep '^[QB][0-9]' "$T/out" | cut -f1 | paste -sd ' ' -)" = 'B3 B1 B2 Q1' ] && grep '^next: ' "$T/out" | grep -qx 'next: B2 · wait for Ann · ask again on Friday · Ann' || fail 'the list or its next: is not the top open item neither waiting nor aside'
+grep '^5\. The plan: ' "$T/out" | grep -q ', 0 steps, ' || fail 'a plan with no step is not said as 0 steps'
 # done
 qs backlog set B2 --state 'done' --note 'she answered'; [ "$(v B2 3)|$(v B2 7)" = 'done|she answered' ] && [ "$(v B2 9)" != - ] && [ "$(ids)" = 'B3 B1 Q1' ] || fail 'B2, done, is open, gone or has no end'
 no backlog set Q1 --state 'done'; grep -q 'answer Q1' "$T/out" || fail 'done on a Q line does not name its answer'

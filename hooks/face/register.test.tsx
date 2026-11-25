@@ -1,14 +1,15 @@
 import { expect, mock, test } from 'claude-code/testing'
 
-import { DRAFT, DRAFT_STANDING, ENDED, INTERVIEW, INTERVIEW_F1, INTERVIEW_STANDING, PAUSE1_47, PAUSE1_STANDING, PAUSE2, PAUSE2_STANDING, DESIGN_STANDING, WORKING_STANDING } from './samples'
+import { goTo } from './go'
+import { DRAFT, DRAFT_STANDING, ENDED, INTERVIEW, INTERVIEW_F1, INTERVIEW_STANDING, PAUSE1_47, PAUSE1_STANDING, PAUSE2, PAUSE2_STANDING, DESIGN_STANDING, WORKING_STANDING, LIST_DATA } from './samples'
 
 // ViD's face (0.26.10.29): the panel drawn as the desktop app draws it. Each
 // hook here stands for the engine: the project's files, the session, the
 // prompt. Every test names the requirement it proves.
 
 const ROOT = '/project'
-type World = { clock?: boolean; standing?: string; sitting?: string; run?: string; panes?: { id: string; title: string }[]; session?: string; surfaces?: string[]; version?: string; vid?: boolean; drop?: string; unfilled?: boolean }
-type Log = { submits: string[]; fills: string[]; opens: any[]; writes: { path: string; text: string }[]; files: Record<string, string>; notices: string[] }
+type World = { clock?: boolean; standing?: string; sitting?: string; run?: string; list?: string; panes?: { id: string; title: string }[]; session?: string; surfaces?: string[]; version?: string; vid?: boolean; drop?: string; unfilled?: boolean }
+type Log = { submits: string[]; asUser: boolean[]; fills: string[]; modes: string[]; opens: any[]; writes: { path: string; text: string }[]; files: Record<string, string>; notices: string[] }
 
 function world(on: any, w: World, log: Log) {
   const files = log.files
@@ -16,6 +17,7 @@ function world(on: any, w: World, log: Log) {
   if (w.standing !== undefined) files[`${ROOT}/.vid/face/standing.json`] = w.standing
   if (w.sitting !== undefined) files[`${ROOT}/.vid/face/sitting.json`] = w.sitting
   if (w.run !== undefined) files[`${ROOT}/.vid/face/run.${sess}`] = w.run
+  if (w.list !== undefined) files[`${ROOT}/.vid/face/list.json`] = w.list
   const vid = w.vid !== false
   on('session.root', () => ({ value: ROOT }))
   on('session.id', () => ({ value: sess }))
@@ -49,10 +51,12 @@ function world(on: any, w: World, log: Log) {
   })
   on('prompt.submit', (_: any, e: any) => {
     log.submits.push(e.text)
+    log.asUser.push(e.asUser === true || e.origin?.asUser === true)
     return w.drop ? { drop: w.drop } : { text: e.text }
   })
   on('prompt.fill', (_: any, e: any) => {
     log.fills.push(e.text)
+    log.modes.push(e.mode)
     return { isFilled: !w.unfilled }
   })
   on('turn.complete', (_: any, e: any) => ({ text: e.answer }))
@@ -68,7 +72,7 @@ const PANE = (surface: 'desktop' | 'terminal' | 'vscode' | 'mobile', columns = 6
     props: { title: 'ViD', isFocused: false, bodyColumns: columns, placement: 'dock', scroll: { offset: 0, bodyRows: 40 }, view: {} },
   }) as const
 
-const newLog = (): Log => ({ submits: [], fills: [], opens: [], writes: [], files: {}, notices: [] })
+const newLog = (): Log => ({ submits: [], asUser: [], fills: [], modes: [], opens: [], writes: [], files: {}, notices: [] })
 
 async function start($: any, on: any, w: World, store: Record<string, unknown> = {}) {
   const log = newLog()
@@ -1094,21 +1098,15 @@ const allDone = (s: any) => {
 }
 const PARTS = { parts: [{ name: 'Reading GitHub', state: 'done' }, { name: 'Working out what changed', state: 'now' }, { name: 'Saving the records', state: 'to come' }], now: 'ticket 7 of 21', stop: '', written: '' }
 
-test('FB-3 D1 the backlog: the item in progress, the rest in order, waiting and aside apart, the done and their count', async ($, on) => {
+// FB-5 A1: the backlog's items are drawn from the owner's list alone, each in the line the sort gave it
+const NOT_WRITTEN = 'Your list is not written yet. ViD writes it at its next call.'
+test('FB-3 D1 the backlog with no list written yet: its counts, and no item drawn', async ($, on) => {
   await start($, on, { standing: withBacklog(WORKING_STANDING), run: STOPPED })
   const ui = await $.ui.mount(PANE('desktop'))
   const all = await texts(ui)
-  const at = (t: string) => all.findIndex(x => x.startsWith(t))
-  const order = ['In progress', 'push the branch', 'To do, in order', 'the move publish S03', 'decide the export', 'Waiting', 'the bank account', 'Set aside', 'the trigger step-slow S02', 'Done', 'read the terms', 'the old question']
-  for (const t of order) expect(at(t)).toBeGreaterThan(-1)
-  for (let i = 1; i < order.length; i++) expect(at(order[i]!)).toBeGreaterThan(at(order[i - 1]!))
-  expect(all).toContain('Next: run the release')
-  expect(all).toContain('half done')
-  expect(all).toContain('asked on Monday')
-  expect(all).toContain('Done · 14 in all, the newest 2 here')
+  expect(all).toContain(NOT_WRITTEN)
   expect(all).toContain('2 to do · 1 in progress · 1 waiting · 1 set aside')
-  expect(all.some(t => t.includes('B2') && t.includes('you'))).toBe(true)
-  expect(all.some(t => t.includes('B3') && t.includes('Ann'))).toBe(true)
+  expect(all.some(t => t.includes('push the branch'))).toBe(false)
   // never the map's step of a project past defining
   expect(all.some(t => /^Step \d of 9/.test(t))).toBe(false)
   await ui.unmount()
@@ -1124,13 +1122,13 @@ test('FB-3 D1 the mode run stands before done, idle, working and stopped; a wait
     log.files[`${ROOT}/.vid/face/run.sess-A`] = run
     await $.command.run({ command: 'vid-panel', args: '' })
     const all = await texts(ui)
-    expect(all).toContain('To do, in order')
+    expect(all).toContain(NOT_WRITTEN)
     expect(all.some(t => /Every stop is done|Nothing waits on you here|ViD is working on|^ViD has stopped/.test(t))).toBe(false)
   }
   log.files[`${ROOT}/.vid/face/standing.json`] = withBacklog(PAUSE2_STANDING)
   log.files[`${ROOT}/.vid/face/sitting.json`] = PAUSE2
   await $.command.run({ command: 'vid-panel', args: '' })
-  expect(await texts(ui)).not.toContain('To do, in order')
+  expect(await texts(ui)).not.toContain(NOT_WRITTEN)
   await ui.unmount()
 })
 
@@ -1159,10 +1157,10 @@ test('FB-3 D1 a project on the terminal alone: no open', async ($, on) => {
 
 test('FB-3 D1 long words are cut, and nothing undefined is drawn', async ($, on) => {
   const long = 'x'.repeat(900)
-  await start($, on, { standing: edited(WORKING_STANDING, s => { s.backlog = { items: [{ id: 'Q1', state: 'to do', words: long }], done: [], doneCount: 0 } }), run: STOPPED })
+  await start($, on, { standing: withBacklog(WORKING_STANDING, s => { s.wait = { ...PARTS, stop: long } }), run: STOPPED })
   const ui = await $.ui.mount(PANE('desktop'))
   const all = await texts(ui)
-  expect(all.some(t => t.startsWith('xxx') && t.endsWith('…') && t.length < 320)).toBe(true)
+  expect(all.some(t => t.startsWith('It needs: xxx') && t.endsWith('…') && t.length < 320)).toBe(true)
   expect(all.some(t => /undefined/.test(t))).toBe(false)
   await ui.unmount()
 })
@@ -1176,7 +1174,7 @@ test('FB-3 D2 the parts of a long call, drawn in the mode run while the session 
   expect(at('● Working out what changed')).toBeGreaterThan(at('✓ Reading GitHub'))
   expect(at('○ Saving the records')).toBeGreaterThan(at('● Working out what changed'))
   expect(all).toContain('Now: ticket 7 of 21')
-  expect(at('To do, in order')).toBeGreaterThan(at('Now: ticket 7 of 21'))
+  expect(at(NOT_WRITTEN)).toBeGreaterThan(at('Now: ticket 7 of 21'))
   await ui.unmount()
 })
 
@@ -1207,5 +1205,635 @@ test('FB-3 D2 a stop is said in amber with Look at the chat, with the session st
   expect((t as any).props.color).toBe('warning')
   expect(await texts(ui)).toContain('It needs: your yes to the plan')
   expect(await texts(ui)).toContain('Look at the chat.')
+  await ui.unmount()
+})
+
+// --- FB-5 A1: the owner's list --------------------------------------------------------------------------------------
+
+const LIST = (fn: (l: any) => void = () => undefined): string => edited(JSON.stringify(LIST_DATA), fn)
+const listed = (fn?: (l: any) => void, w: World = {}): World => ({ standing: withBacklog(WORKING_STANDING, allDone), run: STOPPED, list: LIST(fn), ...w })
+const SECTIONS = ['My to do', 'Waiting', 'Changed', 'The rest', 'The plan', 'Team North', 'Team South', 'Team East', 'Tickets of no step in the plan']
+// a drawn text, and where it stands among the drawn texts
+const drawn = async (ui: any) => {
+  const all = await texts(ui)
+  return { all, at: (t: string) => all.findIndex(x => x === t), has: (t: string) => all.some(x => x.includes(t)) }
+}
+// a store the panel keeps across restarts
+const keeping = (on: any, kept: Record<string, unknown>) => {
+  on('store.get', (_: any, e: any) => ({ value: kept[e.key] }))
+  on('store.set', (_: any, e: any) => {
+    kept[e.key] = JSON.parse(JSON.stringify(e.value))
+    return { value: undefined }
+  })
+}
+const startKept = async ($: any, on: any, w: World, kept: Record<string, unknown>) => {
+  const log = newLog()
+  world(on, w, log)
+  keeping(on, kept)
+  await $.session.start({ cwd: ROOT, surface: 'desktop', isInteractive: true })
+  return log
+}
+const reread = ($: any) => $.command.run({ command: 'vid-panel', args: '' })
+
+test('FB-5 A1 the sections, numbered and in order, narrow and wide, with a link to each', async ($, on) => {
+  await start($, on, listed())
+  for (const cols of [44, 60, 120]) {
+    const ui = await $.ui.mount(PANE('desktop', cols))
+    const { all } = await drawn(ui)
+    let last = -1
+    for (const [i, t] of SECTIONS.entries()) {
+      expect(await ui.find({ type: 'Button', key: `go-${i + 1}` })).toBeDefined()
+      const box: any = await ui.find({ type: 'Box', key: `sec-${i + 1}` })
+      expect(box).toBeDefined()
+      const at = all.lastIndexOf(t)
+      expect(at).toBeGreaterThan(last)
+      expect(all[at - 1]).toBe(String(i + 1))
+      last = at
+    }
+    expect(await ui.find({ type: 'Box', key: 'sec-10' })).toBeUndefined()
+    expect(all.some(t => /undefined|NaN/.test(t))).toBe(false)
+    await ui.unmount()
+  }
+})
+
+test('FB-5 A1 the sections say their counts, all open', async ($, on) => {
+  await start($, on, listed())
+  const ui = await $.ui.mount(PANE('desktop', 120))
+  const { all, has } = await drawn(ui)
+  for (const t of ['3, only you can do, in order', '1', '2, nothing needed from you', '1 with ViD, 1 yours later', '2 releases, 5 steps, 3 teams', '3 steps: 1 accepted, 1 being built, 1 nobody has', 'no step yet']) expect(all).toContain(t)
+  expect(has('Branch library')).toBe(true)
+  expect(has('20 November, 15:03 UTC')).toBe(true)
+  for (const t of ['Cleo', 'Say which books go first.', 'since 18 Nov', 'The reading room closed two pieces.', 'Your tests were merged.', 'ViD is on it; you are told when it is done', 'Checks the two late answers.', 'Yours later', 'After the catalog', 'the order of the shelves.', 'Goes to the team by itself, when its time comes', 'One test reworded after its ticket went out.', 'Suggested by ViD', 'Weighed and left out: a new plan proposal, since nothing is accepted yet']) expect(has(t)).toBe(true)
+  // the new mark, on the line that is new alone
+  expect(all).toContain('new: Ann, 14:10')
+  expect(all.filter(t => t.startsWith('new'))).toHaveLength(1)
+  await ui.unmount()
+})
+
+test('FB-5 A1 My to do: the first line open, one open at a time, its number its own', async ($, on) => {
+  await start($, on, listed())
+  const ui = await $.ui.mount(PANE('desktop'))
+  let d = await drawn(ui)
+  for (const t of ['1.1', '1.2', '1.4', 'How long a loan lasts', 'Two words for late books', 'Tell Bo the shelf is ready', 'Decide the fine, then the notice.']) expect(d.all).toContain(t)
+  expect(d.all).toContain('Ann asks how long a member keeps a book.')
+  expect(d.all).toContain('How long is a loan?')
+  expect(d.all).not.toContain('The desk asks two things.')
+  await ui.press({ key: 'line-Q14' })
+  d = await drawn(ui)
+  expect(d.all).toContain('The desk asks two things.')
+  expect(d.all).not.toContain('Ann asks how long a member keeps a book.')
+  await ui.press({ key: 'line-Q14' })
+  d = await drawn(ui)
+  expect(d.all).not.toContain('The desk asks two things.')
+  expect(d.all).not.toContain('Ann asks how long a member keeps a book.')
+  await ui.unmount()
+})
+
+test('FB-5 A1 the choice ViD would take first, with why; the others after it', async ($, on) => {
+  await start($, on, listed())
+  const ui = await $.ui.mount(PANE('desktop'))
+  const { has } = await drawn(ui)
+  expect(has('ViD would choose “Three weeks”')).toBe(true)
+  expect(has('most members read slowly')).toBe(true)
+  const keys = (await ui.findAll({ type: 'Button' })).map((b: any) => b.key ?? b.props?.key ?? '').filter((k: string) => k.startsWith('ans-Q12-B3-0-'))
+  expect(keys).toEqual(['ans-Q12-B3-0-2', 'ans-Q12-B3-0-1', 'ans-Q12-B3-0-3'])
+  expect((await ui.find({ type: 'Button', key: 'ans-Q12-B3-0-2' }) as any).props.variant).toBe('primary')
+  expect((await ui.find({ type: 'Button', key: 'ans-Q12-B3-0-1' }) as any).props.variant).not.toBe('primary')
+  await ui.unmount()
+})
+
+test('FB-5 A1 a press says the number, the title, the answer and the ids, as the owner; the line is sent once and the next opens', async ($, on) => {
+  const kept: Record<string, unknown> = {}
+  const log = await startKept($, on, listed(), kept)
+  const ui = await $.ui.mount(PANE('desktop'))
+  await ui.press({ key: 'ans-Q12-B3-0-1' })
+  expect(log.submits).toEqual(['1.1 · How long a loan lasts: Two weeks (Q12, B3)'])
+  expect(log.asUser).toEqual([true])
+  expect(log.fills).toHaveLength(0)
+  let d = await drawn(ui)
+  expect(d.has('sent at')).toBe(true)
+  expect(d.has('Two weeks')).toBe(true)
+  expect(d.all).toContain('The desk asks two things.')
+  expect(d.all).toContain('2, only you can do, in order')
+  for (const k of ['ans-Q12-B3-0-1', 'ans-Q12-B3-0-2', 'off-Q12-B3', 'explain-Q12-B3', 'line-Q12-B3']) expect(await ui.find({ type: 'Button', key: k })).toBeUndefined()
+  // the same sort written again: still sent; the line's number gone to another line, it is told by its ids
+  log.files[`${ROOT}/.vid/face/list.json`] = LIST(l => {
+    l.written = '2026-11-20T15:20:00Z'
+    l.todo[1].n = '1.1'
+  })
+  await reread($)
+  d = await drawn(ui)
+  expect(d.has('sent at')).toBe(true)
+  expect(await ui.find({ type: 'Button', key: 'ans-Q12-B3-0-1' })).toBeUndefined()
+  // another conversation's panel, from the store
+  expect(JSON.stringify(kept)).toContain('Q12,B3')
+  // the next sort: a line again
+  log.files[`${ROOT}/.vid/face/list.json`] = LIST(l => {
+    l.sortedAt = '2026-11-21T09:00:00Z'
+  })
+  await reread($)
+  expect(await ui.find({ type: 'Button', key: 'ans-Q12-B3-0-1' })).toBeDefined()
+  await ui.unmount()
+})
+
+test('FB-5 A1 a line another conversation sent, or this one before a restart, is drawn sent and not sent again', async ($, on) => {
+  const kept: Record<string, unknown> = {}
+  kept.list = { sent: { '2026-11-20T15:03:00Z|Q12,B3': { at: '15:10', how: 'sent', words: 'Two weeks' } }, asked: {} }
+  const log = await startKept($, on, listed(), kept)
+  const ui = await $.ui.mount(PANE('desktop'))
+  const d = await drawn(ui)
+  expect(d.has('sent at 15:10')).toBe(true)
+  expect(await ui.find({ type: 'Button', key: 'ans-Q12-B3-0-1' })).toBeUndefined()
+  // sent by another conversation after this panel was drawn: the press sends nothing
+  kept.list = { sent: { ...(kept.list as any).sent, '2026-11-20T15:03:00Z|Q20': { at: '15:11', how: 'sent', words: 'Sent' } }, asked: {} }
+  await ui.press({ key: 'line-Q20' })
+  if (await ui.find({ type: 'Button', key: 'ans-Q20-0-1' })) await ui.press({ key: 'ans-Q20-0-1' })
+  expect(log.submits).toHaveLength(0)
+  await ui.unmount()
+})
+
+test('FB-5 A1 two questions on one line: sent together, once both are answered', async ($, on) => {
+  const log = await start($, on, listed())
+  const ui = await $.ui.mount(PANE('desktop'))
+  await ui.press({ key: 'line-Q14' })
+  await ui.press({ key: 'ans-Q14-1-2' })
+  expect(log.submits).toHaveLength(0)
+  expect((await ui.find({ type: 'Button', key: 'ans-Q14-1-2' }) as any).props.variant).toBe('primary')
+  await ui.press({ key: 'ans-Q14-0-1' })
+  expect(log.submits).toEqual(['1.2 · Two words for late books: A fine; ViD (Q14)'])
+  await ui.unmount()
+})
+
+test('FB-5 A1 a message with no choice is drawn whole, and answered as sent', async ($, on) => {
+  const log = await start($, on, listed())
+  const ui = await $.ui.mount(PANE('desktop'))
+  await ui.press({ key: 'line-Q20' })
+  expect((await drawn(ui)).all).toContain('Bo, the shelf is ready. Will you take it?')
+  await ui.press({ key: 'ans-Q20-0-1' })
+  expect(log.submits).toEqual(['1.4 · Tell Bo the shelf is ready: Sent (Q20)'])
+  await ui.unmount()
+})
+
+test('FB-5 A1 a press the app refused goes into the message box; one it would not take either can be pressed again', async ($, on) => {
+  const log = await start($, on, listed(undefined, { drop: 'the session is busy' }))
+  const ui = await $.ui.mount(PANE('desktop'))
+  await ui.press({ key: 'ans-Q12-B3-0-1' })
+  expect(log.submits).toHaveLength(1)
+  expect(log.fills.map(t => t.trim())).toEqual(['1.1 · How long a loan lasts: Two weeks (Q12, B3)'])
+  expect((await drawn(ui)).has('in your message box')).toBe(true)
+  expect(await ui.find({ type: 'Button', key: 'ans-Q12-B3-0-1' })).toBeUndefined()
+  // a second one keeps the first in the box
+  await ui.press({ key: 'line-Q20' })
+  await ui.press({ key: 'ans-Q20-0-1' })
+  expect(log.modes).toEqual(['append', 'append'])
+  await ui.unmount()
+})
+
+test('FB-5 A1 refused by the box too: not sent, said so, and pressed again', async ($, on) => {
+  const kept: Record<string, unknown> = {}
+  const log = await startKept($, on, listed(undefined, { drop: 'the session is busy', unfilled: true }), kept)
+  const ui = await $.ui.mount(PANE('desktop'))
+  await ui.press({ key: 'ans-Q12-B3-0-1' })
+  expect((await drawn(ui)).has('Not sent: the session is busy')).toBe(true)
+  expect(JSON.stringify(kept)).not.toContain('Q12,B3')
+  expect(await ui.find({ type: 'Button', key: 'ans-Q12-B3-0-1' })).toBeDefined()
+  await ui.press({ key: 'ans-Q12-B3-0-1' })
+  expect(log.submits).toHaveLength(2)
+  await ui.unmount()
+})
+
+test('FB-5 A1 Put it off, Explain it, and the numbers and links, shown at a press', async ($, on) => {
+  const log = await start($, on, listed())
+  const ui = await $.ui.mount(PANE('desktop'))
+  expect((await drawn(ui)).has('Ticket 31')).toBe(false)
+  await ui.press({ key: 'details-Q12-B3' })
+  expect((await drawn(ui)).has('Ticket 31')).toBe(true)
+  expect((await ui.findAll({ type: 'Link' })).some((l: any) => l.props.href === 'https://example.com/31')).toBe(true)
+  // a question is asked once, and the line still takes its answer
+  await ui.press({ key: 'explain-Q12-B3' })
+  expect(log.submits).toEqual(['1.1 · How long a loan lasts: Explain it (Q12, B3)'])
+  expect((await drawn(ui)).has('asked in the chat')).toBe(true)
+  expect(await ui.find({ type: 'Button', key: 'explain-Q12-B3' })).toBeUndefined()
+  await ui.press({ key: 'off-Q12-B3' })
+  expect(log.submits[1]).toBe('1.1 · How long a loan lasts: Put it off (Q12, B3)')
+  expect(await ui.find({ type: 'Button', key: 'off-Q12-B3' })).toBeUndefined()
+  // a line with no numbers has no button for them
+  expect(await ui.find({ type: 'Button', key: 'details-Q14' })).toBeUndefined()
+  await ui.unmount()
+})
+
+test('FB-5 A1 nothing for the owner: said only with no item unsorted; the last sort kept, with not sorted yet', async ($, on) => {
+  const log = await start($, on, listed(l => { l.todo = [] }))
+  const ui = await $.ui.mount(PANE('desktop'))
+  expect((await drawn(ui)).has('Nothing is yours now')).toBe(true)
+  log.files[`${ROOT}/.vid/face/list.json`] = LIST(l => { l.todo = []; l.unsorted = 2; l.state = 'stale' })
+  await reread($)
+  let d = await drawn(ui)
+  expect(d.has('Nothing is yours now')).toBe(false)
+  expect(d.has('2 not sorted yet')).toBe(true)
+  log.files[`${ROOT}/.vid/face/list.json`] = LIST(l => { l.unsorted = 1; l.state = 'stale' })
+  await reread($)
+  d = await drawn(ui)
+  expect(d.all).toContain('How long a loan lasts')
+  expect(d.has('1 not sorted yet')).toBe(true)
+  // never sorted: the plan and the teams whole
+  log.files[`${ROOT}/.vid/face/list.json`] = LIST(l => { l.state = 'none'; l.sortedAt = ''; l.unsorted = 4; l.todo = []; l.waiting = []; l.changed = []; l.rest = { ...l.rest, vid: [], later: [], team: [], suggested: [], leftOut: [] } })
+  await reread($)
+  d = await drawn(ui)
+  expect(d.has('Nothing is yours now')).toBe(false)
+  expect(d.has('4 not sorted yet')).toBe(true)
+  expect(d.all).toContain('Loans')
+  expect(await ui.find({ type: 'Button', key: 'holds' })).toBeDefined()
+  await ui.unmount()
+})
+
+test('FB-5 A1 the rest ends with everything ViD holds and the counts, closed until pressed', async ($, on) => {
+  await start($, on, listed())
+  const ui = await $.ui.mount(PANE('desktop'))
+  let d = await drawn(ui)
+  expect(d.has('the trigger step-slow')).toBe(false)
+  expect(d.has('tests in steps not sent')).toBe(false)
+  expect(await ui.find({ type: 'Button', key: 'holds' })).toBeDefined()
+  await ui.press({ key: 'holds' })
+  d = await drawn(ui)
+  for (const t of ['Q12', 'the question loan-days', 'Q30', 'the trigger step-slow', 'The plan', '7 tests in steps not sent']) expect(d.has(t)).toBe(true)
+  await ui.unmount()
+})
+
+test('FB-5 A1 what a wait holds is closed until pressed', async ($, on) => {
+  await start($, on, listed())
+  const ui = await $.ui.mount(PANE('desktop'))
+  expect((await drawn(ui)).has('Asked on ticket 40.')).toBe(false)
+  await ui.press({ key: 'waiting-details' })
+  expect((await drawn(ui)).has('Asked on ticket 40.')).toBe(true)
+  await ui.unmount()
+})
+
+test('FB-5 A1 the plan: a box a step, filled by its pieces, what is stuck, and what holds the rest up', async ($, on) => {
+  await start($, on, listed())
+  const ui = await $.ui.mount(PANE('desktop', 120))
+  const { all, has } = await drawn(ui)
+  const boxes = (await ui.findAll({ type: 'Svg' })).map((x: any) => x.props.alt)
+  for (const t of ['Catalog: accepted', 'Loans: being built, 40% of its pieces done', 'Members: sent, nobody has it', 'Fines: taken', 'Notices: not sent yet']) expect(boxes.filter((b: string) => b === t)).toHaveLength(1)
+  for (const t of ['1 accepted', '1 being built, filled by the pieces done', '1 taken, no pieces yet', '1 sent to the team, nobody has it', '1 not sent yet', '1 of 2 steps accepted', '0 of 3 steps accepted', '1 being built: Ann.', 'Ann first.', 'What holds the rest up: 2 steps', '4 steps are not accepted. These 2 wait on nothing; 1 of the other 2 builds on them, directly or through other steps.', 'Ann; 2 of 5 pieces done', 'Nobody has it, 9 days.', '1 builds on it', '2 build on it']) expect(has(t)).toBe(true)
+  expect((await ui.find({ type: 'Text', text: 'Stuck: 1 nobody has.' }) as any).props.color).toBe('warning')
+  expect(all.indexOf('What holds the rest up: 2 steps')).toBeLessThan(all.lastIndexOf('Team North'))
+  await ui.unmount()
+})
+
+test('FB-5 A1 the teams: every card open, tracks side by side from 90 columns, one under the other below', async ($, on) => {
+  await start($, on, listed())
+  for (const [cols, dir] of [[89, 'column'], [90, 'row'], [44, 'column']] as const) {
+    const ui = await $.ui.mount(PANE('desktop', cols))
+    const row: any = await ui.find({ type: 'Box', key: 'tracks-1-0-0' })
+    expect(row?.props.flexDirection).toBe(dir)
+    const { all, has } = await drawn(ui)
+    for (const id of ['S01', 'S02', 'S03', 'S04', 'S05']) expect(await ui.findAll({ type: 'Box', key: `card-${id}` })).toHaveLength(1)
+    for (const t of ['Release 0', 'First shelf', 'North, track 2', 'Being built', 'Nobody has it', 'Not sent yet', 'Taken', 'Accepted', '2 of 5 pieces done', 'Ann', '1 ready, 1 draft', '17 Nov, 3 days ago', '1 later step', 'Loans; Members', 'nothing that is not accepted', 'One test was reworded; the team is told later.']) expect(has(t)).toBe(true)
+    expect(all.filter(t => t === '3 of 3 pieces done')).toHaveLength(1)
+    // the tests' ids are folded
+    expect(has('LIB-002')).toBe(false)
+    await ui.press({ key: 'tests-S02' })
+    expect((await drawn(ui)).has('LIB-002 LIB-003')).toBe(true)
+    await ui.press({ key: 'tests-S02' })
+    const links = (await ui.findAll({ type: 'Link' })).map((l: any) => `${l.props.label} ${l.props.href}`)
+    for (const l of ['#12 S02 https://example.com/12', '#51 https://example.com/51', '#52 https://example.com/52']) expect(links).toContain(l)
+    // the pull requests in one row that wraps, after how many there are
+    expect(all).toContain('Pull requests: 1 ready, 1 draft:')
+    const pulls: any = await ui.find({ type: 'Box', key: 'pulls-S02' })
+    expect([pulls?.props.flexDirection, pulls?.props.flexWrap]).toEqual(['row', 'wrap'])
+    expect(pulls.children.map((x: any) => x.type)).toEqual(['Text', 'Link', 'Link'])
+    await ui.unmount()
+  }
+})
+
+test('FB-5 A1 with no plan to draw (GitHub auto) the sections end at The rest', async ($, on) => {
+  await start($, on, listed(l => { l.plan = { releases: [], hold: { open: 0, others: 0, built: 0, rows: [] } }; l.teams = [] }))
+  const ui = await $.ui.mount(PANE('desktop'))
+  expect(await ui.find({ type: 'Box', key: 'sec-4' })).toBeDefined()
+  expect(await ui.find({ type: 'Box', key: 'sec-5' })).toBeUndefined()
+  expect(await ui.find({ type: 'Button', key: 'go-5' })).toBeUndefined()
+  await ui.unmount()
+})
+
+test('FB-5 A1 the list is the panel with nothing in the backlog too', async ($, on) => {
+  await start($, on, { standing: edited(WORKING_STANDING, s => { s.backlog = { items: [], done: [], doneCount: 0 } }), run: STOPPED, list: LIST() })
+  const ui = await $.ui.mount(PANE('desktop'))
+  expect((await drawn(ui)).all).toContain('How long a loan lasts')
+  await ui.unmount()
+})
+
+test('FB-5 A1 a call’s parts stand above the list, and its stop', async ($, on) => {
+  await start($, on, listed(undefined, { standing: withBacklog(WORKING_STANDING, s => { allDone(s); s.wait = PARTS }), run: RUNNING }))
+  const ui = await $.ui.mount(PANE('desktop'))
+  const { all } = await drawn(ui)
+  expect(all.indexOf('● Working out what changed')).toBeGreaterThan(-1)
+  expect(all.indexOf('● Working out what changed')).toBeLessThan(all.lastIndexOf('My to do'))
+  await ui.unmount()
+})
+
+test('FB-5 A1 a list it cannot read, or of another form, is said in one line; none written yet, the counts', async ($, on) => {
+  const log = await start($, on, listed(undefined, { list: '{"format":1,' }))
+  const ui = await $.ui.mount(PANE('desktop'))
+  expect((await drawn(ui)).has('could not be read')).toBe(true)
+  log.files[`${ROOT}/.vid/face/list.json`] = LIST(l => { l.format = 2 })
+  await reread($)
+  expect((await drawn(ui)).has('written by a newer ViD')).toBe(true)
+  delete log.files[`${ROOT}/.vid/face/list.json`]
+  await reread($)
+  const d = await drawn(ui)
+  expect(d.has('2 to do · 1 in progress · 1 waiting · 1 set aside')).toBe(true)
+  expect(d.has('not written yet')).toBe(true)
+  await ui.unmount()
+})
+
+test('FB-5 A1 a field left out is drawn as none, and a long plan is drawn whole', async ($, on) => {
+  const log = await start($, on, listed(undefined, { list: '{"format":1,"state":"sorted","todo":[{"n":"1.1","ids":["Q1"],"title":"A line"}],"plan":{"releases":[{"n":0,"steps":[{"id":"S01"}]}]},"teams":[{"name":"North","releases":[{"tracks":[{"cards":[{"id":"S01"}]}]}]}]}' }))
+  const ui = await $.ui.mount(PANE('desktop', 120))
+  let d = await drawn(ui)
+  expect(d.all).toContain('A line')
+  expect(d.all.some(t => /undefined|NaN/.test(t))).toBe(false)
+  const ids = Array.from({ length: 40 }, (_, i) => `LIB-${i}`)
+  log.files[`${ROOT}/.vid/face/list.json`] = LIST(l => {
+    l.teams[0].releases = [{ n: 0, name: 'First shelf', words: '', tracks: [1, 2, 3].map(t => ({ name: `track ${t}`, cards: Array.from({ length: 40 }, (_, i) => ({ ...l.teams[1].releases[0].tracks[0].cards[0], id: `S${t}-${i}`, name: `Step ${t}-${i}`, tests: 40, testIds: ids })) })) }]
+  })
+  await reread($)
+  d = await drawn(ui)
+  expect(new Set(d.all.join('\n').match(/Step \d-\d+/g))).toHaveProperty('size', 120)
+  await ui.unmount()
+})
+
+// What the desktop app draws of a panel at most: an element and a text are a piece each, 2,000 in all, 32 deep. Past it the app says
+// "nothing to show yet" and no more; the kit's own engine draws ten times that.
+const APP_DRAWS = { pieces: 2000, deep: 32, chars: 262144, text: 100000 }
+const measure = (x: any, deep = 1): { pieces: number; deep: number; chars: number; text: number } => {
+  if (typeof x === 'string') return { pieces: 1, deep, chars: x.length, text: x.length }
+  const kids: any[] = x?.children ?? []
+  const own = Object.entries({ ...(x?.props ?? {}), ...(x?.hover ?? {}) }).reduce((n, [k, v]) => n + k.length + (typeof v === 'string' ? v.length : 0), 0)
+  return kids.map(k => measure(k, deep + 1)).reduce((a, b) => ({ pieces: a.pieces + b.pieces, deep: Math.max(a.deep, b.deep), chars: a.chars + b.chars, text: a.text + b.text }), { pieces: 1, deep, chars: own, text: 0 })
+}
+const inBounds = (x: any) => {
+  const m = measure(x)
+  return m.pieces < APP_DRAWS.pieces && m.deep <= APP_DRAWS.deep && m.chars < APP_DRAWS.chars && m.text < APP_DRAWS.text
+}
+const ofPlan = (l: any, nth: number, per: number) => {
+  const card = l.teams[1].releases[0].tracks[0].cards[0]
+  const ids = Array.from({ length: 40 }, (_, i) => `LIB-${i}`)
+  const states = ['accepted', 'building', 'taken', 'nobody', 'unsent']
+  const all = Array.from({ length: nth * per }, (_, i) => ({ ...card, id: `S${i}`, name: `Step ${i} done`, state: states[i % 5], flag: i % 4 ? '' : 'A', ticket: i + 1, url: `https://example.com/${i}`, who: 'Ann', pieces: 5, done: 2, ready: 1, drafts: 1, pulls: [{ n: 51, url: 'https://example.com/51' }], sent: '2026-11-17T09:00:00Z', buildsOn: ['Loans'], holdsUp: 2, tests: 40, testIds: ids, notes: ['One test was reworded.'] }))
+  l.plan.releases = [{ ...l.plan.releases[0], steps: all.map(c => ({ id: c.id, name: c.name, state: c.state, fill: 40, flag: c.flag })) }]
+  l.teams = [{ ...l.teams[0], releases: [{ n: 0, name: 'First shelf', words: '', tracks: Array.from({ length: nth }, (_, k) => ({ name: `track ${k}`, cards: all.slice(k * per, (k + 1) * per) })) }] }]
+  l.rest.holds = Array.from({ length: 70 }, (_, i) => ({ id: `B${i}`, words: `What ViD holds ${i}`, where: 'in The rest' }))
+}
+
+test('FB-5 A1 the panel never holds more than the app draws, however long the plan', async ($, on) => {
+  const log = await start($, on, listed())
+  for (const [nth, per, whole] of [[3, 15, true], [3, 40, false], [3, 130, false]] as const) {
+    log.files[`${ROOT}/.vid/face/list.json`] = LIST(l => ofPlan(l, nth, per))
+    await reread($)
+    const links = await (async () => {
+      const ui = await $.ui.mount(PANE('desktop', 120))
+      const keys = (await ui.findAll({ type: 'Button' })).map((b: any) => b.props.key as string)
+      await ui.unmount()
+      return keys
+    })()
+    const go = links.filter(k => k.startsWith('go-')).map(k => k.slice(3))
+    expect(go.length).toBeGreaterThan(4)
+    for (const n of go) expect(links.filter(k => k === `top-${n}`)).toHaveLength(1)
+    // everything ViD holds shut, then shown
+    for (const held of [false, true]) {
+      if (held) {
+        const ui = await $.ui.mount(PANE('desktop', 120))
+        await ui.press({ key: 'holds' })
+        await ui.unmount()
+      }
+      for (const cols of [120, 56]) {
+        expect([nth * per, held, cols, inBounds(await ($ as any).ui.render(PANE('desktop', cols) as any))]).toEqual([nth * per, held, cols, true])
+      }
+    }
+    const ui = await $.ui.mount(PANE('desktop', 120))
+    const { all } = await drawn(ui)
+    // every step named in its team, whole or in a line; with room, every card whole
+    const said = all.join('\n')
+    for (let i = 0; i < nth * per; i++) expect(said.includes(`Step ${i} done`)).toBe(true)
+    if (whole) for (let i = 0; i < nth * per; i++) expect(await ui.findAll({ type: 'Box', key: `card-S${i}` })).toHaveLength(1)
+    // what is closed is said on the panel, never dropped in silence
+    expect(said.includes('closed to fit')).toBe(!whole)
+    expect(all).toContain('How long a loan lasts')
+    await ui.press({ key: 'holds' })
+    await ui.unmount()
+  }
+  // past even that: My to do is drawn, and the steps are said to be too many
+  log.files[`${ROOT}/.vid/face/list.json`] = LIST(l => ofPlan(l, 3, 700))
+  await reread($)
+  expect(inBounds(await ($ as any).ui.render(PANE('desktop', 56) as any))).toBe(true)
+  const { all, has } = await drawn(await $.ui.mount(PANE('desktop', 56)))
+  expect(all).toContain('How long a loan lasts')
+  expect(has('too many to draw here')).toBe(true)
+})
+
+test('FB-5 A1 a sitting too long to draw whole is drawn in parts, every item reached, its marks kept; past that it says so, and is never blank', async ($, on) => {
+  const log = await start($, on, { standing: PAUSE1_STANDING, sitting: PAUSE1_47 })
+  expect(inBounds(await ($ as any).ui.render(PANE('desktop', 56) as any))).toBe(true)
+  const long = (n: number, sections = 1) => edited(PAUSE1_47, s => {
+    s.sections = s.sections.filter((x: any) => x.kind === 'list' && x.items.length >= 4).slice(0, 1).flatMap((x: any) => Array.from({ length: sections }, (_, k) => ({ ...x, id: `${x.id}${k || ''}`, items: Array.from({ length: n }, (_, i) => ({ ...x.items[0], id: `X${i}`, text: `Rule ${i} holds`, look: '' })) })))
+  })
+  const ruled = (all: string[]) => all.filter(t => /^Rule \d+ holds$/.test(t))
+  log.files[`${ROOT}/.vid/face/sitting.json`] = long(47)
+  await reread($)
+  const ui: any = await $.ui.mount(PANE('desktop', 56))
+  expect(ruled((await drawn(ui)).all)).toHaveLength(47)
+  expect(await ui.find({ type: 'Button', key: 'contract-later-top' })).toBeUndefined()
+  log.files[`${ROOT}/.vid/face/sitting.json`] = long(200)
+  await reread($)
+  const seen = new Set<string>()
+  for (let i = 0; i < 5; i++) {
+    const { all, has } = await drawn(ui)
+    expect(inBounds(await ($ as any).ui.render(PANE('desktop', 56) as any))).toBe(true)
+    expect(has(`${i * 40 + 1} to ${i * 40 + 40} of 200`)).toBe(true)
+    for (const t of ruled(all)) seen.add(t)
+    if (i < 4) await ui.press({ key: 'contract-later-top' })
+  }
+  expect(seen.size).toBe(200)
+  expect(await ui.find({ type: 'Button', key: 'contract-later-top' })).toBeUndefined()
+  // a mark of one part stands on the others
+  await ui.press({ key: 'contract/X199-out' })
+  await ui.press({ key: 'contract-earlier-foot' })
+  expect((await drawn(ui)).has("Doesn't need it 1")).toBe(true)
+  expect((await drawn(ui)).has('Send is for all of them')).toBe(true)
+  // a part of another size skips no item: the first 40 so long that 20 are drawn, the rest 40 at a time
+  log.files[`${ROOT}/.vid/face/sitting.json`] = edited(long(170), s => { s.sections[0].items.forEach((x: any, i: number) => { x.detail = i < 40 ? ['y'.repeat(7000)] : [] }) })
+  await reread($)
+  for (let i = 0; i < 12; i++) if (await ui.find({ type: 'Button', key: 'contract-earlier-top' })) await ui.press({ key: 'contract-earlier-top' })
+  const got = new Set<string>()
+  for (let i = 0; i < 12; i++) {
+    for (const t of ruled((await drawn(ui)).all)) got.add(t)
+    if (!(await ui.find({ type: 'Button', key: 'contract-later-top' }))) break
+    await ui.press({ key: 'contract-later-top' })
+  }
+  expect(got.size).toBe(170)
+  // many short sections are drawn in parts too
+  log.files[`${ROOT}/.vid/face/sitting.json`] = long(9, 12)
+  await reread($)
+  expect(inBounds(await ($ as any).ui.render(PANE('desktop', 56) as any))).toBe(true)
+  expect((await drawn(ui)).all).not.toContain('This panel is too long for the app to draw')
+  // past even that: said, with a way back, the marks kept
+  log.files[`${ROOT}/.vid/face/sitting.json`] = long(200, 80)
+  await reread($)
+  expect((await drawn(ui)).all).toContain('This panel is too long for the app to draw')
+  log.files[`${ROOT}/.vid/face/sitting.json`] = long(47)
+  await reread($)
+  expect((await drawn(ui)).has('Send is for all of them')).toBe(false)
+  await ui.unmount()
+})
+
+test('FB-5 A1 what one press unfolds past the bound can be folded again: the marks kept', async ($, on) => {
+  const log = await start($, on, listed(l => { ofPlan(l, 3, 15); l.rest.holds = Array.from({ length: 420 }, (_, i) => ({ id: `B${i}`, words: `What ViD holds ${i}`, where: 'in The rest' })) }))
+  const ui: any = await $.ui.mount(PANE('desktop', 110))
+  expect((await drawn(ui)).all).toContain('How long a loan lasts')
+  await ui.press({ key: 'holds' })
+  expect((await drawn(ui)).all).toContain('This panel is too long for the app to draw')
+  await ui.press({ key: 'fold' })
+  expect((await drawn(ui)).all).toContain('How long a loan lasts')
+  await ui.unmount()
+  void log
+})
+
+test('FB-5 A1 a press that makes a long list too long to draw whole leaves its item on show', async ($, on) => {
+  const of = (n: number) => edited(PAUSE1_47, s => {
+    const sec = s.sections.find((x: any) => x.kind === 'decided' && x.acts.some((a: any) => a.words))
+    const item = s.sections.find((x: any) => x.items.length).items[0]
+    s.sections = [{ ...sec, empty: '', items: Array.from({ length: n }, (_, i) => ({ ...item, recommend: '', id: `X${i}`, text: `Rule ${i} holds`, detail: [], look: '' })) }]
+  })
+  const sec = JSON.parse(of(1)).sections[0]
+  const act = sec.acts.find((a: any) => a.words).id
+  const log = await start($, on, { standing: PAUSE1_STANDING, sitting: of(60) })
+  const ui: any = await $.ui.mount(PANE('desktop', 110))
+  let n = 60
+  while (!(await ui.find({ type: 'Button', key: `${sec.id}-later-top` }))) {
+    log.files[`${ROOT}/.vid/face/sitting.json`] = of(++n)
+    await reread($)
+  }
+  log.files[`${ROOT}/.vid/face/sitting.json`] = of(--n)
+  await reread($)
+  expect(await ui.find({ type: 'Button', key: `${sec.id}-later-top` })).toBeUndefined()
+  for (let i = n - 1; i > n - 30; i--) {
+    await ui.press({ key: `${sec.id}/X${i}-${act}` })
+    expect(await ui.find({ type: 'Input', key: `${sec.id}/X${i}-words` })).toBeDefined()
+    if (await ui.find({ type: 'Button', key: `${sec.id}-earlier-top` })) break
+  }
+  expect(await ui.find({ type: 'Button', key: `${sec.id}-earlier-top` })).toBeDefined()
+  await ui.unmount()
+})
+
+test('FB-5 A1 a long draft is drawn in its first items, and says how many more; a plan with no team says its steps are left out', async ($, on) => {
+  const log = await start($, on, { standing: DRAFT_STANDING, sitting: edited(DRAFT, s => {
+    const sec = s.sections.find((x: any) => x.items.length)
+    s.sections = [{ ...sec, items: Array.from({ length: 500 }, (_, i) => ({ ...sec.items[0], id: `D${i}`, text: `Draft ${i}`, detail: ['one', 'two'] })) }]
+  }), run: RUNNING })
+  const ui: any = await $.ui.mount(PANE('desktop', 110))
+  const { has } = await drawn(ui)
+  expect(has('Still changing')).toBe(true)
+  expect(has('and 460 more, to see when ViD has finished')).toBe(true)
+  await ui.unmount()
+  void log
+})
+
+test('FB-5 A1 a plan given up says so in The plan, with no team too; long names that hover are counted', async ($, on) => {
+  const log = await start($, on, listed(l => { ofPlan(l, 1, 1000); l.teams = [] }))
+  const ui: any = await $.ui.mount(PANE('desktop', 56))
+  expect((await drawn(ui)).has('Its steps are too many to draw here')).toBe(true)
+  expect(inBounds(await ($ as any).ui.render(PANE('desktop', 56) as any))).toBe(true)
+  log.files[`${ROOT}/.vid/face/list.json`] = LIST(l => { ofPlan(l, 1, 3); l.teams = []; l.plan.releases[0].steps.forEach((x: any, i: number) => { x.id = 'X'.repeat(32000) + i }) })
+  await reread($)
+  expect(inBounds(await ($ as any).ui.render(PANE('desktop', 56) as any))).toBe(true)
+  await ui.unmount()
+})
+
+test('FB-5 A1 a section that is no team is named as it stands, and steps in no release under no release', async ($, on) => {
+  await start($, on, listed())
+  const ui = await $.ui.mount(PANE('desktop', 110))
+  const { all } = await drawn(ui)
+  expect(all).toContain('Tickets of no step in the plan')
+  expect(all).not.toContain('Team Tickets of no step in the plan')
+  expect(all).toContain('Signs')
+  expect(all.some((x: string) => x.startsWith('Release -1'))).toBe(false)
+  await ui.unmount()
+})
+
+test('FB-5 A1 a link of the top row scrolls to its section; refused, the panel stays as it is', async ($, on) => {
+  const asked: any[] = []
+  const engine = (answer: () => unknown): any => ({ ui: { scroll: async (a: any) => (asked.push(a), answer()) } })
+  await goTo(engine(() => ({})), 'vid', 5)
+  await goTo(engine(() => ({ deny: 'another move came first' })), 'vid', 6)
+  await goTo(engine(() => { throw new Error('no surface') }), 'vid', 7)
+  await goTo(engine(() => ({})), 'vid', 0)
+  expect(asked).toEqual([...[5, 6, 7].map(n => ({ to: { key: `top-${n}` }, in: 'vid', block: 'start' })), { to: 'start', in: 'vid' }])
+  // in the panel: the kit refuses a module's own scroll, and the press breaks nothing
+  await start($, on, listed())
+  const ui = await $.ui.mount(PANE('desktop'))
+  const before = (await drawn(ui)).all
+  await ui.press({ key: 'go-5' })
+  expect((await drawn(ui)).all).toEqual(before)
+  // the app knows where a drawing's buttons stand and of no box: what a link moves to is a button, at every size, and pressed too it breaks nothing
+  await ui.press({ key: 'top-5' })
+  expect((await drawn(ui)).all).toEqual(before)
+  await ui.unmount()
+})
+
+test('FB-5 A1 with a list and an empty backlog it opens by itself, once, never with the keys', async ($, on) => {
+  const log = await start($, on, { standing: edited(WORKING_STANDING, s => { s.backlog = { items: [], done: [], doneCount: 0 } }), run: STOPPED, list: LIST() })
+  expect(log.opens).toHaveLength(1)
+  expect(log.opens[0].focus).toBeUndefined()
+  await $.turn.complete({ answer: 'done', stop: 'stop' } as any).catch(() => undefined)
+  expect(log.opens).toHaveLength(1)
+})
+
+test('FB-5 A1 the pages to read stand once, at the foot of the list', async ($, on) => {
+  await start($, on, listed(undefined, { standing: withPages(withBacklog(WORKING_STANDING, allDone)) }))
+  const ui = await $.ui.mount(PANE('desktop'))
+  const { all } = await drawn(ui)
+  expect(all.filter(t => t === 'To read:')).toHaveLength(1)
+  expect(all.indexOf('To read:')).toBeGreaterThan(all.findIndex(t => t.startsWith('Drawn from')))
+  expect(all.findIndex(t => t.startsWith('Drawn from'))).toBeGreaterThan(all.lastIndexOf('Team East'))
+  expect(all.findIndex(t => t.startsWith('The technical foundation: '))).toBeGreaterThan(all.indexOf('To read:'))
+  expect((await ui.findAll({ type: 'Link' })).filter((l: any) => l.props.label === 'The PRD')).toHaveLength(1)
+  await ui.unmount()
+})
+
+test('FB-5 A1 a second answer in the message box starts on a new line; the first does not', async ($, on) => {
+  const log = await start($, on, listed(undefined, { drop: 'the session is busy' }))
+  const ui = await $.ui.mount(PANE('desktop'))
+  await ui.press({ key: 'ans-Q12-B3-0-1' })
+  await ui.press({ key: 'line-Q20' })
+  await ui.press({ key: 'ans-Q20-0-1' })
+  expect(log.fills).toEqual(['1.1 · How long a loan lasts: Two weeks (Q12, B3)', '\n1.4 · Tell Bo the shelf is ready: Sent (Q20)'])
+  await ui.unmount()
+})
+
+test('FB-5 A1 a read of the same files draws nothing again; a list written again is drawn', async ($, on) => {
+  mock.clock(on, { now: Date.parse('2026-11-20T16:00:00Z') })
+  let sets = 0
+  on('state.set', { plugin: 'vid', key: 'view' } as any, (_: any, e: any, next: any) => {
+    sets++
+    return next(e)
+  })
+  const log = await start($, on, listed(undefined, { clock: true }))
+  const ui = await $.ui.mount(PANE('desktop'))
+  expect(sets).toBeGreaterThan(0)
+  sets = 0
+  await reread($)
+  await reread($)
+  expect(sets).toBe(0)
+  log.files[`${ROOT}/.vid/face/list.json`] = LIST(l => { l.written = '2026-11-20T16:00:00Z' })
+  await reread($)
+  expect(sets).toBe(1)
+  await ui.unmount()
+})
+
+test('FB-5 A1 what was weighed and left out, with no stop before the next', async ($, on) => {
+  await start($, on, listed(l => { l.rest.leftOut = ['a new plan, since nothing is accepted.', 'more steps', 'a fine.'] }))
+  const ui = await $.ui.mount(PANE('desktop'))
+  expect((await drawn(ui)).all).toContain('Weighed and left out: a new plan, since nothing is accepted; more steps; a fine.')
   await ui.unmount()
 })

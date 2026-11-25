@@ -23,7 +23,7 @@
 # `final`) row, field, after, drop and text act on the base; after it they act on the newest append section alone: an
 # id held only elsewhere is refused (restate it there as `<id> AMENDED | …`) and text is refused. append, review,
 # resolve, ratified and findings act in both.
-# Usage: sh checks/prd-apply.sh [PRD.md] <edits file> [--date YYYY-MM-DD]
+# Usage: sh checks/prd-apply.sh [PRD.md] <edits file> [--date YYYY-MM-DD]   (today, UTC, when not given; never after it, FB-5 C1)
 # serves: both (FB-1 A2)
 set -eu
 NL='
@@ -34,7 +34,9 @@ while [ $# -gt 0 ]; do
   case $1 in --date) [ $# -ge 2 ] || usage; DATE=$2; shift 2 ;; -*) usage ;; *) n=$((n + 1)); if [ "$n" -gt 1 ]; then ED=$1; else A1=$1; fi; shift ;; esac
 done
 case $n in 1) ED=$A1 ;; 2) PRD=$A1 ;; *) usage ;; esac
-[ -n "$DATE" ] || DATE=$(date -u +%Y-%m-%d)
+TD=$(date -u +%Y-%m-%d); [ -n "$DATE" ] || DATE=$TD
+# FB-5 C1: a date after today (UTC) is refused, its year, month and day compared as numbers
+! awk -v d="$DATE" -v t="$TD" 'function n(x,   a) { split(x, a, "-"); return a[1] * 10000 + a[2] * 100 + a[3] } BEGIN { exit !(n(d) > n(t)) }' || { echo "ViD prd-apply: refused — --date $DATE is after today, $TD (UTC): leave --date out, and today is written — nothing written." >&2; exit 2; }
 [ -f "$PRD" ] || { echo "ViD prd-apply: '$PRD' missing." >&2; exit 1; }
 [ -f "$ED" ] || { echo "ViD prd-apply: the edits file '$ED' is missing — nothing written." >&2; exit 2; }
 HERE=$(cd "$(dirname "$0")" && pwd); COURT="$HERE/prd.sh"

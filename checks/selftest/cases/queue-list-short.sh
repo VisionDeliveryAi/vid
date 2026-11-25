@@ -2,8 +2,8 @@
 # Purpose: selftest case — the queue's open lines shown one line a kind (FB-3 C5). On the toy in GitHub manual, a raise of three
 # important triggers of one kind, one of another, a critical one and three publish moves: `queue.sh list` holds each `Q<n>` line
 # as before; `queue.sh list --short` shows one line a kind with its count, its Q numbers, its subjects and evidence and the one
-# answer it takes, a kind of one line as `list` prints it; every Q number of `list` is in it; a declined one is in neither; and
-# next-move.sh's call ends with it. Env: CHECKS.
+# answer it takes, a kind of one line as `list` prints it; every Q number of `list` is in it; a declined one is in neither; and (FB-5
+# A1) next-move.sh's call prints neither it nor a page: the owner's list is the vid-sort skill's. Env: CHECKS.
 set -eu
 unset VID_CALLER 2>/dev/null || true
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
@@ -30,9 +30,9 @@ for q in $(cut -f1 "$T/ql"); do grep -qE "(^|[ $TB])$q([ ,:$TB]|\$)" "$T/qs" || 
 sh "$CHECKS/queue.sh" answer "$C" decline 'no, it is fine' > "$T/out" 2>&1 || fail "$C was not declined"
 short; grep -qE "(^|[ $TB])$C([ ,:$TB]|\$)" "$T/qs" && fail 'a declined line is shown'; grep -q "^$A $B${TB}trigger:not-taken${TB}" "$T/qs" || fail 'the two left are not one line'
 RC=0; sh "$CHECKS/queue.sh" list --long > "$T/out" 2>&1 || RC=$?; [ "$RC" != 0 ] || fail 'an unknown argument of list was taken'
-# the call ends with it
+# the call prints none of it
 CLAUDE_CODE_SESSION_ID=qls-case; export CLAUDE_CODE_SESSION_ID; HOME=$T/home; export HOME; mkdir -p "$HOME"
 sh "$CHECKS/github.sh" lock-take > "$T/out" 2>&1 || fail 'the lock could not be taken'; sh "$CHECKS/next.sh" read > "$T/out" 2>&1 || fail 'next.sh read failed'
 sh "$CHECKS/next-move.sh" call > "$T/out" 2>&1 || fail 'the call failed'; sh "$CHECKS/queue.sh" list --short > "$T/qs" 2>/dev/null || fail 'list --short failed after the call'
-sed -n '/^page /,$p' "$T/out" | sed 1d > "$T/end"; cmp -s "$T/end" "$T/qs" && [ "$(grep -c "${TB}move:publish${TB}" "$T/end")" = 1 ] || fail 'the call does not end with the short list'
+grep -q "${TB}move:publish" "$T/qs" || fail 'the list holds no publish move after the call'; ! grep -qE "^page |${TB}(move|trigger):" "$T/out" || fail 'the call still prints the page or the list'
 echo 'queue-list-short: ok'

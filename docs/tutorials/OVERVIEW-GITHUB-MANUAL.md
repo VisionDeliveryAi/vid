@@ -27,7 +27,7 @@ ViD splits building a product into two sides that meet only on GitHub.
 
 **GitHub is the record.** Tickets are issues. The work is your team's pull requests, merged into `main`. Results are small branches. Claims, questions and decisions are comments; ViD's decisions go on the ticket.
 
-**You start every one of ViD's turns.** Nothing runs on its own. Each time you type `/vid:vid-next`, ViD reads GitHub, does its own work if you have switched it on, and shows you what is new and what you may do next: its *moves*. Nothing reaches your developers but what a move you name, in your own words, sends.
+**You start every one of ViD's turns.** Nothing runs on its own. Each time you type `/vid:vid-next`, ViD reads GitHub, does its own work if you have switched it on, and sorts everything open into one list for you (section 6). What you may have it do next are its *moves*. Nothing reaches your developers but what a move you name, in your own words, sends.
 
 Three rules make the split work:
 
@@ -153,7 +153,7 @@ step S03 | name: the footer, unsubscribe and the mail provider | modules: web ma
 
 - **The first step is always the skeleton** (`kind: skeleton`), a walking skeleton: the thinnest working product, end to end, with its test setup. Everything else builds on it. Its ticket has rules of its own (4.10).
 - `builds-on:` names the steps whose code must exist first. `S02` and `S03` both build on `S01` and on nothing else, so two developers can take them at the same time.
-- Each step becomes one ticket. You publish a step's ticket when you choose, by a move of `/vid:vid-next`. ViD shows a warning beside the move when it sees a risk, such as a step of a later stage, and never holds one back.
+- Each step becomes one ticket. You publish a step's ticket when you choose, by a move of `/vid:vid-next`. ViD names the risk with the move when it sees one, such as a step of a later stage, and never holds one back.
 
 ---
 
@@ -172,8 +172,8 @@ You do this once, with ViD, in a Claude Code session in an empty folder.
 |---|---|---|
 | `/vid:vid-init` | ViD asks you about the product in one batch of questions, each of which changes something downstream. It then writes `PRD.md` in three passes, stopping after each for your approval: the summary of the product with its content contract, the answers to the gaps it found, and the final set of requirements with their fail-ifs. Then it asks the technical questions and writes the other files. If the product has screens, it writes a design brief and you bring back the screens. It derives the inventory and shows it to you as one table. Last, it proposes how to cut the product into stages | Product questions only: what the product must do, what it must not, which stage cut you want. Technical choices ViD makes and logs in `DECISIONS.md` |
 | `/vid:vid-next`, the first call | No plan is approved yet, so the call plans first. ViD asks where the code lives (your code repository), where the spec goes (the private spec repository, or a folder of the code repository), who is on the team, and who works the tickets. For your own developers that last answer is left open: the switch below gives it. It writes the plan as steps and shows it to you as a page | Whether the plan is right |
-| Your yes, in the same call | The call switches the project to GitHub manual. It takes the plan it just wrote and asks only what it cannot find: GitHub manual's setup, ViD's own state repository among it. It shows the plan page, records the mode on your yes, and makes the repositories you named, private. It also writes one page, `.vid/plan/TEAM-REPORTS.md`, that tells your team what to send, and shows it to you | Your yes, in your words, approves the plan. The page for the team is yours to hand over; `/vid:vid-accept-step reports` shows it again |
-| `/vid:vid-next` | Each call reads GitHub, does ViD's own work once you have switched it on, and shows what is new and the moves you may name. `/vid:vid-next <move> "<your words>"` does a move: `publish <the skeleton's step> "<your words>"` sends the first ticket, and the spec reaches the spec repository with it. Between your calls nothing is read, decided or sent | Each move, in your words, and whatever it shows you (section 6) |
+| Your yes, in the same call | The call switches the project to GitHub manual. It takes the plan it just wrote and asks only what it cannot find: GitHub manual's setup, ViD's own state repository among it. It shows the plan page, records the mode on your yes, and makes the repositories you named, private. It also writes one page, `.vid/plan/TEAM-REPORTS.md`, that tells your team what to send, and shows it to you, unless the rules your team already works to are on record (4.4) | Your yes, in your words, approves the plan. The page for the team is yours to hand over; `/vid:vid-accept-step reports` shows it again |
+| `/vid:vid-next` | Each call reads GitHub, does ViD's own work once you have switched it on, sorts what is open into the panel beside the chat, and ends with one line: how many things are yours, and the first. `/vid:vid-next <move> "<your words>"` does a move: `publish <the skeleton's step> "<your words>"` sends the first ticket, and the spec reaches the spec repository with it. Between your calls nothing is read, decided or sent | Each move, in your words, and whatever it shows you (section 6) |
 
 **ViD's own work.** At your first call, switch it on: `/vid:vid-next own-work on "<your words>"`. From the next call on, each call decides each ask your team made on a ticket, making ViD's own review of the ticket when it is due, asks a step's close and a stage's full run, grades the stage, and posts the okays. With it off, a call does none of these: it shows each ask with the command that decides it, `/vid:vid-accept-step <ticket> <commit>`.
 
@@ -309,6 +309,8 @@ git push <your code repository's address> HEAD:refs/heads/vid-results/$id
 
 A branch that does not hold such a folder is left out, alone: ViD says which and why, to you and in the decision, and reads the others. The full rules are in one document that ships with ViD, **ViD results format 1** (`docs/RESULTS-FORMAT.md`), in its section on GitHub manual. The switch of section 3 writes them for your team in one page, `TEAM-REPORTS.md`.
 
+**A team that already works to rules of its own keeps them.** Say so to ViD in the spec folder's session, with a path or a link to them: it records them, in your words, as the setup's `team-rules`, which it never asks for. From then on it writes and shows no such page, and the decision's two lines about form alone (`no Decisions section`, `report left out`) come to you instead of to the team. A row's own lines stay.
+
 ### 4.5 Build, merge, then run at the commit of main (T3)
 
 5. **Build** until the ticket's rows and the regression rows pass. **Merge** the ticket's pull requests into `main`, by your own process, with any kind of merge. The merge is your team's; ViD records it, and it decides nothing.
@@ -386,7 +388,7 @@ A held row is how something that runs cannot settle reaches a decision: once, wi
 
 When a row is unclear, ask in a comment on the ticket, a pull request of it, or a run's issue. The first line begins `Question:` and names the rows or the step it concerns.
 
-- **If you can go on with a sensible default, do, and say the default in the question.** In GitHub manual every question goes to the lead: the lead's next call shows it, and the lead's answer is posted on GitHub as a comment that begins `RM:`.
+- **If you can go on with a sensible default, do, and say the default in the question.** In GitHub manual every question goes to the lead: the lead's next call brings it, and the lead's answer is posted on GitHub as a comment that begins `RM:`.
 - **If you cannot go on, add the `blocked` label to the issue.** That row waits; the others go on.
 
 Two real questions from this ticket's test author, each with its default (a "test value"):
@@ -446,7 +448,7 @@ A spec that cannot change is useless, and a spec that changes silently is worse.
 **The real example.** During JobDigest's run this correction was made: "a support address that reaches a person" was too loose, and should say *within one working day*.
 
 1. **Say the change to ViD in plain words, in a Claude Code session in the spec folder:** for a correction, `/vid:vid-fix` and the correction; for a new feature, `/vid:vid-add` and the feature.
-2. **ViD drafts it and counts what it touches.** It changes nothing yet. It asks you one question, a numbered line of your queue (section 6). The real one:
+2. **ViD drafts it and counts what it touches.** It changes nothing yet. It asks you one question, `Q<n>` (section 6). The real one:
 
 ```
 This changes 1 row, adds 0, and reaches 2 more: ROW-006, RULE-001. Land it?
@@ -456,7 +458,7 @@ This changes 1 row, adds 0, and reaches 2 more: ROW-006, RULE-001. Land it?
    - *Adds*: new rows.
    - *Reaches*: rows whose words stay but whose requirement changed, so their tests must be looked at again (`ROW-006`, `RULE-001`).
 3. **On your yes, ViD lands it:** `/vid:vid-next answer Q<n> yes "<your words>"`. The spec files change, in ViD's folder alone. Before it writes anything ViD tries the change on a scratch copy. If that trial refuses the draft (a new row that is in no step of the plan, for example), nothing is written: ViD makes a corrected draft and asks again as a new question, and your first yes is not carried over.
-4. **You apply it.** A landed change waits for you. Your next call lists the move `planning-analysis`: `/vid:vid-next planning-analysis` writes ViD's proposal for what the change does to the plan and to the published tickets, and shows it as a page, recording and posting nothing. Then `/vid:vid-next implement-replan "<your words>"` applies it as shown: the spec repository gets a new export, and each ticket the change reaches is amended or sent, as below. When the change adds nothing to place, no analysis is needed, and the call asks before it makes the proposal (`proposal due`: what it covers, and how long it takes). Your yes is `implement-replan` itself: named once it makes the proposal, shows it and applies nothing; named again, it applies what it showed.
+4. **You apply it.** A landed change waits for you. Your next call's list holds the move `planning-analysis`: `/vid:vid-next planning-analysis` writes ViD's proposal for what the change does to the plan and to the published tickets, and shows it as a page, recording and posting nothing. Then `/vid:vid-next implement-replan "<your words>"` applies it as shown: the spec repository gets a new export, and each ticket the change reaches is amended or sent, as below. When the change adds nothing to place, no analysis is needed, and the call asks before it makes the proposal (`proposal due`: what it covers, and how long it takes). Your yes is `implement-replan` itself: named once it makes the proposal, shows it and applies nothing; named again, it applies what it showed.
 
 The same words can be drafted in more than one fair way. In a second run of this practice product the same correction was drafted as a new row, proved on production, with no row changed: `This changes 0 rows, adds 1, and reaches 3 more: ROW-006, ROW-019, RULE-001. Land it?` Read the draft, not only the count.
 
@@ -466,6 +468,7 @@ The same words can be drafted in more than one fair way. In a second run of this
 REQ-012 AMENDED | functional | T2 | Every digest footer carries a support contact address that reaches a person within one working day. | fail-if: the footer lacks a support address, or mail to it bounces, or goes unanswered for more than one working day | serves: a stuck subscriber has a path that is not silent churn | authority: authoritative | source: thesis | covers: DIM-nfr-operability/support | phase: pilot | feature: FEAT-03 | arms: 1 retained, 2 strengthened
 ```
 
+- **The heading's date is the day the change lands, by the clock (UTC).** ViD refuses a date after today's, and writes nothing then.
 - **`AMENDED` restates the whole requirement.** Every clause the change does not touch is kept word for word.
 - **Later appends win** over the base and over earlier appends. To know what a requirement says today, read its last `AMENDED` line.
 - `arms:` says what happened to each "or" of the old fail-if, in order: `retained`, `strengthened`, `moved` to another requirement, or `withdrawn` on an answer of yours.
@@ -497,7 +500,22 @@ For a reached row, someone must look at its test against the changed clause: kee
 
 ## 6. What comes to you as the lead
 
-At each `/vid:vid-next`, ViD shows you a short list of things only you can settle. Each is one numbered line, `Q1`, `Q2`, …, and stays until you answer it, with a move of the next call: `/vid:vid-next answer Q<n> <your answer> "<your words>"`.
+Everything open is in one list, in one place: **the panel beside the chat,** in the Claude desktop app. Each `/vid:vid-next` sorts it and ends with one line: how many things are yours and the first of them, or *nothing is yours now*. The sections are numbered:
+
+| Section | What it holds |
+|---|---|
+| **1 My to do** | What only you can do or decide, and can do now. Each line is numbered (1.1, 1.2, …), the first one open: what it is, the question, its choices or a message ready to send, and what follows. ViD prepares a line first, so that you need open no document for it |
+| **2 Waiting** | What a person owes: who, what, since when |
+| **3 Changed** | What moved since the last sort and needs nothing from you |
+| **4 The rest** | What ViD is doing, what is yours later, what goes to the team by itself, what ViD suggests. At its end, closed: *Everything ViD holds*, each open item in ViD's own words with its id, `Q<n>` or `B<n>` |
+| **5 The plan** | A row for each stage, a box for each step: accepted, being built, taken, sent and nobody has it, not sent. Then the steps that hold the rest up |
+| **6 and on** | One section for each team: a card for each step, with where it stands, who has it and its pull requests |
+
+**Press an answer,** and it goes into the chat as your own words. *Put it off* takes the line out of My to do, and *Explain it* asks ViD for more. A line's number means that line until the next sort. `/vid:vid-sort` sorts the list again when you ask; what came up since the last sort is counted under The rest, as *not sorted yet*.
+
+**Where there is no panel** (the terminal, VS Code, the mobile app), `/vid:vid-answer backlog` says the same sections as text, with the ids each line of My to do covers. Anywhere, you can answer by such an id, with a move of the next call: `/vid:vid-next answer Q<n> <your answer> "<your words>"`.
+
+What comes to you, and stays until you answer it:
 
 | What comes | Your choices |
 |---|---|
@@ -506,11 +524,12 @@ At each `/vid:vid-next`, ViD shows you a short list of things only you can settl
 | **Findings** from ViD's review of a ticket or its grade of a stage: things its readers saw outside the rows | For each: fix it, make it a row, mark it known, or no |
 | **A close that could not finish** | Ask again, or rule a limit |
 | **A drafted change** to the spec | Yes or no |
-| **A move:** a step to publish, a ticket to amend or withdraw, a change to apply | Name it in a call, in your words, when you want it done. Left alone, it is shown again |
+| **A review of a pull request you opened,** ViD's publish of the spec among them | Each call reads it. When a reviewer asks for changes, ViD drafts them first, then your yes. While it waits for an approval, it stands under Waiting |
+| **A move:** a step to publish, a ticket to amend or withdraw, a change to apply | Name it in a call, in your words, when you want it done. Left alone, it stays in the list |
 
 **A ticket your team finished and you accepted outside ViD** is recorded in your words, `/vid:vid-accept-step <ticket> <commit of main> accepted "<your words>"`; ViD posts nothing, and its step's close is owed as any.
 
-Each call also writes the plan page: where each step stands, what is left, and what waits on you. In the Claude desktop app, the panel beside the chat shows one lasting list of everything open, in your order, and the parts of a long call as they happen; `/vid:vid-answer backlog` prints the list anywhere. There is nothing to pause or to continue: nothing goes out but what a move you name sends, and nothing is read or decided between your calls. Call `/vid:vid-next` whenever you want ViD to read what your team has sent.
+While a call runs, its parts show above the panel's sections, as they happen. There is nothing to pause or to continue: nothing goes out but what a move you name sends, and nothing is read or decided between your calls. Call `/vid:vid-next` whenever you want ViD to read what your team has sent.
 
 A session can be closed or lost without harm. ViD keeps its lock and its records in its own state repository, and each call restores them.
 

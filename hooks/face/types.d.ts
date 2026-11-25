@@ -58,13 +58,88 @@ export type Marks = {
   raw: boolean
   ids: boolean
   refused: string
+  // FB-5 A1: the part on show of a section too long to draw whole, from 0
+  part?: Record<string, number>
 }
 
-// What the panel read last: the three files, or why it cannot show them; and the minute it read them in.
+// FB-5 A1: the owner's list, .vid/face/list.json as the list's writer makes it from the last sort, the plan and the read. state:
+// sorted, stale (something came or changed since) or none (never sorted). A line's ids are the backlog's; its number means it
+// until the next sort. choose is the number of the choice ViD would take, 0 for none.
+export type ListAsk = { ask: string; about: string; choose: number; why: string; choices: string[]; message: string }
+export type ListTodo = { n: string; ids: string[]; title: string; do: string; isNew: boolean; new: string; what: string; asks: ListAsk[]; then: string; details: string }
+export type ListWait = { who: string; what: string; since: string; details: string }
+export type ListRest = {
+  vid: string[]
+  later: { when: string; what: string }[]
+  team: string[]
+  suggested: string[]
+  leftOut: string[]
+  holds: { id: string; words: string; where: string }[]
+  counts: { n: number; words: string }[]
+}
+// a step's state: accepted, building, taken, nobody or unsent; fill, its pieces done, 0 to 100; flag, its letter in what
+// holds the rest up, the same on its row, its box and its card, "" for none
+export type ListStep = { id: string; name: string; state: string; fill: number; flag: string }
+export type ListRelease = { n: number; name: string; accepted: number; steps: ListStep[]; say: string; stuck: string; words: string }
+export type ListHold = { flag: string; id: string; name: string; who: string; done: number; pieces: number; state: string; days: number; by: number }
+export type ListCard = {
+  id: string
+  name: string
+  flag: string
+  state: string
+  ticket: number
+  url: string
+  done: number
+  pieces: number
+  who: string
+  ready: number
+  drafts: number
+  pulls: { n: number; url: string; draft: boolean }[]
+  sent: string
+  days: number
+  buildsOn: string[]
+  holdsUp: number
+  tests: number
+  testIds: string[]
+  notes: string[]
+}
+export type ListTeam = { name: string; kind: string; area: string; words: string; releases: { n: number; name: string; words: string; tracks: { name: string; cards: ListCard[] }[] }[] }
+export type List = {
+  format: number
+  written: string
+  title: string
+  state: string
+  sortedAt: string
+  unsorted: number
+  todo: ListTodo[]
+  waiting: ListWait[]
+  changed: string[]
+  rest: ListRest
+  plan: { releases: ListRelease[]; hold: { open: number; others: number; built: number; rows: ListHold[] } }
+  teams: ListTeam[]
+}
+// FB-5 A1: what the owner pressed on the list. A line is known by the sort's time and its ids: sent holds the answers given, asked
+// the lines put as a question, both kept in the store for every conversation; picks, refused, open, shut and shown are the
+// panel's alone (open "" the first line not sent; shut, all closed by the owner; shown, what is folded out).
+export type Said = { at: string; how: string; words: string }
+export type ListMarks = {
+  sent: Record<string, Said>
+  asked: Record<string, Said>
+  picks: Record<string, Record<string, string>>
+  refused: Record<string, string>
+  open: string
+  shut: boolean
+  shown: Record<string, boolean>
+}
+
+// What the panel read last: its files, or why it cannot show them; and the minute it read them in.
 export type View = {
   standing: Standing | null
   sitting: Sitting | null
   run: Run | null
+  // FB-5 A1: the owner's list, null for none, and why it cannot be drawn, "" for nothing wrong
+  list: List | null
+  listProblem: string
   problem: string
   project: boolean
   here: string
@@ -84,6 +159,7 @@ declare module 'claude-code' {
     vid: {
       view: Shaped<View>
       marks: Shaped<Record<string, Marks>>
+      list: Shaped<ListMarks>
     }
   }
 }

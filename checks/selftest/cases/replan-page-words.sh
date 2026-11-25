@@ -1,11 +1,11 @@
 #!/bin/sh
-# Purpose: selftest case — the re-plan page says each added test in the inventory's own words, and opens as the plan page does (FB-3 E3).
+# Purpose: selftest case — the re-plan page says each added test in the inventory's own words, and opens through its own shell (FB-3 E3).
 # On the form fixture's toy, S02 posted as ticket N; ROW-021 to ROW-024 landed. The candidate tops N up with ROW-021, puts ROW-022 and
 # ROW-023 in a new step S06 and ROW-024 in S04, a step not published yet. The page gives, after N's line, `ROW-021: <its promise>`, and after S06's, one line for each of its tests, after S04's
 # one for the test it gains; the words the inventory holds at the target (a landing's newest, not the team's), a test whose promise is its fail-if alone by that; its other
 # sections stand, and a restated or kept test has no such line. `next-move.sh shell` takes that page: replan-shell.html beside it, its own
-# title and frame, no outside address; the plan page's shell is as it was, and a page of another name is refused. The skills publish it
-# after the call's end, by plan-page:, its link kept in .vid/plan/replan-page. Env: CHECKS.
+# title and frame, no outside address; FB-5 A1: the plan page's is gone, so plan.html is refused as a page of any other name is. The skills
+# publish it after the call's end, by plan-page:, its link kept in .vid/plan/replan-page, the rules in vid-replan alone. Env: CHECKS.
 set -eu
 unset CLAUDE_CODE_SESSION_ID VID_CALLER 2>/dev/null || true
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
@@ -37,12 +37,13 @@ grep -qF "$L1" "$H" || fail 'the rendered page does not hold the words'
 sh "$CHECKS/next-move.sh" shell "$H" > "$T/out" 2>&1 || fail 'next-move.sh shell refused the re-plan page'
 S=$(sed -n 's/^shell //p' "$T/out"); [ "$S" = "$(cd .vid/pages && pwd)/replan-shell.html" ] && [ -f "$S" ] || fail 'the shell is not written beside the page'
 grep -q 'src="REPLAN-PAGE.html"' "$S" && grep -q '<title>Re-plan page</title>' "$S" && ! grep -q 'plan\.html' "$S" || { cp "$S" "$T/out"; fail 'the shell does not show the re-plan page, under its own title'; }; ! grep -qiE 'https?://|//[a-z]' "$S" || fail 'the shell holds an outside address'
-mkdir "$T/v"; echo '<!doctype html><title>p</title>' > "$T/v/plan.html"; cp "$T/v/plan.html" "$T/v/other.html"; sh "$CHECKS/next-move.sh" shell "$T/v/plan.html" > "$T/out" 2>&1 || fail 'the plan page shell failed'
-[ -f "$T/v/plan-shell.html" ] && grep -q '<title>Plan page</title>' "$T/v/plan-shell.html" && grep -q '<iframe src="plan.html" title="The plan page"></iframe>' "$T/v/plan-shell.html" || fail 'the plan page shell changed'
+mkdir "$T/v"; echo '<!doctype html><title>p</title>' > "$T/v/plan.html"; cp "$T/v/plan.html" "$T/v/other.html"; if sh "$CHECKS/next-move.sh" shell "$T/v/plan.html" > "$T/out" 2>&1; then fail 'plan.html was taken'; fi
+[ ! -e "$T/v/plan-shell.html" ] || fail 'a shell of plan.html was written'
 if sh "$CHECKS/next-move.sh" shell "$T/v/other.html" > "$T/out" 2>&1; then fail 'a page of another name was taken'; fi
 # the skills
 K=$CHECKS/../skills; [ -f "$K/vid-replan/SKILL.md" ] || exit 0; R=$K/vid-replan/SKILL.md; : > "$T/out"
-for x in 'next-move.sh shell .vid/pages/REPLAN-PAGE.html' '.vid/plan/replan-page' 'plan-page:' "The plan page" 'own words'; do grep -qF -- "$x" "$R" || fail "vid-replan does not say: $x"; done
+for x in 'next-move.sh shell .vid/pages/REPLAN-PAGE.html' '.vid/plan/replan-page' 'plan-page:' 'own words'; do grep -qF -- "$x" "$R" || fail "vid-replan does not say: $x"; done
 awk '/^## The re-plan page/ { f = 1; next } /^## / { f = 0 } f' "$R" > "$T/sec"; for x in 'has ended' 'implement-replan' 'action: "read"' 'none' 'its path'; do grep -qF -- "$x" "$T/sec" || fail "vid-replan's re-plan page does not say: $x"; done
-e=$(grep -n '^7\. \*\*' "$K/vid-next/SKILL.md" | cut -d: -f1); p=$(grep -n 'The re-plan page' "$K/vid-next/SKILL.md" | tail -n 1 | cut -d: -f1); [ -n "$p" ] && [ "$p" -gt "$e" ] || fail 'vid-next does not name its show after the call has ended'
+for x in 'No such line' 'one data file' 'that same link' 'refused or failed'; do grep -qF -- "$x" "$T/sec" || fail "vid-replan's re-plan page does not hold its rule: $x"; done; ! grep -qi 'plan page' "$K/vid-triggers/SKILL.md" || fail 'vid-triggers still holds the plan page'
+e=$(grep -n '^[0-9]\. \*\*Save\.' "$K/vid-next/SKILL.md" | cut -d: -f1); p=$(grep -n 'The re-plan page' "$K/vid-next/SKILL.md" | tail -n 1 | cut -d: -f1); [ -n "$p" ] && [ "$p" -gt "$e" ] || fail 'vid-next does not name its show after the call has ended'
 echo 'replan-page-words: ok'

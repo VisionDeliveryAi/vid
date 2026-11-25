@@ -51,6 +51,11 @@
 # FB-2 A1: $FAKEGH/no-code stands for a code repository not made yet: `repo view` of it fails as GitHub's does, and one `repo create` of it
 # makes it (the file removed; its remote, a bare repository at $FAKEGH/remote's path, made empty when not there; `--private` kept in
 # $FAKEGH/code-private, which `repo view --json isPrivate` then reads).
+# FB-5 C2: the open list's last column is the pull request's author (prs/<n>/author, else dev, the team's); `pr view` with --jq PBQ (below) prints, a
+# line each, its author, its commits' dates (prs/<n>/commits, one a line, else one), its reviews (prs/<n>/reviews, `<who> TAB <state> TAB
+# <when> TAB <first line>` a line) and its comments, each with its author (prs/<n>/cby/<k>, else toy, the viewer), date (cat/<k>) and
+# first line; with prs/<n>/view-fail it fails in that file's words. A `pr list` with --jq RPQ, or a `pr view` with --jq PBQ, whose --json
+# lacks a field that query names is refused (exit 1), since gh would give it empty: RPF and PBF, beside the queries, are those fields.
 set -u
 IFS='
 '   # a path with a space stays one word
@@ -78,7 +83,13 @@ comments() { # <dir> <jq>
       for _j in $(ls "$_c" 2>/dev/null | sort -n); do printf 'https://github.com/%s/issues/%s#issuecomment-%s\t%s\n' "$REPO" "$_n" "$((_n * 1000 + _j))" "$(head -n 1 "$_c/$_j")"; done ;;
     *) die "unknown --jq for comments: $_q" 64 ;;
   esac; }
-RPQ='.[] | [.number, .headRefName, .isDraft, .headRefOid, ([.labels[].name] | join(",")), (.body | split("\n") | .[0]), ([.comments[].body | split("\n") | .[0]] | join("\u0001")), (([.comments[] | select(.body | startswith("vid: decision "))] | last | .body) // ""), .updatedAt] | @tsv'
+RPQ='.[] | [.number, .headRefName, .isDraft, .headRefOid, ([.labels[].name] | join(",")), (.body | split("\n") | .[0]), ([.comments[].body | split("\n") | .[0]] | join("\u0001")), (([.comments[] | select(.body | startswith("vid: decision "))] | last | .body) // ""), .updatedAt, (.author.login // "-")] | @tsv'
+RPF='number,headRefName,isDraft,headRefOid,labels,body,comments,updatedAt,author'; PBF='author,commits,reviews,comments'
+# needs <fields, comma-joined> <the call's arguments>
+needs() { _f=$1; shift; _js=,$(opt --json "$@"),; for _x in $(printf '%s\n' "$_f" | tr ',' '\n'); do case $_js in *,"$_x",*) ;; *) die "--json lacks $_x, which the --jq reads: $CMD" 1 ;; esac; done; }
+PBQ='def l1: ((.body // "") | split("\n") | .[0] // "" | rtrimstr("\r")); ["a", (.author.login // "-")], (.commits[] | ["c", .committedDate]), (.reviews[] | ["r", (.author.login // "-"), .state, (.submittedAt // ""), l1]), (.comments[] | ["m", (.author.login // "-"), (.viewerDidAuthor // false), .createdAt, l1]) | @tsv'
+pbq() { [ ! -f "$1/view-fail" ] || die "$(cat "$1/view-fail")" 1; printf 'a\t%s\n' "$(cat "$1/author" 2>/dev/null || echo dev)"; { cat "$1/commits" 2>/dev/null || echo 2026-11-20T08:00:00Z; } | sed 's/^/c	/'; [ ! -f "$1/reviews" ] || sed 's/^/r	/' "$1/reviews"
+  for _j in $(ls "$1/comments" 2>/dev/null | sort -n); do _b=$(cat "$1/cby/$_j" 2>/dev/null || echo toy); printf 'm\t%s\t%s\t%s\t%s\n' "$_b" "$([ "$_b" = toy ] && echo true || echo false)" "$(cat "$1/cat/$_j" 2>/dev/null || echo 2026-11-20T09:00:00Z)" "$(head -n 1 "$1/comments/$_j")"; done; }
 RMQ='.[] | [.number, .headRefOid, (.mergeCommit.oid // "-"), (.body | split("\n") | .[0]), ([.comments[].body | split("\n") | .[0]] | join("\u0001"))] | @tsv'
 RIQ='.[] | [.number, ([.labels[].name] | join(",")), ([.comments[].body | split("\n") | .[0]] | join("\u0001")), .updatedAt] | @tsv'
 # DevAgent's dev manager's own two (devagent/dev-manager/dm.sh): its merged list as RMQ's first four columns, its issue list with each body's chunk names (v0.26.10.25.3)
@@ -184,6 +195,7 @@ case "$CMD" in
       .body) cat "$d/body" ;;
       '[.labels[].name] | join(",")') labels_of "$d"; echo ;;
       "$RPL") rpl "$d" ;;
+      "$PBQ") needs "$PBF" "$@"; pbq "$d" ;;
       .comments*) comments "$d" "$q" ;;
       '.commits[].oid') b=$(headsha "$(cat "$d/base")"); h=$(cat "$d/headoid" 2>/dev/null || headsha "$(cat "$d/head")"); [ -f "$d/merge" ] && b=$(git -C "$REMOTE" rev-parse "$(cat "$d/merge")^1")
         git -C "$REMOTE" rev-list --reverse "$b..$h" ;;
@@ -192,8 +204,8 @@ case "$CMD" in
     esac; exit 0 ;;
   'pr list')
     shift 2; chkrepo "$@"; q=$(opt --jq "$@")
-    if [ "$q" = "$RPQ" ]; then for d in $(ls -d "$F"/prs/* 2>/dev/null); do [ "$(cat "$d/state")" = OPEN ] || continue; h=$(cat "$d/headoid" 2>/dev/null || headsha "$(cat "$d/head")"); b=''; for _j in $(ls "$d/comments" 2>/dev/null | sort -n); do head -n 1 "$d/comments/$_j" | grep -q '^vid: decision ' && b=$(awk '{ printf "%s%s", (NR > 1 ? "\\n" : ""), $0 }' "$d/comments/$_j"); done
-        printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "${d##*/}" "$(cat "$d/head")" "$(cat "$d/draft")" "$h" "$(labels_of "$d")" "$(head -n 1 "$d/body")" "$(heads "$d")" "$b" "$(upd "$d")"; done | sort -n; exit 0; fi
+    if [ "$q" = "$RPQ" ]; then needs "$RPF" "$@"; for d in $(ls -d "$F"/prs/* 2>/dev/null); do [ "$(cat "$d/state")" = OPEN ] || continue; h=$(cat "$d/headoid" 2>/dev/null || headsha "$(cat "$d/head")"); b=''; for _j in $(ls "$d/comments" 2>/dev/null | sort -n); do head -n 1 "$d/comments/$_j" | grep -q '^vid: decision ' && b=$(awk '{ printf "%s%s", (NR > 1 ? "\\n" : ""), $0 }' "$d/comments/$_j"); done
+        printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "${d##*/}" "$(cat "$d/head")" "$(cat "$d/draft")" "$h" "$(labels_of "$d")" "$(head -n 1 "$d/body")" "$(heads "$d")" "$b" "$(upd "$d")" "$(cat "$d/author" 2>/dev/null || echo dev)"; done | sort -n; exit 0; fi
     if [ "$q" = "$RMQ" ] || [ "$q" = "$DMMQ" ]; then for d in $(ls -d "$F"/prs/* 2>/dev/null); do [ "$(cat "$d/state")" = MERGED ] || continue; printf '%s\t%s\t%s\t%s\t%s\n' "${d##*/}" "$(cat "$d/headoid" 2>/dev/null || headsha "$(cat "$d/head")")" "$(cat "$d/merge" 2>/dev/null || echo -)" "$(head -n 1 "$d/body")" "$(heads "$d")"; done | sort -rn | head -n "$(opt --limit "$@")"; exit 0; fi
     [ "$q" = '.[] | [.number, .headRefName, .state, .isDraft, .headRefOid, (.mergeCommit.oid // "-")] | @tsv' ] || die "unknown --jq for pr list: $q" 64
     for d in $(ls -d "$F"/prs/* 2>/dev/null); do n=${d##*/}; h=$(cat "$d/headoid" 2>/dev/null || headsha "$(cat "$d/head")")

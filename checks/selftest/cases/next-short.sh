@@ -43,6 +43,6 @@ sh "$CHECKS/next.sh" triggers --short > "$T/s2" 2> "$T/out" || fail 'triggers --
 [ "$(grep -c "^counted$TB" "$T/L")" -gt 3 ] && [ "$(grep -c "^counted$TB" "$T/s1")" -le 2 ] || { cp "$T/s1" "$T/out"; fail 'the counted lines are not grouped'; }
 for i in $(awk -F'\t' '$1 == "counted" { print $3 }' "$T/L"); do grep "^counted$TB" "$T/s1" | grep -qE "[ $TB]$i[,:]" || { cp "$T/s1" "$T/out"; fail "$i is in no shown line"; }; done
 sh "$CHECKS/next-move.sh" call own-work on 'yes, on' > "$T/out" 2>&1 || fail 'the call failed'
-sed -n '/^after the moves:/,/^page /p' "$T/out" > "$T/af"; grep -q "^warning$TB" "$T/L" || fail 'the toy raises no warning'
+sed -n '/^after the moves:/,$p' "$T/out" > "$T/af"; grep -q "^warning$TB" "$T/L" || fail 'the toy raises no warning'
 [ "$(grep "^warning$TB" "$T/af" | cut -f1-3 | sort | uniq -d | grep -c . || :)" = 0 ] && grep -q "^move${TB}publish${TB}" "$T/af" || fail 'the lines after the moves are not grouped'
 echo 'next-short: ok'

@@ -23,23 +23,28 @@ and in every mode (GM-4 K6); no other path records one.
    printed in plain words: what was recorded, what was posted, or what was refused and why. A refusal records nothing.
 4. **A `door:` line.** The answer changes rows: the change goes through the door, the vid-fix skill's ticket-mode branch, run here
    on the words the line gives. It drafts and asks; it lands nothing.
-5. **What waits.** `sh checks/queue.sh list`: each open line, `Q<n>`, its key, the answers it takes and its words. Say each in
-   plain words, with the answers it takes as the script gives them. Then `sh checks/queue.sh backlog`, and end with its `next:` line.
+5. **What waits.** After an answer, its one line: `sh checks/queue.sh sorted --line`. When the owner asks what waits, `sh checks/queue.sh list`: each
+   open line, `Q<n>`, its key, the answers it takes and its words, in plain words, with the answers it takes as the script gives them; then
+   `sh checks/queue.sh backlog`, and end with its `next:` line.
 
 ## The backlog (FB-3 D1)
 
-One list of everything open, in the owner's order, kept with the records in both GitHub modes: `.vid/decide/queue/backlog`, which
-`checks/queue.sh` alone writes. The panel beside the chat draws it. `/vid:vid-answer backlog` shows it, with no lock and no read:
-`sh checks/queue.sh backlog`, each open item and then its `next:` line, said in plain words.
+One list of everything open, kept with the records in both GitHub modes: `.vid/decide/queue/backlog`, which
+`checks/queue.sh` alone writes. The panel beside the chat draws it as the vid-sort skill last sorted it (FB-5 A1). `/vid:vid-answer backlog`
+says it where there is no panel, with no lock and no read: `sh checks/queue.sh backlog`, My to do, Waiting, Changed and The rest, numbered, each
+to-do with the ids it covers, then its `next:` line, then, in GitHub manual, the plan and each team, all said as printed, in plain words.
 
 - **What is in it.** Each `Q<n>` line, added and closed by the script at every sync; in GitHub manual each issue assigned to the
   owner; and what comes up as you work, which no script sees (a person waited for, a push, a decision owed), added by you at once:
   `sh checks/queue.sh backlog add "<words>" [--who <who>] [--next "<next action>"] [--note "<note>"]`, a `B<n>`.
-- **What you work on** is the top open item, neither waiting nor aside. A new thing lands at the end and interrupts nothing: never
-  ask it on its own, and never put it above the owner's order.
+- **What you work on** is the `next:` line, the first of My to do (with no sort yet, the top open item, neither waiting nor aside). A new
+  thing lands at the end, not sorted yet, and interrupts nothing: never ask it on its own, and never put it above a line the owner placed.
 - **As the work goes** you keep it true: `sh checks/queue.sh backlog set <id> --state doing` (one item at most), `waiting` with
   `--note` saying on whom and since when, `--next`, `--who`, and `--state done` for a `B<n>`. A `Q<n>` closes by its answer alone.
-- **Order, and what is set aside,** are the owner's, changed only on the owner's say: `backlog set <id> --place top|after <id>`, `--state aside`.
+- **Order, and what is set aside,** are the owner's, changed only on the owner's say: `backlog set <id> --place top|after <id>`, which moves
+  its line in the sort too and keeps it there until it closes, and `--state aside`, which takes it out of My to do at once.
+- **An answer pressed in the panel** comes as the owner's words, `<number> · <title>: <answer> (<ids>)`: answer by the ids, never by the number alone;
+  "Put it off" is `--state aside` on each.
 - It posts nothing and records no answer. Every answer ends with the `next:` line.
 
 ## The owner's queue (v0.26.10.25.3)
@@ -79,9 +84,9 @@ owner's answers, named in the call and passed to `next-move.sh call` as the vid-
   on GitHub; `answer Q<n> <its answer> "<words>"` for any open `Q<n>` line, with the answer `queue.sh list` gives it (a draft's
   `yes`, landed by the door's landing, included);
 - `decline <what> ["<subject>"] "<words>"`: each open line of a trigger of that what (and subject) the last call raised, declined.
-- `done "<kind> <subject>" "<words>"`: a to-do of the page done in the owner's words, its `Q<n>` line answered `done`;
+- `done "<kind> <subject>" "<words>"`: a to-do of the list done in the owner's words, its `Q<n>` line answered `done`;
 - `team-change "#<n>" <id> yes "<words>"`, or `no`: the team's change to a published ticket's test taken in or declined; a yes
   amends the ticket through the vid-tickets skill's one path, `github.sh tw-hand` (GM-4 F5), a no is one comment on it.
 
-After the call's page, `next-move.sh` prints each open `Q<n>` line with the answers it takes, as `queue.sh list --short` gives them, one line a
-kind (`queue.sh list` gives each on its own): say each in plain words. A `door:` line among its lines goes through the door, as above.
+Each open `Q<n>` line, with the answers it takes, is `queue.sh list --short`'s, one line a kind (`queue.sh list` gives each on its own), for the
+session: the owner's list is the panel's, sorted by the vid-sort skill. A `door:` line among the call's lines goes through the door, as above.

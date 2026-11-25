@@ -35,13 +35,22 @@
 #   list                                       (GM-4 K6, I6) sync, then each open `Q<n>` line: `Q<n> TAB <key> TAB <the answers it takes>
 #                                              TAB <its words>`, in the section's order
 #   list --short                               (FB-3 C5) the same lines as shown, one line a trigger kind and a move kind
-#   backlog                                    (FB-3 D1) the owner's one list, .vid/decide/queue/backlog, in their order: each open
-#                                              item `<id> TAB <state> TAB <who> TAB <words> TAB <next action> TAB <note>`, then
-#                                              `next: <id> · <words> · <next action> · <who>`, the top one neither waiting nor aside.
-#                                              It reads that file alone; no lock of GitHub's and no read
+#   backlog                                    (FB-3 D1) the owner's one list, .vid/decide/queue/backlog; FB-5 A1 (S5): as text, My to do,
+#                                              Waiting, Changed and The rest as the sort stands now, then each open item `<id> TAB
+#                                              <state> TAB <who> TAB <words> TAB <next action> TAB <note> TAB <where>`, then `next: <1.n> ·
+#                                              <title> · <do>`, the first to-do (with no sort, the list's top item neither waiting nor
+#                                              aside: its id, words, next action and who); in GitHub manual then next-page.sh text's
+#                                              sections 5 and on. It reads ViD's records; no lock of GitHub's and no read
 #   backlog add "<words>" [--who <who>] [--next "<…>"] [--note "<…>"]   an item of the owner's or the session's own, a B<n>, at the end
 #   backlog set <id> [--state to do|doing|waiting|aside|done] [--who <who>] [--next "<…>"] [--note "<…>"] [--place top|after <id>]
-#                                              one item doing at most; done is refused on a Q<n>, which its answer closes
+#                                              one item doing at most; done is refused on a Q<n>, which its answer closes; FB-5 A1: a
+#                                              placing moves the item's line in the sort too, and marks it placed
+#   open                                       (FB-5 A1, S1) each open item with what it was at the last sort, for the vid-sort skill; the
+#                                              columns are cmd_open's; then `open <n> · <k> not sorted · <m> moved`
+#   sort <file|->                              (FB-5 A1, S2) the vid-sort skill's sort, whole or refused, each reason named: the one writer
+#                                              of .vid/decide/queue/sorted; `flag: …` lines; then the call's one line
+#   sorted [--line]                            (FB-5 A1) the sort as it stands now, read only, for next-page.sh; cmd_sorted's form; --line,
+#                                              the call's one line alone
 #   closes                                     (GM-4 F10) read only: each open close item of kind twice or shrink, `close-<kind> TAB <key>`
 #   control pause|continue "<words>"           `run: stopped owner asked to pause` or `run: active`, recorded
 #   control seed production|synthetic "<words>" (0.26.11.1.1, R6) the owner's word for staging's data, theirs alone (no --by), with who
@@ -69,7 +78,7 @@
 # answered again (another fix ticket) or limit; the status's fix line. 0.26.10.29.2 (R7): a close asked again after its fix whose red
 # rows did not shrink, `shrink <the close before it>@<rows now,> <rows now> · before: <rows then>` (keyed by its rows, so a later one is
 # its own question), answered the same way.
-# Records: .vid/decide/queue/ (ids, answers, questions, own, recommend, seen, updated, backlog), .vid/tw/known-findings.
+# Records: .vid/decide/queue/ (ids, answers, questions, own, recommend, seen, updated, backlog, sorted, sorted.prev), .vid/tw/known-findings.
 # serves: tickets (0.26.10.28.4, M9)
 set -u
 LC_ALL=C; export LC_ALL
@@ -236,20 +245,23 @@ questions: $k open · next Q$nq" "$Q/rs" > "$Q/rs2" && mv "$Q/rs2" "$Q/rs" 2>/de
 # --- FB-3 D1: the backlog, the owner's one list, in their order. $Q/backlog, tab-separated: `<id> <key> <state> <who> <words> <next
 # action> <note> <since> <ended or ->`, saved with .vid/decide in both GitHub modes. Ids: Q<n>, a queue line; B<n>, an item of the
 # owner's or the session's own. This script is its one writer, under a lock of this machine (.vid/backlog.lock); the panel's
-# standing is computed again after each write that changed it
+# standing and its list (FB-5 A1, next-page.sh write) are made again after each write that changed it
 BL=$Q/backlog; BLW=''
 bl_on() { [ -f .vid/tw/settings ]; }
 bl_lock() { lock_take .vid/backlog.lock 60 || { echo "ViD queue: the backlog's lock is held by a live process ($(cut -d' ' -f1 .vid/backlog.lock/h 2>/dev/null)); the backlog was not written" >&2; return 1; }; }
-bl_put() { if [ -s "$1" ] && ! cmp -s "$1" "$BL"; then put "$BL" < "$1" || { lock_free .vid/backlog.lock; exit 1; }; BLW=1; fi; lock_free .vid/backlog.lock; [ -z "$BLW" ] || sh "$HERE/face.sh" standing > /dev/null 2>&1 || :; BLW=''; }
+bl_put() { if [ -s "$1" ] && ! cmp -s "$1" "$BL"; then put "$BL" < "$1" || { lock_free .vid/backlog.lock; exit 1; }; BLW=1; fi; lock_free .vid/backlog.lock; [ -z "$BLW" ] || { sh "$HERE/face.sh" standing > /dev/null 2>&1 || :; so_list; }; BLW=''; }
 # bl_sync, the end of every sync: each item of the queue not in the file is added at its end, `to do`, the owner's, its next action
 # the answers it takes; compared by its stable part (trigger:<what>:<subject>, move:<kind>:<subject>, else its key), so one whose
 # evidence changed keeps its place and its marks, its Q number and words fresh (its next action too, unless it was set). A line of the
 # queue gone is done, its note the answer's words, or `no longer there`. In GitHub manual each issue the read shows assigned to the
 # owner, with no question of the queue on it, is an item, closed by a whole read without it; one the owner ended is added again only
 # once a whole read lacked it
-bl_sync() { bl_on && bl_lock || return 0; cat "$BL" 2>/dev/null > "$Q/bo" || :
+# FB-5 C2: in both modes each publish pull request of the read (pubwords) is an item too, publish:<n>, its words what stands on it, closed by
+# a read of the pull requests in which it is open no more
+bl_sync() { bl_on && bl_lock || return 0; cat "$BL" 2>/dev/null > "$Q/bo" || :; : > "$Q/bm"   # FB-5 A1: an item's new id, followed in the sort
+  { [ ! -f "$RD" ] || { echo read; awk -F'\t' '$1 == "unread" && $2 == "round" { print "part" } $1 == "open" { print "open\t" $2 }' "$RD"; pubwords "$RD" | awk '{ print "pub\t" $0 }'; }; } > "$Q/bp"
   { cut -f1 "$Q/items"; awk -F'\t' '$1 ~ /^Q/ && $3 != "done" { print $2 }' "$Q/bo"; } | sort -u | while IFS= read -r k; do printf '%s\t' "$k"; ans "$k"; done > "$Q/ba"
-  awk -F'\t' -v OFS='\t' -v IT="$Q/items" -v ID="$Q/ids" -v AF="$Q/answers" -v BA="$Q/ba" -v RD="$(manual && [ -f "$RD" ] && echo "$RD")" -v NOW="$(stamp)" '
+  awk -F'\t' -v OFS='\t' -v BM="$Q/bm" -v IT="$Q/items" -v ID="$Q/ids" -v AF="$Q/answers" -v BA="$Q/ba" -v RD="$(manual && [ -f "$RD" ] && echo "$RD")" -v PB="$Q/bp" -v NOW="$(stamp)" '
     function stab(k,   a) { if (k ~ /^trigger:/) { split(k, a, ":"); sub(/^[^:]*:[^:]*:[^:]*:[^:]*:/, "", k); sub(/@[0-9]+$/, "", k); return "trigger:" a[2] ":" k }
       if (k ~ /^move:/) { split(k, a, ":"); sub(/^[^:]*:[^:]*:[^:]*:/, "", k); sub(/@[0-9]+$/, "", k); return "move:" a[2] ":" k } return k }
     function why(k, since) { return (k in AW) && AA[k] >= since ? AW[k] : "no longer there" }
@@ -258,24 +270,29 @@ bl_sync() { bl_on && bl_lock || return 0; cat "$BL" 2>/dev/null > "$Q/bo" || :
         AW[k] = w; AA[k] = x[1]; if (k ~ /^finding:[0-9]+:/) { split(k, a, ":"); AW["findings:" a[2]] = w; AA["findings:" a[2]] = x[1] } }
       while ((getline l < IT) > 0) { split(l, x, "\t"); k = x[1]; if (k ~ /^question:/) { split(k, a, ":"); QN[a[2]] = 1 } s = stab(k); if (s in K) continue
         sub(/^[^\t]*\t[^\t]*\t/, "", l); gsub(/\t/, " ", l); K[s] = k; W[s] = l; O[++no] = s }
-      if (RD != "") { whole = 1; while ((getline l < RD) > 0) { n = split(l, x, "\t"); if (x[1] == "unread") whole = 0; if (x[1] == "assigned" && !(x[2] in AS)) { AS[x[2]] = "#" x[2] " " x[5]; AO[++na] = x[2] } } close(RD) } }
+      if (RD != "") { whole = 1; while ((getline l < RD) > 0) { n = split(l, x, "\t"); if (x[1] == "unread") whole = 0; if (x[1] == "assigned" && !(x[2] in AS)) { AS[x[2]] = "#" x[2] " " x[5]; AO[++na] = x[2] } } close(RD) }
+      while ((getline l < PB) > 0) { split(l, x, "\t"); if (x[1] == "read") PR = 1; if (x[1] == "part") PR = 0; if (x[1] == "open") PO[x[2]] = 1; if (x[1] == "pub") { PW[x[2]] = "pull request #" x[2] ": " x[3]; PN[++np] = x[2] } } }   # FB-5 C2
     { if ($1 ~ /^B[0-9]+$/ && substr($1, 2) + 0 > mb) mb = substr($1, 2) + 0
       if ($3 != "done" && $1 ~ /^Q/) { s = stab($2)
-        if (s in K) { if (K[s] != $2) { if ($6 == N[$2]) $6 = N[K[s]]; $2 = K[s]; $1 = I[$2] } $5 = W[s]; U[s] = 1 }
+        if (s in K) { if (K[s] != $2) { if ($6 == N[$2]) $6 = N[K[s]]; $2 = K[s]; if ($1 != I[$2]) print $1, I[$2] > BM; $1 = I[$2] } $5 = W[s]; U[s] = 1 }
         else { $3 = "done"; $7 = why($2, $8); $9 = NOW } }
       if ($2 ~ /^assigned:/) { n = substr($2, 10)
         if (n in AS) { U["assigned:" n] = 1; $5 = AS[n] } else if (whole) { $2 = "assigned-over:" n; if ($3 != "done") { $3 = "done"; $7 = "no longer assigned to you"; $9 = NOW } } }
+      if ($2 ~ /^publish:/) { n = substr($2, 9); if (n in PW && $3 == "done" && $5 != PW[n]) $2 = "publish-over:" n; else if (n in PW) { U[$2] = 1; $5 = PW[n] } else if (PR && !(n in PO)) { $2 = "publish-over:" n; if ($3 != "done") { $3 = "done"; $7 = "open no more"; $9 = NOW } } }   # FB-5 C2
       print }
     END { for (i = 1; i <= no; i++) { s = O[i]; if (!(s in U)) print I[K[s]], K[s], "to do", "you", W[s], N[K[s]], "-", NOW, "-" }
-      for (i = 1; i <= na; i++) { n = AO[i]; if (!(("assigned:" n) in U) && !(n in QN)) print "B" ++mb, "assigned:" n, "to do", "you", AS[n], "look at #" n " on GitHub", "-", NOW, "-" } }' "$Q/bo" > "$Q/bn" || { lock_free .vid/backlog.lock; exit 1; }
-  bl_put "$Q/bn"; }
-bl_next() { awk -F'\t' '$3 == "done" { next } { o++ } $3 != "waiting" && $3 != "aside" { printf "next: %s · %s · %s · %s\n", $1, $5, $6, $4; f = 1; exit }
+      for (i = 1; i <= na; i++) { n = AO[i]; if (!(("assigned:" n) in U) && !(n in QN)) print "B" ++mb, "assigned:" n, "to do", "you", AS[n], "look at #" n " on GitHub", "-", NOW, "-" }
+      for (i = 1; i <= np; i++) { n = PN[i]; if (!(("publish:" n) in U)) print "B" ++mb, "publish:" n, "to do", "you", PW[n], "look at #" n " on GitHub", "-", NOW, "-" } }' "$Q/bo" > "$Q/bn" || { lock_free .vid/backlog.lock; exit 1; }
+  so_ids; bl_put "$Q/bn"; }
+bl_next() { if [ -f "$SO" ]; then cmd_sorted | awk '$1 == "unsorted" { u++ } $1 == "line" { on = ($2 == "todo" && !t); if (on) n = $3 } on && $1 == "title" { t = substr($0, 7) } on && $1 == "do" { d = substr($0, 4) }   # FB-5 A1: the next one is the first to-do
+    END { print "next: " (t ? n " · " t " · " d : "none · " (u ? u " not sorted yet" : "nothing is yours now")) }'; return 0; fi
+  awk -F'\t' '$3 == "done" { next } { o++ } $3 != "waiting" && $3 != "aside" { printf "next: %s · %s · %s · %s\n", $1, $5, $6, $4; f = 1; exit }
   END { if (!f) print "next: none · " (o ? "every open item is waiting or set aside" : "nothing is open") }' "$BL" 2>/dev/null || echo 'next: none · nothing is open'; }
 bl_w() { printf '%s' "$1" | tr '\t\n\r' '   ' | sed 's/^ *//; s/ *$//'; }
 cmd_backlog() { bl_on || die 'the backlog is ticket mode'"'"'s: there is no .vid/tw/settings here'
   v=${1:-}; [ $# -eq 0 ] || shift
   case $v in
-    '') [ ! -f "$BL" ] || awk -F'\t' -v OFS='\t' '$3 != "done" { print $1, $3, $4, $5, $6, $7 }' "$BL"; bl_next; return 0 ;;
+    '') so_text; bl_next; ! manual || { bt=$(sh "$HERE/next-page.sh" text 2>/dev/null) && printf '%s\n' "$bt"; }; return 0 ;;   # FB-5 A1 (S5)
     add) w=$(bl_w "${1:-}"); [ -n "$w" ] || die 'usage — backlog add "<words>" [--who <who>] [--next "<…>"] [--note "<…>"]'; shift; id='' ;;
     set) id=${1:-}; [ $# -ge 3 ] || die 'usage — backlog set <id> [--state <state>] [--who <who>] [--next "<…>"] [--note "<…>"] [--place top|after <id>]'; shift; w='' ;;
     *) die 'backlog, backlog add "<words>" or backlog set <id> …' ;; esac
@@ -300,7 +317,180 @@ cmd_backlog() { bl_on || die 'the backlog is ticket mode'"'"'s: there is no .vid
       else if (S == "doing" && $3 == "doing") $3 = "to do"
       R[NR] = $0 }
     END { R[i] = me; if (p == "top") print me; for (j = 1; j <= NR; j++) { if (j != i || p == "") print R[j]; if (p == "after" && j == a) print me } }' "$Q/bo" > "$Q/bn" || br 'the backlog could not be written'
+  [ -z "$bs" ] || so_set "$id"; [ -z "$bp" ] || so_place "$id" ${bp%% *} ${bp#* }
   bl_put "$Q/bn"; echo "set $id"; bl_next; }
+# --- FB-5 A1 (S2): the sort of the list into the owner's sections, $Q/sorted, the vid-sort skill's judgement kept: `sorted <UTC>`, then a
+# block a line, `line <section> <ids or ->` and its parts, then `release` and `name` lines. This script is its one writer. Its own
+# lines in it: `raise <n>`, the calls counted when it was made, and in each block `sum <id> <checksum> <state>`, the item's words
+# (every count of days left out) and its state then. The file is not touched as items close: cmd_sorted says what stands now
+SO=$Q/sorted
+# SOA: awk, with BL the backlog: its open items in order, OI[1..no]; by id, ST state, WH who, WD words, NX next action, NT note, KY key, CK
+# checksum; and words(s), the words in s
+SOA='function ck(w, s,   i, h, g, c) { gsub(/[0-9]+ days?( ago)?/, "", w); w = w "\001" s; h = 7; g = 11; for (i = 1; i <= length(w); i++) { c = OD[substr(w, i, 1)]; h = (h * 31 + c) % 2147483647; g = (g * 131 + c) % 2147483629 } return h "." g }
+  function words(s,   a) { return split(s, a, " ") }
+  BEGIN { for (i = 1; i < 256; i++) OD[sprintf("%c", i)] = i
+    while ((getline l < BL) > 0) { n = split(l, x, "\t"); if (n < 8 || x[3] == "done") continue; if (!(x[1] in ST)) OI[++no] = x[1]; KY[x[1]] = x[2]; ST[x[1]] = x[3]; WH[x[1]] = x[4]; WD[x[1]] = x[5]; NX[x[1]] = x[6]; NT[x[1]] = x[7]; CK[x[1]] = ck(x[5], x[8]) } }'
+NPW=''; so_list() { NPW=1; sh "$HERE/next-page.sh" write > /dev/null 2>&1 || :; }   # the panel's list (.vid/face/list.json), never failing the queue
+# so_ids: the ids bl_sync changed ($Q/bm, `<old> TAB <new>`), followed in the sort; under the backlog's lock
+so_ids() { [ -s "$Q/bm" ] && [ -f "$SO" ] || return 0
+  awk -v M="$Q/bm" 'BEGIN { while ((getline l < M) > 0) { split(l, x, "\t"); N[x[1]] = x[2] } }
+    $1 == "line" { n = split($3, a, ","); o = ""; for (i = 1; i <= n; i++) o = o (i > 1 ? "," : "") ((a[i] in N) ? N[a[i]] : a[i]); print "line", $2, o; next }
+    $1 == "sum" && ($2 in N) { $2 = N[$2] } { print }' "$SO" > "$Q/so" || return 0; cmp -s "$Q/so" "$SO" || { put "$SO" < "$Q/so" && BLW=1; }; return 0; }
+# so_set <id>: a state set since the sort, the same one too: its `sum` line's state is `-` until the next sort; under the same lock
+so_set() { [ -f "$SO" ] || return 0; awk -v I="$1" '$1 == "sum" && $2 == I { $4 = "-" } { print }' "$SO" > "$Q/so" || return 0; cmp -s "$Q/so" "$SO" || { put "$SO" < "$Q/so" && BLW=1; }; return 0; }
+# so_place <id> top|after [<id>]: the owner's placing, in the sort too: its line moved among its section's lines and marked `placed`
+so_place() { [ -f "$SO" ] || return 0
+  awk -v I="$1" -v P="$2" -v X="${3:-}" 'function in_(ids, i,   a, n, j) { n = split(ids, a, ","); for (j = 1; j <= n; j++) if (a[j] == i) return 1; return 0 }
+    $1 == "line" { b = ++nb; SEC[b] = $2; D[b] = $3; H[b] = $0; next } $1 == "release" || $1 == "name" { tl = tl $0 "\n"; next } $0 == "" { next }
+    !b { hd = hd $0 "\n"; next } $1 == "placed" { PL[b] = 1; next } { T[b] = T[b] $0 "\n" }
+    function out(j) { printf "\n%s\n%s%s", H[j], (PL[j] ? "placed\n" : ""), T[j] }
+    END { for (j = 1; j <= nb; j++) { if (in_(D[j], I)) m = j; if (X != "" && in_(D[j], X)) at = j }
+      printf "%s", hd; if (m) { PL[m] = 1; if (P == "top") { for (j = 1; j <= nb && !bf; j++) if (SEC[j] == SEC[m]) bf = j } else if (at && at != m && SEC[at] == SEC[m]) af = at }
+      for (j = 1; j <= nb; j++) { if (j == bf) out(m); if (j != m || (!bf && !af)) out(j); if (j == af) out(m) }
+      if (tl != "") printf "\n%s", tl }' "$SO" > "$Q/so" || return 0; cmp -s "$Q/so" "$SO" || { put "$SO" < "$Q/so" && BLW=1; }; return 0; }
+# cmd_sorted: the sort as it stands now, read only, the one place its rules are: `sorted <UTC>`, `state sorted|stale|none`, `unsorted <id>`
+# for each open item raised or changed since, then each line as it is drawn, `line <section> <n, or -> <ids>` and its parts. A todo line
+# counts whole: one changed item takes it; closed, it goes, its number unused; every open item aside or waiting, one of them since the
+# sort, it is drawn under later or waiting. After the next call (a raise since) no `new` and no changed line's words
+cmd_sorted() { bl_on || die 'the sort is ticket mode'"'"'s: there is no .vid/tw/settings here'
+  [ -f "$SO" ] || { echo 'state none'; awk -F'\t' '$3 != "done" { print "unsorted " $1 }' "$BL" 2>/dev/null; return 0; }
+  awk -v BL="$BL" -v G="$(cat "$Q/raises" 2>/dev/null || echo 0)" "$SOA"'
+    function part(b, k,   i) { for (i = 1; i <= np[b]; i++) if (index(P[b, i], k " ") == 1) return substr(P[b, i], length(k) + 2); return "" }
+    $1 == "sorted" { at = $2; next } $1 == "raise" { rs = $2; next } $1 == "release" || $1 == "name" { tl = tl $0 "\n"; next } $0 == "" { next }
+    $1 == "line" { b = ++nb; SEC[b] = $2; D[b] = $3; next } $1 == "sum" { SC[b, $2] = $3; SS[b, $2] = $4; next } b { P[b, ++np[b]] = $0 }
+    END { later = (G + 0 > rs + 0)
+      for (b = 1; b <= nb; b++) { n = (D[b] == "-") ? 0 : split(D[b], a, ","); o = 0; stale = 0; off = 0; wt = 0; since = 0; live = ""; num = "-"
+        for (j = 1; j <= n; j++) { i = a[j]; if (!(i in ST)) continue; o++; if (SC[b, i] != CK[i]) { stale++; continue }
+          live = live (live == "" ? "" : ",") i; s = ST[i]; sub(/ /, "-", s); if (s == "aside" || s == "waiting") { off++; if (s == "waiting") wt++; if (s != SS[b, i]) since = 1 } }
+        if (SEC[b] == "todo") { num = "1." (++nt); if (!o || stale) continue; sec = "todo"; ids = live
+          if (off == o && since) { sec = wt ? "waiting" : "later"; num = "-" } }
+        else { sec = SEC[b]; ids = live; if (n && live == "") continue; if (!n) { ids = "-"; if (sec == "changed" && later) continue } }
+        m = split(live, a, ","); for (j = 1; j <= m; j++) IN[a[j]] = 1
+        out = out "line " sec " " num " " ids "\n"
+        if (SEC[b] == "todo" && sec != "todo") { nt_ = ""; wh_ = ""; for (j = 1; j <= m; j++) { i = a[j]; if (nt_ == "" && NT[i] != "-") nt_ = NT[i]; if (wh_ == "" && WH[i] != "you" && WH[i] != "-") wh_ = WH[i] }   # the first said of its items
+          w = part(b, "title")
+          if (sec == "waiting") out = out (wh_ == "" ? "" : "who " wh_ "\n") "what " w "\n" (nt_ == "" ? "" : "since " nt_ "\n")
+          else out = out "what " w "\nthen " (nt_ == "" ? "put off" : "put off: " nt_) "\n"; continue }
+        for (j = 1; j <= np[b]; j++) { if (later && (index(P[b, j], "new ") == 1 || (sec == "changed" && P[b, j] !~ /^placed/))) continue; out = out P[b, j] "\n" } }
+      for (j = 1; j <= no; j++) if (!(OI[j] in IN)) { u = u "unsorted " OI[j] "\n" }
+      printf "sorted %s\nstate %s\n%s%s%s", at, (u == "" ? "sorted" : "stale"), u, out, tl }' "$SO"; }
+# so_line: the call's one line of the sort
+so_line() { cmd_sorted | awk '$1 == "state" { s = $2 } $1 == "unsorted" { u++ } $1 == "line" { on = ($2 == "todo"); if (on) n++ } $1 == "title" && on && t == "" { t = substr($0, 7) }
+  END { o = n ? n " thing" (n > 1 ? "s" : "") " for you; first: " t : ""; if (u) o = o (o == "" ? "" : "; ") "not sorted: " u; print (o == "" ? "nothing is yours now" : o) }'; }
+# cmd_sorted's one option, --line: so_line alone
+# cmd_open: each open item, `<id> TAB <new|changed|moved|same> TAB <state> TAB <who> TAB <words> TAB <its key, what raised it> TAB <next
+# action> TAB <note> TAB <the line the last sort gave it, or ->`: changed, its words; moved, its state, set
+# since, the same one too; then the counts
+cmd_open() { bl_on || die 'the list is ticket mode'"'"'s: there is no .vid/tw/settings here'
+  if [ -f "$SO" ]; then cat "$SO"; fi | awk -v BL="$BL" "$SOA"'
+    $1 == "line" { b = ++nb; w = $2; if ($2 == "todo") w = w " 1." (++nt); L[b] = w; next } $1 == "placed" { PL[b] = 1 } $1 == "title" && b { TT[b] = substr($0, 7) } $1 == "what" && b && !(b in TT) { WT[b] = substr($0, 6) }
+    $1 == "sum" { AT[$2] = b; SC[$2] = $3; SS[$2] = $4 }
+    END { for (j = 1; j <= no; j++) { i = OI[j]; s = ST[i]; sub(/ /, "-", s); m = !(i in SC) ? "new" : (SC[i] != CK[i]) ? "changed" : (SS[i] != s) ? "moved" : "same"; if (m == "new" || m == "changed") k++; if (m == "moved") v++
+        w = "-"; if (i in AT) { b = AT[i]; w = L[b] (PL[b] ? " placed" : "") " · " ((b in TT) ? TT[b] : WT[b]) }
+        printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", i, m, ST[i], WH[i], WD[i], KY[i], NX[i], NT[i], w }
+      printf "open %d · %d not sorted · %d moved\n", no, k, v }'; }
+# cmd_sort <file|->: the vid-sort skill's sort, taken whole or refused whole, each reason named: an open item in no line or two, an id not
+# open, a line with no item where one is owed, a todo not whole. Everything else is a flag, and the sort is written: a length, a word of
+# ViD's own in a shown part (all but message and details), more than seven to-dos, an unknown section or part (left out), a line put
+# before one the owner placed (written after it). The mark `placed` is carried, and its place; a to-do copied unchanged, put off or
+# waiting since, is written where it is drawn; `new` and a changed line's words the last sort said for the same ids are left out, but
+# at a sort that corrects it, nothing raised or changed between. The one before is kept as sorted.prev
+cmd_sort() { bl_on || die 'the sort is ticket mode'"'"'s: there is no .vid/tw/settings here'
+  [ $# -eq 1 ] || die 'usage — sort <file|->'; [ "$1" = - ] || [ -f "$1" ] || die "no file $1"; prog now 'sorting your list'
+  if [ "$1" = - ]; then cat; else cat "$1"; fi > "$Q/si"; bl_lock || exit 1
+  { sfile INVENTORY.md | awk '$2 == "|" && $1 ~ /^[A-Z][A-Z0-9]*-[0-9]+$/ { print $1 }' || :; } > "$Q/sv"; : > "$Q/sr"; : > "$Q/sf"; [ -f "$SO" ] || : > "$Q/s0"; [ ! -f "$SO" ] || cat "$SO" > "$Q/s0"
+  awk -v BL="$BL" -v OLD="$Q/s0" -v IV="$Q/sv" -v RF="$Q/sr" -v FF="$Q/sf" -v NOW="$(stamp)" -v G="$(cat "$Q/raises" 2>/dev/null || echo 0)" "$SOA"'
+    function bad(w) { print w > RF } function flag(w) { print "flag: " w > FF }
+    function nm(b) { return (b in V) && ((b, "title") in V) ? V[b, "title"] : D[b] }
+    function is(b, k) { return ((b, k) in V) && V[b, k] != "" }
+    function own(w,   n, a, i, t, o) { o = ""; n = split(w, a, /[^A-Za-z0-9-]+/)
+      for (i = 1; i <= n; i++) { t = a[i]; u = t; sub(/-T[0-9]+$/, "", u); if (u in INV || (t ~ /^[QB][0-9]+$/ && t in ST) || (length(t) >= 12 && t !~ /[^0-9a-f]/)) o = o (o == "" ? "" : ", ") t }
+      if (w ~ /(^|[^A-Za-z0-9_.\/])\/vid([: ]|$)/) o = o (o == "" ? "" : ", ") "/vid"; return o }
+    function shown(b, k, w,   o) { o = own(w); if (o != "") flag(D[b] ": its " k " holds " o ", a word of ViD'"'"'s own: write it in product words") }
+    function long(b, k, w, m,   n) { n = words(w); if (n > m) flag(D[b] ": its " k " has " n " words, over " m) }
+    BEGIN { while ((getline l < IV) > 0) INV[l] = 1; n = split("todo waiting changed vid later team suggested left-out plan", x, " "); for (i = 1; i <= n; i++) SECS[x[i]] = 1
+      n = split("placed title do new what ask about choice choose message then who since details", x, " "); for (i = 1; i <= n; i++) PART[x[i]] = 1
+      while ((getline l < OLD) > 0) { split(l, x, " "); if (x[1] == "raise") ORS_ = x[2] + 0
+        if (x[1] == "sum") { OSC[x[2]] = x[3]; OSS[x[2]] = x[4] } else if (ob && l != "" && x[1] != "line" && x[1] != "placed" && x[1] != "release" && x[1] != "name") OT[ob] = OT[ob] l "\n"
+        if (x[1] == "new" || (x[1] == "what" && osec == "changed")) { n = split(od, y, ","); for (i = 1; i <= n; i++) SAID[y[i], x[1], substr(l, length(x[1]) + 2)] = 1 }
+        if (x[1] == "line") { osec = x[2]; n = split(x[3], y, ","); for (i = 1; i <= n; i++) OB[y[i]] = ob + 1 }
+        if (x[1] == "line") { ob++; od = x[3]; n = split(od, y, ","); for (i = 1; i <= n; i++) OORD[y[i]] = (x[2] == "todo") ? ob : 0 } if (x[1] == "placed") { n = split(od, y, ","); for (i = 1; i <= n; i++) if (y[i] != "-") OPL[y[i]] = 1 } } }
+    { sub(/\r$/, ""); gsub(/\t/, " "); sub(/^ +/, ""); sub(/ +$/, "") } $0 == "" { next }
+    $1 == "sorted" || $1 == "raise" || $1 == "sum" { next }
+    { r = $0; sub(/^[^ ]+ */, "", r) }
+    $1 == "line" { if (!($2 in SECS)) { flag("\"" $2 "\" is no section: the line is left out"); b = 0; next }
+      b = ++nb; SEC[b] = $2; d = r; sub(/^[^ ]+ */, "", d); gsub(/ /, "", d); if (d == "") d = "-"; D[b] = d; next }
+    $1 == "release" || $1 == "name" { tl = tl $0 "\n"; if ($1 == "release" && own(r) != "") flag("release: it holds " own(r) ", a word of ViD'"'"'s own: write it in product words"); next }
+    !($1 in PART) || !b { if (b || !($1 in PART)) flag("\"" $1 "\" is no part of a line: left out"); next }
+    $1 == "placed" { PLC[b] = 1; next } r == "" { next }
+    { P[b, ++np[b]] = $1 " " r; V[b]; V[b, $1] = r; if ($1 == "ask") { na[b]++; nc[b, na[b]] = 0 } if ($1 == "choice") nc[b, na[b]]++; if (na[b] && ($1 == "choice" || $1 == "message")) AOK[b] = 1
+      if ($1 != "message" && $1 != "details") shown(b, $1, r)
+      if ($1 == "title" || $1 == "do") long(b, $1, r, 10); if ($1 == "what") long(b, $1, r, 55); if ($1 == "ask") long(b, $1, r, 20); if ($1 == "then") long(b, $1, r, 35) }
+    # said(b, k, w): every id of the block had these words there at the last sort
+    function said(b, k, w,   n, a, j) { n = split(D[b], a, ","); for (j = 1; j <= n; j++) if (!((a[j], k, w) in SAID)) return 0; return n }
+    # again: the last sort is over: a call raised since, or an item is new, changed, moved or closed since; else this one corrects it
+    function again(   i, j, s) { if (G + 0 > ORS_ + 0) return 1; for (i in OSC) if (!(i in ST)) return 1
+      for (j = 1; j <= no; j++) { i = OI[j]; s = ST[i]; sub(/ /, "-", s); if (OSC[i] != CK[i] || OSS[i] != s) return 1 } return 0 }
+    # off(b): a to-do copied unchanged, every item of it put off or waiting, one of them since the last sort: later or waiting, as it is drawn
+    function off(b,   n, a, j, i, s, w, snc, t, o) { n = split(D[b], a, ","); o = OB[a[1]]; if (!o) return ""; for (j = 1; j <= np[b]; j++) t = t P[b, j] "\n"; if (t != OT[o]) return ""
+      for (j = 1; j <= n; j++) { i = a[j]; s = ST[i]; if (OB[i] != o || OSC[i] != CK[i] || (s != "aside" && s != "waiting")) return ""; if (s == "waiting") w = 1; if (s != OSS[i]) snc = 1 }
+      return snc ? (w ? "waiting" : "later") : "" }
+    function setp(b, k, w) { P[b, ++np[b]] = k " " w; V[b, k] = w }
+    END { for (b = 1; b <= nb; b++) { if (D[b] == "-") { if (SEC[b] != "changed" && SEC[b] != "vid") bad("a " SEC[b] " line holds no item") }
+        else { n = split(D[b], a, ","); for (j = 1; j <= n; j++) { i = a[j]; if (!(i in ST)) bad(i " is not open"); else if (++CN[i] == 2) bad(i " is in two lines") ; if (i in OPL) PLC[b] = 1 } }
+        if (SEC[b] == "todo") { nt++; k = ""; if (!is(b, "title")) k = k ", title"; if (!is(b, "do")) k = k ", do"; if (!is(b, "what")) k = k ", what"; if (!is(b, "then")) k = k ", then"; if (!AOK[b]) k = k ", an ask with a choice or a message"
+          if (k != "") bad("the todo line " D[b] " lacks " substr(k, 3)) }
+        if (na[b] > 2) flag(D[b] ": " (na[b] == 3 ? "three" : na[b]) " asks, over two"); for (j = 1; j <= na[b]; j++) if (nc[b, j] > 3) flag(D[b] ": " (nc[b, j] == 4 ? "four" : nc[b, j]) " choices in one ask, over three") }
+      for (j = 1; j <= no; j++) if (!(OI[j] in CN)) bad(OI[j] " is in no line: " WD[OI[j]])
+      if (nt > 7) flag(nt " to-dos, over seven")
+      for (b = 1; b <= nb; b++) { if (SEC[b] != "todo" || !PLC[b]) continue; n = split(D[b], a, ","); w = 0; for (j = 1; j <= n; j++) if (a[j] in OPL && OORD[a[j]]) w = OORD[a[j]]; if (!w) continue
+        for (c = 1; c < b; c++) { if (SEC[c] != "todo" || PLC[c]) continue; n = split(D[c], a, ","); f = 0; for (j = 1; j <= n; j++) if (OORD[a[j]] && OORD[a[j]] < w) f = 1; if (!f) flag("\"" nm(c) "\" stands before \"" nm(b) "\", which the owner placed") } }
+      for (b = 1; b <= nb; b++) { if (SEC[b] != "todo" || (sx = off(b)) == "") continue; SEC[b] = sx; w = V[b, "title"]; n = split(D[b], a, ","); wh = ""; nt_ = ""; for (j = 1; j <= n; j++) { i = a[j]; if (nt_ == "" && NT[i] != "-") nt_ = NT[i]; if (wh == "" && WH[i] != "you" && WH[i] != "-") wh = WH[i] }
+        np[b] = 0; if (sx == "waiting") { if (wh != "") setp(b, "who", wh); setp(b, "what", w); if (nt_ != "") setp(b, "since", nt_) } else { setp(b, "what", w); setp(b, "then", "put off" (nt_ == "" ? "" : ": " nt_)) } }
+      # a placed to-do in its place: before every line that did not stand before it at the last sort; the first placed first
+      for (b = 1; b <= nb; b++) { R[b] = b; W_[b] = 0; if (SEC[b] != "todo") continue; n = split(D[b], a, ","); for (j = 1; j <= n; j++) { if (OORD[a[j]] && (!W_[b] || OORD[a[j]] < W_[b])) W_[b] = OORD[a[j]]; if (a[j] in OPL && OORD[a[j]]) KP[b] = 1 } }
+      for (b = 1; b <= nb; b++) if (SEC[b] == "todo") { SL[++ns] = b; if (!KP[b]) Z[++nz] = b }
+      while (1) { m = 0; for (b = 1; b <= nb; b++) if (KP[b] && !DN[b] && (!m || W_[b] < W_[m])) m = b; if (!m) break; DN[m] = 1
+        for (at = 1; at <= nz; at++) if (!(W_[Z[at]] && W_[Z[at]] < W_[m])) break; for (j = nz; j >= at; j--) Z[j + 1] = Z[j]; Z[at] = m; nz++ }
+      for (j = 1; j <= ns; j++) R[SL[j]] = Z[j]
+      ag = again()
+      printf "sorted %s\nraise %s\n", NOW, G
+      for (c = 1; c <= nb; c++) { b = R[c]; if (ag && SEC[b] == "changed" && D[b] == "-" && said(b, "what", V[b, "what"])) continue
+        printf "\nline %s %s\n%s", SEC[b], D[b], (PLC[b] ? "placed\n" : "")
+        for (j = 1; j <= np[b]; j++) { k = P[b, j]; sub(/ .*/, "", k); w = substr(P[b, j], length(k) + 2); if (ag && (k == "new" || (k == "what" && SEC[b] == "changed")) && said(b, k, w)) continue; print P[b, j] }
+        n = split(D[b], a, ","); for (j = 1; j <= n; j++) if (a[j] in ST) { s = ST[a[j]]; sub(/ /, "-", s); print "sum " a[j] " " CK[a[j]] " " s } }
+      if (tl != "") printf "\n%s", tl }' "$Q/si" > "$Q/so" || { lock_free .vid/backlog.lock; die 'the sort could not be read'; }
+  if [ -s "$Q/sr" ]; then lock_free .vid/backlog.lock; while IFS= read -r l; do echo "ViD queue: the sort is refused — $l" >&2; done < "$Q/sr"; so_line; exit 1; fi
+  if [ -f "$SO" ]; then put "$SO.prev" < "$SO" || { lock_free .vid/backlog.lock; exit 1; }; fi
+  put "$SO" < "$Q/so" || { lock_free .vid/backlog.lock; exit 1; }; lock_free .vid/backlog.lock; so_list; cat "$Q/sf"; so_line; }
+# so_text: My to do, Waiting, Changed and The rest as text (S5), from what stands
+so_text() { sl=''; ! manual || sl=.vid/next/lines   # the call's counts, in GitHub manual
+  cmd_sorted | awk -v BL="$BL" -v CL="$sl" "$SOA"'
+    BEGIN { while (CL != "" && (getline l < CL) > 0) { split(l, x, "\t"); if (x[1] == "count") C[x[2]] = x[3] }
+      M["to-place"] = "in no step yet"; M["added"] = "new in the spec"; M["retired"] = "retired, with the team still"; M["restated"] = "quoted otherwise in a ticket"; M["reset"] = "reset by a change of the spec"; M["unpublished"] = "in no ticket yet" }
+    function ids(d) { gsub(/,/, ", ", d); return d == "-" ? "" : " (" d ")" }
+    function v(b, k) { return ((b, k) in V) ? V[b, k] : "" }
+    function say(h, s,   b, o) { o = ""; for (b = 1; b <= nb; b++) if (SEC[b] == s && (v(b, "what") != "" || v(b, "title") != "")) o = o "  - " (s == "later" && v(b, "then") != "" ? v(b, "then") ": " : "") (v(b, "what") != "" ? v(b, "what") : v(b, "title")) ids(D[b]) "\n"; if (o != "") printf "  %s\n%s", h, o }
+    $1 == "state" { st = $2; next } $1 == "unsorted" { U[$2] = 1; nu++; next } $1 == "sorted" || $1 == "release" || $1 == "name" { next }
+    { r = $0; sub(/^[^ ]+ */, "", r) }
+    $1 == "line" { b = ++nb; SEC[b] = $2; N[b] = $3; D[b] = $4; CT[$2]++; next }
+    b { P[b, ++np[b]] = $1 "\t" r; V[b, $1] = r }
+    END { if (st == "none" && no) print "1 My to do: not sorted yet"; else if (!CT["todo"]) print "1 My to do: " (nu ? "nothing sorted; " nu " not sorted yet" : "nothing is yours now")
+      else { print "1 My to do (" CT["todo"] ")"
+        for (b = 1; b <= nb; b++) { if (SEC[b] != "todo") continue; print N[b] " " v(b, "title") ids(D[b]); if (v(b, "new") != "") print "    new: " v(b, "new"); print "    " v(b, "do"); print "    " v(b, "what")
+          for (j = 1; j <= np[b]; j++) { split(P[b, j], x, "\t"); k = x[1]; w = substr(P[b, j], length(k) + 2)
+            if (k == "ask") { print "    ? " w; c = 0 } else if (k == "about") print "      " w; else if (k == "choice") print "      " (++c) ". " w
+            else if (k == "choose") { n = w; sub(/ .*/, "", n); sub(/^[^ ]+ */, "", w); print "      ViD would choose " n ": " w } else if (k == "message") print "      to send: " w }
+          print "    then: " v(b, "then"); if (v(b, "details") != "") print "    details: " v(b, "details") } }
+      print "2 Waiting" (CT["waiting"] ? " (" CT["waiting"] ")" : ": none"); for (b = 1; b <= nb; b++) if (SEC[b] == "waiting") print "  - " (v(b, "who") == "" ? "" : v(b, "who") ": ") v(b, "what") (v(b, "since") == "" ? "" : " · since " v(b, "since")) ids(D[b])
+      for (b = 1; b <= nb; b++) if (SEC[b] == "changed" && v(b, "what") != "") nch++
+      print "3 Changed" (nch ? " (" nch ")" : ": none"); for (b = 1; b <= nb; b++) if (SEC[b] == "changed" && v(b, "what") != "") print "  - " v(b, "what") ids(D[b])
+      print "4 The rest"; say("what ViD does", "vid"); say("yours later", "later"); say("goes to the team by itself", "team"); say("suggested", "suggested"); say("weighed and left out", "left-out")
+      if (nu) print "  not sorted yet: " nu
+      if (C["total"]) { o = ""; nk = split("to-place added retired restated reset unpublished", KN, " "); for (j = 1; j <= nk; j++) if (C[KN[j]]) o = o (o == "" ? "" : ", ") C[KN[j]] " " M[KN[j]]; print "  tests not yet with the team: " C["total"] " (" o ")" }
+      for (b = 1; b <= nb; b++) { n = split(D[b], a, ","); for (j = 1; j <= n; j++) W[a[j]] = (SEC[b] == "todo") ? N[b] : (SEC[b] == "waiting") ? "Waiting" : (SEC[b] == "changed") ? "Changed" : (SEC[b] == "plan") ? "The plan" : "The rest" }
+      if (no) print "  Everything ViD holds (" no "): id, state, who, words, next action, note, where"
+      for (j = 1; j <= no; j++) { i = OI[j]; printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\n", i, ST[i], WH[i], WD[i], NX[i], NT[i], ((i in U) || !(i in W)) ? "not sorted yet" : W[i] } }'; }
 # v0.26.10.26.7 (R2, R13): the hold's and the compaction question's lines, once; only the sync verb prints them, so a silent
 # sync inside ask or answer never marks one seen unprinted
 announce() { awk -F'\t' '$1 ~ /^hold:/ { k = $1; sub(/^hold:/, "", k); print "hold " k }' "$Q/items" | while IFS= read -r l; do grep -qxF "$l" "$Q/seen" || { echo "$l" >> "$Q/seen"; echo "$l $(num "hold:${l#hold }")"; }; done
@@ -749,7 +939,7 @@ cmd_raise() { [ $# -eq 1 ] && [ -f "$1" ] || die 'usage — raise <the call'"'"'
     $1 == "trigger" || $1 == "quiet" { getline e < RK; split(e, E, "\t"); if ($1 == "quiet" && $6 == "minor") next; one("trigger:" $3 ":" $2 ":" substr(E[4], 1, 12) ":" $4, $2, $2 " trigger " $3 " " $4 ": " $5); next }
     $1 == "move" { one("move:" $2 ":" substr($4, 1, 12) ":" $3, "move", $2 " " $3 ": " $5) }
     END { if (KP) for (i = 1; i <= no; i++) if (!(OK[i] in N)) print OL[i] }' "$1" > "$Q/ra" || exit 1
-  put "$Q/raised" < "$Q/ra" || exit 1; echo "$g" > "$Q/rn" && put "$Q/raises" < "$Q/rn" || exit 1; cmd_scan; cmd_sync > /dev/null
+  put "$Q/raised" < "$Q/ra" || exit 1; echo "$g" > "$Q/rn" && put "$Q/raises" < "$Q/rn" || exit 1; NPW=''; cmd_scan; cmd_sync > /dev/null; [ -n "$NPW" ] || so_list   # FB-5 A1: the board is of this call's read and lines, whatever the list did
   echo "raised $(grep -c . "$Q/raised" || true), $(awk -F'\t' -v g="$(cat "$Q/raises")" '$2 == g' "$Q/raised" | grep -c . || true) new"; }
 # GM-4 K6, I6: ans <key>, the answers a Q line takes, as answer takes them
 ans() { case $1 in held:*) echo 'a | b <N> | c | d "<words>"' ;; question:*) echo '"<words>" | there "<words>"' ;; findings:*|finding:*) echo '<finding> fix|row|known|no "<words>"' ;;
@@ -774,6 +964,7 @@ CMD=${1:-}; [ $# -eq 0 ] || shift
 case $CMD in
   sync) cmd_scan; cmd_sync; announce ;; raise) cmd_raise "$@" ;; list) cmd_list "$@" ;;
   backlog) cmd_backlog "$@" ;;   # FB-3 D1
+  open) cmd_open ;; sort) cmd_sort "$@" ;; sorted) case "$*" in '') cmd_sorted ;; --line) bl_on || die 'the sort is ticket mode'"'"'s: there is no .vid/tw/settings here'; so_line ;; *) die 'usage — sorted [--line]' ;; esac ;;   # FB-5 A1
   closes) c_items | awk -F'\t' '{ split($1, a, ":"); if (a[3] == "twice" || a[3] == "shrink") print "close-" a[3] "\t" $1 }' ;;
   keys) items > "$Q/ky" || exit 1; while IFS=$TAB read -r k g w; do printf '%s\t%s\t%s\n' "$k" "$(num "$k" | grep . || echo -)" "$w"; done < "$Q/ky" ;; cost) cmd_cost "$@" ;; answer) cmd_answer "$@" ;; status) cmd_status ;; addresses) case ${1:-} in ''|*[!0-9]*) die 'usage — addresses <stage>' ;; esac; c=$(snc "$1"); if [ -n "$c" ]; then addrs "$D/stage/$1/$c" "$1"; else echo 'test site: not known yet'; fi ;; control) cmd_control "$@" ;; blockers) cmd_blockers "$@" ;; defect) cmd_defect "$@" ;; lesson) cmd_lesson "$@" ;;
   recommend) k=$(qn "${1:-}"); case $k in held:*|stage:*) printf '%s\t%s\t%s\n' "$k" "${2:-}" "${3:-}" >> "$Q/recommend"; echo "recommended ${2:-} for $1" ;; *) die "${1:-} is no held row's or stage finding's line" ;; esac ;;
@@ -791,4 +982,4 @@ case $CMD in
     # GM-4 F4 (D6): none when every question is the owner's
     if ! ownerq && ! grep -qxF "$i" "$Q/waited" 2>/dev/null; then printf 'RM: this question waits on the lead (%s); go on with what it does not block.\n' "$m" > "$Q/post"
       if sh "$HERE/github.sh" comment "${i%%:*}" --body-file "$Q/post" > /dev/null 2>&1; then echo "$i" >> "$Q/waited"; ev "queue-waiting n=${i%%:*} q=$m"; else echo "waiting-comment-failed ${i%%:*}"; fi; fi ;;
-  *) echo 'usage: sh checks/queue.sh sync|raise|list|backlog|closes|recommend|ask|answer|control|status|addresses|cost|defect|lesson' >&2; exit 2 ;; esac
+  *) echo 'usage: sh checks/queue.sh sync|raise|list|backlog|open|sort|sorted|closes|recommend|ask|answer|control|status|addresses|cost|defect|lesson' >&2; exit 2 ;; esac

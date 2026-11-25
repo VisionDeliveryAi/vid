@@ -4,8 +4,8 @@
 # times, a `-` an empty one; the newest ten done, the newest first, and how many are done; format 2. With .vid/tw/settings and no
 # backlog yet it is empty; where there is none of them it is null. A write of the backlog recomputes the standing, with no hook; a
 # sync that changes nothing leaves it. Where hooks/ is beside checks/: the hook makes the standing and the run file at a first turn
-# of a ticket-mode project with no .vid/face, and none in a project with neither; the panel reads the backlog (hooks/face, its own
-# tests face-panel-kit's). Env: CHECKS.
+# of a ticket-mode project with no .vid/face, and none in a project with neither; the panel reads the backlog and the owner's list
+# made from it (FB-5 A1: hooks/face, face-sections'). Env: CHECKS.
 set -eu
 unset CLAUDE_CODE_SESSION_ID VID_CALLER 2>/dev/null || true
 command -v python3 >/dev/null 2>&1 || { echo 'needs python3 to read the JSON'; exit 77; }
@@ -44,4 +44,5 @@ printf '{"hook_event_name":"UserPromptSubmit","session_id":"s1"}' | CLAUDE_PLUGI
 grep -q '^running ' .vid/face/run.s1 2>/dev/null || fail 'a ticket-mode project'"'"'s first prompt left no run file'
 [ -f .vid/face/standing.json ] || fail 'a ticket-mode project'"'"'s first prompt left no standing'
 grep -q 'backlog' "$H/face/model.ts" && grep -q 'backlog' "$H/face/register.tsx" || fail 'the panel does not read the backlog'
+grep -q 'list\.json' "$H/face/register.tsx" || fail 'the panel does not read the list made from the backlog'
 exit 0

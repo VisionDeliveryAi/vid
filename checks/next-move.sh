@@ -1,6 +1,6 @@
 #!/bin/sh
 # Purpose: /vid next's moves (GitHub manual, GM-2 T10, T4; GM M16 steps 5 to 7): what the call showed kept, each move the owner
-# named checked and done in the order named, each saved before the next, and the plan page written. Run from the top of ViD's
+# named checked and done in the order named, each saved before the next, and what the call raised kept. Run from the top of ViD's
 # repository in GitHub manual alone (lib.sh manual), after vid-read and vid-triggers (the call's steps 3 and 4) and before
 # vid-connect's end, inside the call's lock. Every script it calls is marked as the call's own (VID_CALLER=next). It holds no
 # rule of a move: each is the script's it calls.
@@ -16,12 +16,10 @@
 #        `context proposal due`), it asks, one `proposal due: …` line: what it covers and touches, by count, and how long it takes
 #        (.vid/next/proposal/took, or the applied one's, the seconds the last one took), and (FB-3 E2, FB-4 A3) what its posts lack, engines or settings; the yes is implement-replan, named;
 #     3. after the moves the call's lines (made again when a move ran, and then printed as next.sh short shows them, `counted` lines left out), and what they
-#        raise kept in the owner's queue (GM-4 F4: queue.sh raise), each trigger and move a `Q<n>` line;
-#     4. the plan page (next-page.sh write on the call's last lines): its `page <path>` line; then (GM-4 K6, I6) each open `Q<n>`
-#        line of the owner's queue with the answers it takes, as queue.sh list --short prints it (FB-3 C5: one line a kind).
-#   shell <page>   the plan page's fixed shell (GM-2 T12), plan-shell.html beside the page: it shows plan.html, the data file the
-#                  vid-next skill publishes to the same link; prints `shell <path>`. FB-3 E3: of REPLAN-PAGE.html, the re-plan page's,
-#                  replan-shell.html beside it, with its own title and frame
+#        raise kept in the owner's queue (GM-4 F4: queue.sh raise), each trigger and move a `Q<n>` line; FB-5 A1 (S5): the lines
+#        kept in .vid/next/lines, and the call ends there: the owner's list is the vid-sort skill's, the step after.
+#   shell <page>   the re-plan page's fixed shell (FB-3 E3), replan-shell.html beside REPLAN-PAGE.html: it shows that page, the data
+#                  file the vid-replan skill publishes to the same link; prints `shell <path>`. FB-5 A1: no other page has one
 # The moves (GM-2 T10's table), named by kind and subject, never by a number, the owner's words their last argument. GM-4 K11
 # (step 6): each runs the script entry of the skill it belongs to; next-move.sh holds only the listing check (A20) and the call's
 # order, never a move's rule:
@@ -66,9 +64,9 @@
 #   (answer Q<n> yes "<words>"); no move of its own
 # Prints a line a move: `done <kind> <subject>: <what>`, `refused <kind> <subject> at <step>: <its words>` (the step's output
 #   under it, indented), `again <kind> <subject>: <why>; shown again, not done` (then its move and warning lines), `not done <kind>
-#   <subject>: <why>`, `not saved: …`; then `after the moves:` and the lines, when a move ran; then `page <path>`; then the
-#   queue's open lines, `Q<n> TAB <key> TAB <the answers it takes> TAB <its words>`.
-#   Exit 0; 1 when the call's lines cannot be made, a save fails or the page cannot be written; 2 a usage error, before anything.
+#   <subject>: <why>`, `not saved: …`; then `after the moves:` and the lines, when a move ran; then the re-plan's
+#   question, when one is due.
+#   Exit 0; 1 when the call's lines cannot be made or kept, or a save fails; 2 a usage error, before anything.
 #   GM-4 F5, K1: the apply posts through github.sh tw-hand itself; the `post` entry made for it is cut
 # Usage: sh checks/next-move.sh call [<move> [-- <move>]…] | shell <page>
 # serves: tickets
@@ -86,15 +84,14 @@ one() { printf '%s' "$1" | tr '\t\n' '  ' | tr '"' "'"; }   # the owner's words 
 
 case ${1:-} in
   shell) [ $# -eq 2 ] && [ -f "$2" ] || usage; D=$(cd "$(dirname "$2")" && pwd); PG=$(basename "$2")
-    # FB-3 E3: the re-plan page's shell, its own title and frame, beside it
-    case $PG in plan.html) SH=plan-shell.html; TT='Plan page' ;; REPLAN-PAGE.html) SH=replan-shell.html; TT='Re-plan page' ;; *) ref "the page is plan.html or REPLAN-PAGE.html, not $PG" ;; esac
+    [ "$PG" = REPLAN-PAGE.html ] || ref "the page is REPLAN-PAGE.html, not $PG"
     cat > "$W/sh" <<'HTML'
 <!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Plan page</title>
+<title>Re-plan page</title>
 <style>
 :root { color-scheme: light dark; --bg: #ffffff; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #16161a; } }
@@ -104,12 +101,11 @@ iframe { display: block; border: 0; width: 100%; height: 100%; }
 </style>
 </head>
 <body>
-<iframe src="plan.html" title="The plan page"></iframe>
+<iframe src="REPLAN-PAGE.html" title="The re-plan page"></iframe>
 </body>
 </html>
 HTML
-    if [ "$PG" = REPLAN-PAGE.html ]; then sed -e "s|<title>Plan page<|<title>$TT<|" -e "s|src=\"plan.html\" title=\"The plan page\"|src=\"$PG\" title=\"The re-plan page\"|" "$W/sh" > "$W/sh2" && mv "$W/sh2" "$W/sh" || exit 1; fi
-    put "$D/$SH" < "$W/sh" || exit 1; echo "shell $D/$SH"; exit 0 ;;
+    put "$D/replan-shell.html" < "$W/sh" || exit 1; echo "shell $D/replan-shell.html"; exit 0 ;;
   call) shift ;;
   *) usage ;;
 esac
@@ -286,13 +282,12 @@ i=0; RAN=''; while [ $i -lt "$NM" ]; do i=$((i + 1)); F=$W/m/$i; na=$(grep -c ''
   sh "$HERE/github.sh" state-save > "$W/sv" 2>&1 || { PST='a look at the chat: the records were not saved, so the moves after it were not done'; sed 's/^/    /' "$W/sv"; echo "not saved: the records after $MK $MS could not be saved ($(tail -n 1 "$W/sv")); the moves after it are not done"; exit 1; }
 done
 
-if [ "$NM" -gt 0 ]; then [ -z "$RAN" ] || lines "$W/L" || ref "the call's lines after the moves could not be made (next.sh triggers): the page is not written"
+if [ "$NM" -gt 0 ]; then [ -z "$RAN" ] || lines "$W/L" || ref "the call's lines after the moves could not be made (next.sh triggers)"
   [ -z "$RAN" ] || { echo 'after the moves:'; grep -v "^counted$TAB" "$W/L" > "$W/Ls"; sh "$HERE/next.sh" short "$W/Ls"; }; fi   # FB-3 C5: one line a kind
-prog on 'Your list and the plan page'   # FB-3 D2
+prog on 'Your list'   # FB-3 D2
 duep "$W/L"
+# FB-5 A1 (S4, S5): the call's last lines kept for the owner's list (next-page.sh); the list itself is the vid-sort skill's, after this
+mkdir -p .vid/next; put .vid/next/lines < "$W/L" || { PST='a look at the chat: the lines of the call could not be kept'; ref "the call's lines could not be kept (.vid/next/lines)"; }
 # GM-4 F4: what the call raised kept in the owner's queue, each trigger and move a `Q<n>` line
 sh "$HERE/queue.sh" raise "$W/L" > "$W/so" 2>&1 || { PST='a look at the chat: your list could not be kept'; sed 's/^/    /' "$W/so" >&2; ref 'what the call raised could not be kept (queue.sh raise)'; }
-sh "$HERE/next-page.sh" write "$W/L" > "$W/pg" 2>&1 || { PST='a look at the chat: the plan page was not written'; sed 's/^/    /' "$W/pg"; echo 'page: not written (the lines above)'; exit 1; }
-cat "$W/pg"
-# GM-4 K6, I6: each open `Q<n>` line with the answers it takes, one line a kind (FB-3 C5)
-sh "$HERE/queue.sh" list --short 2> "$W/so" || { PST='a look at the chat: your list could not be shown'; sed 's/^/    /' "$W/so" >&2; echo "queue: not listed (queue.sh list)"; exit 1; }; exit 0
+exit 0

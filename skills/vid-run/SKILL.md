@@ -11,7 +11,7 @@ One long session runs the tickets to the end. It writes no code, reads none (see
 
 ## Before any work
 
-**The skills.** First invoke the `vid-connect`, `vid-read`, `vid-tickets`, `vid-accept-step`, `vid-step-close`, `vid-stage-close`, `vid-deploy`, `vid-answer`, `vid-replan`, `vid-triggers`, `vid-grade` and `vid-spec-publish` skills (the Skill tool), and again whenever a session takes over: Claude Code restores after a compaction only the skills that were invoked.
+**The skills.** First invoke the `vid-connect`, `vid-read`, `vid-tickets`, `vid-accept-step`, `vid-step-close`, `vid-stage-close`, `vid-deploy`, `vid-answer`, `vid-replan`, `vid-triggers`, `vid-grade`, `vid-spec-publish` and `vid-sort` skills (the Skill tool), and again whenever a session takes over: Claude Code restores after a compaction only the skills that were invoked.
 
 **The plan, first** (FB-2 A2). Without `--state` (an empty folder restores first, and its plan is in the records), when `.vid/plan/ratified` holds no `ratified` line, no plan was ever approved: invoke the `vid-plan` skill (the Skill tool) and do its sitting, the setup questions first, before the start below. At its page the sitting waits for the owner's words. End the turn there, asking for them; nothing is published and no lock is held. On the owner's yes the sitting's "The owner's words" ratifies and records the go, as it always has; then the start below. If the owner answers that a team of people works the tickets, the sitting's GitHub manual route runs (the `vid-mode` skill): then say in one line that `/vid:vid-next` drives this project, and end. A ratification that lapsed later, after a change to a ratified file, keeps the run's own path: a project already planned never re-enters the sitting here.
 
@@ -44,6 +44,7 @@ Run `round.sh wait` and `round.sh step` yourself, in the foreground, in this tur
 | `landed <n> at <commit>: …`, `reopened <step>`, `withdrawn <step> <k>`, `withdrawn stage-<N> <c>`, `ask-open stage-<N> <i>`, `stage <k>` | The vid-fix skill's line for them, in /vid run |
 | `plan-refused <step>: <why>` | The vid-replan skill's line for it, in /vid run |
 | `update` | Print `sh checks/queue.sh status` unchanged, then the `next:` line of `sh checks/queue.sh backlog` (the vid-answer skill, the backlog) |
+| `publish #<n> <words>` (FB-5 C2) | The vid-triggers skill's line for it, in /vid run |
 | `flag devagent-quiet <n>` (v0.26.10.28.3) | Tell the owner once, in one line: `No dev side has answered for <h> hours: <n> tickets open, none claimed. Start it with /vid:vid-devagent <job note> in a new conversation in its work folder, or in the background with dm.sh up <job note>, or check that it runs.`, `<h>` the whole hours since the newest `published` line of `.vid/tw/log`. It stops nothing |
 | `flag devagent-stopped <id>: <why>` (v0.26.10.28.6) | Tell the owner once, in one line: `The dev side stopped: <why>. Start it again with /vid:vid-devagent <job note> in a new conversation in its work folder, or in the background with dm.sh up <job note>.` Its newest report is a stopped one; a later report clears it. It stops nothing, and ViD starts nothing |
 | `flag ticket-left <n>: <why>` (FB-2 A3) | Tell the owner once, in one line: `DevAgent left ticket #<n>: <why>. When what it needs is in place, /vid:vid-tickets reopen #<n> "<your words>" has it taken up again.` It stops nothing |
@@ -58,7 +59,9 @@ Run `round.sh wait` and `round.sh step` yourself, in the foreground, in this tur
 3. **Re-plan** after a step that printed something new: Invoke the `vid-triggers` skill and say its lines (GM-4 K9). A line that calls for a re-plan, its or the round's, is the `vid-replan` skill's GitHub auto paragraph: the run manager's own re-plan, `plan.sh change`, by the rules every change is made by, read where they stand.
 4. `sh checks/round.sh next`, when a step reported something new, `main-changed` or `retry spec-publish <12>` among it, or the plan changed: the vid-tickets skill's round, which publishes what the plan now lets go out; say each line it prints as that skill says. The owner's own `/vid:vid-tickets` call in this conversation borrows the run's lock and leaves it held, as that skill says.
 
-**After any owner message** (v0.26.10.26.7, R3), act on it, say in one line what you did, then go on at 2. Asking the owner never ends your turn. Only the stops below end it. When everything left waits on the owner, the hold's Q line included, that is the waiting stop: write `run: waiting`, save, free the lock, and end. The owner's answer, a bare "continue" too, then starts the run again. The same holds when the vid-fix or vid-add skill's ticket-mode branch hands back: back to the loop at 2.
+5. **Sort** (FB-5 A1), after a step that raised or changed an item of the owner's list: Invoke the `vid-sort` skill and say its one line; with nothing new, changed or moved it reads and sorts nothing.
+
+**After any owner message** (v0.26.10.26.7, R3), act on it, say in one line what you did, then go on at 2. Asking the owner never ends your turn. Only the stops below end it. When everything left waits on the owner, the hold's Q line included, that is the waiting stop: the `vid-sort` skill first, then write `run: waiting`, save, free the lock, and end. The owner's answer, a bare "continue" too, then starts the run again. The same holds when the vid-fix or vid-add skill's ticket-mode branch hands back: back to the loop at 2.
 
 **The owner's queue** and every answer, the owner's own, under their delegation or from the spec, are the vid-answer skill's: each goes through it, and is acted on at once.
 
@@ -77,6 +80,8 @@ The owner's "pause" is `sh checks/queue.sh control pause "<their words>"`, and "
 ViD never writes, reads or runs DevAgent's code (0.26.10.28.4, M5). From DevAgent's side it reads only: the results reports; issues, pull requests, their comments and labels; whether a commit is in the code repository and what it descends from; the deploy reports; and, for the walk, the running product on staging. `.vid/code`, made by `sh checks/github.sh results-fetch`, holds the reports and the commits, with no file of the code: each fetch proves it, and a copy that holds a code file is removed and the fetch refused. Of a report branch ViD reads and fetches its own folder alone, whatever else the branch holds; a branch with no such folder is left out and flagged (`flag report-skipped`). A merge is read through its pull request: title, body, comments and ViD's decision; never its files or its diff.
 
 ## The only stops
+
+Before each but a lost lock, the `vid-sort` skill, so the owner's list is as the run leaves it.
 
 - **The run complete,** the vid-stage-close skill's `complete`: `sh checks/github.sh state-save`, `sh checks/github.sh lock-free`, and end, leaving `run: complete` as it was written.
 - **Everything left waits on the owner, the end's `unmet <n>`, or a `nothing-left` before the final close:** `run: waiting` with a `Q<n>` line saying what waits, record `run state=waiting`, `sh checks/github.sh state-save`, `sh checks/github.sh lock-free`, and end. The owner resumes with `/vid:vid-run`.

@@ -52,6 +52,8 @@ grep -qF 'queue.sh ask draft <n>' "$T/f" && grep -qF 'vid-answer' "$T/f" || fail
 awk '/^## The backlog/ { on = 1; print; next } on && /^## / { exit } on' "$A" > "$T/bs"; [ -s "$T/bs" ] || fail 'vid-answer has no section The backlog'
 fl "$T/bs" > "$T/b"
 for x in '/vid:vid-answer backlog' 'no lock and no read' 'sh checks/queue.sh backlog add' 'sh checks/queue.sh backlog set' "on the owner's say" 'at the end' '`next:`'; do grep -qF -- "$x" "$T/b" || fail "vid-answer's backlog section lacks: $x"; done
+# FB-5 A1: an answer pressed in the panel
+for x in 'answer by the ids, never by the number alone' '"Put it off" is `--state aside`'; do grep -qF -- "$x" "$T/b" || fail "vid-answer does not say of a press: $x"; done
 grep -q 'backlog' "$T/fm" || fail "vid-answer's description does not name the backlog"
 for s in vid-next vid-run; do fl "$S/$s/SKILL.md" | grep -qF 'queue.sh backlog' || fail "$s does not point to the backlog"; done
 echo 'answer-skill: ok'

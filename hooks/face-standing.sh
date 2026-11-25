@@ -11,6 +11,7 @@
 # Its three fields (the event, the session, the helper) are taken in one pass of hooks/agent.sh's reader, whose time
 # grows in step with the input (a Write's whole text is in it); key order does not matter to it.
 #   - FB-3 D1: where .vid/tw/settings is (ticket mode) and no standing yet, it makes the folder and the standing first.
+#   - FB-5 A1: there, at Stop, with no .vid/face/list.json yet, it makes the panel's list (checks/next-page.sh write).
 # An input with no event name is a step (as before). Elsewhere it does nothing. It only rewrites those
 # work-in-progress files; it fails open and always exits 0.
 IN=$(cat 2>/dev/null || true)
@@ -40,7 +41,9 @@ standing() { (cd "$TOP" && sh "$R/checks/face.sh" standing > /dev/null 2>&1) || 
 [ -z "$NEW" ] || standing
 case $ev in
   UserPromptSubmit) put running "$now" "$last" ;;
-  Stop) put stopped "$now" "$last"; standing ;;
+  Stop) put stopped "$now" "$last"; standing
+    # FB-5 A1: a ticket-mode project whose panel has no list yet (an upgraded one) gets one
+    [ ! -f "$TOP/.vid/tw/settings" ] || [ -f "$TOP/.vid/face/list.json" ] || (cd "$TOP" && sh "$R/checks/next-page.sh" write > /dev/null 2>&1) || true ;;
   StopFailure) put stopped "$now" "$last" ;;
   *) [ "$state" = running ] || since=$now; put running "$since" "$now" ;;
 esac

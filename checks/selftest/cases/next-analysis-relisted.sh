@@ -37,6 +37,8 @@ PH=$(cat .vid/next/proposal/hash); [ -n "$PH" ] || fail 'the analysis wrote no p
 grep -q "$PH" .vid/pages/REPLAN-PAGE.html || fail 'the proposal page does not show its proposal: the scene is wrong'
 # the call's listing made again from the new proposal (vid-next, after the analysis)
 call; [ "$RC" = 0 ] || fail "the listing made again exited $RC"
+# FB-5 A1: the call prints no list; what it offers stands in the owner's queue
+sh "$CHECKS/queue.sh" list --short > "$T/out" 2>&1 || fail 'the queue could not be listed'
 grep "implement-replan" "$T/out" | grep -q "applies the analysis's proposal $PH" || fail "the listing made again does not offer implement-replan with the proposal its page shows ($PH)"
 # the analysis's own instruction, the next call
 call implement-replan 'Yes, apply the re-plan as its page shows' --review "$T/mrv"

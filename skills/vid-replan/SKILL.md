@@ -102,11 +102,13 @@ listed move said it before the owner's yes, with the command that gives each; no
 
 ## The re-plan page
 
-`.vid/pages/REPLAN-PAGE.html` opens as the plan page does (FB-3 E3), after an analysis and after an `implement-replan` that made its
-proposal and showed it. Once the call has ended (vid-connect's end: the records saved, the lock freed), follow the vid-triggers skill's
-"The plan page", by the same `plan-page:` in `.vid/tw/settings`, with this page in place of that one:
-- the shell is `sh checks/next-move.sh shell .vid/pages/REPLAN-PAGE.html`'s, and the page is its one data file (`files`, published as
-  `REPLAN-PAGE.html`);
-- it is a private artifact of its own. With `plan-page:` `artifact` or a link: no `.vid/plan/replan-page` yet, publish it new and write its
-  link there, one line; with one, read that artifact first (the Artifact tool, `action: "read"`), then publish to that same link;
-- `none`, no such line, no Artifact tool, or a publish refused or failed: say its path, and never give the link as current.
+`.vid/pages/REPLAN-PAGE.html` is shown (FB-3 E3) after an analysis and after an `implement-replan` that made its proposal and showed it,
+once the call has ended (vid-connect's end: the records saved, the lock freed), so no lock is held while a publish waits on the
+owner. Read `plan-page:` in `.vid/tw/settings` (FB-5 A1: the setting kept, for this page alone):
+- No such line, `none`, or no Artifact tool in this session: nothing is published; say its path.
+- `artifact`, the owner's yes, or a link: `sh checks/next-move.sh shell .vid/pages/REPLAN-PAGE.html` writes the fixed shell beside the
+  page. It is a private artifact of its own (the Artifact tool), the shell its page, with the re-plan page as its one data file (`files`, published as
+  `REPLAN-PAGE.html`). No `.vid/plan/replan-page` yet: publish it new and write its link there, one line. With one: read that
+  artifact first (the Artifact tool, `action: "read"`), as the tool asks of a page this conversation did not publish, then publish to
+  that same link, `url` the link, the shell again as its page.
+- A publish refused or failed: say so in one line, with its path; never give the link as current, and never fail the call for it.
