@@ -7,7 +7,8 @@
 # obligation back whole (a journey through its transitions and their separators, ` ; `, `; ` and ` · `); a later-phase
 # row has the class later; a difference with no paying step is a record; ViD's appended rows read back like the rest,
 # and `rows --added` prints them as written. An unread line and a missing golden set are
-# flagged; `rows --short` cuts a promise to 80 characters; `rows` runs with no PLAN.md. Env: CHECKS.
+# flagged; `rows --short` cuts a promise to 80 characters; `rows` runs with no PLAN.md. FB-7 C3: a `;` right before the first "fails if"
+# ends the promise, and the two still make the line; a `;` elsewhere, and another mark before it, end none. Env: CHECKS.
 set -eu
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 fail() { echo "planner-read: $*" >&2; cat "$T/out" >&2 2>/dev/null; exit 1; }
@@ -62,6 +63,17 @@ give > "$T/out" || fail "the \`; \` separator is not given back whole"
 # a census with pipes is carried as written; a last transition's trailing separator is kept
 fresh; sed 's/sites: every digest template :: guarded/sites: every digest template|footer :: guarded/; s/the job opened is the one listed |/the job opened is the one listed; |/' INVENTORY.md > I.x && mv I.x INVENTORY.md; rows
 has RULE-001 'census: sites: every digest template|footer :: guarded: those rendering the support footer'; give > "$T/out" || fail 'a trailing separator is not given back whole'
+# FB-7 C3: `<promise>; fails if <x>` has its words, whatever stands before it; no other mark, and no other `;`, ends a promise
+fresh; W3='| REQ-012 | owed: spec-only — first stage'
+pt_set ROW-019 "ROW-019 | behavior | REQ-012 | anonymous | n/a | Every digest names its address; fails if one is sent without it. $W3"
+pt_set ROW-016 "ROW-016 | behavior | REQ-012 | anonymous | n/a | A digest is short. It names one address, or two; Fails if it names none; or fails if it names three. $W3"
+pt_set ROW-013 "ROW-013 | behavior | REQ-012 | anonymous | n/a | Every digest names its address; when one is sent without it, fails if nobody is told. $W3"
+pt_set ROW-014 "ROW-014 | behavior | REQ-012 | anonymous | n/a | Every digest names its address, fails if one is sent without it. $W3"
+pt_set ROW-008 "ROW-008 | behavior | REQ-012 | anonymous | n/a | ; fails if a digest is sent without an address. $W3"; rows
+is ROW-019 8 'Every digest names its address;'; is ROW-019 9 'fails if one is sent without it.'
+is ROW-016 8 'A digest is short. It names one address, or two;'; is ROW-016 9 'Fails if it names none; or fails if it names three.'
+for r in ROW-013 ROW-014 ROW-008; do is $r 8 ''; done; is ROW-014 9 'Every digest names its address, fails if one is sent without it.'
+for r in ROW-019 ROW-016; do o=$(awk -F'|' -v r="$r" 'function tr(s) { gsub(/^[ \t]+|[ \t]+$/, "", s); return s } tr($1) == r { print tr($6) }' INVENTORY.md); [ "$(col $r 8) $(col $r 9)" = "$o" ] || fail "$r's promise and fail-if do not make its line"; done
 # the later-phase row and the record sit in no step; a later-phase row in a step is flagged
 fresh; pt_set 'step S05' 'step S05 | name: synonyms | modules: search | builds-on: S02 | rows: ROW-017 ROW-020 | lane: devagent'; pt_check; pt_has 'class ROW-020 — a later-phase row, in step S05'
 fresh; pt_set 'step S05' 'step S05 | name: synonyms | modules: search | builds-on: S02 | rows: ROW-017 DIF-003 | lane: devagent'; pt_check; pt_has 'class DIF-003 — a record, in step S05'

@@ -47,7 +47,7 @@ grep -q '^- model: must be written in exactly this form' "$T/print" || fail 'no 
 NT=$(sed -n 's/^2\. Save this job note, exactly as it is, to \(.*\) (a folder that already exists, .*/\1/p' "$T/print"); [ -n "$NT" ] && [ -d "$(dirname "$NT")" ] || fail "no folder said for the note: $NT"
 case $NT in "$T/p"/*|"$WK"/*) fail "the note goes inside the toy or the work folder: $NT" ;; esac
 # 0.26.10.28.8 (R12): the folder first, the note, then the conversation of its own (the first way), then the background line
-Q="'$DM'"; L=$(grep "^mkdir -p '" "$T/print" || true); [ "$L" = "mkdir -p '$WK'" ] || fail "the folder step: $L"
+Q="'$DM'"; L=$(grep "^mkdir -p '" "$T/print" || true); case $L in "mkdir -p '$WK/.claude' && { [ -e '$WK/.claude/settings.json' ] || printf '"*" > '$WK/.claude/settings.json'; }") ;; *) fail "the folder step: $L" ;; esac   # FB-8 E4: its compaction point with it
 ln() { grep -nxF -- "$1" "$T/print" | head -n 1 | cut -d: -f1; }
 a=$(ln "$L"); b=$(grep -n '^2\. Save this job note' "$T/print" | cut -d: -f1); c=$(ln "/vid:vid-devagent '$NT'"); d=$(ln "sh $Q up '$NT'")
 [ -n "$a" ] && [ -n "$b" ] && [ -n "$c" ] && [ -n "$d" ] && [ "$a" -lt "$b" ] && [ "$b" -lt "$c" ] && [ "$c" -lt "$d" ] || fail "not folder, note, /vid:vid-devagent, then the background line: $a $b $c $d"

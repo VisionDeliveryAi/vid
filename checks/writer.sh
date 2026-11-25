@@ -118,7 +118,7 @@ PTRF='function ptr(l,   n, w, i, a, x) { if (match(l, /(https?:\/\/)?claude\.ai\
 A1=$PTRF'
   function isr(s, l) { return l ~ /^>/ && (s == "Decisions" || (s == "Requirements" && l ~ /^> *A-[0-9]+([ \t]+AMENDED)?[ \t]*[|]/)) }
   function rw(l, re, s,   r, b) { r = ""; while (match(l, "(^|[^A-Za-z0-9_])" re)) { b = substr(l, RSTART, 1); if (b ~ /[A-Za-z0-9_]/) b = ""; r = r substr(l, 1, RSTART - 1) b s; l = substr(l, RSTART + RLENGTH) } return r l }
-  function unq(l) { l = rw(l, "owner chose:? \"[^\"]*\"(,? (and )?\"[^\"]*\")*", "chosen by the owner"); l = rw(l, "owner: \"[^\"]*\"", "confirmed by the owner"); return rw(l, "A: \"[^\"]*\"; ", "A: ") }'"$PROF"   # 0.26.11.1.2 (R7): prof, lib.sh's word check, the one list
+  function unq(l) { l = rw(l, "owner chose:? \"[^\"]*\"(,? (and )?\"[^\"]*\")*", "chosen by the owner"); l = rw(l, "owner: \"[^\"]*\"", "confirmed by the owner"); return rw(l, "A: (\"[^\"]*\"; )+", "A: ") }'"$PROF"   # 0.26.11.1.2 (R7): prof, lib.sh's word check, the one list
 # SP: a plan's steps, `id name modules builds rows kind`, tab-separated, ranges expanded
 SP=' /^[ \t]*step[ \t]/ { n = split($0, f, "|"); id = tr(f[1]); sub(/^step[ \t]+/, "", id); nm = ""; md = ""; bo = ""; rw = ""; kd = ""
       for (i = 2; i <= n; i++) { x = tr(f[i]); if (x ~ /^name:/) nm = tr(substr(x, 6)); else if (x ~ /^modules:/) md = tr(substr(x, 9)); else if (x ~ /^builds-on:/) bo = tr(substr(x, 11)); else if (x ~ /^rows:/) rw = substr(x, 6); else if (x ~ /^kind:/) kd = tr(substr(x, 6)) }
@@ -130,8 +130,7 @@ twhas() { grep -q "^$1:" "$SET" 2>/dev/null; }
 # shuts the gate: its uncommitted-change check covers PLAN.md and the issue form alone, both read at HEAD. GM-4 F7, F6: the gate's
 # branch reads the setup: the issue form issue-form: names is checked in either mode
 specpaths() { skey issue-form | grep . || true; if manual; then printf '%s\n' PLAN.md; return 0; fi   # GM-2 T1
-  printf '%s\n' PRD.md INVENTORY.md STAGES.md GRADING-CHECKLIST.md ARCHITECTURE.md PLAN.md DECISIONS.md BASELINE.md CLAUDE.md design
-  sed -n 's/.*|[[:space:]]*golden:[[:space:]]*\([^ |]*\).*/\1/p' INVENTORY.md 2>/dev/null | sort -u; }
+  specfiles; }
 gate() {
   : > "$T/why"
   sh "$HERE/planner.sh" ratified > "$T/rat" 2>&1 || echo "the plan is not ratified: $(sed 's/^planner: not ratified — //' "$T/rat" | head -n 1)" >> "$T/why"
@@ -480,6 +479,11 @@ asks() {
   qdasks; printf '\n\nA decision line beginning analyst due asks for DevAgent'"'"'s test analyst on the cases that could not run.\n\nResults: every report in ViD'"'"'s results format, by name: ViD results format 1.\n\nWork on any branch, from the base above; open one pull request into main whose body begins ticket: #, then this issue'"'"'s number.\n'; }   # v0.26.10.26.7 (R6, W-7): outside the hash (qhash); 0.26.10.29.5 (DP-1 R1): the Decisions paragraph after the Questions one, outside it too
 # qhash: what an amendment is owed on; 0.26.10.29.2 (R3): the earlier work lines too
 qhash() { awk '/^## / { s = substr($0, 4); next } s == "Header" && /^- (kind|step|rows|earlier work):/ { print; next } s ~ /^(The step|Rows|Requirements|Decisions|Rules that bear on these rows|Laws|Non-goals|Rows a ruling reached|Grading checklist and records|Golden sets|The stack and hosting)$/' "$1" | git hash-object --stdin | cut -c1-12; }
+# regtell (FB-7 C4, GitHub auto): an amendment whose regression list is not the ticket's as it stands says so in its comment, by the rows
+# added and left out; GitHub manual's comment names the tests its move changed alone (GM-2 T5)
+regtell() { [ -n "$AMW" ] && [ -z "$QAT" ] && ! manual || return 0
+  awk '/^## / { on = ($0 == "## Regression rows"); next } on && /^- / { print $2 }' ".vid/tw/out/issue-$NUM.md" > "$T/rg0" 2>/dev/null || :; awk '/^- / { print $2 }' "$T/reg" > "$T/rg1"
+  _a=$(grep -vxF -f "$T/rg0" "$T/rg1" | paste -sd ' ' -); _l=$(grep -vxF -f "$T/rg1" "$T/rg0" | paste -sd ' ' -); [ -z "$_a$_l" ] || printf '\nRows to run again: %s added; %s left out.\n' "${_a:-none}" "${_l:-none}" >> "$T/tell"; }
 # ticket <file>: the ticket of K, S, $T/ids, NUM, BASE, EXP, WHY, FIXL, REACH, RUL and AMW, and its meta
 ticket() {
   F=$1; PFX=$(twkey labels-prefix); stepsec "$S"; reqs
@@ -510,6 +514,7 @@ ticket() {
     printf '\n## Roles\n\n'; roles; printf '\n## Asks\n\n'; asks
   } > "$T/wf" || exit 1
   awk "$A1"' /^## / { s = substr($0, 4) } /^>/ { $0 = unptr($0); if (isr(s, $0)) $0 = unq($0) } { print }' "$T/wf" > "$T/a1" || exit 1; put "$F" < "$T/a1" || exit 1   # Amendment 1
+  regtell
   { printf 'kind=%s step=%s rows=%s %sreached=%s rulings=%s fix=%s qhash=%s plan=%s base=%s export=%s\n' "$K" "$S" "$(paste -sd , "$T/ids")" "${RET:+retired=$(echo $RET | tr ' ' ,) }" "$(echo $REACH | tr ' ' ,)" "$(echo $RUL | tr ' ' ,)" "${FIXL:--}" "$(qhash "$F")" "$PH" "$BASE" "$EXP"
     [ -z "$AMW" ] || { printf 'why %s\n' "$AMW"; sed 's/^/tell /' "$T/tell"; }; for r in $(cat "$T/ids"); do printf 'sent %s %s\n' "$r" "$(rhash "$r")"; done; } > "$T/wm" || exit 1; put "${F%.md}.meta" < "$T/wm" || exit 1
 }
@@ -650,7 +655,7 @@ newset() {
     step) K=step; S=$2; awk -F'\t' -v s="$S" '$1 == s { f = 1 } END { exit !f }' "$T/steps" || ref "${S:-(none)} is no step of the recorded plan"
       lnew "$S" > "$T/ln"; SO=$(for n in $(opn); do [ "$(fld "$(tk "$n")" step)" != "$S" ] || echo "$n"; done)
       [ "$(awk -F'\t' -v s="$S" '$1 == s { print $6 }' "$T/steps")" != skeleton ] || [ -s "$T/ln" ] || { manual && [ -n "$(fup "$S")" ]; } || ref "$S is the skeleton: write skeleton"   # GM-3 U4 (GM M5): the skeleton's follow-up
-      if [ -s "$T/ln" ] && { [ -n "$SO" ] || [ "$(awk -F'\t' -v s="$S" '$1 == s { print $6 }' "$T/steps")" = skeleton ]; }; then cp "$T/ln" "$T/ids"   # R4: its own ticket, beside the open one
+      if [ -s "$T/ln" ] && { [ -n "$SO" ] || [ "$(awk -F'\t' -v s="$S" '$1 == s { print $6 }' "$T/steps")" = skeleton ]; }; then srows "$S" | grep -xF -f "$T/ln" > "$T/ids"   # R4: its own ticket, beside the open one; FB-7 C4: in the plan's order, as an amendment writes it
       elif manual && [ -n "$(fup "$S")" ]; then mfollow "$S" > "$T/ids"   # GM-3 U4: a follow-up holds exactly the closed tickets' reset or reached rows
       else openrows > "$T/or"; srows "$S" | while IFS= read -r r; do lim "$r" || grep -qxF "$r" "$T/or" || [ "$(sentin "$r" "$S")" = "$(rhash "$r")" ] || echo "$r"; done > "$T/ids"; fi
       [ -s "$T/ids" ] || ref "$S has no row to send: each is a known limit, in an open ticket, or sent unchanged"; FU=$(fup "$S") ;;

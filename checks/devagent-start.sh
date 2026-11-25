@@ -2,7 +2,7 @@
 # Purpose: the dev side's start, printed for the owner in GitHub auto (v0.26.10.28.8, R4, R10). Run in the project, from the plugin's own
 # checks/ (`sh "${CLAUDE_PLUGIN_ROOT}/checks/devagent-start.sh"`), so the paths it prints are the plugin's real folder.
 #   devagent-start.sh        in GitHub auto (the owner's newest `setup-answered key=github-mode` line of .vid/plan/setup says auto), in order
-#                            (0.26.10.28.8, R12): the line that makes the work folder; the job note, filled in, to save as it is; the first
+#                            (0.26.10.28.8, R12): the line that makes the work folder, with its compaction point (FB-8 E4); the job note, filled in, to save as it is; the first
 #                            way, /vid:vid-devagent '<note>' in a new Claude Code conversation in the work folder, and what closing it does
 #                            with each agents: (0.26.11.1.3, R5), a line the note leaves to that conversation's one question; then the background
 #                            line, dm.sh up, for agents: command; and the lines for check, list, used and down. In GitHub manual (GM-1 S1),
@@ -34,13 +34,14 @@ B=$(dirname "$P"); [ "$B" != / ] && [ -z "$(invid "$B/$NAME-devagent")" ] || B=$
 [ -n "$B" ] && [ -d "$B" ] && [ "$(cd "$B" && pwd -P)" != / ] && [ -z "$(invid "$(cd "$B" && pwd -P)/$NAME-devagent")" ] || die "no folder outside ViD's records to put the work folder in: write the job note by hand, its work: outside any folder that holds .vid"
 B=$(cd "$B" && pwd -P)
 WK=$B/$NAME-devagent; NT=$B/$NAME-devagent-note.txt
+SJ=$WK/.claude/settings.json   # FB-8 E4: the conversation's compaction point, made with the folder, never over a settings file there
 TL=86400; AT=10800; AU=500   # the loop's seconds (a day), one agent's seconds (three hours, above the floor of 7200), one agent's turns
 cat <<EOF
 DevAgent, ViD's own dev side, works this project's tickets (you answered GitHub auto). You start it, on this machine; ViD starts nothing and does not wait for it.
 
 1. Make DevAgent's work folder:
 
-mkdir -p $(sq "$WK")
+mkdir -p $(sq "$WK/.claude") && { [ -e $(sq "$SJ") ] || printf '{\n  "autoCompactWindow": 300000\n}\n' > $(sq "$SJ"); }
 
 2. Save this job note, exactly as it is, to $NT (a folder that already exists, outside this project and the work folder):
 
@@ -57,7 +58,7 @@ model: $MODEL
 EOF
 if [ -n "$REPO" ]; then echo "- repo: and labels-prefix: are this project's, as ViD reads them."; else echo "- repo: is empty: the code repository is not recorded yet. Write it after repo:, as owner/name, before you start."; fi
 cat <<EOF
-- work: is the dev side's work folder, outside this project and outside ViD's records. Step 1 makes it.
+- work: is the dev side's work folder, outside this project and outside ViD's records. Step 1 makes it, with the point at which a conversation in it is made smaller, unless its settings are there already.
 - time-limit: $TL is a default you may change: the loop's seconds, one day. At it the loop stops and says so; up again picks up where it stopped.
 - agent-time-limit: $AT is a default you may change: one agent's seconds, three hours. Keep it generous: an agent stopped twice at its limit leaves its ticket until the owner reopens it, so a low limit costs a ticket's wait, not a restart.
 - agent-turn-limit: $AU is a default you may change: one agent's turns, in the same spirit.

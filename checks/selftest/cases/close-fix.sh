@@ -58,6 +58,7 @@ sh "$GS" tw-sync > /dev/null 2>&1; cs owed; no 'close S01'
 printf 'published 98 kind=step step=S09 rows=ROW-002 at=2026-11-09T10:00:00Z\n' >> .vid/tw/log; mkdir -p .vid/decide/close/S09/1; printf 'issue\t97\ncommit\t%s\nchunk\tp1c1\talpha\tROW-003 ROW-002\n' "$M" > .vid/decide/close/S09/1/ask
 N0=$N; N=97; rq p1c1-1 "$M" ROW-003=fail:broke ROW-002=pass; N=$N0; fetch; cs decide S09; ok '^close-waits S09 ROW-003$'; no '^failing '; ! grep -q '^ROW-003 close#97' .vid/decide/counts && [ "$(grep -c '^fix ROW-003' .vid/tw/handed)" = 1 ] || fail 'the shared row was taken twice'
 cs owed; no 'close S09'; merge 'the fix' 6 "$TW_N"; M2=$MC; cs owed; ok '^close S01$'; ok '^close S09$'; cs owned; no ROW-003
+printf 'withdrawn 98 decision=plan-change\n' >> .vid/tw/log   # FB-7 A2: an open ticket's ROW-002 would be left out of S01's close, as a held row
 # ask 2, whole, at the fix's merge: ROW-003 red again goes to the owner with both reasons and the numbers; no fix line, so not owed again
 cs ask S01; N=$(sed -n 's/^asked \([0-9]*\) close.*/\1/p' "$T/out"); B=$T/gh/issues/$N/body; [ -f .vid/decide/close/S01/2/ask ] && grep -qx "commit: $M2" "$B" || fail 'the close again is not ask 2 at the fix merge'
 for r in ROW-003 ROW-004 ROW-001 ROW-002; do grep -q -- "^- chunk p1c1, alpha: .*$r" "$B" || fail "the close again leaves out $r"; done

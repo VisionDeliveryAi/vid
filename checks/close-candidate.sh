@@ -38,6 +38,26 @@ stof() { sst; awk -F'\t' -v s="$1" '$1 == s { print $2 }' "$SX/sst"; }
 hstate() { sed -n "s/^row $1 \([^ |]*\).*/\1/p" "$HAND" 2>/dev/null | tail -n 1; }
 trows() { awk -v n="$1" '($1 == "published" || $1 == "amended") && $2 == n { for (i = 3; i <= NF; i++) if ($i ~ /^rows=/) r = substr($i, 6) } END { print r }' "$LOG" 2>/dev/null | tr , '\n' | grep -v '^-*$' || true; }
 anc() { git --git-dir=.vid/code merge-base --is-ancestor "$1" "$2" 2>/dev/null; }
+# FB-7 A1: a build is held while a row of its runs landed since its full run was asked and is not settled at a commit the build holds.
+# Held, its full run and its staging run are not read as passed, and no okay, staging run, walk or close is owed at it; nothing is withdrawn
+# or asked: it ends once the row is settled at a commit it holds, or leaves the stages, or the next build is named.
+# tmerge <row>: the merge of the newest merged ticket that holds the row now, its amendments read. lset <row> <commit>: settled (accepted,
+# by ruling, owed or paid) at a commit <commit> holds, by that merge; a row no merged ticket holds (accepted outside ViD), by its state
+# alone. lout <row> <N>: a row that holds nothing: out of the stages up to N, a known limit, or the plan's limit, later row or record.
+# bheld <N> <candidate folder>: the first row that holds the build, else exit 1. lopen <N>: each landed row of the stages up to N that a
+# merged ticket holds and that is not settled, whatever build it was settled at
+tmerge() { awk -v r="$1" '($1 == "published" || $1 == "amended") { if (!($2 in o)) o[$2] = ++k; for (i = 3; i <= NF; i++) if ($i ~ /^rows=/) R[$2] = substr($i, 6) } END { for (t in R) if (index("," R[t] ",", "," r ",")) print o[t], t }' "$LOG" 2>/dev/null | sort -rn | cut -d' ' -f2 | while read -r _t; do _m=$(mrg "$_t" | cut -d' ' -f2); [ -z "$_m" ] || { echo "$_m"; break; }; done; }
+lset() { case $(hstate "$1") in accepted|accepted-by-ruling|owed|paid) ;; *) return 1 ;; esac; [ -n "${2:-}" ] || return 0; _tm=$(tmerge "$1"); [ -z "$_tm" ] || [ "$_tm" = "$2" ] || anc "$_tm" "$2"; }
+lout() { ! grep -qxF "$1" "$SX/up$2" || limited "$1" || [ "$(hstate "$1")" = known-limit ] || awk -F'\t' -v r="$1" '$1 == r && $6 ~ /^(limit|later|record)$/ { f = 1 } END { exit !f }' "$SX/plr"; }
+bheld() { [ -s "$D/landed" ] && [ -f "$2/ask" ] || return 1; upto "$1"; plr; _ba=$(sed -n "s/^asked$TAB//p" "$2/ask" | head -n 1); _bx=$(cat "$2/commit" 2>/dev/null)
+  { cut -d' ' -f1 "$2/rows" "$2/cs/rows" 2>/dev/null; sed -n "s/^left$TAB//p" "$2/ask" | tr ' ' '\n'; awk -F'\t' '$1 == "chunk" { n = split($4, a, " "); for (i = 1; i <= n; i++) print a[i] }' "$2/ask" "$2/cs/ask" 2>/dev/null; } | sort -u > "$SX/lh"
+  for _br in $(awk -v a="$_ba" -v LH="$SX/lh" 'BEGIN { while ((getline l < LH) > 0) W[l] = 1 } { r = $1; sub(/-T[0-9]+$/, "", r) } (r in W) && $3 >= a { print r }' "$D/landed" | sort -u); do lset "$_br" "$_bx" || lout "$_br" "$1" || { echo "$_br"; return 0; }; done; return 1; }
+lopen() { [ -s "$D/landed" ] || return 0; upto "$1"; plr; for _lr in $(awk '{ r = $1; sub(/-T[0-9]+$/, "", r); print r }' "$D/landed" | sort -u); do lset "$_lr" || lout "$_lr" "$1" || [ -z "$(tmerge "$_lr")" ] || echo "$_lr"; done; return 0; }
+# FB-7 A3: packs <folder> <limits file>: its rows (`<row> <secs>`) into packed, chunks of at most $M minutes; a known limit is still run, in
+# the shortest chunk of the others', never in a chunk of limits alone (the pass ignores a limit's result, so such a chunk would read green
+# unrun); with limits alone the run asks no row
+packs() { awk -v m=$((M * 60)) -v LF="$2" 'BEGIN { while ((getline l < LF) > 0) L[l] = 1 } ($1 in L) { q[++nq] = $1; qs[nq] = $2; next } { if (n && t + $2 > m) { n++; t = 0 } else if (!n) n = 1; t += $2; T[n] = t; c[n] = c[n] (c[n] == "" ? "" : " ") $1 }
+    END { for (i = 1; n && i <= nq; i++) { b = 1; for (j = 2; j <= n; j++) if (T[j] < T[b]) b = j; c[b] = c[b] " " q[i]; T[b] += qs[i] } for (i = 1; i <= n; i++) print i "\t" c[i] }' "$1/rows" > "$1/packed"; [ -s "$1/packed" ] || : > "$1/rows"; }
 # sdue <N> (R1): exit 0 when stage N's candidate is due; else what keeps it, by kind, in $SX/why<N>
 sdue() { N=$1; W=$SX/why$N; : > "$W"; plr
   ! manual || [ -n "$(sed -n 's/^engines \(.*\) | stand-in.*/\1/p' "$HAND" 2>/dev/null | tail -n 1)" ] || echo 'the handed record names no engines yet' >> "$W"   # FB-3 A1.5: not due, so the round's asks never stop on it
@@ -47,13 +67,16 @@ sdue() { N=$1; W=$SX/why$N; : > "$W"; plr
     ! wdue "$s" || echo "step $s owed a ticket" >> "$W"
     k=$(nk "$s"); [ -z "$k" ] || [ -f "$C/$s/$k/withdrawn" ] || closed "$s" || [ -f "$C/$s/$k/done" ] || echo "close $s out" >> "$W"
     printf '%s\n' "$t" | while read -r x y; do trows "$x"; done | sort -u | while read -r r; do case $(hstate "$r") in accepted|accepted-by-ruling|known-limit|owed|paid) ;; failing) echo "row $r failing" ;; held) echo "row $r held" ;; *) echo "row $r not decided" ;; esac; done >> "$W"; done
+  for _sl in $(lopen "$1"); do grep -q "^row $_sl " "$W" || echo "row $_sl landed, not decided" >> "$W"; done   # FB-7 A1: an earlier stage's row too
   [ ! -s "$W" ] || return 1
   sed -n 's/^candidate \([0-9][0-9]*\) .*/\1/p' "$HAND" 2>/dev/null | awk -v n="$N" '$1 > n { f = 1 } END { exit f }' || return 1   # a later stage's C3 covers N
   for e in $(sstages); do [ "$e" -lt "$N" ] || continue; [ -n "$(stp "$e")" ] || continue; set -- $(sclosed "$e"); [ -n "${2:-}" ] && { [ -z "$(snc "$e")" ] || [ "$2" = "$(snc "$e")" ]; } || { echo "stage $e not closed at its newest candidate" >> "$W"; return 1; }; done   # v0.26.10.26.5 (R5a): stages close in order
   c=$(snc "$N"); [ -n "$c" ] || return 0; K=$SD/$N/$c; [ -f "$K/named" ] || return 0   # a post that failed: asked again
   [ ! -f "$K/withdrawn" ] || return 0   # 0.26.10.29.2 (R2): a candidate a re-cut withdrew, its C3 out or not: a new one is due
-  if [ -f "$K/passed" ]; then X=$(sed -n "s/^commit$TAB//p" "$K/ask" | head -n 1); upto "$N"
-    while IFS=$TAB read -r p t H M; do [ "$M" != - ] && [ -n "$M" ] || continue; ! anc "$M" "$X" || continue; trows "$t" | grep -qxF -f "$SX/up$N" && return 0; done < "$D/merges"; return 1; fi
+  # FB-7 A1: a held build, its full run passed or not, is replaced as a passed one is, at a merge of its stages' rows it does not hold
+  if [ -f "$K/passed" ] || bheld "$N" "$K" > /dev/null; then X=$(sed -n "s/^commit$TAB//p" "$K/ask" | head -n 1); upto "$N"
+    while IFS=$TAB read -r p t H M; do [ "$M" != - ] && [ -n "$M" ] || continue; ! anc "$M" "$X" || continue; trows "$t" | grep -qxF -f "$SX/up$N" && return 0; done < "$D/merges"
+    return 1; fi
   [ -f "$K/done" ] && againK "$K"; }
 # the candidate: the recorded merge holding every other; FB-3 A4: in GitHub manual, with no merge on record, main's newest commit
 newest_merge() { MS=$(cut -f4 "$D/merges" 2>/dev/null | grep -v '^-*$'); last=''; [ -n "$MS" ] || ! manual || MS=$(git --git-dir=.vid/code rev-parse -q --verify refs/heads/main 2>/dev/null)
@@ -80,18 +103,25 @@ addset() { pmap > "$SX/pm"; : > "$SX/ar"; for X in $(ls -d "$D"/drafts/* 2>/dev/
   sort -u "$SX/ar" -o "$SX/ar"; rreqs "$SX/ar"; }
 # rreqs: a row's requirements, its derived-from items
 rreqs() { sed -n '/^```vid-inventory/,/^```$/p' "$(sf INVENTORY.md)" | awk -F'|' -v I="$1" 'BEGIN { while ((getline l < I) > 0) W[l] = 1 } { a = $1; gsub(/[ \t]/, "", a) } (a in W) { n = split($7, t, /[ ,]+/); for (i = 1; i <= n; i++) if (t[i] ~ /^REQ-/) print t[i] }' | sort -u; }
+# FB-7 A1, D3: replaced <N> <c> [say]: the runs of stage N's candidates below c that are out, or red and open until now: the staging run, not
+# passed (`withdrawn`), and the full run, replaced while it was held (`done`): told at the naming (say) and closed on GitHub, its mark written only once it
+# is closed: a failed close is tried again, the close alone, at each whole owed (reclose). A red one the read no longer shows open is marked alone
+rpl1() { [ -f "$3/ask" ] && [ ! -f "$3/passed" ] && [ ! -f "$3/$4" ] || return 0; _ri=$(sed -n "s/^issue$TAB//p" "$3/ask" | head -n 1); awk -F'\t' -v i="$_ri" '$1 == "issue" && $2 == i { f = 1; exit } END { exit !f }' "$RD" 2>/dev/null || { [ ! -f "$3/done" ] || [ ! -f "$RD" ] || { : > "$3/$4"; return 0; }; }
+  printf 'vid: withdrawn. Stage %s has a new candidate, %s; its rows run at that candidate'"'"'s %s run. A later report for this one is not read.\n' "$1" "$2" "$5" > .vid/round/wc
+  [ -z "${6:-}" ] || gh_ comment "$_ri" --body-file .vid/round/wc > /dev/null 2>&1 || true
+  gh_ close "$_ri" > /dev/null 2>&1 || return 0; : > "$3/$4"; if [ "$4" = done ]; then ev "close-done step=stage-$1 issue=$_ri"; else ev "stage-cs-withdrawn stage=$1 issue=$_ri"; fi; }
+replaced() { for _ro in $(ls "$SD/$1" 2>/dev/null | grep -E '^[0-9]+$'); do [ "$_ro" -lt "$2" ] || continue; rpl1 "$1" "$2" "$SD/$1/$_ro/cs" withdrawn staging "${3:-}"; [ -f "$SD/$1/$_ro/withdrawn" ] || rpl1 "$1" "$2" "$SD/$1/$_ro" done full "${3:-}"; done; return 0; }
 cmd_ask_stage() { N=$1; sdue "$N" || die "no candidate is due for stage $N: $(paste -sd ';' "$SX/why$N")"; E=$(sed -n 's/^engines \(.*\) | stand-in.*/\1/p' "$HAND" | tail -n 1); [ -n "$E" ] || die 'the handed record names no engines yet'
   set -- $E; P1=$1; shift; P2=$*; M=$(skey close-chunk-minutes); M=${M:-20}; c=$(snc "$N"); if [ -n "$c" ] && [ ! -f "$SD/$N/$c/named" ]; then :; else c=$(( ${c:-0} + 1 )); fi
   K=$SD/$N/$c; mkdir -p "$K"; if [ -f "$K/ask" ]; then X=$(cat "$K/commit"); else X=$(newest_merge); fi; [ -n "$X" ] || die "no merge for stage $N's candidate"; echo "$X" > "$SX/cm" || exit 1; put "$K/commit" < "$SX/cm" || exit 1; upto "$N"
   if [ ! -f "$K/ask" ]; then
-    # C3's rows (R2): the rows and regression rows of every ticket merged at or before the candidate, of stages 1 to N, whose newest ticket has merged
+    # C3's rows (R2): the rows and regression rows of every ticket merged at or before the candidate, of stages 1 to N
     awk '$1 == "published" { k[$2] = 1 } $1 == "withdrawn" { delete k[$2] } END { for (n in k) print n }' "$LOG" | sort -n | while read -r t; do m=$(mrg "$t" | cut -d' ' -f2); [ -n "$m" ] && { [ "$m" = "$X" ] || anc "$m" "$X"; } || continue
       awk '/^## / { x = substr($0, 4); next } x == "Rows" && /^> / { split(substr($0, 3), a, "|"); i = a[1]; gsub(/[ \t]/, "", i); if (i !~ /^[A-Z]+-[0-9]/) { i = a[2]; gsub(/[ \t]/, "", i) } print i } x == "Regression rows" && /^- [A-Z]+-[0-9]/ { print $2 }' ".vid/tw/out/issue-$t.md" 2>/dev/null; done | awk '!s[$0]++' > "$SX/cr"
-    { cmd_owned "stage-$N"; fxo; } > .vid/round/cx; : > "$K/rows"; : > "$SX/dw"
-    # a row's newest ticket is the newest that holds it now, its amendments read
-    while read -r r; do grep -qxF "$r" "$SX/up$N" || continue; nt=$(awk -v r="$r" '($1 == "published" || $1 == "amended") { if (!($2 in o)) o[$2] = ++k; for (i = 3; i <= NF; i++) if ($i ~ /^rows=/) R[$2] = substr($i, 6) } END { for (t in R) if (index("," R[t] ",", "," r ",") && o[t] > b) { b = o[t]; n = t } print n }' "$LOG"); [ -z "$nt" ] || [ -n "$(mrg "$nt")" ] || continue
-      if owed_ "$r"; then echo "$r" >> "$SX/dw"; continue; fi; limited "$r" || grep -qxF "$r" .vid/round/cx || printf '%s %s\n' "$r" "$(secs "$r")" >> "$K/rows"; done < "$SX/cr"
-    awk -v m=$((M * 60)) '{ if (n && t + $2 > m) { n++; t = 0 } else if (!n) n = 1; t += $2; c[n] = c[n] (c[n] == "" ? "" : " ") $1 } END { for (i = 1; i <= n; i++) print i "\t" c[i] }' "$K/rows" > "$K/packed"
+    : > "$K/rows"; : > "$SX/dw"; : > "$SX/lm"   # FB-7 A2: none left out for an open ticket or another close's red: red, such a row waits (close-decide.sh)
+    while read -r r; do grep -qxF "$r" "$SX/up$N" || continue
+      if owed_ "$r"; then echo "$r" >> "$SX/dw"; continue; fi; ! limited "$r" || echo "$r" >> "$SX/lm"; printf '%s %s\n' "$r" "$(secs "$r")" >> "$K/rows"; done < "$SX/cr"
+    packs "$K" "$SX/lm"   # FB-7 A3: a known limit is still run
     DW=$(paste -sd ' ' "$SX/dw"); { printf 'close: stage-%s\ncommit: %s\nengines: %s\n\n' "$N" "$X" "$E"
       if manual; then RF='by: and the name of whoever made it, its commit the one above, with one results file or more (.xml), of any name'; else RF='by: TM, its commit the one above, a cases-<engine>.xml for each engine of the chunk'; fi   # FB-3 A1.5
       printf 'The full run of stage %s'"'"'s candidate: run these rows at the commit above, chunk by chunk, in the engines each chunk names, phase 1, the primary engine, first, then phase 2; and chunk p1cx, every other test case of the suite in the primary engine. Report each chunk as its own results report, vid-results/req-<this issue>-<chunk>-<k>, %s, then comment `vid: reported <chunk>-<k>` here. Comment `vid: started` when the first chunk starts. Run a chunk again only after a comment `vid: again <chunk>`.\n\n' "$N" "$RF"
@@ -123,10 +153,8 @@ cmd_ask_stage() { N=$1; sdue "$N" || die "no candidate is due for stage $N: $(pa
       if manual; then i=$(printf '0900%03d%03d' "$N" "$c"); else i=$(gh_ grade-ask --stage "$N" --commit "$X" --title "Stage grade: stage $N, candidate $c" --body-file "$K/s1body") || die 'the S1 ask could not be posted'; fi
       { printf 'issue\t%s\ncommit\t%s\nasked\t%s\nreqs\t%s\n' "$i" "$X" "$(stamp)" "$RQ"; [ "$FULL" = no ] || printf 'end\tyes\n'; } > "$K/s1ask"; manual || echo "asked $i grade stage-$N"; fi; fi
   # the candidate's line once both are posted, or C3's alone
-  # v0.26.10.26.2 (R1): naming a newer candidate withdraws the stage's earlier CS still out, which then counts as done
-  [ -f "$K/named" ] || for o in $(ls "$SD/$N" | grep -E '^[0-9]+$'); do O=$SD/$N/$o/cs; [ "$o" -lt "$c" ] && [ -f "$O/ask" ] && [ ! -f "$O/done" ] && [ ! -f "$O/withdrawn" ] || continue
-    i=$(sed -n "s/^issue$TAB//p" "$O/ask"); printf 'vid: withdrawn. Stage %s has a new candidate, %s; its rows run at that candidate'"'"'s staging run. A later report for this one is not read.\n' "$N" "$c" > .vid/round/wc
-    gh_ comment "$i" --body-file .vid/round/wc > /dev/null 2>&1 || true; gh_ close "$i" > /dev/null 2>&1 || true; : > "$O/withdrawn"; ev "stage-cs-withdrawn stage=$N issue=$i"; done
+  # v0.26.10.26.2 (R1): naming a newer candidate withdraws the stage's earlier CS still out, which then counts as done (replaced, below)
+  [ -f "$K/named" ] || replaced "$N" "$c" say
   [ -f "$K/named" ] || sh "$HERE/walk.sh" withdraw --stage "$N" --below "$c" 2>/dev/null || true   # v0.26.10.26.4 (R1): and its older W1
   [ -f "$K/named" ] || { echo "candidate $N | stand-in: RM at $(printf %.12s "$X") candidate $c" >> "$HAND"; ev "stage-candidate stage=$N commit=$X candidate=$c"; : > "$K/named"; echo "candidate $N $c"; }
   s1own; }
@@ -177,5 +205,6 @@ cmd_decide_stage() { N=$1; s=stage-$N; CN=$(snc "$N"); [ -n "$CN" ] || die "no c
     # R6: a red CP asks for recovery on the production okay
     if [ -f "$K/cp/done" ] && [ ! -f "$K/cp/passed" ] && [ -f "$K/d2/ask" ] && ! psettled "$K"; then DK=$K/d2; i=$(sed -n "s/^issue$TAB//p" "$DK/ask"); F=$K; askrec "rows $(cut -f1 "$K/cp/acted" 2>/dev/null | paste -sd ' ' -)"; fi; fi; done; K=$SD/$N/$CN; c=$CN
   if [ -f "$K/cs/ask" ] && [ ! -f "$K/cs/passed" ] && [ ! -f "$K/cs/withdrawn" ]; then s=staging-$N; KD=$K; k=cs; STG=$N; CSM=$CN; CK=cs; HL=CS; LB="CS #$(sed -n "s/^issue$TAB//p" "$K/cs/ask") of stage $N"; RA="--cs $N"; decide_k; CSM=''; K=$SD/$N/$CN; fi; c=$CN
+  newbuild "$N" "$SD/$N/$CN"
   # R4: each candidate's findings — every grade but pass, every finding line, every unmatched case
   { awk -F'\t' '$2 != "pass" { print "grade " $1 " " $2 " — " $3 }' "$K/s1" 2>/dev/null; sed -n "s/^finding$TAB//p" "$K/s1read" 2>/dev/null; awk -F'\t' '$1 == "unmatched" { print "unmatched " $2 " " $3 }' "$K/read" 2>/dev/null; } > "$SX/fn"; put "$K/findings" < "$SX/fn" || exit 1; return 0; }

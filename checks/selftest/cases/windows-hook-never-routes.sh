@@ -1,5 +1,6 @@
 #!/bin/sh
-# Purpose: selftest case — under a git hook a court never goes through WSL (0.26.10.29.3, R6). With `wsl: yes`
+# Purpose: selftest case — outside ticket mode, under a git hook, a court never goes through WSL (0.26.10.29.3, R6;
+# FB-7 D1: in ticket mode the whole hook does, and its courts with it: windows-hook-routes). With `wsl: yes`
 # recorded, a faked native Windows shell (MINGW64_NT) and a fake `wsl.exe` that logs every call, the PRD court run
 # with GIT_INDEX_FILE set (as git sets it for pre-commit, commit-msg and post-commit), or with GIT_DIR set, starts
 # no `wsl.exe` at all, and prints and exits as a native run does. A real commit through a pre-commit hook that runs

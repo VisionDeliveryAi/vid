@@ -78,7 +78,8 @@
 #                     first line>`. While a draft of land.sh waits (not landed, declined or replaced) it reads and writes
 #                     nothing and prints `decisions wait draft=<n>`. Prints `decisions recorded pr=<p> n=<k> <ids>` a commit;
 #                     `decisions unread pr=<p>: <why>` for a description it could not read, or a commit it could not
-#                     make clean (other changes staged, DECISIONS.md changed), with no event, so the next round tries
+#                     make clean (other changes staged, DECISIONS.md changed, FB-7 D2: a law file changed and not staged, or
+#                     untracked, which the hook would refuse, or the commit refused while a spec file differs from HEAD), with no event, so the next round tries
 #                     again; `decisions export failed: <why>`. Exit 0 but for a usage error (2) or a refusal (1).
 #                     GM-4 E4, in both modes: it reads .vid/decide/unit-merges too (GitHub manual's merges, `<p> <ticket line's
 #                     number or -> <head> <merge>`), and skips merges' `step-` lines, a ticket's acceptance, which names no pull
@@ -240,15 +241,25 @@ case "$CMD" in
     # one <key> <lines file> <what>: the lines numbered and appended, one commit of DECISIONS.md alone; its event and its line;
     # refused for now, nothing recorded and tried again next time, while other changes are staged or DECISIONS.md holds changes HEAD
     # does not, so the commit holds DECISIONS.md alone and only these lines
+    # FB-7 D2: or while the commit's hook would refuse it for law files changed and not staged, or untracked (its rule 2a, the same two
+    # reads): a draft being written in the folder, which is no refusal of the decisions
+    lawheld() { git rev-parse -q --verify HEAD:checks > /dev/null 2>&1 || return 0; set -- checks design DESIGN-BRIEF.md
+      for _f in $(grep -v '^#' checks/lawfiles 2>/dev/null | awk 'NF { print $1 }'); do set -- "$@" "$_f"; done
+      { git diff --name-only -- "$@"; git ls-files --others --exclude-standard -- checks/ design/; } 2>/dev/null | sort -u | paste -sd ' ' -; }
+    # and, the commit refused, the spec files that differ from HEAD: a half-written one a court refuses, or one saved with Windows line
+    # endings, which git calls no change where they are pinned, so an .md is compared as it is
+    specheld() { { git status --porcelain -- $(specfiles) | cut -c4-; for _f in $(specfiles); do case $_f in *.md) [ ! -f "$_f" ] || [ "$(git hash-object --no-filters -- "$_f")" = "$(git rev-parse -q --verify "HEAD:$_f")" ] || echo "$_f" ;; esac; done; } 2>/dev/null | sort -u | paste -sd ' ' -; }
     one() { _o=$(git diff --cached --name-only 2>/dev/null | grep -vxF DECISIONS.md || true)
       if [ -n "$_o" ] || ! git diff --quiet HEAD -- DECISIONS.md 2>/dev/null; then echo "decisions unread $1: $( [ -n "$_o" ] && echo "other changes are staged ($(printf '%s' "$_o" | paste -sd ' ' -))" || echo 'DECISIONS.md holds changes HEAD does not')"; return 0; fi
+      _o=$(lawheld); if [ -n "$_o" ]; then echo "decisions unread $1: $_o hold changes HEAD does not"; return 0; fi
       : > "$TMPD/ids"; [ -z "$(tail -c 1 DECISIONS.md)" ] || echo >> DECISIONS.md
       while IFS= read -r _l; do _i=$(sh "$HERE/decisions.sh" next) || { git checkout -q HEAD -- DECISIONS.md; echo "decisions unread $1: no number could be reserved"; return 0; }
         printf -- '- **%s** %s\n' "$_i" "$_l" >> DECISIONS.md; echo "$_i" >> "$TMPD/ids"; done < "$2"
       _k=$(grep -c . "$TMPD/ids"); _ids=$(paste -sd , "$TMPD/ids" | sed 's/,/, /g'); git add DECISIONS.md
       if printf 'decisions: the dev side'"'"'s, from %s\n\nREQs: none\nDecisions: %s — the dev side'"'"'s decisions on %s, recorded in its words (origin: dev-side)\nSeams: none\n' "$3" "$_ids" "$3" | git commit -q -F - -- DECISIONS.md > "$TMPD/co" 2>&1; then
         ev "decisions-recorded $1 n=$_k"; echo "decisions recorded $1 n=$_k $(paste -sd , "$TMPD/ids")"; CM=1
-      else git checkout -q HEAD -- DECISIONS.md; ev "decisions-recorded $1 n=refused"
+      else git checkout -q HEAD -- DECISIONS.md; _o=$(specheld); if [ -n "$_o" ]; then echo "decisions unread $1: $_o hold changes HEAD does not"; return 0; fi
+        ev "decisions-recorded $1 n=refused"
         echo "decisions refused $1 $(grep -m 1 '^ViD ' "$TMPD/co" || head -n 1 "$TMPD/co")"; fi; }
     CM=''
     # each merged pull request ViD decided, its description read once

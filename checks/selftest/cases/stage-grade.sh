@@ -50,7 +50,7 @@ grep -qx "grade $S facade — read at its rows" $K/findings && grep -qx 'finding
 ! grep -q 'unmatched ROW-001' $K/read || fail 'a case holding an id was listed'
 sh "$QS" status > "$T/out" 2>&1; ok "^stage 1: candidate 1 at [0-9a-f]* · C3 out · S1 $(echo $EXP | wc -w | tr -d ' ') of $(echo $EXP | wc -w | tr -d ' ') graded, $(( $(echo $EXP | wc -w) - 1 )) pass · findings 4 · paid [0-9]* of [0-9]* · findings 0 of 4 ruled · the close waits on [0-9, ]* · test site: not known yet$"   # v0.26.10.28.8 (R7): no D1 yet   # v0.26.10.26.4: each a queue item
 # a later candidate: only the touched requirements; none when the merge touches none
-for c in p1c1 p2c1; do e=alpha; [ $c = p1c1 ] || e=beta; rq "$c-1" "$X" "$e" ROW-001=pass ROW-003=pass ROW-006=pass ROW-002=pass ROW-005=pass; done; fetch; cs decide --stage 1; ok '^stage-c3 1 passed$'
+for c in p1c1 p2c1; do e=alpha; [ $c = p1c1 ] || e=beta; rq "$c-1" "$X" "$e" ROW-001=pass ROW-003=pass ROW-006=pass ROW-002=pass ROW-005=pass ROW-012=pass; done; fetch; cs decide --stage 1; ok '^stage-c3 1 passed$'   # FB-7 A2: ROW-012, in an open ticket, is asked too
 tk 7 fix S03 ROW-006 ''; mg 24 7; fetch; cs owed; ok '^stage 1$'; cs ask --stage 1; ok '^candidate 1 2$'
 TR=$(sed -n '/^```vid-inventory/,/^```$/p' INVENTORY.md | awk -F'|' '{ a = $1; gsub(/[ \t]/, "", a) } a == "ROW-006" { n = split($7, t, /[ ,]+/); for (i = 1; i <= n; i++) if (t[i] ~ /^REQ-/) print t[i] }' | grep -xF -f "$(printf '%s\n' $EXP > "$T/e"; echo "$T/e")" | sort | paste -sd ' ' -)
 echo "stage-grade: touched $TR" >&2; if [ -n "$TR" ]; then [ "$(sed -n 's/^reqs\t//p' .vid/decide/stage/1/2/s1ask)" = "$TR" ] || fail "S1 at candidate 2: $(sed -n 's/^reqs\t//p' .vid/decide/stage/1/2/s1ask), not $TR"
@@ -63,7 +63,7 @@ G2=$(sed -n 's/^issue\t//p' .vid/decide/stage/1/2/s1ask 2>/dev/null); if [ -n "$
   grep -rlx 'why: once more' "$T"/gh/issues/*/comments/ > /dev/null 2>&1 || fail "the S1 again carries no words"   # 0.26.10.29.1 (R2): an again's words reach the dev side
   # a new candidate while that S1 is out: it is withdrawn, and its requirements join the new S1
   X2=$(sed -n 's/^commit\t//p' .vid/decide/stage/1/2/ask); N=$(sed -n 's/^issue\t//p' .vid/decide/stage/1/2/ask)
-  for c in p1c1 p2c1; do e=alpha; [ $c = p1c1 ] || e=beta; rq "$c-1" "$X2" "$e" ROW-001=pass ROW-003=pass ROW-006=pass ROW-002=pass ROW-005=pass; done; rq p1cx-1 "$X2" alpha test_other=pass; fetch; cs decide --stage 1; ok '^stage-c3 1 passed$'
+  for c in p1c1 p2c1; do e=alpha; [ $c = p1c1 ] || e=beta; rq "$c-1" "$X2" "$e" ROW-001=pass ROW-003=pass ROW-006=pass ROW-002=pass ROW-005=pass ROW-012=pass; done; rq p1cx-1 "$X2" alpha test_other=pass; fetch; cs decide --stage 1; ok '^stage-c3 1 passed$'
   tk 8 fix S04 ROW-002 ''; mg 25 8; fetch; cs owed; ok '^stage 1$'; cs ask --stage 1; ok '^candidate 1 3$'; [ -f .vid/decide/stage/1/2/s1withdrawn ] || fail "candidate 2's S1 was not withdrawn"
   for r in $TR; do grep -q "^reqs	.*$r" .vid/decide/stage/1/3/s1ask || fail "candidate 2's $r did not join candidate 3's S1: $(grep reqs .vid/decide/stage/1/3/s1ask)"; done; fi
 echo "stage-grade: the end"

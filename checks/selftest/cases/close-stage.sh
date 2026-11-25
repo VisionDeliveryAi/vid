@@ -3,7 +3,7 @@
 # toy and the fake gh, stage 1 (S02, S03, S04). Not due with a row failing, held or undecided, a step unmerged, the writer owing
 # a step a ticket, or a step close out; due with every row accepted; then no C1 owed for its steps. The ask names the candidate,
 # main's newest merge, and writes the candidate line plan.sh's admission reads; C3's rows hold a fix ticket's and a regression row,
-# and leave out a row whose newest ticket is open, a deploy-owed row (named in the rest chunk's line alone) and a known limit; the
+# one whose newest ticket is open (FB-7 A2) and a known limit (FB-7 A3), and leave out a deploy-owed row (named in the rest chunk's line alone); the
 # rest chunk p1cx. Red: the red row failing, one fix line, its link C3's, no step named, the writer's fix ticket in the row's own
 # step; candidate 2 owed once that fix merges, whole; the row red again the owner's. A lost chunk asked again. Green: the steps
 # closed by C3, a step closed before kept. A new candidate after a merge of a stage row, none after a later stage's merge alone.
@@ -45,17 +45,17 @@ K=.vid/decide/stage/1/1; grep -qx "candidate 1 | stand-in: RM at $(printf %.12s 
 grep -q "^stage-candidate stage=1 commit=$X candidate=1 " .vid/metrics-events || fail 'no stage-candidate event'
 [ "$(sed -n 's/^candidate[[:space:]][[:space:]]*//p' .vid/tw/handed | sed 's/[[:space:]]*|[[:space:]]*stand-in.*$//')" = 1 ] || fail "plan.sh's admission does not read the candidate line as stage 1"   # plan.sh hand candidate
 B=$T/gh/issues/$N/body; grep -qx 'close: stage-1' "$B" && grep -qx "commit: $X" "$B" && grep -qx 'engines: alpha beta' "$B" || fail 'the C3 ask names no stage, commit or engines'
-for r in ROW-001 ROW-003 ROW-006 ROW-002 ROW-005; do grep -q -- "^- chunk p1c[0-9]*, alpha: .*$r" "$B" && grep -q -- "^- chunk p2c[0-9]*, beta: .*$r" "$B" || fail "C3 leaves out $r"; done
-for r in ROW-012 DIF-001 ROW-013; do ! grep -q -- "^- chunk p[12]c[0-9]*, [a-z ]*: .*$r" "$B" || fail "C3 runs $r"; done
+for r in ROW-001 ROW-003 ROW-006 ROW-002 ROW-005 ROW-012 ROW-013; do grep -q -- "^- chunk p1c[0-9]*, alpha: .*$r" "$B" && grep -q -- "^- chunk p2c[0-9]*, beta: .*$r" "$B" || fail "C3 leaves out $r"; done
+for r in DIF-001; do ! grep -q -- "^- chunk p[12]c[0-9]*, [a-z ]*: .*$r" "$B" || fail "C3 runs $r"; done
 grep -qx -- '- chunk p1cx, alpha: every other test case of the suite, but the cases of the deploy-owed rows DIF-001; when no case is left outside the rows, send the cases file with no test case and the line `none left` in results.txt' "$B" || fail "the rest chunk: $(grep p1cx "$B")"
 grep -q "^chunk${TAB}p1cx${TAB}alpha${TAB}\$" $K/ask || fail 'the rest chunk holds a row in the record'
 cs owed; no '^stage 1$'; no '^close S0'; cs out; ok '^out stage-1$'
 # S1's report, so its grade is no item here (stage-grade.sh proves S1)
 G=$(sed -n 's/^issue\t//p' $K/s1ask); { echo 'by: GR'; echo "commit: $X"; for q in $(sed -n 's/^reqs\t//p' $K/s1ask); do echo "$q pass — read"; done; } > "$T/g"; rm -rf "$T/r/grade-$G-1"; mkdir -p "$T/r/grade-$G-1"; cp "$T/g" "$T/r/grade-$G-1/grade.txt"; send "grade-$G-1"
 # red: ROW-001 failing, one fix line with C3's link, the writer's fix ticket in S02; a lost chunk asked again
-rq p1c1-1 "$X" alpha ROW-001=fail:broke ROW-003=pass ROW-006=pass ROW-002=pass ROW-005=pass; rq p1cx-1 "$X" alpha test_other=pass; fetch
+rq p1c1-1 "$X" alpha ROW-001=fail:broke ROW-003=pass ROW-006=pass ROW-002=pass ROW-005=pass ROW-012=pass; rq p1cx-1 "$X" alpha test_other=pass; fetch
 cs decide --stage 1; [ "$RC" = 0 ] || fail "decide failed ($RC)"; ok '^close-red stage-1 p1c1 alpha:ROW-001$'; ok '^close-again stage-1 p2c1$'; no '^failing '
-rq p2c1-1 "$X" beta ROW-001=pass ROW-003=pass ROW-006=pass ROW-002=pass ROW-005=pass; fetch; cs decide --stage 1; ok '^failing ROW-001$'; ok '^close-fix stage-1 ROW-001$'
+rq p2c1-1 "$X" beta ROW-001=pass ROW-003=pass ROW-006=pass ROW-002=pass ROW-005=pass ROW-012=pass; fetch; cs decide --stage 1; ok '^failing ROW-001$'; ok '^close-fix stage-1 ROW-001$'
 grep -q "^fix ROW-001 | ROW-001: ROW-001 in alpha | C3 #$N of stage 1: req-$N-p1c1-1 | stand-in: RM" .vid/tw/handed || fail "the fix line: $(grep '^fix' .vid/tw/handed)"
 grep -q "^row ROW-001 failing | stand-in: C3 #$N" .vid/tw/handed || fail 'ROW-001 does not read failing'; grep -q 'plan-change what=other .*a red close of stage-1' .vid/metrics-events || fail 'no plan change'
 grep -q 'evidence=step:S02\|step:S02' .vid/plans/decisions/*.why 2>/dev/null || true
@@ -65,7 +65,7 @@ F=$(sh "$W" write fix "$KF" 2> "$T/werr") || fail 'the C3 fix ticket was refused
 printf 'published 7 kind=fix step=S02 rows=ROW-001 fix=%s at=2026-11-09T11:00:00Z\n' "$KF" >> .vid/tw/log; gh issue create -R $R --title t7 --body b --label ticket > /dev/null; mg 24 7; tw_hand 'row ROW-001 accepted'   # decide.sh merged's line, at the fix's merge
 printf 'amended 6 kind=step step=S05 rows=ROW-017 at=2026-11-09T11:30:00Z\n' >> .vid/tw/log   # #6 amended to drop ROW-012: its newest ticket now is #2, merged
 fetch; cs owed; grep -q '^stage 1$' "$T/out" || fail "candidate 2 not owed: $(cat "$T/out")"; cs ask --stage 1; ok '^candidate 1 2$'; N=$(sed -n 's/^asked \([0-9]*\) close stage-1$/\1/p' "$T/out"); X2=$(git --git-dir="$T/code.git" rev-parse main)
-[ "$(cut -d' ' -f1 .vid/decide/stage/1/2/rows | sort | paste -sd ' ' -)" = 'ROW-001 ROW-002 ROW-003 ROW-005 ROW-006 ROW-012' ] || fail "candidate 2's rows: $(cat .vid/decide/stage/1/2/rows)"
+[ "$(cut -d' ' -f1 .vid/decide/stage/1/2/rows | sort | paste -sd ' ' -)" = 'ROW-001 ROW-002 ROW-003 ROW-005 ROW-006 ROW-012 ROW-013' ] || fail "candidate 2's rows: $(cat .vid/decide/stage/1/2/rows)"
 rq p1c1-1 "$X2" alpha ROW-001=fail:still ROW-003=pass ROW-006=pass ROW-002=pass ROW-005=pass ROW-012=pass; rq p2c1-1 "$X2" beta ROW-001=pass ROW-003=pass ROW-006=pass ROW-002=pass ROW-005=pass ROW-012=pass; rq p1cx-1 "$X2" alpha; fetch   # v0.26.10.26.7 (R7): a rest chunk with no case, and no none left
 sh "$CHECKS/results.sh" close --stage 1 > "$T/out" 2>&1 || true; ok "^refused${TAB}req-$N-p1cx-1${TAB}no test case, and results.txt has no line none left"; ok "^chunk${TAB}p1cx${TAB}absent"
 Q=req-$N-p1cx-2; rm -rf "$T/r/$Q"; rr_put "$Q" results.txt "$(printf 'by: TM\ncommit: %s\nnone left' "$X2")"; rr_put "$Q" cases-alpha.xml "$(rr_cases)"; send "$Q"; fetch

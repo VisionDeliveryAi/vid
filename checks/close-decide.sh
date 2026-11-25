@@ -12,6 +12,11 @@ numbers() { awk -F'\t' -v SF="$D/state" "$LIMB"' $1 == "row" && !($4 in L) { if 
   p=$(for P in $(prior); do [ -f "$P/result" ] && echo "$P"; done | tail -n 1); [ -n "$p" ] || return 0
   awk -F'\t' 'NR == FNR { b[$1] = $2; next } { if ($2 == "red" && b[$1] == "green") g++; else if ($2 == "red" && b[$1] == "red") o++; else if ($2 == "green" && b[$1] == "red") f++ } END { printf "regressions introduced %d · defects still open %d · fixed %d\n", g, o, f }' "$p/result" "$K/result" > "$SX/nn" || exit 1; put "$K/numbers" < "$SX/nn" || exit 1
   echo "close-numbers $s $k $(cat "$K/numbers")"; ev "close-numbers step=$s ask=$k $(tr -d '·' < "$K/numbers" | awk '{ print "regressions=" $3, "open=" $7, "fixed=" $9 }')"; }   # fields: regressions= open= fixed=
+# FB-7 A1: heldrow: the row that holds the build of this full run or staging run (bheld), else exit 1. heldsay: such a run is not read as
+# passed, what it paid apart: `close-held <run> <row>`, said once a row
+heldrow() { [ -n "$STG" ] && { [ -z "$CSM" ] || [ "${CK:-cs}" = cs ]; } || return 1; _hf=$K; [ -z "$CSM" ] || _hf=$SD/$STG/$CSM; bheld "$STG" "$_hf"; }
+heldsay() { [ -n "$HR" ] || return 1; _hr=$HR
+  [ -z "$CSM" ] || cs_paid; grep -qxF "$_hr" "$K/held" 2>/dev/null || { echo "$_hr" >> "$K/held"; echo "close-held $s $_hr"; }; return 0; }
 cmd_decide() { s=$1; KD=$C/$s; k=$(nk "$s"); [ -n "$k" ] || die "no close is out for $s"; closed "$s" && return 0; STG=''; HL=''; LB=''; EVS=''; CSM=''; RA="--step $s"; decide_k; }
 # prior: the folders of the earlier asks, oldest first: a step's or C3's by number; CS's (v0.26.10.26.2) the stage's earlier candidates' cs
 prior() { if [ -n "$CSM" ]; then for j in $(ls "$SD/$STG" | grep -E '^[0-9]+$' | sort -n); do [ "$j" -lt "$CSM" ] && [ -f "$SD/$STG/$j/${CK:-cs}/ask" ] && echo "$SD/$STG/$j/${CK:-cs}"; done
@@ -25,12 +30,13 @@ decide_k() { K=$KD/$k; [ ! -f "$K/withdrawn" ] || return 0; n=$(akey issue); tou
     $1 == "chunk" { st[$2] = $3; at[$2] = $4; o[++n] = $2; next } $1 == "row" && !($4 in L) { if ($5 == "failed") { f[$2] = f[$2] " " $3 ":" $4; print $2 "\t" $3 "\t" $4 "\t" $6 > FO } else if ($5 != "passed") x[$2] = x[$2] " " $4 }
     $1 == "row" && ($4 in L) { lim[$2] = 1 } $1 == "row" && !($4 in L) { own[$2] = 1 }
     END { for (i = 1; i <= n; i++) { c = o[i]; s = (st[c] == "absent") ? ((lim[c] && !own[c]) ? "green" : "absent") : (x[c] != "") ? "incomplete" : (f[c] != "") ? "red" : "green"; print c "|" s "|" at[c] "|" f[c] "|" x[c] } }' "$K/read" > "$SX/ch" || exit 1; put "$K/chunks" < "$SX/ch" || exit 1; put "$K/failed" < "$SX/fo" || exit 1
-  awk -F'|' 'NR == FNR { if ($2 == "green" || $2 == "red") R[$1] = 1; next } { split($0, w, " ") } !(w[1] == "lost" && (w[2] in R))' "$K/chunks" "$K/items" > .vid/round/it || exit 1; put "$K/items" < .vid/round/it || exit 1   # a late report ends its chunk's loss
-  if [ -s "$K/chunks" ] && ! awk -F'|' '$2 != "green" { exit 1 }' "$K/chunks"; then :; elif [ -s "$K/chunks" ] && [ -n "$CSM" ]; then numbers; cs_green; return 0; elif [ -s "$K/chunks" ] && [ -n "$STG" ]; then numbers; stage_green; return 0; elif [ -s "$K/chunks" ]; then numbers
+  HR=$(heldrow) || HR=''   # FB-7 A1: held, no question of the run goes, its rows landed or not
+  [ -n "$HR" ] || awk -F'|' 'NR == FNR { if ($2 == "green" || $2 == "red") R[$1] = 1; next } { split($0, w, " ") } !(w[1] == "lost" && (w[2] in R))' "$K/chunks" "$K/items" > .vid/round/it || exit 1; [ -n "$HR" ] || put "$K/items" < .vid/round/it || exit 1   # a late report ends its chunk's loss
+  if [ -s "$K/chunks" ] && ! awk -F'|' '$2 != "green" { exit 1 }' "$K/chunks"; then :; elif [ -s "$K/chunks" ] && heldsay; then return 0; elif [ -s "$K/chunks" ] && [ -n "$CSM" ]; then numbers; cs_green; return 0; elif [ -s "$K/chunks" ] && [ -n "$STG" ]; then numbers; stage_green; return 0; elif [ -s "$K/chunks" ]; then numbers
     c=$(akey commit); echo "closed $s | stand-in: close #$n at $(printf %.12s "$c")" >> "$HAND"; ev "close-closed step=$s issue=$n commit=$c"
     gh_ close "$n" > /dev/null 2>&1 || true; echo "closed $s"; tclose "$s" "$c"; return 0; fi
   # splits, from the close
-  awk -F'\t' '$1 == "split" { print $2 "\t" $3 }' "$K/read" | while IFS=$TAB read -r r e; do grep -q "^engine-split $r " "$HAND" 2>/dev/null || { echo "engine-split $r | stand-in: $e" >> "$HAND"; ev "engine-split row=$r from=close step=$s"; echo "split $r"; }; done
+  awk -F'\t' '$1 == "split" { print $2 "\t" $3 }' "$K/read" | while IFS=$TAB read -r r e; do ! limited "$r" || continue; grep -q "^engine-split $r " "$HAND" 2>/dev/null || { echo "engine-split $r | stand-in: $e" >> "$HAND"; ev "engine-split row=$r from=close step=$s"; echo "split $r"; }; done
   W=$(skey close-wait-minutes); W=$((${W:-180} * 60)); u=$(awk -F'\t' -v n="$n" '$1 == "issue" && $2 == n { print $5 }' .vid/round/read 2>/dev/null); q=$(( $(date +%s) - $(epoch "${u:-$(stamp)}") ))
   # v0.26.10.28.2 (R2): said <chunk>: DevAgent's `vid: lost <chunk> <k>` on the issue, k the current generation (the issue's count of `vid: again <chunk>`), newer than
   # the chunk's newest `vid: reported`: the chunk lost now, asked again or made the owner's at once, with no quiet time; an older generation's changes nothing
@@ -39,7 +45,7 @@ decide_k() { K=$KD/$k; [ ! -f "$K/withdrawn" ] || return 0; n=$(akey issue); tou
   # 0.26.10.28.10 (R2): lsig <chunk>, the chunk's rows that could not run, by engine and state, messages apart; each attempt's in lostsig
   # (`<chunk> <attempt> <sig>`); lost with the sig of the attempt before, the chunk is `same` (queue.sh refuses a bare again);
   # an again's words, againwhy (`<chunk> TAB <words>`), go out with it as `why:`
-  lsig() { awk -F'\t' -v c="$1" '$1 == "row" && $2 == c && $5 != "passed" && $5 != "failed" { print $3 ":" $4 ":" $5 }' "$K/read" | sort | cksum | tr -d ' '; }
+  lsig() { awk -F'\t' -v c="$1" -v SF="$D/state" "$LIMB"'$1 == "row" && $2 == c && $5 != "passed" && $5 != "failed" && !($4 in L) { print $3 ":" $4 ":" $5 }' "$K/read" | sort | cksum | tr -d ' '; }
   while IFS='|' read -r ch st a fr xr; do case $st in
       red) item "red $ch$fr"; echo "close-red $s $ch$fr" ;;
       incomplete|absent) LS=''; ! said "$ch" || LS=1; [ "$st" = incomplete ] || [ "$q" -ge "$W" ] || [ -n "$LS" ] || grep -qxF "allow $ch" "$K/again" || continue; g=$(awk -v c="$ch" '$1 == c { print $2 }' "$K/again" | tail -n 1)
@@ -61,7 +67,7 @@ decide_k() { K=$KD/$k; [ ! -f "$K/withdrawn" ] || return 0; n=$(akey issue); tou
   awk -F'\t' 'function wd(n,   k, i, o, a) { sub(/.*::/, "", n); sub(/.*\//, "", n); sub(/^test_/, "", n); gsub(/_/, " ", n); gsub(/[^A-Za-z0-9 -]/, " ", n); k = split(n, a, " "); o = ""
       for (i = 1; i <= k; i++) { sub(/^-+/, "", a[i]); if (a[i] == "") continue; if (a[i] ~ /^[A-Z]+$/ && a[i + 1] ~ /^[0-9]+$/) { a[i + 1] = a[i] "-" a[i + 1]; continue } o = o (o == "" ? "" : " ") a[i] } return o == "" ? "its test" : o }
     { if (!($3 in w)) o[++m] = $3; w[$3] = w[$3] (w[$3] == "" ? "" : ", ") wd($4) " in " $2; c[$3] = c[$3] " " $1 } END { for (i = 1; i <= m; i++) print o[i] "\t" w[o[i]] "\t" c[o[i]] }' "$K/failed" > .vid/round/red
-  new=''; why=''; lk=''; cmd_owned "$s" > .vid/round/ow; touch "$K/waits"
+  new=''; why=''; lk=''; touch "$K/waits"; if [ -z "$CSM" ] || [ "${CK:-cs}" = cs ]; then hrows "$s" "$(akey commit)"; else cmd_owned "$s"; fi > .vid/round/ow   # FB-7 A2: held at the run's commit; the rehearsal and production runs as before
   # 0.26.10.29.2 (R7): a close asked again after the fix tickets of the close before it merged must shrink its red set, over the rows that
   # close's ask covered (its own, its dependencies' and its regression rows) less those landed since it was asked (close-twice's test):
   # its red rows now a strict subset of its red rows then. Else no fix line, and one item for the owner naming both, holding the close as
@@ -72,7 +78,8 @@ decide_k() { K=$KD/$k; [ ! -f "$K/withdrawn" ] || return 0; n=$(akey issue); tou
   SHR=''; P=$(prior | tail -n 1)
   if [ -z "$CSM" ] && [ -n "$P" ] && [ ! -f "$P/withdrawn" ] && [ -s "$P/fixes" ] && [ -s "$P/failed" ] && [ -f "$P/rows" ] && ! grep -qxF 'allow shrink' "$K/again"; then
     pa=$(sed -n "s/^asked$TAB//p" "$P/ask" | head -n 1)
-    awk -v a="$pa" -v LF="$D/landed" 'BEGIN { while ((getline l < LF) > 0) { split(l, x, " "); if (x[3] > L[x[1]]) L[x[1]] = x[3] } } { r = $1 } !(r in L) || a > L[r] { print r }' "$P/rows" | sort -u > "$SX/su"
+    awk -v a="$pa" -v LF="$D/landed" 'BEGIN { while ((getline l < LF) > 0) { split(l, x, " "); if (x[3] > L[x[1]]) L[x[1]] = x[3] } } { r = $1 } !(r in L) || a > L[r] { print r }' "$P/rows" | sort -u > "$SX/su0"
+    cut -f1 "$K/acted" | sort -u > "$SX/aa"; grep -vxF -f "$SX/aa" .vid/round/ow | sort -u > "$SX/ho"; comm -23 "$SX/su0" "$SX/ho" > "$SX/su"   # FB-7 A2: a held row is in neither set, the ones this close acted on apart
     cut -f3 "$P/failed" | sort -u | comm -12 - "$SX/su" > "$SX/sp"; cut -f1 .vid/round/red | sort -u | comm -12 - "$SX/su" > "$SX/sk"
     # the same set, every row of it acted on then, is close-twice's alone: each row is its item already
     cut -f1 "$P/acted" 2>/dev/null | sort -u > "$SX/sa"
@@ -82,7 +89,7 @@ decide_k() { K=$KD/$k; [ ! -f "$K/withdrawn" ] || return 0; n=$(akey issue); tou
       sl="shrink $(basename "$P")@$(paste -sd ',' "$SX/sk") $(paste -sd ' ' "$SX/sk") · before: $(paste -sd ' ' "$SX/sp")"
       grep -qxF "$sl" "$K/items" 2>/dev/null || { grep -v "^shrink $(basename "$P")@" "$K/items" > "$SX/si" 2>/dev/null || true; put "$K/items" < "$SX/si" || exit 1; }; item "$sl"; echo "close-shrink $s $(paste -sd ' ' "$SX/sk")"; fi; fi
   while IFS=$TAB read -r r w cs; do
-    if ! grep -q "^$r$TAB" "$K/acted" && grep -qxF "$r" .vid/round/ow; then grep -qxF "$r" "$K/waits" || { echo "$r" >> "$K/waits"; echo "close-waits $s $r"; }; continue; fi   # another close's fix holds it
+    if ! grep -q "^$r$TAB" "$K/acted" && grep -qxF "$r" .vid/round/ow; then grep -qxF "$r" "$K/waits" || { echo "$r" >> "$K/waits"; echo "close-waits $s $r"; }; continue; fi   # another close's fix, or another ticket, holds it
     if ! grep -q "^$r$TAB" "$K/acted"; then printf '%s\t%s\n' "$r" "$w" >> "$K/acted"; hfail "$r"; grep -qxF "$r close#$n" "$D/counts" 2>/dev/null || echo "$r close#$n" >> "$D/counts"; ev "close-failing step=$s row=$r issue=$n"; echo "failing $r"; fi
     [ -z "$SHR" ] || continue   # R7: the owner's first
     grep -qxF "$r" "$K/lined" && continue
@@ -95,5 +102,5 @@ decide_k() { K=$KD/$k; [ ! -f "$K/withdrawn" ] || return 0; n=$(akey issue); tou
     echo "$l | stand-in: RM" >> "$HAND"; printf '%s\t%s\n' "$f" "${new# }" >> "$K/fixes"; ev "close-fix step=$s issue=$n rows=$(echo $new | tr ' ' ,)"; echo "close-fix $s$new"
     [ -z "$STG" ] || { psteps; EVS=$(awk -F'\t' -v r="$(echo $new | cut -d' ' -f1)" '$2 == r { print $1; exit }' "$SX/ps"); }   # C3's fix: the step of its first red row
     sh "$HERE/plan.sh" change other "a red close of $s:$new" --trigger test-evidence --evidence "step:${EVS:-$s}" --expect 'a fix ticket, then the close again' > .vid/round/pc 2>&1 || echo "plan-refused $s: $(tail -n 1 .vid/round/pc)"; fi
-  # the ask's issue closed once nothing waits under it; the numbers
-  [ -f "$K/done" ] || grep '^lost ' "$K/items" | grep -qv '^lost s1 ' || { numbers; gh_ close "$n" > /dev/null 2>&1 || true; : > "$K/done"; ev "close-done step=$s issue=$n"; echo "close-done $s"; }; return 0; }
+  # the ask's issue closed once nothing waits under it; the numbers; FB-7 D3: but a staging run's, open while its run can still pass at this build
+  [ -f "$K/done" ] || grep '^lost ' "$K/items" | grep -qv '^lost s1 ' || { numbers; { [ -n "$CSM" ] && [ "${CK:-cs}" = cs ]; } || gh_ close "$n" > /dev/null 2>&1 || true; : > "$K/done"; ev "close-done step=$s issue=$n"; echo "close-done $s"; }; return 0; }

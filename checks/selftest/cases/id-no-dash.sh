@@ -34,6 +34,6 @@ hm() { sh -c 'HERE=$CHECKS; . "$CHECKS/lib.sh"; awk "$(hitf)"'"' BEGIN { print h
 printf 'setup-answered key=github-mode value="auto" words="back to auto" at=2026-11-20T09:00:00Z\n' >> .vid/plan/setup
 ( cd "$T/dev" && git checkout -q -B au main && g commit -q --allow-empty -m au && git push -q -f origin au 2>/dev/null && git checkout -q main ); H=$(git -C "$T/dev" rev-parse au); P=$(gh pr create -R owner/code --head au --base main --title t --body "ticket: #$AC_N" | sed 's#.*/##')
 _i=pr-$P-$(printf %.12s "$H")-1; rr_put "$_i" results.txt "$(printf 'by: TM\ncommit: %s\nengines: alpha' "$H")"; rr_put "$_i" cases-alpha.xml "$(rr_cases ROW001=pass ROW-002=pass)"; ac_send "$_i"; sh "$CHECKS/github.sh" results-fetch > /dev/null 2>&1 || fail 'results-fetch failed in auto'
-sh "$CHECKS/results.sh" read --ticket "$AC_N" --pr "$P" --head "$H" > "$T/out" 2>&1 || fail 'the read in auto failed'; [ "$(st ROW-001)" = failed ] && grep -q '^ROW-001	.*no case' "$T/out" && [ "$(st ROW-002)" = passed ] || fail "in GitHub auto the evidence reads a name without its dash"
+sh "$CHECKS/results.sh" read --ticket "$AC_N" --pr "$P" --head "$H" > "$T/out" 2>&1 || fail 'the read in auto failed'; [ "$(st ROW-001)" = missing ] && grep -q '^ROW-001	.*no case' "$T/out" && [ "$(st ROW-002)" = passed ] || fail "in GitHub auto the evidence reads a name without its dash"
 [ "$(hm test_ROW001_x ROW-001)" = 0 ] && [ "$(hm test_ROW_001_x ROW-001)" = 1 ] && [ "$(hm ROW-001-T1 ROW-001)" = 1 ] && [ "$(hm ROW-0012 ROW-001)" = 0 ] || fail 'in GitHub auto a name without its dash is read'
 exit 0

@@ -30,6 +30,7 @@
 # (brief.sh authority --kept) or amends its obligation. A row with both is amended only; a row new at HEAD gets
 # neither. From records 23 this hook never writes `amended … by=fail-if`; one already written still wipes.
 # serves: both (0.26.10.28.4, M9)
+_vidwsl=${0%/*}/../lib/wsl.sh; [ ! -f "$_vidwsl" ] || . "$_vidwsl"   # FB-7 D1: the whole hook, in ticket mode on Windows
 set -u
 IFS='
 '

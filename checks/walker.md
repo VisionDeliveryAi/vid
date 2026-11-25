@@ -21,10 +21,11 @@ Stop what you start: each container or process you start for the walk is stopped
 ## The walk
 
 Read `brief.md` whole. For each item:
-- **The golden path** and **each row:** do what its words promise, as a user would, and say `done` once you have walked it, or
-  `not done — <why>`. An item the product itself stops (a form that never submits, a page that errors, a link that leads
-  nowhere) is `done`, with a `finding:` line saying what stopped it. `not done` is for what stops you alone: no browser, the
-  address unreachable, a sign-in line that does not sign in.
+- **The golden path** and **each row:** do what its words promise, as a user would, and say `done` once you have used it to its
+  end, `stopped — <what>`, or `not done — <why>`. `stopped` is for what the product itself stops (a form that never submits, a page
+  that errors or stays blank, a link that leads nowhere), in a few words, with a `finding:` line saying what stopped it: an item you
+  could not use is never `done`. `not done` is for what stops you alone: no browser, the address unreachable, a sign-in line that
+  does not sign in.
 - **Each screen:** put the product's screen beside its canvas, here in this folder: `matches`, or `differs — <what>`. Judge what a
   user would see: layout, order, wording, what is missing or extra. Never a pixel count. `not done — <why>` only when you could
   not reach the screen.
@@ -45,8 +46,8 @@ Write `walk.txt` in this folder, and nothing else of the project's:
 by: WA
 candidate: <the brief's candidate, whole>
 browser: <what drove it> | none
-golden path: done | not done — <why>
-<row id>: done | not done — <why>
+golden path: done | stopped — <what> | not done — <why>
+<row id>: done | stopped — <what> | not done — <why>
 screen <name>: matches | differs — <what> | not done — <why>
 wander: done | not done — <why>
 finding: bug|rule — <one line>

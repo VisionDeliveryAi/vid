@@ -411,15 +411,9 @@ cited_exists() { # $1=path — index, then HEAD, never the worktree; a file, nev
 LGF=0; LCA=0; LPC=0; LGS=0; LFS=0; LPR=0; LSO=0; LOD=0; LRV=0; OTHER=0
 PN=0; PK=0; PD=0; PJ=0   # the par, over ROW rows: materialised · legitimate · deploy-owed · other
 owed_class() { # $1=the test field
-  r=$(printf '%s\n' "$1" | sed 's/^[Oo][Ww][Ee][Dd]:[[:space:]]*//')
-  c=${r%% *}
-  rest=$(printf '%s\n' "${r#"$c"}" | sed 's/^[[:space:]]*//')
-  case "$rest" in
-    '— '*) det=$(printf '%s\n' "$rest" | sed 's/^—[[:space:]]*//;s/[[:space:]]*$//') ;;
-    '– '*) det=$(printf '%s\n' "$rest" | sed 's/^–[[:space:]]*//;s/[[:space:]]*$//') ;;
-    '- '*) det=$(printf '%s\n' "$rest" | sed 's/^-[[:space:]]*//;s/[[:space:]]*$//') ;;
-    *) det='' ;;
-  esac
+  # FB-7 D1: in the shell's own words, no process a row (a project with no code yet owes nearly every row)
+  r=${1#[Oo][Ww][Ee][Dd]:}; r=${r#"${r%%[![:space:]]*}"}; c=${r%% *}; rest=${r#"$c"}; rest=${rest#"${rest%%[![:space:]]*}"}; det=''
+  case "$rest" in '— '*|'– '*|'- '*) det=${rest#* }; det=${det#"${det%%[![:space:]]*}"}; det=${det%"${det##*[![:space:]]}"} ;; esac
   [ -n "$det" ] || { echo unclassed; return 0; }
   case "$c" in
     guard-first|census-armed|probe-capture|golden-set|fixture-source|prerequisite|reverted) echo "$c" ;;

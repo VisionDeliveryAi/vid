@@ -107,7 +107,8 @@ neither a letter nor a digit directly before or after it.
 - A journey's id also matches its transitions' cases. A journey listed by its id means all its transitions.
 
 **A row's result, when several cases match it.** The row passes when every matching case passed. It fails when any
-case failed, errored or was skipped, or when none matches. Where every case that did not pass, in every engine and transition, errored with a message beginning
+case failed, errored or was skipped. When none matches, in an engine the ticket asks, and no case of it failed in another, it has not failed: it is
+missing, `evidence missing — no case of it in the results at this commit`, and nothing is counted against it (a close's chunk, below, reads it as red). Where every case that did not pass, in every engine and transition, errored with a message beginning
 `setup:`, the row has not failed: its test could not run, and it reads `evidence missing — its test could not run`, never a product failure, and waits for its fault as a failing row does.
 
 **Every engine is read.** A head report's every `cases-<engine>.xml` is read, not only the engines the ticket asks. In an engine

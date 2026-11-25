@@ -23,6 +23,10 @@ TAB=$(printf '\t')
   printf '2026-11-11T10:02:00Z\tfinding:7:1\tno\tas built is fine\tRM\truled\n'
   printf '2026-11-11T10:03:00Z\tquestion:8:1\t-\tthe round answered for an absent answerer\tstand-in\tdelegated\n'
   printf '2026-11-11T10:04:00Z\theld:ROW-005\ta\t\tRM\taccept\n'
+  printf '2026-11-11T10:04:10Z\tstage:1:case:test_login\tagain\tonce more\tRM\truled\n'
+  printf '2026-11-11T10:04:20Z\tstage:1:case:test_login_twice\tlimit\tas it is\tRM\truled\n'
+  printf '2026-11-11T10:04:30Z\tshrink:1@ROW-001\tyes\tsmaller\tRM\truled\n'
+  printf '2026-11-11T10:04:40Z\tshrink:1@ROW-001,ROW-004\tyes\tsmaller\tRM\truled\n'
   printf '2026-11-11T10:05:00Z\tcontrol:hold\toff\tbuild on\tdelegate\tdone\n'
   printf '2026-11-11T10:06:00Z\tcontrol:continue\thold off 1\tgo on\tdelegate\tdone\n'; } > .vid/decide/queue/answers
 printf 'held:ROW-005\tQ3\n' > .vid/decide/queue/ids
@@ -34,12 +38,20 @@ printf 'held:ROW-005\tQ3\n' > .vid/decide/queue/ids
   printf '2026-11-09T10:00:00Z\tROW-010\tlimit\t\tstand-in\n'; } > .vid/decide/rulings
 sh "$CHECKS/close.sh" summary --stage 1 > "$T/out" 2>&1 || fail 'the summary failed'
 awk -F'\t' '$1 == "decided" { print $2 }' "$F/facts.txt" | sort > "$T/ids"
-for i in question:6:1 finding:7:1 question:8:1 control:continue Q3 ROW-009-T1; do grep -qxF "$i" "$T/ids" || fail "the facts miss $i, an answer not the owner's: $(paste -sd ' ' "$T/ids")"; done
+for i in question:6:1 finding:7:1 question:8:1 control:continue Q3 ROW-009-T1 stage:1:case:test_login stage:1:case:test_login_twice shrink:1@ROW-001 shrink:1@ROW-001,ROW-004; do grep -qxF "$i" "$T/ids" || fail "the facts miss $i, an answer not the owner's: $(paste -sd ' ' "$T/ids")"; done
 for i in question:4:1 question:5:1 control:hold ROW-001 ROW-002 ROW-003 ROW-010 held:ROW-005; do ! grep -qxF "$i" "$T/ids" || fail "the facts hold $i, the owner's, a reset or undo, the hold's second record, or before the close"; done
-[ "$(grep -c . "$T/ids")" = 6 ] || fail "not six decided facts: $(paste -sd ' ' "$T/ids")"
+[ "$(grep -c . "$T/ids")" = 10 ] || fail "not ten decided facts: $(paste -sd ' ' "$T/ids")"
+# FB-8 E5: an id that a longer decided id begins with counts only where it stands by itself, the two in either order
+L2='stage:1:case:test_login_twice: a word, shrink:1@ROW-001,ROW-004: a word'
+printf '**Working now:** nothing yet · **Went back:** nothing · **Decided for you:** question:6:1, finding:7:1, question:8:1, control:continue, Q3, ROW-009-T1, %s · no walk: this stage has no screens and no journey\n' "$L2" > "$F/summary.md"
+sh "$CHECKS/close.sh" close-stage --stage 1 > "$T/out" 2>&1 || true; grep -q '^summary-refused 1 the summary misses the decisions shrink:1@ROW-001, stage:1:case:test_login$' "$T/out" || fail 'a longer decided id counted for one it begins with'
+L2="$L2, stage:1:case:test_login: a word, shrink:1@ROW-001, a word"
 # the summary check: the stand-in's ruling left out is refused; every fact named closes the stage
-printf '**Working now:** nothing yet · **Went back:** nothing · **Decided for you:** question:6:1, finding:7:1, question:8:1, control:continue, Q3 · no walk: this stage has no screens and no journey\n' > "$F/summary.md"
+printf '**Working now:** nothing yet · **Went back:** nothing · **Decided for you:** question:6:1, finding:7:1, question:8:1, control:continue, Q3, %s · no walk: this stage has no screens and no journey\n' "$L2" > "$F/summary.md"
 sh "$CHECKS/close.sh" close-stage --stage 1 > "$T/out" 2>&1 || true; grep -q '^summary-refused 1 the summary misses the decision ROW-009-T1$' "$T/out" || fail 'a summary without the stand-in ruling was not refused'
-printf '**Working now:** nothing yet · **Went back:** nothing · **Decided for you:** question:6:1, finding:7:1, question:8:1, control:continue, Q3, ROW-009-T1 · no walk: this stage has no screens and no journey\n' > "$F/summary.md"
+# FB-8 E5: the ids missing, all in one line; a key that is the start of another never counts by it; an id followed by a colon or a hyphen and a space does
+printf '**Working now:** nothing yet · **Went back:** nothing · **Decided for you:** question:6:1:2, finding:7:1 - y, question:8:1, control:continue, Q3-T1, ROW-009-T1, %s · no walk: this stage has no screens and no journey\n' "$L2" > "$F/summary.md"
+sh "$CHECKS/close.sh" close-stage --stage 1 > "$T/out" 2>&1 || true; grep -q '^summary-refused 1 the summary misses the decisions Q3, question:6:1$' "$T/out" || fail 'the two ids missing were not named in one line, or an id counted by one it begins'
+printf '**Working now:** nothing yet · **Went back:** nothing · **Decided for you:** question:6:1: a word, finding:7:1 - y, question:8:1:, control:continue: a word, Q3- a word, ROW-009-T1: a word, %s · no walk: this stage has no screens and no journey\n' "$L2" > "$F/summary.md"
 sh "$CHECKS/close.sh" close-stage --stage 1 > "$T/out" 2>&1 || true; grep -q '^stage-closed 1 at [0-9a-f]*$' "$T/out" || fail 'a summary naming every fact did not close the stage'
 exit 0

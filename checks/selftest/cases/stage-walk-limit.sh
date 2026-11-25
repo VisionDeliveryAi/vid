@@ -15,6 +15,7 @@ fail() { echo "stage-walk-limit: $*" >&2; cat "$T/out" >&2 2>/dev/null; exit 1; 
 tw_toy "$T/toy"; GS=$CHECKS/github.sh; CS=$CHECKS/close.sh; QS=$CHECKS/queue.sh; WS=$CHECKS/walk.sh; RS=$CHECKS/results.sh; R=owner/code; mkdir -p "$T/r" "$T/wk"; COV=''
 cs() { RC=0; sh "$CS" "$@" > "$T/out" 2>&1 || RC=$?; }; wk() { RC=0; sh "$WS" "$@" > "$T/out" 2>&1 || RC=$?; }
 ok() { grep -q -- "$1" "$T/out" || fail "no line: $1"; }; no() { ! grep -q -- "$1" "$T/out" || fail "a line: $1"; }
+printf '#!/bin/sh\nprintf 200\n' > "$T/bin/curl"; chmod +x "$T/bin/curl"   # FB-7 C2: the staging's address answers
 sh "$GS" spec-setup > "$T/out" 2>&1 || fail 'spec-setup failed'; mkdir -p .vid/round .vid/decide .vid/tw/out
 printf 'close-chunk-minutes: 20\nclose-wait-minutes: 600\n' >> .vid/tw/settings; tw_hand 'engines alpha'; tw_hand 'stage-closed 0 | stand-in: RM at 000000000000 candidate 1'   # v0.26.10.26.5 (R5a): stages close in order
 send() { rm -rf "$T/x"; mkdir -p "$T/x"; cp -R "$T/r/$1" "$T/x/"; git -C "$T/x" init -q; git -C "$T/x" add -A; git -C "$T/x" -c user.name=a -c user.email=a@b commit -qm "$1"; git -C "$T/x" push -q -f "$T/code.git" "HEAD:refs/heads/vid-results/$1"; }

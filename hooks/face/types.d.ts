@@ -137,6 +137,8 @@ export type View = {
   standing: Standing | null
   sitting: Sitting | null
   run: Run | null
+  // FB-7 B6: this conversation's run in GitHub auto is on, by RUN-STATE
+  active: boolean
   // FB-5 A1: the owner's list, null for none, and why it cannot be drawn, "" for nothing wrong
   list: List | null
   listProblem: string

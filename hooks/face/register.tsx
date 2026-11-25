@@ -2,7 +2,7 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { FaceItem, FaceSection, List, ListMarks, ListTodo, Marks, Run, Said, Sitting, Standing, View } from './types'
-import { aloneLine, answerable, asRecommended, atStart, besides, blankMarks, compose, counts, cut, filterList, footLine, isAlone, keyOf, live, marked, merged, mk, modeOf, needsAnswer, parseRun, parseSitting, parseStanding, presetMarks, restorable, running, sendable, shown, startOf, tally, versionNote, waitLines } from './model'
+import { aloneLine, answerable, asRecommended, atStart, besides, blankMarks, compose, counts, cut, filterList, footLine, isAlone, keyOf, live, marked, merged, mk, modeOf, needsAnswer, parseRun, parseSitting, parseStanding, presetMarks, restorable, running, sendable, shown, startOf, tally, versionNote, waitLines, stuckOn, active } from './model'
 import { answersOf, blankList, dayTime, lineKey, parseList, receipts, sayLine } from './list'
 import { goTo } from './go'
 import { WHOLE, drawList as drawOwners, fits } from './listdraw'
@@ -32,8 +32,8 @@ const TONE: Record<string, string> = { keep: 'success', ok: 'success', in: 'succ
 
 // usability (P4, P5): the view holds its conversation's run file and the minute it was read, so the wait is redrawn
 // when the minute changes
-const blankView: View = { standing: null, sitting: null, run: null, list: null, listProblem: '', problem: '', project: false, here: '', version: '', opened: '', ranOpen: '', minute: 0, now: 0, moved: { from: 0, to: 0, at: 0 } }
-const view = atom({ plugin: 'vid', key: 'view' } as const, blankView, { shape: 'face-view-6' })
+const blankView: View = { standing: null, sitting: null, run: null, active: false, list: null, listProblem: '', problem: '', project: false, here: '', version: '', opened: '', ranOpen: '', minute: 0, now: 0, moved: { from: 0, to: 0, at: 0 } }
+const view = atom({ plugin: 'vid', key: 'view' } as const, blankView, { shape: 'face-view-7' })
 // usability (P11): how long a new stretch of the map's line is drawn moving after the stop moved on
 const MOVING_MS = 4000
 const marks = atom({ plugin: 'vid', key: 'marks' } as const, {}, { shape: 'face-marks-1' })
@@ -108,6 +108,16 @@ async function refresh($: EngineInterface): Promise<View> {
       run = null
     }
   }
+  // FB-7 B6: RUN-STATE.md and the setup are read in ticket mode alone, for this conversation's run
+  let on = false
+  if (standing?.backlog && run && (await exists($, `${root}/.vid/RUN-STATE.md`))) {
+    try {
+      const setup = (await exists($, `${root}/.vid/plan/setup`)) ? String(await $.fs.read(`${root}/.vid/plan/setup`)) : ''
+      on = active(String(await $.fs.read(`${root}/.vid/RUN-STATE.md`)), setup, here)
+    } catch {
+      on = false
+    }
+  }
   // usability (P5): the time from the engine's clock, so a test's clock moves it
   let nowMs = Date.now()
   try {
@@ -118,7 +128,7 @@ async function refresh($: EngineInterface): Promise<View> {
   const before = await read($, view)
   // usability (P11): the stop moved on since the panel last read the standing
   const moved = before.standing && standing && standing.current > before.standing.current ? { from: before.standing.current, to: standing.current, at: nowMs } : before.moved
-  const next: View = { standing, sitting, run, list, listProblem, problem, project, here, version, opened: before.opened, ranOpen: before.ranOpen, minute: Math.floor(nowMs / 60000), now: nowMs, moved }
+  const next: View = { standing, sitting, run, active: on, list, listProblem, problem, project, here, version, opened: before.opened, ranOpen: before.ranOpen, minute: Math.floor(nowMs / 60000), now: nowMs, moved }
   // FB-5 A1: a long list is not drawn again every few seconds: only when something it reads changed, or a movement ends
   if (nowMs - moved.at < 4 * MOVING_MS || JSON.stringify({ ...before, now: 0 }) !== JSON.stringify({ ...next, now: 0 })) await update($, view, () => next)
   if (list) await refreshPressed($, list)
@@ -615,6 +625,9 @@ export const register: Register = on => {
     } else if (mode === 'run' && st) {
       // FB-3 D1, D2: the stop of a call, or its parts while the session runs; then the owner's list (FB-5 A1)
       const at = st.wait.parts.find(p => p.state === 'stopped')
+      // FB-7 B6: a step over 20 minutes old, or a turn ended with the run not finished, in amber
+      const still = v.active ? stuckOn(st, v.run, v.now) : null
+      const halted = still ? `Still on ${still.on}, since ${dayTime(still.since)}` : v.active && v.run?.state === 'stopped' ? 'ViD has stopped and its run is not finished. Say continue in the chat.' : ''
       body = (
         <Box flexDirection="column" gap={2}>
           {st.wait.stop ? (
@@ -625,6 +638,14 @@ export const register: Register = on => {
               </Text>
               <Text>{`It needs: ${cut(st.wait.stop)}`}</Text>
               <Text color="warning">Look at the chat.</Text>
+            </Box>
+          ) : halted ? (
+            <Box flexDirection="column" gap={1} padding={2} borderStyle="round" borderColor="warning">
+              {pic(ICON.problem, still ? 'Not moving' : 'Stopped')}
+              <Text size="heading" weight="semibold" color="warning">
+                {halted}
+              </Text>
+              {still ? waitBits(live(st, v.run)) : null}
             </Box>
           ) : running(v.run) ? (
             <Box flexDirection="column" gap={1} padding={2} borderStyle="round" borderColor={LINE}>

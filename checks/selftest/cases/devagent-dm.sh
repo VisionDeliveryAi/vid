@@ -1,6 +1,6 @@
 #!/bin/sh
 # Purpose: selftest case — DevAgent's dev manager script (v0.26.10.24.7 R2, R3), on the fake gh and a fake claude of its own, on shortened times. next prints each
-# of its lines from the right state, lowest first: a ticket labelled blocked prints blocked and nothing else, left from the record (FB-2 A3: until a reopen
+# of its lines from the right state, the run, grade and deploy issues first, then the tickets by their body's stage (none is 0), each by number (FB-8 E2): a ticket labelled blocked prints blocked and nothing else, left from the record (FB-2 A3: until a reopen
 # follows its newest `DM: left:` comment, or any reopen with none), claim, work, wait while a decide is
 # newer than any decision for that head, not-yet, merge, a decision for an old head no answer, a merged ticket nothing, none with no line. loop starts one dev manager,
 # never a second while one runs, none for a blocked ticket, and stops on the stop file, on the same line twice, and not behind a lower wait or blocked while a higher ticket
@@ -101,6 +101,33 @@ cm 'vid: again p1c1'; is "work $RN"
 cm 'vid: reported p1c1-2'; is "wait $RN"
 g issue edit "$RN" -R owner/code --add-label blocked; cm 'vid: again p2c1'; is "blocked $RN"
 g issue close "$RN" -R owner/code; rm -f "$W/tickets/$RN.txt"; is none
+# FB-8 E2: the asks first, then the tickets by the stage their body names (none is 0), then by number; a wait keeps its place too
+sk() { if [ -n "$2" ]; then printf '## Header\n\n- kind: step\n- stage: %s\n- rows: ROW-001\n' "$2" > "$T/b"; else printf '## Header\n\n- rows: ROW-001\n' > "$T/b"; fi; N=$(gh issue create -R owner/code --title "a $1" --body-file "$T/b" --label "$1"); N=${N##*/}; O="${O:+$O }$N"; }
+O=''; sk ticket '10, Ten'; S10=$N; sk ticket '1, Two'; S1=$N; sk ticket ''; S=$N; sk ticket '0, One'; S0=$N; sk ticket '2, Three'; S2=$N; sk ticket '?'; SQ=$N
+printf 'close: S01\n\n- chunk p1c1, alpha: ROW-001\n- stage: 3\n' > "$T/b"; N=$(gh issue create -R owner/code --title 'Close run: S01' --body-file "$T/b" --label run); RN=${N##*/}; sk grade '1, Two'; GN=$N; sk deploy ''; DN=$N; sk ticket '1, Two'; S1B=$N
+is "work $RN
+work $GN
+work $DN
+claim $S
+claim $S0
+claim $SQ
+claim $S1
+claim $S1B
+claim $S2
+claim $S10"
+g issue comment "$S1" -R owner/code --body 'vid: claimed'; cm 'vid: reported p1c1-1'; g issue edit "$S0" -R owner/code --add-label blocked
+is "wait $RN
+work $GN
+work $DN
+claim $S
+blocked $S0
+claim $SQ
+work $S1
+claim $S1B
+claim $S2
+claim $S10"
+for n in $RN $O; do g issue close "$n" -R owner/code; done; is none
+grep -q "^3\. Take the first line that calls for work, in \`next\`'s order, and work it until it reads" "$DMA" || fail "dev-manager.md does not take the first line that calls for work, in next's order"
 # start, wait, take, list, stop, the limit
 printf 'ticket: 9\nyour job\n' > "$W/job"; A=$(sh "$DM" start builder "$W/job" "$W/c1"); grep -qF 'devagent/agents/builder.md' "$FC_LOG" && grep -q -- "--model $FC_MODEL0 " "$FC_LOG" && grep -q -- '--max-turns 40 ' "$FC_LOG" && ! grep -q -- '--max-budget' "$FC_LOG" && grep -qF '"vid@vid":false' "$FC_LOG" && grep -qF "$W/agents/$A/note" "$FC_LOG" || fail "the agent's start: $(cat "$FC_LOG")"
 sh "$DM" wait "$A" > "$T/out" 2>&1 || fail 'wait on an ended agent'; [ "$(sed -n 2p "$T/out")" = 'the "second" line' ] || fail 'the hand-back'

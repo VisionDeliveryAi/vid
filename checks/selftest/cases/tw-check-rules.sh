@@ -11,7 +11,9 @@
 # And: an AMENDED answer's named form is refused; "artifact" before an ordinary word (no digit) is no
 # pointer. The cut (only the three named forms rewritten and refused): the lines A-177, A-090, A-175, D-056
 # and D-042, toy-shaped, keep their other quotes and pass; a quote after the owner in no named form passes. v0.26.10.24.2: a
-# quoted path into ViD's checks/ is rewritten and refused like the other pointers; a product's own path and plain words are not. Env: CHECKS.
+# quoted path into ViD's checks/ is rewritten and refused like the other pointers; a product's own path and plain words are not. FB-7 C5: an
+# answer of two or three quoted replies is quoted whole, each left out, and the ticket passes; a quotation that is no answer, and one planted
+# back, read as before. Env: CHECKS.
 set -eu
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 . "$CHECKS/selftest/fixtures/tw-toy.sh"
@@ -25,6 +27,11 @@ sed -e 's/| A: cap at ten saved searches per subscriber for MVP | settles: REQ-0
 A177='A: REQ-006 and REQ-001 each add "except for a deleted subscriber: no mail is sent"'; A090='A: the list shows "You saved…" after a save'; A175='A: REQ-006'"'"'s state reads "saved (not yet sent)", and the count shows'
 awk -v a="$A177" -v b="$A090" -v c="$A175" '/^REQ-006 / { sub(/source: A-005/, "source: A-005, A-177, A-090, A-175") } { print } /^A-005 / { print "A-177 | human | 2026-10-23 | Q: deleted? | " a "; owner: \"Yes, all recommended\" | settles: REQ-006"; print "A-090 | human | 2026-10-23 | Q: text? | " b " | settles: REQ-006"; print "A-175 | human | 2026-10-23 | Q: state? | " c " | settles: REQ-006" }' PRD.md > "$T/p" && cat "$T/p" > PRD.md
 printf -- '- **D-005** REQ-006 the cap is ten, owner: "ten is plenty", as .vid/milestones-prelim.json and https://claude.ai/artifact/JTBFCZ4Y8xhDKzpgttPvAC say | why: cost | enforced: convention\n' >> DECISIONS.md
+# FB-7 C5: an answer of two and of three quoted replies, beside A-005's one
+sed 's/source: A-005, A-177/source: A-005, A-301, A-302, A-303, A-177/' PRD.md > "$T/p" && cat "$T/p" > PRD.md
+printf '%s\n' 'A-301 | human | 2026-10-23 | Q: two? | A: "the first one"; "and the second"; the list holds both | settles: REQ-006' 'A-302 | human | 2026-10-23 | Q: three? | A: "one such"; "two such"; "three such"; the list holds the three | settles: REQ-006' \
+  'A-303 | human | 2026-10-23 | Q: words? | A: the page says "one; two"; "three" follows | settles: REQ-006' > "$T/a3"
+awk -v f="$T/a3" '{ print } /^A-005 / { while ((getline l < f) > 0) print l }' PRD.md > "$T/p" && cat "$T/p" > PRD.md
 D6='REQ-006 the message is "ten saved", as recorded in artifact JTBFCZ4Y8xhDKzpgttPvAC.'; D7='REQ-006 for owners the SLA: "99.9" and the "owner": "ops" key stay'
 printf -- '- **D-006** %s | why: clarity | enforced: convention\n- **D-007** %s | why: product text | enforced: convention\n' "$D6" "$D7" >> DECISIONS.md
 D8='REQ-006 the message is "Ask the owner!"; the action says "Save"'; printf -- '- **D-008** %s | why: product text | enforced: convention\n' "$D8" >> DECISIONS.md
@@ -38,6 +45,9 @@ grep -qxF '> ROW-002 | behavior | REQ-006 | anonymous | n/a | A subscriber can k
 grep -q 'owed: prerequisite' "$F" && fail 'a prerequisite note is written'
 grep -qxF "> - **D-005** REQ-006 the cap is ten, confirmed by the owner, as (ViD's records) and (ViD's records) say | why: cost | enforced: convention" "$F" || fail 'the decision is not written in neutral words with its records hidden'
 grep -qF '| A: cap at ten saved searches per subscriber for MVP (chosen by the owner) | settles: REQ-006' "$F" || fail 'the answer is not written in neutral words'
+grep -qF '| A: the list holds both | settles: REQ-006' "$F" && grep -qF '| A: the list holds the three | settles: REQ-006' "$F" || fail 'an answer of several quoted replies is not written by its own words'
+grep -qF '| A: the page says "one; two"; "three" follows | settles: REQ-006' "$F" || fail 'a quotation that is no reply is changed'
+! grep -q 'the first one\|and the second\|two such\|three such' "$F" || fail 'a quoted reply reaches the ticket'
 grep -q 'ten is plenty\|ten, final\|milestones-prelim\|claude\.ai' "$F" && fail "the owner's words or a pointer reach the ticket"
 grep -qF '> - **D-006** REQ-006 the message is "ten saved", as recorded in (ViD'"'"'s records). | why: clarity' "$F" || fail 'an artifact id with a full stop after it is not rewritten'
 grep -qF "| $A177; confirmed by the owner | settles: REQ-006" "$F" || fail "A-177's added clause is not kept, or its owner's words not rewritten"
@@ -65,5 +75,6 @@ pl 'Decisions' '> - **D-011** REQ-006 as recorded in artifact JTBFCZ4Y8xhDKzpgtt
 sed '1s/$/, artifact JTBFCZ4Y8xhDKzpgttPvAC/' "$F" > "$T/p.md"; refused "line 1: a pointer into ViD's records — artifact JTBFCZ4Y8xhDKzpgttPvAC"
 sed '1s/$/, a bloody mess/' "$F" > "$T/p.md"; refused 'line 1: profanity — bloody'
 pl 'Requirements' '> A-007 AMENDED | human | 2026-10-01 | Q: cap? | A: "ten is plenty"; ten | settles: REQ-006'; refused 'an owner quote — A: "ten is plenty"; '
+pl 'Requirements' '> A-304 | human | 2026-10-01 | Q: cap? | A: "ten is plenty"; "or nine"; ten | settles: REQ-006'; refused 'an owner quote — A: "ten is plenty"; '
 pl 'History' '- the deploy artifact, production-ready, is tagged'; ck "$T/p.md"; [ "$RC" = 0 ] || fail '"artifact" before an ordinary word is refused'
 exit 0

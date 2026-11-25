@@ -66,12 +66,16 @@ engnone() { [ -z "$(sed -n 's/^engines \(.*\) | stand-in.*/\1/p' .vid/tw/handed 
 ENGASK='engines not named — /vid:vid-accept-step engines "<primary> <other>…" "<words>"'
 # plan_block [<RUN-STATE>]: the vid-plan block's lines under "## The plan", strict fence, trailing space trimmed: plan.sh's `block`, whose hash is the plan's
 plan_block() { [ -f "${1:-.vid/RUN-STATE.md}" ] || return 0; awk '/^## The plan/ { s = 1; next } s && /^## / { exit } s && /^```vid-plan[ \t]*$/ { b = 1; next } b && /^```[ \t]*$/ { exit } b { print }' "${1:-.vid/RUN-STATE.md}" | sed 's/[[:space:]]*$//'; }
+# specfiles (FB-7 D2): the spec's files, the one list: the ticket writer's gate, and a refused recording of decisions, which waits for them
+specfiles() { printf '%s\n' PRD.md INVENTORY.md STAGES.md GRADING-CHECKLIST.md ARCHITECTURE.md PLAN.md DECISIONS.md BASELINE.md CLAUDE.md design
+  sed -n 's/.*|[[:space:]]*golden:[[:space:]]*\([^ |]*\).*/\1/p' INVENTORY.md 2>/dev/null | sort -u; }
 # rkey: the round's refusal key: the plan block, the handed record and the newest tw-sync's main (0.26.10.28.2, R4), so a refusal is tried again once one
 # changes; round.sh's refusals and queue.sh's count of the steps waiting read the one key
 rkey() { { plan_block; cat .vid/tw/handed 2>/dev/null; sed -n 's/^sync main=\([^ ]*\) .*/\1/p' .vid/tw/log 2>/dev/null | tail -n 1; } | cksum | tr -d ' '; }
-# stkey (low-1, R3): the stage key, for a start refused for its stage, which waits for its stage and never for main: rkey's parts but main,
-# the six files of planner.sh's hash and RUN-STATE's stage: and held-after: lines, all the stage admission reads
-stkey() { { plan_block; cat .vid/tw/handed 2>/dev/null; for f in PRD.md INVENTORY.md STAGES.md GRADING-CHECKLIST.md ARCHITECTURE.md PLAN.md; do printf '== %s\n' "$f"; cat "$f" 2>/dev/null; done
+# stkey (low-1, R3): the stage key, for a start refused for its stage, which waits for its stage and never for main: the plan block, the handed
+# record's candidate, staged and setup-hold lines without their labels (FB-8 E1), the six files of planner.sh's hash and RUN-STATE's stage: and
+# held-after: lines, all the stage admission reads
+stkey() { { plan_block; grep -E '^(candidate|staged|setup-hold)[[:space:]]' .vid/tw/handed 2>/dev/null | sed 's/[[:space:]]*|[[:space:]]*stand-in.*$//'; for f in PRD.md INVENTORY.md STAGES.md GRADING-CHECKLIST.md ARCHITECTURE.md PLAN.md; do printf '== %s\n' "$f"; cat "$f" 2>/dev/null; done
   grep -E '^(stage|held-after):' .vid/RUN-STATE.md 2>/dev/null; } | cksum | tr -d ' '; }
 # RNG: the awk function rng(<id or range>), its ids space-separated: <P>-<a>..<P>-<b> written out at a's width, as the plan reads it; prepended to an awk program
 RNG='function rng(y,   a, b, p, lo, hi, w, k, r) { if (y !~ /\.\./) return y; a = y; sub(/\.\..*/, "", a); b = y; sub(/.*\.\./, "", b); p = a; sub(/-[0-9]+$/, "", p)

@@ -13,7 +13,8 @@
 # later ruling on a row already listed (REQ-001 reworded) sends it out again, that ruling's requirement quoted. A
 # closed ticket is never amended. Fix 3: with decisions enough for parts, #2 amended twice in parts — every part
 # comment of an earlier writing says it is replaced, naming the current writing and each of its part comments (gh api
-# -X PATCH on the issue comment), and the current parts join to the ticket. Env: CHECKS.
+# -X PATCH on the issue comment), and the current parts join to the ticket. FB-7 C4: each amendment's comment says which rows to run
+# again changed when its regression list differs from the ticket's, and only then. Env: CHECKS.
 # selftest-limit: 1140 s — 320 to 376 s alone under load, past 900 s in the suite (FB-2 C1, the runner's rule, ×3)
 set -eu
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
@@ -26,7 +27,11 @@ due() { sh "$GS" spec-export > /dev/null 2>&1; sh "$GS" tw-sync > /dev/null 2>&1
 owes() { grep -qx "$1" "$T/due" || fail "due does not owe '$1': $(paste -sd ';' "$T/due")"; }
 chg() { sh "$P" change "$1" "$2" --trigger scope-change --evidence "$3" --expect "$4" > "$T/out" 2>&1 || fail "the plan change '$2' was refused"; }
 issues() { ls "$T/gh/issues" | grep -c .; }
-amend() { tw_post amend "$1" || fail "#$1 could not be amended"; [ "$TW_N" = "$1" ] || fail "the amendment of #$1 posted #$TW_N"; }
+regs() { sec "$1" 'Regression rows' | grep '^- ' | sort || true; }   # FB-7 C4
+amend() { regs ".vid/tw/out/issue-$1.md" > "$T/g0"; tw_post amend "$1" || fail "#$1 could not be amended"; [ "$TW_N" = "$1" ] || fail "the amendment of #$1 posted #$TW_N"
+  regs "$TW_F" > "$T/g1"; c=$(grep -l '^vid: amended' "$T/gh/issues/$1/comments"/* | sed 's|.*/||' | sort -n | tail -n 1); [ -n "$c" ] || fail "#$1's amendment has no comment"
+  if cmp -s "$T/g0" "$T/g1"; then ! grep -q '^Rows to run again: ' "$T/gh/issues/$1/comments/$c" || fail "#$1's amendment says its rows to run again changed, and none did"
+  else grep -q '^Rows to run again: ' "$T/gh/issues/$1/comments/$c" || fail "#$1's amendment does not say its rows to run again changed"; fi; }
 tw_skel || fail 'the skeleton round failed'
 tw_start S02 && tw_post step S02 || fail "S02's ticket failed"; tw_start S03 && tw_post step S03 || fail "S03's ticket failed"
 due; [ ! -s "$T/due" ] || fail "due owes something while nothing changed: $(paste -sd ';' "$T/due")"

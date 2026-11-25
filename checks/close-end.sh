@@ -15,6 +15,7 @@ stix() { for s in $(stp "$1"); do tix "$s" | cut -d' ' -f1; done | sort -u | whi
 cconds() { N=$1; c=$(snc "$N"); F=$SD/$N/$c; U=$SX/cc$N; : > "$U"; [ -n "$c" ] && [ -f "$F/named" ] || { echo "0 no candidate" > "$U"; return 1; }; [ ! -f "$F/withdrawn" ] || { echo "0 its candidate $c withdrawn by a re-cut" > "$U"; return 1; }; X=$(cat "$F/commit"); plr
   srows "$N" > "$SX/sr$N"; while read -r r; do w=$(hstate "$r"); mk=$(awk -F'\t' -v r="$r" '$1 == r { print $7 }' "$SX/plr")
     case $w in paid|known-limit) ;; accepted|accepted-by-ruling) ! printf '%s\n' "$mk" | grep -qE '(^| )(seam|owed-staging)( |$)' || echo "1 $r $w, not paid at staging" ;; owed) printf '%s\n' "$mk" | grep -qE '(^| )owed-(rehearsal|production)( |$)' || echo "1 $r owed, not paid" ;; '') echo "1 $r not yet decided" ;; *) echo "1 $r $w" ;; esac; done < "$SX/sr$N" >> "$U"
+  ! _hr=$(bheld "$N" "$F") || echo "1 $_hr landed, not decided" >> "$U"   # FB-7 A1
   [ -f "$F/passed" ] || echo "2 C3 not passed" >> "$U"; [ -f "$F/d1/passed" ] || echo "2 D1 not passed" >> "$U"; [ -f "$F/cs/passed" ] || echo "2 CS not passed" >> "$U"
   sreqs "$N" > "$SX/rq.$N"; while read -r q; do g=$(awk -F'\t' -v q="$q" '$1 == q { c = $3 } END { print c }' "$SD/$N/s1" 2>/dev/null); [ -n "$g" ] || { echo "3 $q not graded" >> "$U"; continue; }
     Xg=$(cat "$SD/$N/$g/commit" 2>/dev/null); sed -n '/^```vid-inventory/,/^```$/p' "$(sf INVENTORY.md)" | awk -F'|' -v q="$q" '{ a = $1; gsub(/[ \t]/, "", a); if (index(" " $7 " ", " " q) || index($7, q ",") || index($7, q " ")) print a }' | grep . > "$SX/qr" || true
@@ -46,10 +47,28 @@ endconds() { U=$SX/end; : > "$U"; F=$(finals); [ "$F" -ge 1 ] || F=1; c=$(snc "$
   awk -F'\t' '$3 == "row" || $3 == "fix" { print $2 }' "$D/queue/answers" 2>/dev/null | sort -u | while read -r k; do grep -qxF "$k" "$D/queue/doors" 2>/dev/null || continue; ok=''
     for f in $(grep -lxF "$k" "$D"/drafts/*/for 2>/dev/null); do X0=${f%/for}; { [ -f "$X0/landed" ] || [ -f "$X0/declined" ]; } && ok=1; done; [ -n "$ok" ] || echo "6 $k ruled, its draft not landed or declined"; done >> "$U"
   [ ! -s "$U" ]; }
-# wwords <w1 folder> (0.26.10.28.6, R1): the walk's words, when W1 is none or a limit: none's line, or the limit's words with who answered and when
-wwords() { if [ -f "$1/none" ]; then head -n 1 "$1/none"; elif [ -f "$1/limit" ]; then printf '%s (%s)\n' "$(sed -n 1p "$1/limit")" "$(sed -n 2p "$1/limit")"; fi; }
+# wwords <w1 folder> (0.26.10.28.6, R1): the walk's words, when W1 is none or a limit: none's line, or the limit's words with who answered and when;
+# FB-7 C1: a done walk's, when the product stopped items of it (walk.sh read's line, kept in done)
+wwords() { if [ -f "$1/none" ]; then head -n 1 "$1/none"; elif [ -f "$1/limit" ]; then printf '%s (%s)\n' "$(sed -n 1p "$1/limit")" "$(sed -n 2p "$1/limit")"; elif [ -s "$1/done" ]; then head -n 1 "$1/done"; fi; }
+# FB-7 A3: newbuild <N> <candidate folder>: its newbuild, what makes a new build after this one, by sdue's rule, for the words of a limit's
+# question (queue.sh reads it): `merged <n>`, a ticket that holds a row of the stages and merged after it; `open <n>`, one that is open;
+# `fix <row> <n>`, the open ticket of the fix line a red row of its runs has. None once a later stage's candidate is named;
+# not written while no item of its runs is open
+newbuild() { [ -s "$2/items" ] || [ -s "$2/cs/items" ] || return 0; _nx=$(cat "$2/commit" 2>/dev/null); upto "$1"; : > "$SX/nb"
+  if sed -n 's/^candidate \([0-9][0-9]*\) .*/\1/p' "$HAND" 2>/dev/null | awk -v n="$1" '$1 > n { f = 1 } END { exit f }'; then
+    awk '$1 == "published" { k[$2] = 1 } $1 == "withdrawn" { delete k[$2] } END { for (n in k) print n }' "$LOG" 2>/dev/null | sort -n | while read -r _nt; do trows "$_nt" | grep -qxF -f "$SX/up$1" || continue
+      _nm=$(mrg "$_nt" | cut -d' ' -f2); if [ -z "$_nm" ]; then echo "open $_nt"; elif [ "$_nm" != "$_nx" ] && ! anc "$_nm" "$_nx"; then echo "merged $_nt"; fi; done >> "$SX/nb"
+    cat "$2/fixes" "$2/cs/fixes" 2>/dev/null | while IFS=$TAB read -r _nf _nr; do _nt=$(fixt "$_nf"); [ -n "$_nt" ] && grep -qx "open $_nt" "$SX/nb" || continue; for _n1 in $_nr; do echo "fix $_n1 $_nt"; done; done > "$SX/nf"; cat "$SX/nf" >> "$SX/nb"; fi
+  put "$2/newbuild" < "$SX/nb" || exit 1; }
+# FB-7 A3: limits <N> <candidate folder>: each row of the stages up to N the owner ruled a known limit (a journey ruled in part, its
+# transitions), `limit TAB <row> TAB <its requirement's name> TAB <its promise> TAB <who, when, and their words when the ruling holds them> TAB <full run: … · staging run: …>`
+limw() { _ll=$(awk -F'\t' -v r="$1" '$2 == r && $3 == "limit" { l = $0 } END { print l }' "$D/rulings" 2>/dev/null); [ -n "$_ll" ] || [ "$2" = "$1" ] || { limw "$2" "$2"; return; }
+  printf '%s\n' "$_ll" | awk -F'\t' '{ print ($5 == "" ? "the owner" : $5) ($1 == "" ? "" : ", " $1) ($4 == "" ? "" : ": " $4) }'; }
+limres() { [ -f "$2" ] || { echo 'not run'; return; }; awk -F'\t' -v r="$1" -v b="${1%-T[0-9]*}" '$1 == "row" && ($4 == r || $4 == b || index($4, r "-T") == 1) { n++; if ($5 == "failed") f = 1; else if ($5 == "could not run") c = 1; else if ($5 != "passed") o = 1 } END { print f ? "failed" : c ? "could not run" : (o || !n) ? "not run" : "passed" }' "$2"; }
+limits() { upto "$1"; plr; for _l0 in $(awk -F'\t' '$2 == "known limit" { print $1 }' "$D/state" 2>/dev/null | sort -u); do _lb=${_l0%-T[0-9]*}; grep -qxF "$_lb" "$SX/up$1" || continue; if limited "$_lb"; then echo "$_lb"; else echo "$_l0"; fi; done | awk '!s[$0]++' | while read -r _l1; do _lb=${_l1%-T[0-9]*}
+    _lq=$(awk -F'\t' -v r="$_lb" 'index($1, r "-T") == 1 && $2 == "known limit" { print $1; exit }' "$D/state"); printf 'limit\t%s\t%s\t%s\t%s\tfull run: %s · staging run: %s\n' "$_l1" "$(rname "$_lb")" "$(awk -F'\t' -v r="$_lb" '$1 == r { print $8; exit }' "$SX/plr")" "$(limw "$_l1" "${_lq:-$_l1}")" "$(limres "$_l1" "$2/read")" "$(limres "$_l1" "$2/cs/read")"; done; }
 # summary --stage <N> (R2): the facts the summary must name, <c>/facts.txt: `working`, `went-back`, `decided <id> <words>` (0.26.10.29.5,
-# DP-1 R4: every answer not given by the owner, `<words> (by <who>)`; each DECISIONS.md line; each model_proposed PRD answer), `walk`
+# DP-1 R4: every answer not given by the owner, `<words> (by <who>)`; each DECISIONS.md line; each model_proposed PRD answer), `walk`, `limit` (FB-7 A3)
 cmd_summary() { N=${2:?}; c=$(snc "$N"); F=$SD/$N/$c; [ -n "$c" ] || die "no candidate for stage $N"; P=$(awk '$1 == "stage-closed" { for (i = 2; i <= NF; i++) if ($i ~ /^at=/) t = substr($i, 4) } $1 == "stage" && / name=run / && / state=start / && r == "" { for (i = 2; i <= NF; i++) if ($i ~ /^at=/) r = substr($i, 4) } END { print (t != "" ? t : r) }' .vid/metrics-events 2>/dev/null); PX=$(grep -c '^stage-closed ' .vid/metrics-events 2>/dev/null || true); [ "${PX:-0}" -gt 0 ] && PX=1 || PX=''   # since the newest close of any stage, else the run's start
   { sreqs "$N" | while read -r q; do [ "$(awk -F'\t' -v q="$q" '$1 == q { print $2 }' "$SD/$N/s1" 2>/dev/null)" = pass ] && printf 'working\t%s\t%s\n' "$q" "$(title "$q")"; done
     # went back: the regressions of the stage's closes and its candidates' C3 and CS, and its rows' resets at a landing
@@ -66,6 +85,7 @@ cmd_summary() { N=${2:?}; c=$(snc "$N"); F=$SD/$N/$c; [ -n "$c" ] || die "no can
     git log "$(lrev)" --since="${P:-1970-01-01T00:00:00Z}" -p -- PRD.md 2>/dev/null | grep -E '^\+[[:space:]]*A-[0-9]+([[:space:]]+AMENDED)?[[:space:]]*\|[[:space:]]*model_proposed[[:space:]]*\|' | awk -F'|' '{ k = $1; sub(/^\+[ \t]*/, "", k); sub(/[ \t].*/, "", k); a = ""; for (i = 2; i <= NF; i++) { y = $i; gsub(/^[ \t]+|[ \t]+$/, "", y); if (y ~ /^A:/) { a = y; sub(/^A:[ \t]*/, "", a) } } print "decided\t" k "\t" a " (model_proposed, PRD.md)" }'
     # 0.26.10.28.6 (R1): the walk, when no screen walk was owed or the owner closed without it; the summary carries the words as they stand
     wwords "$F/w1" | while IFS= read -r l; do printf 'walk\t%s\n' "$l"; done
+    limits "$N" "$F"   # FB-7 A3
   } | awk -F'\t' '!s[($1 == "decided") ? $0 : $1 FS $2 FS $4]++' > "$SX/facts"   # 0.26.10.29.5 (DP-1 R4): a decided fact by its whole line, so two rulings on one row are two facts and only one written alike is dropped
   # a went-back fact once only: not one an earlier close of this stage already named
   for o in $(sed -n "s/^stage-closed $N | stand-in: RM at [0-9a-f]* candidate \([0-9]*\).*/\1/p" "$HAND" 2>/dev/null); do [ "$o" = "$c" ] || cat "$SD/$N/$o/facts.txt" 2>/dev/null; done | awk -F'\t' '$1 == "went-back" { print $2 "\t" $4 }' | sort -u > "$SX/old"   # an earlier close's facts alone
@@ -75,7 +95,16 @@ sumcheck() { S=$F/summary.md; [ -s "$S" ] || { echo "no summary at $S"; return 1
   awk -F'\t' '$1 == "walk" { print $2 }' "$F/facts.txt" | while IFS= read -r w; do grep -qF -- "$w" "$S" || { echo "the summary does not say the walk's outcome: $w"; exit 1; }; done || return 1   # 0.26.10.28.6 (R1)
   awk '{ t = t $0 "\n" } END { a = index(t, "Went back"); if (!a) exit; t = substr(t, a); b = index(t, "Decided for you"); print (b ? substr(t, 1, b - 1) : t) }' "$S" > "$SX/wb"   # the text between Went back and Decided for you
   awk -F'\t' '$1 == "went-back" { print $3 }' "$F/facts.txt" | sort -u | while IFS= read -r n; do grep -qiF -- "$n" "$SX/wb" || { echo "the summary's went back misses: $n"; exit 1; }; done || return 1
-  awk -F'\t' '$1 == "decided" { print $2 }' "$F/facts.txt" | sort -u | while IFS= read -r i; do awk -v i="$i" '{ t = $0; while ((p = index(t, i)) > 0) { a = substr(t, p + length(i), 1); b = p > 1 ? substr(t, p - 1, 1) : ""; if (a !~ /[0-9A-Za-z:]/ && b !~ /[0-9A-Za-z:]/) { f = 1; exit } t = substr(t, p + 1) } } END { exit !f }' "$S" || { echo "the summary misses the decision $i"; exit 1; }; done || return 1; return 0; }
+  # FB-7 A3: a line for each known limit in its part Known limits, by its requirement's name: as many lines of it as rows
+  awk 'f && /^#/ { exit } /Known limits/ { f = 1 } f' "$S" > "$SX/kl"
+  awk -F'\t' '$1 == "limit" { c[$3]++ } END { for (n in c) print c[n] "\t" n }' "$F/facts.txt" | while IFS=$TAB read -r k n; do [ "$(grep -ciF -- "$n" "$SX/kl")" -ge "$k" ] || { echo "the summary's known limits miss: $n (a line for each: $k)"; exit 1; }; done || return 1
+  # FB-8 E5: an id counts unless a letter or a digit follows it, or a colon or a hyphen and one of them, or a longer decided id that holds it stands there; every id missing, in one line
+  awk -F'\t' '$1 == "decided" { print $2 }' "$F/facts.txt" | LC_ALL=C sort -u > "$SX/dids"
+  _dm=$(while IFS= read -r i; do awk -v i="$i" 'BEGIN { n = length(i) } FILENAME == ARGV[1] { if (length($0) > n && index($0, i)) J[++m] = $0; next }
+    { o = 0; while ((p = index(substr($0, o + 1), i)) > 0) { q = o + p; o = q; a = substr($0, q + n, 2); b = q > 1 ? substr($0, q - 1, 1) : ""; if (a ~ /^[:-]?[0-9A-Za-z]/ || b ~ /[0-9A-Za-z:]/) continue
+      x = 0; for (k = 1; k <= m; k++) for (d = 1; d + n - 1 <= length(J[k]); d++) if (q >= d && substr(J[k], d, n) == i && substr($0, q - d + 1, length(J[k])) == J[k]) x = 1
+      if (!x) { f = 1; exit } } } END { exit !f }' "$SX/dids" "$S" || printf '%s\n' "$i"; done < "$SX/dids")
+  [ -z "$_dm" ] || { echo "the summary misses the decision$([ "$(printf '%s\n' "$_dm" | grep -c .)" = 1 ] || echo s) $(printf '%s\n' "$_dm" | paste -sd ',' - | sed 's/,/, /g')"; return 1; }; return 0; }
 cmd_close_stage() { N=${2:?}; cconds "$N" || die "stage $N cannot close: $(paste -sd ';' "$SX/cc$N")"; c=$(snc "$N"); F=$SD/$N/$c; X=$(cat "$F/commit"); X12=$(printf %.12s "$X")
   set -- $(sclosed "$N"); [ "${2:-}" != "$c" ] || { echo "stage $N closed already at $X12"; return 0; }
   cmd_summary x "$N" > /dev/null; why=$(sumcheck) || { [ ! -f "$F/summary.md" ] || mv "$F/summary.md" "$F/summary.refused.$(date +%s)"; echo "summary-refused $N $why"; ev "stage-summary-refused n=$N"; return 0; }
@@ -84,6 +113,7 @@ cmd_close_stage() { N=${2:?}; cconds "$N" || die "stage $N cannot close: $(paste
     printf '\n## C3\n\n%s\n\n## The deploy debt\n\n' "$(cat "$F/numbers" 2>/dev/null || echo 'its first candidate: no earlier close to count against')"
     while read -r q; do [ "$(hstate "$q")" = owed ] && printf -- '- %s: %s\n' "$q" "$(awk -F'\t' -v r="$q" '$1 == r { print $8 }' "$SX/plr")"; done < "$SX/sr$N"
     printf '\n## The findings and their rulings\n\n'; awk -F'\t' -v p="stage:$N:" -v TF="$SX/tk$N" 'BEGIN { while ((getline l < TF) > 0) T[l] = 1 } { split($2, k, ":") } index($2, p) == 1 || (k[1] == "finding" && (k[2] in T)) { print "- " $2 ": " $3 " — " $4 }' .vid/decide/queue/answers 2>/dev/null   # the stage's findings and its tickets' 
+    printf '\n## Known limits\n\n'; awk -F'\t' '$1 == "limit" { print "- " $2 ": " $4 " — " $5 " — " $6; f = 1 } END { if (!f) print "none" }' "$F/facts.txt"   # FB-7 A3
     printf '\n## The next stage\n\n'; s2=$(stp "$((N + 1))" | tr '\n' ' '); printf '%s\n' "${s2:-none planned yet, or the final stage}"; } > "$SX/rpt" || exit 1; put "$F/report.md" < "$SX/rpt" || exit 1
   echo "stage-closed $N | stand-in: RM at $X12 candidate $c" >> "$HAND"; ev "stage-closed n=$N sha=$X12 ready rows=$r debt=$dbt"
   cu=$(sed -n 's/^stage:[[:space:]]*\([0-9][0-9]*\).*/\1/p' .vid/RUN-STATE.md | head -n 1)

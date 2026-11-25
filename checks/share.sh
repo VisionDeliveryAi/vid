@@ -16,7 +16,7 @@
 #   --run <name>          the run's folder name; default <yyyy-mm>-<mode>-<short name>: the month of the run's first
 #                         event, its mode (local-auto, github-auto, github-manual; FB-1 C1) and the project folder's name in
 #                         lowercase letters, digits and hyphens. Letters, digits, '.', '_' and '-' only.
-#   --logs <folder>       a dev-side folder copied to logs/, its clones, blind copies, checkouts and trees left out.
+#   --logs <folder>       a dev-side folder copied to logs/, its clones, blind copies, checkouts and trees left out, and in the two GitHub modes its package stores and caches.
 #   --session <path|id>   a further session: a transcript's exact path, or a session id found as <id>.jsonl in a
 #                         folder of the Claude projects folder (repeatable). Never a whole folder, never a prefix.
 #   --redact-file <file>  literal strings to redact, one a line ([REDACTED:literal]); read, never copied.
@@ -85,13 +85,17 @@ findhome() {
 # walk <root> <bundle prefix> <class> <records|logs>: every file under root into the list, the leave-outs listed.
 # Left out by name at any depth: .git, *.git, worktrees, node_modules, __pycache__, clones, blind, trees, checkout,
 # runs/*/c, and any folder holding a .git (a clone or a worktree); in .vid/ also code, code.*, spec.git, spec-out (FB-3 B1), exports,
-# shares and net.* (the plugin's marker). Links and special files are left out and listed.
+# shares and net.* (the plugin's marker); in the named logs folder (class log), in the two GitHub modes, also each folder named *-store, cache, .cache or
+# *-cache, the dev side's package stores and caches (FB-8 E6). Links and special files are left out and listed.
 walk() {
-  _r=$1; _p=$2; _c=$3
+  _r=$1; _p=$2; _c=$3; _gm=yes; [ "$MODE" != local-auto ] || _gm=no
   # _pf <find's actions>: find over the root with the left-out names as one test
   if [ "$4" = records ]; then
     _pf() { find . \( -path ./code -o -path './code.*' -o -path ./spec.git -o -path ./spec-out -o -path ./exports -o -path ./shares -o -name 'net.*' \
       -o -name .git -o -name '*.git' -o -name worktrees -o -name node_modules -o -name __pycache__ -o -name clones -o -name blind \
+      -o -name trees -o -name checkout -o -path './runs/*/c' \) "$@"; }
+  elif [ "$_c:$_gm" = log:yes ]; then
+    _pf() { find . \( -type d \( -name '*-store' -o -name cache -o -name .cache -o -name '*-cache' \) -o -name .git -o -name '*.git' -o -name worktrees -o -name node_modules -o -name __pycache__ -o -name clones -o -name blind \
       -o -name trees -o -name checkout -o -path './runs/*/c' \) "$@"; }
   else
     _pf() { find . \( -name .git -o -name '*.git' -o -name worktrees -o -name node_modules -o -name __pycache__ -o -name clones -o -name blind \
@@ -106,6 +110,7 @@ walk() {
     BEGIN { while ((getline l < F) > 0) P[++n] = l }
     { for (i = 1; i <= n; i++) if ($0 == P[i] || index($0, P[i] "/") == 1) next; print }' > "$W/found"
   while IFS= read -r x; do
+    case "$_c:$_gm:$x" in log:yes:*-store|log:yes:cache|log:yes:*/cache|log:yes:.cache|log:yes:*/.cache|log:yes:*-cache) lo "$_p/$x" "the dev side's package store or a cache, not a record"; continue ;; esac   # FB-8 E6
     case "$x" in spec.git) why='the spec repository'"'"'s objects' ;; .git) why='a git folder, code' ;; *.git) why='a git object store, code' ;; code|code.*) why="DevAgent's code (a clone), its commits are in the code repository" ;;
       exports) why='earlier exports' ;; shares) why='the share'"'"'s own output' ;;
       *) why='a clone, a checkout or a copy of code, or a folder that is not a record' ;; esac
@@ -816,7 +821,7 @@ build() {
   done
   # logs/: the folder the user named
   if [ "$NOLOGS" = yes ]; then lo logs/ 'left out at the user'"'"'s request'
-  elif [ -n "$LOGS" ]; then walk "$LOGS" logs log logs; src logs/ logs . 'the folder the user named, redacted; logs, timelines and files over 256 KB gzipped; clones, blind copies, checkouts and trees left out'
+  elif [ -n "$LOGS" ]; then walk "$LOGS" logs log logs; src logs/ logs . 'the folder the user named, redacted; logs, timelines and files over 256 KB gzipped; clones, blind copies, checkouts'"$([ "$MODE" = local-auto ] && echo ' and trees' || echo ', trees, package stores and caches')"' left out'
   elif [ "$MODE" = github-manual ]; then lo logs/ "out of reach: in GitHub manual the team's side is on its own machines; this share holds ViD's side alone"
   else lo logs/ 'no logs folder named'; fi
   # conversations/: the sessions the events name, and the user's

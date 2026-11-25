@@ -131,22 +131,37 @@ nk() { k0=''; for d in $(ls "$D/close/$1" 2>/dev/null | grep -E '^[0-9]+$' | sor
 # chunk, whatever its candidate and loss count (the answers file is appended, so its last match), shown only: never sent as why:
 snc() { c0=''; for d in $(ls "$D/stage/$1" 2>/dev/null | grep -E '^[0-9]+$' | sort -n); do [ -f "$D/stage/$1/$d/ask" ] && c0=$d; done; echo "$c0"; }
 cdir() { case $1 in stage-*) x=${1#stage-}; echo "$D/stage/${x%%/*}/${x#*/}" ;; *) echo "$D/close/$1" ;; esac; }
+# FB-7 A3: lwords <newbuild file> (close.sh's newbuild), what an answer of limit does, for a full run's or a staging run's question
+lwords() { printf 'after limit: the tests stay on the later runs and are named in each stage'"'"'s summary'
+  awk '$1 == "merged" { m[++n] = "#" $2 } $1 == "open" { o[++k] = "#" $2 } END { if (n) { w = m[1]; for (i = 2; i <= n; i++) w = w (i == n ? " and " : ", ") m[i]; printf "; this build will not close the stage: %s, merged since, make%s a new one, with its full run, deploy, staging run and walk", w, (n == 1 ? "s" : "") }
+    for (i = 1; i <= k; i++) printf "; %s is open: if it merges before the stage closes, it makes a new build", o[i] }' "$1" 2>/dev/null || true; }
+# FB-7 A2: wton <folder>, for each row its run's reds wait on and no fix line of it holds, `<row> <the newest ticket that holds it, not withdrawn,
+# whose merge the run's commit does not hold, #<n>>`, or `<row> -` (another close's fix, not published)
+wton() { grep -vxF -e '' "$1/waits" 2>/dev/null | while read -r _wr; do ! grep -q "^$_wr$TAB" "$1/acted" 2>/dev/null || continue; _wx=$(sed -n "s/^commit$TAB//p" "$1/ask" | head -n 1)
+    awk -v r="$_wr" '$1 == "published" || $1 == "amended" { f = 0; for (i = 3; i <= NF; i++) if ($i ~ /^rows=/) { q = substr($i, 6); f = 1 } if ($1 == "published") { R[$2] = f ? q : ""; o[$2] = ++k } else if (f && ($2 in R)) R[$2] = q } $1 == "withdrawn" { delete R[$2] } END { for (t in R) if (index("," R[t] ",", "," r ",")) print o[t], t }' .vid/tw/log 2>/dev/null | sort -rn | cut -d' ' -f2 | while read -r _wt; do
+      _wm=$(awk -F'\t' -v t="$_wt" -v M="$D/merged-prs" 'BEGIN { while ((getline l < M) > 0) m[l] = 1 } $2 == t && ($1 in m) && $4 != "-" { print $4; exit }' "$D/merges" 2>/dev/null)
+      [ -n "$_wm" ] && { [ "$_wm" = "$_wx" ] || git --git-dir=.vid/code merge-base --is-ancestor "$_wm" "$_wx" 2>/dev/null; } || { echo "$_wr #$_wt"; break; }; done | grep . || echo "$_wr -"; done; }
 c_items() { { for s in $(ls "$D/close" 2>/dev/null); do k=$(nk "$s"); [ -n "$k" ] && [ ! -f "$D/close/$s/$k/withdrawn" ] && ! grep -q "^closed $s " "$HAND" 2>/dev/null && echo "$s $k"; done
     for x in $(ls "$D/stage" 2>/dev/null); do k=$(snc "$x"); [ -n "$k" ] && [ ! -f "$D/stage/$x/$k/withdrawn" ] && echo "stage-$x $k" && echo "stage-$x $k/d1" && echo "stage-$x $k/cs" && echo "stage-$x $k/w1" && echo "stage-$x $k/rh" && echo "stage-$x $k/cr"; for o in $(ls "$D/stage/$x" 2>/dev/null | grep -E '^[0-9]+$'); do echo "stage-$x $o/d2"; echo "stage-$x $o/cp"; done; done; } | while read -r s k; do F=$(cdir "$s/$k"); f=$F/items; [ -f "$f" ] || continue
-    awk -v s="$s" -v sk="$s/$k" -v NB="$(cat "$F/numbers" 2>/dev/null)" -v A="$Q/answers" -v SM="$F/same" -v IF="$f" 'function nz(e, p) { sub(/:[0-9]+$/, "", e); if (match(e, /^close:stage-[^\/]+\/[0-9]+/)) { p = substr(e, 1, RLENGTH); sub(/\/[0-9]+$/, "", p); e = p substr(e, RLENGTH + 1) } return e }
+    LW=''; FX=''; case $s/$k in stage-*/*/cs) nb=${F%/cs}/newbuild ;; stage-*/*/*) nb='' ;; stage-*/*) nb=$F/newbuild ;; *) nb='' ;; esac; [ -z "$nb" ] || { LW=" · $(lwords "$nb")"; FX=$(sed -n 's/^fix //p' "$nb" 2>/dev/null | paste -sd ';' -); }
+    WT=''; [ ! -s "$F/waits" ] || WT=$(wton "$F" | paste -sd ';' -)
+    awk -v WT="$WT" -v LW="$LW" -v FX="$FX" -v s="$s" -v sk="$s/$k" -v NB="$(cat "$F/numbers" 2>/dev/null)" -v A="$Q/answers" -v SM="$F/same" -v IF="$f" 'function lets(w,   n, a, i, r, o, S, x, m, t, y) { m = split(FX, x, ";"); n = split(w, a, " "); o = ""; for (i = 1; i <= n; i++) { r = a[i]; sub(/^[^:]*:/, "", r); for (t = 1; t <= m; t++) if (index(x[t], r " ") == 1 && !((y = substr(x[t], length(r) + 2)) in S)) { S[y] = 1; o = o (o == "" ? "#" : ", #") y } } return o == "" ? "" : "; limit also lets in " o ", its fix" }
+    function fxs(w,   n, a, i, r, m, x, t, o, y, S, c) { m = split(WT, x, ";"); n = split(w, a, " "); o = ""; c = 0; for (i = 1; i <= n; i++) { r = a[i]; sub(/^[^:]*:/, "", r); y = ""; for (t = 1; t <= m; t++) if (index(x[t], r " ") == 1) y = substr(x[t], length(r) + 2); if (y == "") c++; else if (!(r in S)) { S[r] = 1; o = o "; " r " waits on " (y == "-" ? "another close\047s fix" : y) } }
+      return (o == "") ? "a fix ticket is written for them" : (c ? "a fix ticket is written for the others" : "no fix ticket is written") o }
+    function nz(e, p) { sub(/:[0-9]+$/, "", e); if (match(e, /^close:stage-[^\/]+\/[0-9]+/)) { p = substr(e, 1, RLENGTH); sub(/\/[0-9]+$/, "", p); e = p substr(e, RLENGTH + 1) } return e }
     BEGIN { while ((getline l < A) > 0) { split(l, x, "\t"); D[x[2]] = 1; if (s ~ /^stage-/ && x[2] ~ /^close:stage-.*:lost:/) AB[nz(x[2])] = " · answered before (" x[1] ", " x[5] "): " x[3] (x[4] == "" ? "" : " \"" x[4] "\"") } while ((getline l < SM) > 0) SA[l] = 1; while ((getline l < IF) > 0) if (l ~ /^shrink /) { split(l, y, " "); if (!(("close:" sk ":shrink:" y[2]) in D)) SH = 1 } close(IF) }
     { k = "close:" sk ":" $1 ":" $2 (($NF ~ /^#[0-9]+$/) ? ":" substr($NF, 2) : ""); if (k in D) next; ab = ($1 == "lost" && (nz(k) in AB)) ? AB[nz(k)] : ""; if ($1 == "red" && SH) next; if ($NF ~ /^#[0-9]+$/) $NF = ""; w = substr($0, length($1 $2) + 3)
-      if ($1 == "red") print k "\tstep " s "\tthe close of " s ", chunk " $2 ", failing: " w (NB == "" ? "" : " · " NB) " · a fix ticket is written for them; answer limit to rule them known limits"
-      else if ($1 == "twice") print k "\tstep " s "\tthe close of " s ", " $2 " failed again after its fix: " w (NB == "" ? "" : " · " NB) " · answer again for another fix ticket, or limit"
-      else if ($1 == "shrink") { sub(/ · before: /, " · red at the close before it: ", w); print k "\tstep " s "\tthe close of " s " did not shrink after its fix: red now: " w (NB == "" ? "" : " · " NB) " · answer again for a fix ticket, or limit to rule the rows red now known limits" }   # 0.26.10.29.2 (R7)
-      else if (sk ~ /\/w1$/) { sub(/^twice: /, "", w); sub(/^— /, "", w); print k "\t" s "\tthe walk W1 of " s ": " ($1 == "refused" ? "its return refused twice: " : "not done — ") w " · answer again: the walker starts again, at the same staged commit" ($1 != "refused" && w ~ /^browser: none( |$)/ ? "; or, yours alone, close without the walk: the stage closes with the walk a known limit" : "") }   # 0.26.10.28.6 (R1 (b))
+      if ($1 == "red") print k "\tstep " s "\tthe close of " s ", chunk " $2 ", failing: " w (NB == "" ? "" : " · " NB) " · " fxs(w) "; answer limit to rule them known limits" (LW == "" ? "" : LW lets(w))
+      else if ($1 == "twice") print k "\tstep " s "\tthe close of " s ", " $2 " failed again after its fix: " w (NB == "" ? "" : " · " NB) " · answer again for another fix ticket, or limit" LW
+      else if ($1 == "shrink") { sub(/ · before: /, " · red at the close before it: ", w); print k "\tstep " s "\tthe close of " s " did not shrink after its fix: red now: " w (NB == "" ? "" : " · " NB) " · answer again for a fix ticket, or limit to rule the rows red now known limits" LW }   # 0.26.10.29.2 (R7)
+      else if (sk ~ /\/w1$/) { sub(/^twice: /, "", w); sub(/^— /, "", w); print k "\t" s "\tthe walk W1 of " s ": " ($1 == "refused" ? "its return refused twice: " : "not done — ") w " · answer again: the walker starts again, at the same staged commit" ($1 != "refused" && w ~ /^(browser: none( |$)|nothing could be used: )/ ? "; or, yours alone, close without the walk: the stage closes with the walk a known limit" : "") }   # 0.26.10.28.6 (R1 (b))
       else if (sk ~ /\/d2$/) print k "\t" s "\tthe production deploy of " s ": " w ab " · answer again"
       else if ($1 == "notreal") print k "\t" s "\tthe staging deploy D1 of " s ": " w " · answer again once it is fixed, for DevAgent to report again; or, yours alone, known \"<words>\" for a known limit of this project, or row \"<words>\" for a new row"   # 0.26.11.1.3 (R3)
       else if ($1 == "notdone") print k "\t" s "\tthe staging deploy D1 of " s ": its report refused twice: " w " · answer again; or, yours alone, known \"<words>\": the duty a known limit of this project"   # 0.26.11.1.1 (R3)
       else if ($1 == "stand-in") { n0 = s; sub(/^stage-/, "", n0); print k "\t" s "\tstand-in " n0 " " $2 " — " w " · yours alone: answer limit \"<words>\" to pay it against the stand-in, a known limit, or again once the real service is on, to deploy and run staging afresh at this candidate" }   # 0.26.11.1.1 (R4)
       else if ($2 == "d1" || $2 == "rh") print k "\t" s "\tthe " ($2 == "rh" ? "rehearsal RH" : "staging deploy D1") " of " s ": " ($1 == "lost" ? "lost twice" : $1 == "refused" ? "its report refused twice: " substr(w, 8) : $1 == "failed" ? "failed twice at " substr(w, 4) ", which DevAgent says needs no product change" : "failed at " substr(w, 4) ", needing a product change, and its row was declined") ab " · answer again" (($1 == "declined") ? " to okay the same commit again" : "")
       else if ($2 == "p1cx" || $2 == "s1") print k "\t" s "\tthe close of " s ", " ($2 == "s1" ? "its grade S1" : "its rest chunk p1cx") ", lost twice" ab " · answer again"
-      else print k "\tstep " s "\tthe close of " s ", chunk " $2 ", lost twice; its rows could not run: " w ab (($1 == "lost" && ($2 in SA)) ? " · the same as the attempt before, at this commit, so a bare again reads the same · answer again with what must change first, which DevAgent is told, or limit" : " · answer again, or limit") }' "$f"; done; }
+      else print k "\tstep " s "\tthe close of " s ", chunk " $2 ", lost twice; its rows could not run: " w ab (($1 == "lost" && ($2 in SA)) ? " · the same as the attempt before, at this commit, so a bare again reads the same · answer again with what must change first, which DevAgent is told, or limit" : " · answer again, or limit") ($1 == "lost" ? LW : "") }' "$f"; done; }
 # v0.26.10.25.5 (R1, R3): a draft asked, its count in words, until it lands or the owner says no
 d_items() { for x in $(ls "$D/drafts" 2>/dev/null | grep -E '^[0-9]+$' | sort -n); do X=$D/drafts/$x; [ -f "$X/asked" ] && [ ! -f "$X/landed" ] && [ ! -f "$X/declined" ] && [ ! -f "$X/replaced" ] || continue
     w=$(cat "$X/state" 2>/dev/null); printf 'draft:%s\tthe spec\tdraft %s by SP: %s · %s%s · answer yes to land it, or no\n' "$x" "$x" "$(cat "$X/why")" "$(cat "$X/words" 2>/dev/null)" "${w:+ · $w}"; done; }
@@ -222,7 +237,7 @@ items() { held_items; q_items; o_items; f_items; c_items; s_items; p_items; u_it
 num() { awk -F'\t' -v k="$1" '$1 == k { print $2; exit }' "$Q/ids"; }
 nextq() { n=$(sed -n 's/^questions:.*next Q\([0-9][0-9]*\).*/\1/p' "$RS" | head -n 1); m=$(awk -F'\t' '{ sub(/^Q/, "", $2); if ($2 + 0 > m) m = $2 + 0 } END { print m + 1 }' "$Q/ids"); a=$(awk '/^## Open product questions/ { on = 1; next } on && /^## / { exit } on && /^- Q[0-9]+ / { sub(/^- Q/, ""); sub(/ .*/, ""); if ($0 + 0 > m) m = $0 + 0 } END { print m + 1 }' "$RS"); for x in "$m" "$a"; do [ "${n:-0}" -ge "$x" ] || n=$x; done; echo "$n"; }
 cmd_sync() { items > "$Q/it0" || exit 1; put "$Q/items" < "$Q/it0" || exit 1; : > "$Q/lines"
-  while IFS=$TAB read -r k g w; do n=$(num "$k"); if [ -z "$n" ]; then n=Q$(nextq); printf '%s\t%s\t%s\n' "$k" "$n" "$(stamp)" >> "$Q/ids"; ev "queue-asked $n what=${k%%:*}"; fi
+  while IFS=$TAB read -r k g w; do n=$(num "$k"); if [ -z "$n" ]; then n=Q$(nextq); printf '%s\t%s\t%s\n' "$k" "$n" "$(stamp)" >> "$Q/ids"; ev "queue-asked $n what=${k%%:*}"; manual || printf '%s\t%s\n' "$n" "$w" >> "$Q/say"; fi
     a=$(awk -F'\t' -v k="$k" '$1 == k { print $3; exit }' "$Q/ids"); printf -- '- %s · asked %s · gates %s · %s\n' "$n" "$a" "$g" "$w" >> "$Q/lines"; done < "$Q/items"
   # the section: our lines, and the session's own planning questions as they were; 0.26.11.1.3 (R4): it is the queue's alone, so any
   # other line in it (but a <!-- … --> comment) is dropped, each named on standard error
@@ -242,6 +257,10 @@ questions: $k open · next Q$nq" "$Q/rs" > "$Q/rs2" && mv "$Q/rs2" "$Q/rs" 2>/de
   # an answer the owner gave on a held row that the next decision still holds (but amend)
   awk -F'\t' '$5 == "owner" && $2 ~ /^held:/ && $3 != "d" { sub(/^held:/, "", $2); print $2 "\t" $1 }' "$Q/answers" | while IFS=$TAB read -r r when; do
     grep -q "^held:$r$TAB" "$Q/items" && awk -F'\t' -v r="$r" -v w="$when" '$4 == r && $1 > w && $5 == "held" { f = 1 } END { exit !f }' "$D/log" && echo "unreleased $r"; done; bl_sync; return 0; }
+# says (FB-7 B3): in GitHub auto, a question's words to say in the chat, once, under the command that bears it (`ask`, a step's sync
+# --say): the queue's lines new since, still open. A command's output is not seen by the owner, and a skill's sentence was not followed
+says() { ! manual && [ -s "$Q/say" ] || return 0
+  while IFS=$TAB read -r n w; do grep -q "^- $n · " "$Q/lines" && echo "say to the owner now, as text: $n: $w"; done < "$Q/say" || :; : > "$Q/say"; }
 # --- FB-3 D1: the backlog, the owner's one list, in their order. $Q/backlog, tab-separated: `<id> <key> <state> <who> <words> <next
 # action> <note> <since> <ended or ->`, saved with .vid/decide in both GitHub modes. Ids: Q<n>, a queue line; B<n>, an item of the
 # owner's or the session's own. This script is its one writer, under a lock of this machine (.vid/backlog.lock); the panel's
@@ -649,17 +668,18 @@ cmd_answer() { [ $# -ge 2 ] || die 'usage — answer <Q<n>|<n>:<k>|<key>> [--by 
             [ -z "$*" ] || printf '%s\t%s\n' "$ch" "$(printf '%s' "$*" | tr '\t\n' '  ')" >> "$CF/againwhy" ;; esac; echo "allow $ch" >> "$CF/again" ;;
           close:*:shrink:*) echo 'allow shrink' >> "$CF/again" ;;   # 0.26.10.29.2 (R7): the fix line, the rows red twice too; answered, its red items, held back, come again at the next decide
           *) die 'again is for a lost chunk or a row red again after its fix; a red one has its fix ticket, or a limit' ;; esac ;;
-        close) case $k in close:*/w1:*) ;; *) die 'close without the walk answers a walk not done for want of a browser alone' ;; esac   # 0.26.10.28.6 (R1 (b))
+        close) case $k in close:*/w1:*) ;; *) die 'close without the walk answers a walk that could not be made alone' ;; esac   # 0.26.10.28.6 (R1 (b)); FB-7 C1: no browser, or nothing the product let it use
           [ "$*" = 'without the walk' ] || die 'the answer is: close without the walk'
           [ "$BY" = owner ] || die "close without the walk is the owner's answer alone, never $BY's"
           for o in done withdrawn none limit; do [ ! -f "$CF/$o" ] || die "this walk has ended already ($o): nothing to close"; done   # one outcome alone, never a second
-          ws=$(ls "$CF" 2>/dev/null | grep -E '^[0-9]+$' | sort -n | tail -n 1); [ -n "$ws" ] && [ "$(cut -f1 "$CF/$ws/read" 2>/dev/null)" = not-done ] && [ "$(cut -f2 "$CF/$ws/read" 2>/dev/null)" = 'browser: none' ] \
-            || die 'close without the walk answers a walk not done for want of a browser alone: answer again'
-          printf 'walk not done: no browser on this machine\nthe owner, %s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" > "$Q/wl" || exit 1; put "$CF/limit" < "$Q/wl" || exit 1
+          ws=$(ls "$CF" 2>/dev/null | grep -E '^[0-9]+$' | sort -n | tail -n 1); [ -n "$ws" ] && [ "$(cut -f1 "$CF/$ws/read" 2>/dev/null)" = not-done ] || ws=''; case ${ws:+$(cut -f2 "$CF/$ws/read")} in 'browser: none') wl='no browser on this machine' ;; 'nothing could be used: '*) wl=$(cut -f2 "$CF/$ws/read") ;;
+            *) die 'close without the walk answers a walk not done for want of a browser, or of which nothing could be used, alone: answer again' ;; esac
+          printf 'walk not done: %s\nthe owner, %s\n' "$wl" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" > "$Q/wl" || exit 1; put "$CF/limit" < "$Q/wl" || exit 1
           sh "$HERE/walk.sh" pending > /dev/null 2>&1 || true; ev "walk-limit stage=$(printf %s "$s" | sed 's/^stage-//; s/\/.*//') candidate=$(printf %s "$s" | cut -d/ -f2) by=owner" ;;   # the CS issue kept open for the walk closes
-        limit) case $k in close:*/w1:*) die "a walk holds no row: answer again" ;; esac; case $ch in p1cx|s1|d1) die "the rest chunk, S1 and D1 hold no row: answer again" ;; esac; case $k in close:*:twice:*) rs=$ch ;; close:*:shrink:*) rs=$(sed -n "s/^shrink $ch \(.*\) · before: .*/\1/p" "$CF/items" | tail -n 1) ;; *) rs=$(sed -n "s/^[a-z]* $ch //p" "$CF/items" | tr ' ' '\n' | sed 's/^[^:]*://' | grep '^[A-Z]') ;; esac; for r in $rs; do sh "$HERE/decide.sh" rule "$r" limit --by "$BY" > /dev/null 2>&1 && continue
-            ts=$(awk -F'\t' -v r="$r" 'index($1, r "-T") == 1 { print $1 }' "$D/state"); [ -n "$ts" ] || die "the ruling on $r was refused"; for x in $ts; do sh "$HERE/decide.sh" rule "$x" limit --by "$BY" > /dev/null || die "the ruling on $x was refused"; done; done ;; *) die 'a close: again or limit (or, for a walk not done for want of a browser, close without the walk)' ;; esac
-      case $k in close:*:twice:*) grep -v "^twice $ch " "$CF/items" > "$Q/ci" || true ;; close:*:shrink:*) grep -v -e "^shrink $ch " -e '^red ' "$CF/items" > "$Q/ci" || true ;; *) grep -v " $ch\( \|$\)" "$CF/items" > "$Q/ci" || true ;; esac; put "$CF/items" < "$Q/ci" || exit 1; rec "$k" "$v" "$*" "$BY" ruled ;;
+        limit) LT=$(c_items | awk -F'\t' -v k="$k" '$1 == k { print $3; exit }' | sed -n 's/.* · \(after limit: .*\)$/\1/p')   # FB-7 A3: what it does, said with the answer too
+          lw=$(printf '%s' "$*" | tr '\t\n' '  '); case $k in close:*/w1:*) die "a walk holds no row: answer again" ;; esac; case $ch in p1cx|s1|d1) die "the rest chunk, S1 and D1 hold no row: answer again" ;; esac; case $k in close:*:twice:*) rs=$ch ;; close:*:shrink:*) rs=$(sed -n "s/^shrink $ch \(.*\) · before: .*/\1/p" "$CF/items" | tail -n 1) ;; *) rs=$(sed -n "s/^[a-z]* $ch //p" "$CF/items" | tr ' ' '\n' | sed 's/^[^:]*://' | grep '^[A-Z]') ;; esac; for r in $rs; do sh "$HERE/decide.sh" rule "$r" limit ${lw:+"$lw"} --by "$BY" > /dev/null 2>&1 && continue
+            ts=$(awk -F'\t' -v r="$r" 'index($1, r "-T") == 1 { print $1 }' "$D/state"); [ -n "$ts" ] || die "the ruling on $r was refused"; for x in $ts; do sh "$HERE/decide.sh" rule "$x" limit ${lw:+"$lw"} --by "$BY" > /dev/null || die "the ruling on $x was refused"; done; done ;; *) die 'a close: again or limit (or, for a walk with no browser or of which nothing could be used, close without the walk)' ;; esac
+      case $k in close:*:twice:*) grep -v "^twice $ch " "$CF/items" > "$Q/ci" || true ;; close:*:shrink:*) grep -v -e "^shrink $ch " -e '^red ' "$CF/items" > "$Q/ci" || true ;; *) grep -v " $ch\( \|$\)" "$CF/items" > "$Q/ci" || true ;; esac; put "$CF/items" < "$Q/ci" || exit 1; rec "$k" "$v" "$*" "$BY" ruled; [ -z "${LT:-}" ] || echo "$LT" ;;
   esac; echo "answered $QT"; }
 # --- v0.26.10.26.3 (stage 7.3; R1–R3): the table's lines, the cost of each ticket, the regression tripwire. ViD's records alone ---
 # EP: an awk function, an ISO UTC time to seconds; HM: seconds as `<h> h <m> m`
@@ -791,6 +811,9 @@ qfin() { shas STAGES.md || { echo 1; return; }; sfile STAGES.md | sed -n '/^```v
 # mline (GM-1 S1): the status's first line, the project's mode: develop, or GitHub auto or manual (lib.sh ghmode); FB-1 C1: team retired
 mline() { if [ "$(sed -n 's/^mode:[[:space:]]*//p' .vid/RUN-STATE.md | head -n 1 | sed 's/[[:space:]]*$//')" != tickets ]; then echo 'mode: develop'; return 0; fi
   case $(ghmode) in auto) echo 'mode: GitHub auto' ;; team) echo 'mode: GitHub team (retired: /vid mode manual)' ;; manual) echo 'mode: GitHub manual' ;; *) echo 'mode: GitHub, who works the tickets not recorded' ;; esac; }
+# FB-7 B1: qdev, the status's line while the round's devagent-quiet stands: what the dev side owes, and the age of its last sign
+qdev() { grep -q '^devagent-quiet ' "$D/flags" 2>/dev/null && [ -s .vid/round/dev ] || return 0; IFS=$TAB read -r dt dw < .vid/round/dev; [ -n "$dw" ] || return 0
+  da=$(( $(date +%s) - $(epoch "$dt") )); echo "waits on: the dev side, $dw: no sign for $((da / 3600)) h $(((da % 3600) / 60)) m"; }
 cmd_status() { E=$(sed -n 's/^run-start //p' .vid/decide/queue/started 2>/dev/null); [ -n "$E" ] || { E=$(date +%s); echo "run-start $E" > "$Q/started"; }
   L=$(cat "$Q/updated" 2>/dev/null || echo 0); mline; echo '== where things stand'
   echo "tickets: open $(awk -F'\t' -v GC="$(gclosedl)" -v R=" $(onrec | tr '\n' ' ') " -v T=",${PX}ticket," '$1 == "issue" && !index(GC, " " $2 " ") && (index(R, " " $2 " ") || index("," $3 ",", T))' "$RD" 2>/dev/null | grep -c .) · merged $(cat "$D/merged-prs" 2>/dev/null | grep -c . || true) · items for the owner $(cat "$Q/items" 2>/dev/null | grep -c . || true) · steps waiting $(orn "$(c=$(rkey); k=$(stkey); awk -v c="$c" -v k="$k" '$1 == "start" && ($NF == c || $NF == k) { print $2 }' "$D/refused" 2>/dev/null | sort -u | paste -sd ' ' -)")"
@@ -809,7 +832,7 @@ cmd_status() { E=$(sed -n 's/^run-start //p' .vid/decide/queue/started 2>/dev/nu
     cs=''; if [ -f "$F/cs/passed" ]; then cs=green; elif [ -f "$F/cs/withdrawn" ]; then cs=withdrawn; elif [ -f "$F/cs/done" ]; then cs=red; elif [ -f "$F/cs/ask" ]; then cs=out; fi
     py=$(awk -F'\t' -v x="$x" '$3 ~ /^[0-9]+$/ && $3 + 0 <= x + 0 && $5 ~ /(^| )(owed-staging|seam)( |$)/ { m++; if ($2 == "paid") p++ } END { print p + 0 " of " m + 0 }' "$Q/rst" 2>/dev/null)
     # v0.26.10.26.4 (R6): W1, and the stage's findings ruled
-    w1=''; W=$F/w1; ws=$(ls "$W" 2>/dev/null | grep -E '^[0-9]+$' | sort -n | tail -n 1); if [ -f "$W/done" ]; then w1=done; elif [ -f "$W/withdrawn" ]; then w1=withdrawn
+    w1=''; W=$F/w1; ws=$(ls "$W" 2>/dev/null | grep -E '^[0-9]+$' | sort -n | tail -n 1); if [ -s "$W/done" ]; then w1="done — $(head -n 1 "$W/done")"; elif [ -f "$W/done" ]; then w1=done; elif [ -f "$W/withdrawn" ]; then w1=withdrawn
       elif [ -f "$W/none" ]; then w1="none — $(head -n 1 "$W/none")"   # 0.26.10.28.6 (R1): no screens, no journey
       elif [ -f "$W/limit" ]; then w1="$(sed -n 1p "$W/limit") ($(sed -n 2p "$W/limit"))"   # R1 (b): the known limit, in its words, with who and when
       elif [ -n "$ws" ] && [ -f "$W/$ws/read" ]; then case $(cut -f1 "$W/$ws/read") in not-done) grep -qxF 'allow again' "$W/again" 2>/dev/null && w1=due || w1='not done' ;; refused) grep -q '^refused walk twice' "$W/items" 2>/dev/null && w1=refused || w1=due ;; *) w1=due ;; esac; elif [ -n "$ws" ] && [ -s "$W/$ws/pid" ]; then w1=out; elif [ -n "$ws" ]; then w1=due; elif [ -f "$F/cs/passed" ]; then w1=due; fi
@@ -836,7 +859,7 @@ cmd_status() { E=$(sed -n 's/^run-start //p' .vid/decide/queue/started 2>/dev/nu
       print a "\t" w "\t" d "\t" y }' .vid/metrics-events 2>/dev/null | while IFS=$TAB read -r a w d y; do e=$(epoch "$a"); [ "$e" -ge "$L" ] || continue
       ! grep -qx 'result=refused' ".vid/plans/decisions/$d.why" 2>/dev/null || continue; printf '%s%s\n' "${w:-a change}" "${y:+ — \"$y\"}"; done)
   echo "plan changes since the last update: $(printf '%s\n' "$PC" | grep -c . || true)${PC:+ · $(printf '%s\n' "$PC" | awk '{ printf "%s%s", (NR > 1 ? "; " : ""), $0 }')}"
-  echo "flags: $(orn "$(awk '{ printf "%s%s %s", (n++ ? " · " : ""), $1, $2 }' "$D/flags" 2>/dev/null)" 'no flags')"; s=$(( $(date +%s) - E )); echo "elapsed: $((s / 3600)) h $(((s % 3600) / 60)) m"
+  echo "flags: $(orn "$(awk '{ printf "%s%s %s", (n++ ? " · " : ""), $1, $2 }' "$D/flags" 2>/dev/null)" 'no flags')"; qdev; s=$(( $(date +%s) - E )); echo "elapsed: $((s / 3600)) h $(((s % 3600) / 60)) m"
   echo "grade asks: $(sh "$HERE/grade.sh" out 2>/dev/null | grep -c . || true) out · $(g_items | grep -v '^grade:[0-9]*:lost' | grep -c . || true) findings to rule"   # v0.26.10.27.2 (R4)
   # v0.26.10.27.4 (R7); 0.26.10.28.5 (R3): no count of unmet conditions before the final stage has a candidate
   fz=$(qfin); fc=$(snc "$fz"); if [ -z "$fc" ] || [ ! -f "$D/stage/$fz/$fc/named" ]; then echo "end: not yet, stage $(orn "$(sed -n 's/^stage:[[:space:]]*\([0-9][0-9]*\).*/\1/p' "$RS" | head -n 1)" 1) of $fz"
@@ -962,7 +985,7 @@ cmd_list() { [ $# -eq 0 ] || { [ $# -eq 1 ] && [ "$1" = --short ]; } || die 'usa
 # v0.26.10.27.4 (R2): keys, what waits, read only: `<key> TAB <Q n> TAB <words>` a line
 CMD=${1:-}; [ $# -eq 0 ] || shift
 case $CMD in
-  sync) cmd_scan; cmd_sync; announce ;; raise) cmd_raise "$@" ;; list) cmd_list "$@" ;;
+  sync) cmd_scan; cmd_sync; announce; [ "${1:-}" != --say ] || says ;; raise) cmd_raise "$@" ;; list) cmd_list "$@" ;;
   backlog) cmd_backlog "$@" ;;   # FB-3 D1
   open) cmd_open ;; sort) cmd_sort "$@" ;; sorted) case "$*" in '') cmd_sorted ;; --line) bl_on || die 'the sort is ticket mode'"'"'s: there is no .vid/tw/settings here'; so_line ;; *) die 'usage — sorted [--line]' ;; esac ;;   # FB-5 A1
   closes) c_items | awk -F'\t' '{ split($1, a, ":"); if (a[3] == "twice" || a[3] == "shrink") print "close-" a[3] "\t" $1 }' ;;
@@ -973,10 +996,10 @@ case $CMD in
       [ -n "$(printf '%s' "$qw" | tr -d ' ')" ] || die 'ask own: the question has no words'; [ -n "$(printf '%s' "$gt" | tr -d ' ')" ] || die 'ask own: --gates names nothing'
       touch "$Q/own"; id=$(o_items | awk -F'\t' -v q="ViD's question: $qw" '$3 == q { sub(/^own:/, "", $1); print $1; exit }')   # the same question open: asked once
       if [ -z "$id" ]; then id=$(awk -F'\t' '$1 + 0 > m { m = $1 + 0 } END { print m + 1 }' "$Q/own"); printf '%s\t%s\t%s\t%s\n' "$id" "$(stamp)" "$gt" "$qw" >> "$Q/own"; fi   # its queue-asked event at the sync
-      cmd_sync > /dev/null; echo "asked $(num "own:$id") own $id"; exit 0; fi
-    if [ "${1:-}" = draft ]; then X=$D/drafts/${2:-}; [ -f "$X/base" ] && [ -f "$X/words" ] || die "no draft ${2:-} with a count (sh checks/land.sh draft)"; : > "$X/asked"; ev "queue-draft n=$2"; cmd_sync > /dev/null; echo "asked $(num "draft:$2") draft $2"; exit 0; fi
+      cmd_sync > /dev/null; echo "asked $(num "own:$id") own $id"; says; exit 0; fi
+    if [ "${1:-}" = draft ]; then X=$D/drafts/${2:-}; [ -f "$X/base" ] && [ -f "$X/words" ] || die "no draft ${2:-} with a count (sh checks/land.sh draft)"; : > "$X/asked"; ev "queue-draft n=$2"; cmd_sync > /dev/null; echo "asked $(num "draft:$2") draft $2"; says; exit 0; fi
     i=${1:-}; awk -F'\t' -v i="$i" '$1 == i { f = 1 } END { exit !f }' "$Q/questions" || die "no question $i"
-    awk -F'\t' -v i="$i" -v OFS='\t' '$1 == i { $4 = "asked" } { print }' "$Q/questions" > "$Q/qq" || exit 1; put "$Q/questions" < "$Q/qq" || exit 1; cmd_sync > /dev/null; m=$(num "question:$i"); echo "asked $m"
+    awk -F'\t' -v i="$i" -v OFS='\t' '$1 == i { $4 = "asked" } { print }' "$Q/questions" > "$Q/qq" || exit 1; put "$Q/questions" < "$Q/qq" || exit 1; cmd_sync > /dev/null; m=$(num "question:$i"); echo "asked $m"; says
     # v0.26.10.26.7 (R8, W-10): the dev side hears, once, that its question waits; never its text, which cmd_scan would read as the answer
     # once posted, recorded in $Q/waited, so a failed post is tried again at the next ask
     # GM-4 F4 (D6): none when every question is the owner's

@@ -20,6 +20,7 @@ fail() { echo "stage-walk: $*" >&2; cat "$T/out" >&2 2>/dev/null; exit 1; }
 tw_toy "$T/toy"; GS=$CHECKS/github.sh; CS=$CHECKS/close.sh; QS=$CHECKS/queue.sh; WS=$CHECKS/walk.sh; RS=$CHECKS/results.sh; R=owner/code; mkdir -p "$T/r" "$T/wk"; COV=''
 cs() { RC=0; sh "$CS" "$@" > "$T/out" 2>&1 || RC=$?; }; wk() { RC=0; sh "$WS" "$@" > "$T/out" 2>&1 || RC=$?; }
 ok() { grep -q -- "$1" "$T/out" || fail "no line: $1"; }; no() { ! grep -q -- "$1" "$T/out" || fail "a line: $1"; }
+printf '#!/bin/sh\nprintf 200\n' > "$T/bin/curl"; chmod +x "$T/bin/curl"   # FB-7 C2: the staging's address answers
 sh "$GS" spec-setup > "$T/out" 2>&1 || fail 'spec-setup failed'; mkdir -p .vid/round .vid/decide .vid/tw/out
 printf 'close-chunk-minutes: 20\nclose-wait-minutes: 600\n' >> .vid/tw/settings; tw_hand 'engines alpha'; tw_hand 'stage-closed 0 | stand-in: RM at 000000000000 candidate 1'   # v0.26.10.26.5 (R5a): stages close in order
 send() { rm -rf "$T/x"; mkdir -p "$T/x"; cp -R "$T/r/$1" "$T/x/"; git -C "$T/x" init -q; git -C "$T/x" add -A; git -C "$T/x" -c user.name=a -c user.email=a@b commit -qm "$1"; git -C "$T/x" push -q -f "$T/code.git" "HEAD:refs/heads/vid-results/$1"; }
@@ -146,7 +147,9 @@ cs close-stage --stage 1; ok '^summary-refused 1 no summary'
 printf '**Working now:** %s · **Went back:** nothing · **Decided for you:** question:9:1, the default stood; %s\n' "$W1N" "$DI" > $K/summary.md; cs close-stage --stage 1; ok "^summary-refused 1 the summary's went back misses: "; [ ! -f $K/summary.md ] || fail 'the refused summary was left'
 printf '**Working now:** %s · **Went back:** %s · **Decided for you:** the default stood; %s\n' "$W1N" "$NM" "$DI" > $K/summary.md; cs close-stage --stage 1; ok '^summary-refused 1 the summary misses the decision question:9:1'
 printf '**Working now:** %s · **Went back:** %s · **Decided for you:** question:9:12, the default stood; %s\n' "$W1N" "$NM" "$DI" > $K/summary.md; cs close-stage --stage 1; ok '^summary-refused 1 the summary misses the decision question:9:1$'   # an id whole, not inside another
-printf '**Working now:** %s · **Went back:** %s · **Decided for you:** question:9:1, the default stood; %s\n' "$W1N" "$NM" "$DI" > $K/summary.md; cs close-stage --stage 1; ok '^stage-closed 1 at [0-9a-f]*$'; ok '^held after stage 1: the run stops$'
+printf '**Working now:** %s · **Went back:** %s · **Decided for you:** question:9:1:2, the default stood; %s\n' "$W1N" "$NM" "$DI" > $K/summary.md; cs close-stage --stage 1; ok '^summary-refused 1 the summary misses the decision question:9:1$'   # FB-8 E5
+printf '**Working now:** %s · **Went back:** %s · **Decided for you:** nothing\n' "$W1N" "$NM" > $K/summary.md; cs close-stage --stage 1; ok "^summary-refused 1 the summary misses the decisions $(printf 'question:9:1\n%s\n' "$DI" | tr ',' '\n' | sort -u | paste -sd ',' - | sed 's/,/, /g')\$"   # FB-8 E5: all in one line
+printf '**Working now:** %s · **Went back:** %s · **Decided for you:** question:9:1: the default stood; %s\n' "$W1N" "$NM" "$DI" > $K/summary.md; cs close-stage --stage 1; ok '^stage-closed 1 at [0-9a-f]*$'; ok '^held after stage 1: the run stops$'
 grep -q "^stage-closed 1 | stand-in: RM at $(printf %.12s "$X") candidate 1" .vid/tw/handed && grep -q "^stage-closed n=1 sha=$(printf %.12s "$X") ready rows=[0-9]* debt=[0-9]*" .vid/metrics-events || fail 'the close records'
 grep -qx 'stage: 2' .vid/RUN-STATE.md && grep -qx 'run: stopped owner asked to hold after stage 1' .vid/RUN-STATE.md && grep -q '^stage-hold n=1 state=on' .vid/metrics-events || fail "stage: or run: $(grep -E '^(stage|run):' .vid/RUN-STATE.md)"
 grep -q '^## The deploy debt' $K/report.md && grep -q '^## The findings and their rulings' $K/report.md || fail 'no report'; cs owed; no '^close-stage'

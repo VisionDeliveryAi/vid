@@ -27,7 +27,8 @@ tk() { { printf '# t\n\n## Header\n\n- number: %s\n- kind: %s\n- step: %s\n- sta
 mg() { ( cd "$T/dev" && g commit -q --allow-empty -m "m$1" && git push -q origin main ); MC=$(git --git-dir="$T/code.git" rev-parse main)
   if [ "$MO" = manual ]; then P=step-$1-$(printf %.12s "$MC"); else P=$((20 + $1)); fi; echo "$P" >> .vid/decide/merged-prs; printf '%s\t%s\t%s\t%s\n' "$P" "$1" "$MC" "$MC" >> .vid/decide/merges; }
 # a project in mode <mode>: the toy, stage 0 closed, stage 1's tickets accepted or merged, a screen's canvas
-proj() { MO=$2; tw_toy "$1"; sh "$GS" spec-setup > "$T/out" 2>&1 || fail 'spec-setup failed'; mkdir -p .vid/round .vid/decide .vid/tw/out "$T/wk"
+proj() { MO=$2; tw_toy "$1"; printf '#!/bin/sh\nprintf 200\n' > "$T/bin/curl"; chmod +x "$T/bin/curl"   # FB-7 C2: the staging's address answers
+  sh "$GS" spec-setup > "$T/out" 2>&1 || fail 'spec-setup failed'; mkdir -p .vid/round .vid/decide .vid/tw/out "$T/wk"
   printf 'close-chunk-minutes: 20\nclose-wait-minutes: 600\n' >> .vid/tw/settings; tw_hand 'engines alpha'; tw_hand 'stage-closed 0 | stand-in: RM at 000000000000 candidate 1'
   if [ "$MO" = manual ]; then printf 'setup-answered key=github-mode value="manual" words="manual, the self-test" at=2026-11-09T09:00:00Z\n' >> .vid/plan/setup; git rev-parse HEAD > .vid/tw/applied; fi
   gh issue create -R $R --title t0 --body b > /dev/null; tw_close 1

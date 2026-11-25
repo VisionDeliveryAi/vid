@@ -7,7 +7,8 @@
 # started by up, `follow` with no mark prints the mark and returns; `follow <mark>` returns within a tick of a pass ending, naming its ticket,
 # the hand-back's first three lines (not its fourth) and the report branch it pushed; with nothing new it returns at its bound, under 10
 # minutes by default; a signal to it leaves the loop alive; a planted stop file shows at once with its words; with the loop gone it says so;
-# it leaves the work folder byte-identical; a second up while the loop runs is refused. Skips where devagent/ is absent. Env: CHECKS.
+# it leaves the work folder byte-identical; a second up while the loop runs is refused. What the skill has said is text in the
+# chat before the next command, its user seeing no command's output. Skips where devagent/ is absent. Env: CHECKS.
 set -eu
 [ -d "$CHECKS/../devagent" ] || { echo 'needs devagent/'; exit 77; }
 R=$(cd "$CHECKS/.." && pwd -P); DM=$R/devagent/dev-manager/dm.sh; S=$R/skills/vid-devagent/SKILL.md
@@ -19,9 +20,11 @@ trap '[ -z "$FP" ] || kill "$FP" 2>/dev/null || true; p=$(sed -n 1p "$T/work/dm-
 fail() { echo "devagent-verb: $*" >&2; cat "$T/out" >&2 2>/dev/null; tail -n 3 "$W/dm-report.txt" >&2 2>/dev/null; exit 1; }
 # the skill's text
 [ -f "$S" ] || fail 'no skills/vid-devagent/SKILL.md: no verb starts the dev side in a conversation'
+# the toy run (26.11.1.12): what a command printed was taken for said
+grep -qF 'The user sees your text alone, never what a command prints: what this file or the dev manager file has you say or show is your text in the chat before the next command.' "$S" || fail 'the skill does not have what it says written in the chat before the next command'
 x=$(grep -oE '[A-Za-z0-9_.-]+\.sh' "$S" | sort -u | grep -vx 'dm.sh' || true); [ -z "$x" ] || fail "the skill names a script but dm.sh: $x"
-# 0.26.11.1.3 (R5): conversation mode's own commands too (here, next, start, done, take); the loop's start and follow in the agents: command part alone
-x=$(grep -oE 'dm\.sh"? [a-z]+' "$S" | awk '{ print $2 }' | sort -u | grep -vxE 'check|up|follow|list|down|here|next|start|done|take' || true); [ -z "$x" ] || fail "the skill runs a subcommand of dm.sh it may not: $x"
+# 0.26.11.1.3 (R5): conversation mode's own commands too (here, next, start, done, take; FB-7 B5: stopped); the loop's start and follow in the agents: command part alone
+x=$(grep -oE 'dm\.sh"? [a-z]+' "$S" | awk '{ print $2 }' | sort -u | grep -vxE 'check|up|follow|list|down|here|next|start|done|stopped|take' || true); [ -z "$x" ] || fail "the skill runs a subcommand of dm.sh it may not: $x"
 CM=$(awk '/^## With `agents: command`/ { f = 1; next } /^## With `agents: conversation`/ { f = 0 } f' "$S"); CV=$(awk '/^## With `agents: conversation`/ { f = 1; next } /^## / { f = 0 } f' "$S")
 [ -n "$CM" ] && [ -n "$CV" ] || fail 'the skill has no part for agents: command and one for agents: conversation'
 printf '%s\n' "$CM" | grep -q 'dm\.sh"* up ' && printf '%s\n' "$CM" | grep -q 'dm\.sh"* follow' || fail 'the skill does not start the loop through up and follow it, with agents: command'

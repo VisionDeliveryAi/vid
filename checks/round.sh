@@ -11,9 +11,10 @@
 #          `summary <N>` for a stage close owed with no summary yet, `plan-stage <N>` while the next stage has no step; the queue's lines
 #          (queue.sh sync) and `update` when the progress update is due; the alarms; RUN-STATE.md; the save. 0.26.10.29.5 (DP-1 R2): after the
 #          grade asks, `decisions.sh record`, its lines as they are. One line for each thing done and
-#          each thing that waits: `decided`, `merged`, `held <row>`, `question <n>`, `flag <word>`, `nothing-left` (no ticket open and no step
+#          each thing that waits: `decided`, `merged`, `held <row>`, `question <n>`, `note #<n> <k> <first line>` (FB-7 B7), `flag <word>`, `nothing-left` (no ticket open and no step
 #          can start) or `idle`, and `progress:`. FB-1 B5: in GitHub auto, `retry spec-publish <12>` in place of both while
-#          .vid/tw/spec-owed holds a folder publish left unfinished.
+#          .vid/tw/spec-owed holds a folder publish left unfinished. FB-7 D2: so too `retry tickets`, while .vid/round/retry-tickets
+#          stands (a ticket was refused for a file being written; next clears it) and the writer's gate is open.
 #   next   renews the lock; nothing if the run is stopped, which a recorded pause is; the export (0.26.10.29.5, DP-1 R2: before the owed asks),
 #          then with layout: one its publish into the code repository's folder (GM-4 K13, github.sh spec-publish; FB-1 B5: a failed
 #          GitHub call there `failed spec-publish <12>: …`, recorded under no key);
@@ -69,13 +70,15 @@
 # unit-ask #<p> <its ticket line's number or -> <head12>`; each merge not recorded goes to .vid/decide/unit-merges (`<p> <ticket line's
 # number or -> <head> <merge>`), deciding and closing nothing, `unit-merged <p> <ticket or ->`; a published ticket closed on GitHub, not
 # withdrawn and not accepted, is told by next.sh triggers at every call (FB-6 A1.3, `context closed`), never withdrawn, no
-# step reopened; no stray stop (it guards the round's own publishing); the alarms ticket-hours, ticket-quiet, devagent-quiet,
+# step reopened; no stray stop (it guards the round's own publishing); the alarms ticket-hours, devagent-quiet,
 # devagent-stopped and ticket-left (FB-2 A3) not raised; no `update`. GM-4 K4: `summary <N>` writes no facts (the move write-summary does), and the step's walk,
 # walk-read and summary lines are kept in .vid/next/stage-moves for the call to list as the owner's moves.
+# FB-7 B2: in GitHub auto wait, step, next, asks and accept act one at a time (.vid/round/lock): a second one prints `busy: round.sh <what>,
+# since <UTC>, pid <p>`, exits 5 and writes nothing.
 # An error names its step and exits 1; a lost lock prints `lock-lost` and exits 3; an open ticket the log does not hold prints `stop stray …` and exits 4, in step and in next, and nothing more is written.
 # `stand-in: on` in .vid/tw/settings, off by default and never written by ViD: a held row with only its evidence missing is accepted, a held weak
 # test ruled a known limit, each --by stand-in, a line in .vid/tw/stood-in-answers.txt. A held product failure waits, switch or no switch.
-# Settings: ticket-hours: (8), quiet-hours: (2), open-tickets:. Records: .vid/decide/merged-prs, refused, flags, accepted-log, saved; .vid/round/, not.
+# Settings: ticket-hours: (8), quiet-hours: (1), open-tickets:. Records: .vid/decide/merged-prs, refused, flags, accepted-log, saved; .vid/round/, not.
 # serves: tickets (0.26.10.28.4, M9)
 set -u
 LC_ALL=C; export LC_ALL
@@ -86,6 +89,14 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 # GM-4 E5: in GitHub manual step, asks and accept run when the call runs them; wait and next's publishing on its own still refuse
 if manual; then case ${1:-} in wait|next) echo "ViD round: refused — this project is in GitHub manual: /vid run does not drive it; call /vid next" >&2; exit 2 ;; esac; fi
 D=.vid/decide; L=.vid/round; LOG=.vid/tw/log; HAND=.vid/tw/handed; mkdir -p "$L"
+# FB-7 B2: one_ <command>, in GitHub auto wait, step, next, asks and accept act one at a time, under .vid/round/lock (lib.sh lock_take), freed at
+# exit. One that finds it held by a live process prints `busy: round.sh <what>, since <UTC>, pid <p>`, exits 5 and writes nothing; a wait looks
+# for the round until its own limit first, so a session is not called back at once, and goes on with what is left of it. read is not held
+one_() { W0=$(date +%s); _s=0; [ "$1" != wait ] || _s=${VID_WAIT_MAX:-540}
+  lock_take "$L/lock" "$_s" || { _n=0; until [ -s "$L/lock/what" ] || [ "$_n" -ge 3 ]; do sleep 1; _n=$((_n + 1)); done   # it names itself just after it takes the lock
+    b=$(cat "$L/lock/what" 2>/dev/null); echo "busy: ${b:-round.sh, since $(stamp)}, pid $(cut -d' ' -f1 "$L/lock/h" 2>/dev/null)"; exit 5; }
+  trap 'lock_free "$L/lock"' EXIT; echo "round.sh $1, since $(stamp)" > "$L/lock/what"; }
+case ${1:-} in wait|step|next|asks|accept) manual || one_ "$1" ;; esac
 [ "${1:-}" = read ] || { mkdir -p "$D"; touch "$D/merged-prs" "$D/refused" "$D/flags" "$D/accepted-log" "$D/rulings" "$D/unit-merges"; }   # GM-4 F3: the read writes its file alone
 TAB=$(printf '\t'); DID=''
 gh_() { VID_CALLER=round sh "$HERE/github.sh" "$@"; }; dec() { sh "$HERE/decide.sh" "$@"; }; wr() { sh "$HERE/writer.sh" "$@"; }   # 0.26.10.29.2 (R12): the round marks its own calls
@@ -110,9 +121,12 @@ sig_() { { [ -z "$(man_)" ] || tasks_ "$L/read" | awk -F'\t' '{ print "ask #" $1
   function cnt(h, p,   c, i, n, k) { n = split(h, c, "\001"); for (i = 1; i <= n; i++) if (c[i] ~ p) k++; return k + 0 }
   $1 == "issue" && (index("," $3 ",", RUN) || index("," $3 ",", GRD) || index("," $3 ",", DPL)) { print "reported", $2, cnt($4, "^vid: reported ") }
   $1 == "issue" { q = cnt($4, "^(Question:|[A-Z][A-Z]: [Qq]uestion)"); if (q) print "qs", $2, q } $1 == "open" { q = cnt($10, "^(Question:|[A-Z][A-Z]: [Qq]uestion)"); if (q) print "qs", $2, q }
+  !MA && ($1 == "issue" || $1 == "open" || $1 == "merged") { nc = split($1 == "issue" ? $4 : $1 == "open" ? $10 : $6, nt, "\001"); for (i = 1; i <= nc; i++) if (nt[i] ~ /^[A-Z][A-Z]: / && nt[i] !~ /^(RM: |[A-Z][A-Z]: [Qq]uestion|DM: left: )/) print "note #" $2, i, nt[i] }
   $1 == "main" { print "main", $2 }
   NR == 1 { while ((getline l < RSK) > 0) { split(l, x, "\t"); RS_[x[1]] = 1 } }
   $1 == "result" && ($2 ~ /^stopped-/ || ST || ($2 in RS_)) { print "result", $2, $3 }' RUN=",${PX}run," GRD=",${PX}grade," DPL=",${PX}deploy," RSK="$L/reports-skipped" ST="$(grep -q '^devagent-stopped ' "$D/flags" 2>/dev/null && echo 1)" "$L/read"; }   # v0.26.10.28.2 (R4): the code repository's main, so a wait notices it
+# FB-7 B7: note #<n> <k> <first line>, a plain note of the dev side's in GitHub auto: a comment begun with a role's two letters and a colon, but
+# ViD's own (RM:), a question or a left
 # FB-3 A2: a left-out report branch's newest commit too, so one put right is fetched
 # v0.26.10.28.6 (R3): the dev side's stopped reports, and while devagent-stopped stands every report, so a stop, and the report that clears it, end a wait
 man_() { ! manual || echo 1; }
@@ -132,7 +146,8 @@ started() { grep '^step-start ' .vid/metrics-events 2>/dev/null | grep -q " step
 KR=''; KS=''; keys() { [ -n "$KR" ] || KR=$(rkey); [ -n "$KS" ] || KS=$(stkey); }
 refused() { keys; grep -qxF -e "$1 $KR" -e "$1 $KS" "$D/refused"; }
 # refuse <what> <why> [stage]: recorded under the refusal key, or under the stage key for a start refused for its stage (low-1, R3)
-refuse() { refused "$1" || { k=$KR; [ "${3:-}" != stage ] || k=$KS; echo "$1 $k" >> "$D/refused"; ev "round-refused what=$(printf %s "$1" | tr ' ' '-')"; echo "refused $1: $2"; }; }
+# FB-7 D2: a refusal for a file being written now is printed and not kept: the file put back or committed, the next step says `retry tickets`
+refuse() { case $2 in *' has an uncommitted change') : > "$L/retry-tickets"; echo "refused $1: $2"; return 0 ;; esac; refused "$1" || { k=$KR; [ "${3:-}" != stage ] || k=$KS; echo "$1 $k" >> "$D/refused"; ev "round-refused what=$(printf %s "$1" | tr ' ' '-')"; echo "refused $1: $2"; }; }
 said() { printf '%s\t%s\t%s\t%s\n' "$(stamp)" "$1" "$2" "$3" >> .vid/tw/stood-in-answers.txt; }
 # the switch: never a held product failure
 table() { awk -F'\t' '$3 == "held" { print $1 "\t" $4 "\t" ($8 == "" ? "-" : $8) "\t" $6 }' "$D/pr-$1-$2.rows" > "$L/rows"
@@ -258,22 +273,55 @@ reopen_() { touch "$D/reopened"; DU=''; for n in $(cow); do
     if [ -n "$k" ]; then [ -f "$D/close/$s/$k/withdrawn" ] || printf 'closed-outside #%s %s\n' "$n" "$(stamp)" > "$D/close/$s/$k/withdrawn"
     elif [ -f "$D/close/$s/ask" ] && [ ! -f "$D/close/$s/withdrawn" ]; then printf 'closed-outside #%s %s\n' "$n" "$(stamp)" > "$D/close/$s/withdrawn"; fi   # an ask not yet in a numbered folder
     ev "close-reopened step=$s ticket=$n"; echo "step-reopened $s #$n"; DID=1; done; }
-flag() { F=$F" $1|$2"; grep -qxF "$1 $2" "$D/flags" && return 0; echo "$1 $2" >> "$D/flags"; ev "flag word=$1 on=$2"; echo "$(stamp) round: FLAG $1 $2${3:+: $3}" >> .vid/HEARTBEAT.md; echo "flag $1 $2${3:+: $3}"; }
+flag() { F=$F" $1|$2"; grep -qxF "$1 $2" "$D/flags" && return 0; echo "$1 $2" >> "$D/flags"; ev "flag word=$1 on=$2"; echo "$(stamp) round: FLAG $1 $2${3:+: $3}" >> .vid/HEARTBEAT.md; echo "flag $1 $2${3:+: $3}"; manual || echo "say to the owner now, as text: this flag, in its row's words: $1 $2"; }   # FB-7 B3
 # stopped_ (v0.26.10.28.6, R3): the dev side's newest report, by its commit's time, when it is a stopped one: its id and the stop's words
 stopped_() { s=$(git --git-dir=.vid/code for-each-ref --sort=-refname --sort=-committerdate --format='%(refname:lstrip=3)' 'refs/heads/vid-results/' 2>/dev/null | head -n 1)
   case $s in stopped-*) w=$(git --git-dir=.vid/code show "refs/heads/vid-results/$s:$s/results.txt" 2>/dev/null | sed -n 's/^stopped: *//p' | head -n 1); printf '%s\t%s\n' "$s" "${w:-no reason given}" ;; esac; }
+# FB-7 B1: owes_, the issues the dev side owes, a number a line, from the round's read and ViD's own records (no call): a ticket not blocked, not
+# left and with no merge, but one whose pull request's head has an ask with no decision, or a decision whose open rows are all held; and each run,
+# grade and okay ViD asked (ask_), open and not blocked, whose record is neither done, passed, closed nor with the owner (an open line of the queue)
+owes_() { awk -F'\t' -v T=",${PX}ticket," -v PX="$PX" -v R=" $(onrec | tr '\n' ' ') " -v O=" $(open_ | tr '\n' ' ') " -v D="$D" "$BLKL"'
+    function held(f,   l, x, h, o) { while ((getline l < (f ".rows")) > 0) { split(l, x, "\t"); if (x[3] == "held") h = 1; else if (x[3] !~ /^(accepted|owed|passing|known limit|accepted by ruling|its state stands)$/) o = 1 } close(f ".rows")
+      while ((getline l < (f ".txt")) > 0) if (l ~ /^decisions missing/) o = 1; close(f ".txt"); return h && !o }
+    $1 == "open" && $3 != "-" { if (blkl($6, PX) != "" || $7 + 0 > $8 + 0 || $8 + 0 > 0 && held(D "/pr-" $2 "-" substr($4, 1, 12))) V[$3] = 1 }
+    $1 == "merged" { V[$3] = 1 }
+    $1 == "issue" && index(O, " " $2 " ") && (index(R, " " $2 " ") || index("," $3 ",", T)) && blkl($3, PX) == "" { w = 0; m = split($4, c, "\001"); for (i = 1; i <= m; i++) { if (c[i] ~ /^DM: left: /) w = 1; else if (c[i] == "vid: reopened at the owner'"'"'s word") w = 0 } if (!w) I[$2] = 1 }
+    END { for (n in I) if (!(n in V)) print n }' "$L/read"
+  awk -F'\t' -v PX="$PX" "$BLKL"'$1 == "issue" && blkl($3, PX) == "" { print $2 }' "$L/read" > "$L/oi"
+  for a in "$D"/close/*/*/ask "$D"/stage/*/*/ask "$D"/stage/*/*/s1ask "$D"/stage/*/*/cs/ask "$D"/stage/*/*/cr/ask "$D"/stage/*/*/cp/ask \
+    "$D"/stage/*/*/d1/ask "$D"/stage/*/*/rh/ask "$D"/stage/*/*/d2/ask "$D"/stage/*/*/dn-*/ask "$D"/grade/*/ask; do [ -f "$a" ] || continue
+    i=$(sed -n "s/^issue$TAB//p" "$a" | head -n 1); [ -n "$i" ] && grep -qx "$i" "$L/oi" && ask_ "$a" "$i" && echo "$i"; done; return 0; }
+# ask_ <ask> <issue>: the dev side's move on that ask. A run's: a chunk not read (no chunks yet, or one absent or incomplete) and in no open line
+ask_() { w=${1%/*}; k=${w#"$D"/}; case $k in stage/*) k=stage-${k#stage/}; p=$(echo "$w" | cut -d/ -f1-5) ;; close/*) k=${k#close/}; p=$w; grep -q "^closed ${k%/*} " "$HAND" 2>/dev/null && return 1 ;; *) p=$w ;; esac
+  [ ! -f "$p/withdrawn" ] || return 1
+  case $1 in */s1ask) [ ! -f "$w/s1done" ] && [ ! -f "$w/s1withdrawn" ] && ! qop "close:$k:lost:s1"; return ;; */grade/*) for x in done withdrawn lost; do [ ! -f "$w/$x" ] || return 1; done; return 0 ;; esac
+  # a production okay whose recovery was asked after it passed is the dev side's until it is recovered (closed)
+  for x in done passed withdrawn closed lost; do [ ! -f "$w/$x" ] || { [ "${w##*/}$x" = d2passed ] && [ -f "$w/recovery-asked" ]; } || return 1; done
+  case ${w##*/} in d1|rh|d2|dn-*) ! qop "close:$k:" && ! qop "production-lost:$2"; return ;; esac
+  [ -s "$w/chunks" ] || return 0
+  awk -F'|' -v P="close:$k:lost:" -v Q="$D/queue/items" 'BEGIN { while ((getline l < Q) > 0) { split(l, x, "\t"); if (index(x[1], P) == 1) { y = substr(x[1], length(P) + 1); sub(/:.*/, "", y); W[y] = 1 } } }
+    ($2 == "absent" || $2 == "incomplete") && !($1 in W) { f = 1 } END { exit !f }' "$w/chunks"; }
+# qop <start>: an open line of the owner's queue whose key begins so
+qop() { awk -F'\t' -v p="$1" 'index($1, p) == 1 { f = 1 } END { exit !f }' "$D/queue/items" 2>/dev/null; }
+# dev_ <what it owes>: the dev side's sign in .vid/round/dev, `<UTC> TAB <what it owes>` and a `<what> TAB <value>` line for each thing only it makes
+# (a pull request's head and draft state, a merge, a report's commit, its comments' first lines on an issue or a pull request). The time is when a
+# line new or changed was first seen, or, with nothing owed, now. One no longer read keeps its line: an issue ViD closes is no sign
+dev_() { awk -F'\t' -v OFS='\t' 'function its(h,   c, i, n, k) { n = split(h, c, "\001"); for (i = 1; i <= n; i++) if (c[i] ~ /^(vid: (claimed|started|reported|lost|decide|recovered|stopped)( |$)|[A-Z][A-Z]: |Question:)/ && c[i] !~ /^RM: /) k = k "\001" c[i]; return k }
+    FNR == NR { if ($1 == "publish") X[$2] = 1; next }
+    $1 == "open" && $3 != "-" && !($2 in X) { print "open " $2, $4 " " $5 } $1 == "merged" && $3 != "-" { print "merged " $2, 1 } $1 == "result" { print "result " $2, $3 }
+    $1 == "open" || $1 == "issue" || $1 == "merged" { k = its($1 == "issue" ? $4 : $1 == "open" ? $10 : $6); if (k != "") print "said " $2, k }' "$L/read" "$L/read" > "$L/dv"
+  touch "$L/dev"; awk -F'\t' -v OFS='\t' -v Z="$(stamp)" -v W="$1" 'FILENAME == ARGV[1] { if (FNR == 1) t = $1; else { V[$1] = $2; o[++n] = $1 } next } { if (!($1 in V)) { o[++n] = $1; s = 1 } else if (V[$1] != $2) s = 1; V[$1] = $2 }
+    END { print (t == "" || s || W == "") ? Z : t, W; for (i = 1; i <= n; i++) print o[i], V[o[i]] }' "$L/dev" "$L/dv" > "$L/dn" && put "$L/dev" < "$L/dn"; }
 # R10: each once until it clears
-alarms() { F=''; N=$(date +%s); H1=$(($(skey ticket-hours | grep . || echo 8) * 3600)); Q1=$(($(skey quiet-hours | grep . || echo 2) * 3600))
+alarms() { F=''; N=$(date +%s); H1=$(($(skey ticket-hours | grep . || echo 8) * 3600)); Q1=$(($(skey quiet-hours | grep . || echo 1) * 3600))
   # FB-3 A2: a report branch left out, in both modes: flagged to the owner until it is put right, or gone
   if [ -s "$L/reports-skipped" ]; then sh "$HERE/results.sh" skipped > "$L/sk" || exit 1; while IFS=$TAB read -r i w; do flag report-skipped "$i" "$w"; done < "$L/sk"; fi
-  # GM-4 E5: in GitHub manual ticket-hours, ticket-quiet, devagent-quiet, devagent-stopped and ticket-left watch no DevAgent of ViD's: not raised
+  # GM-4 E5: in GitHub manual ticket-hours, devagent-quiet, devagent-stopped and ticket-left watch no DevAgent of ViD's: not raised
   if ! manual; then
-  for n in $(open_); do a=$(awk -v n="$n" '$1 == "published" && $2 == n' "$LOG" | tail -n 1 | tr ' ' '\n' | sed -n 's/^at=//p'); [ -z "$a" ] || [ $((N - $(epoch "$a"))) -le "$H1" ] || flag ticket-hours "$n"
-    u=$(awk -F'\t' -v n="$n" '$1 == "issue" && $2 == n { print $5 } $1 == "open" && $3 == n { print $9 }' "$L/read" | sort | tail -n 1); [ -z "$u" ] || [ $((N - $(epoch "$u"))) -le "$Q1" ] || flag ticket-quiet "$n"; done
-  # v0.26.10.28.3 (R2): no dev side answers: work tickets open (<prefix>ticket alone), none with a `vid: claimed` comment or a pull request naming it, and the newest `published` line older than quiet-hours
-  q=$(awk -F'\t' -v T=",${PX}ticket," -v R=" $(onrec | tr '\n' ' ') " -v O=" $(open_ | tr '\n' ' ') " '$1 == "issue" && (index(R, " " $2 " ") || index("," $3 ",", T)) && index(O, " " $2 " ") { t[$2] = 1; m = split($4, c, "\001"); for (i = 1; i <= m; i++) if (c[i] == "vid: claimed") s = 1 }
-    $1 == "open" || $1 == "merged" { p[$3] = 1 } END { for (x in t) { k++; if (x in p) s = 1 } if (k && !s) print k }' "$L/read")
-  a=$(awk '$1 == "published"' "$LOG" | tail -n 1 | tr ' ' '\n' | sed -n 's/^at=//p'); [ -z "$q" ] || [ -z "$a" ] || [ $((N - $(epoch "$a"))) -le "$Q1" ] || flag devagent-quiet "$q"
+  for n in $(open_); do a=$(awk -v n="$n" '$1 == "published" && $2 == n' "$LOG" | tail -n 1 | tr ' ' '\n' | sed -n 's/^at=//p'); [ -z "$a" ] || [ $((N - $(epoch "$a"))) -le "$H1" ] || flag ticket-hours "$n"; done
+  # FB-7 B1: the one alarm: the dev side owes something and has given no sign for quiet-hours. Said once; a standing flag's items follow what is owed
+  q=$(owes_ | sort -n | sed 's/^/#/' | paste -sd, -); dev_ "$q" || exit 1; s=$(cut -f1 "$L/dev" | head -n 1)
+  [ -z "$q" ] || [ $((N - $(epoch "$s"))) -le "$Q1" ] || { awk -v q="$q" '$1 != "devagent-quiet" { print; next } !d++ { print "devagent-quiet", q }' "$D/flags" > "$L/f" && put "$D/flags" < "$L/f" || exit 1; flag devagent-quiet "$q" "no sign since $s"; }
   # v0.26.10.28.6 (R3): the dev side stopped, its newest report a stopped one; a later report of any kind clears it
   s=$(stopped_); [ -z "$s" ] || flag devagent-stopped "${s%%	*}" "${s#*	}"
   # FB-2 A3: a ticket DevAgent left, each open one whose newest `DM: left: <why>` comment has no reopen after it; a reopen clears it
@@ -294,8 +342,11 @@ rskeep() { cat > "$L/rs" || return 1; skeep now "$NW" || return 1; skeep held "$
 state_() { H=$(held_ | sort -u | paste -sd ' ' -); NW="accepted=$A open=$(open_ | grep -c .)"; rs_edit rskeep || exit 1; }
 # v0.26.10.28.6 (R6): a wait records its start and its limit in .vid/round/wait, and removes it at its end, so the watcher counts it as activity;
 # one a signal ends may leave it, and the watcher reads it as nothing past the limit and its margin
-cmd_wait() { M=${VID_WAIT_MAX:-540}; T=${VID_WAIT_TICK:-60}; t0=$(date +%s); printf 'start=%s\nmax=%s\n' "$t0" "$M" > "$L/wait" || exit 1; trap 'rm -f "$L/wait"' EXIT; while :; do read_; sig_ > "$L/now"; if ! cmp -s "$L/now" "$L/seen"; then r=new; break; fi; [ $(($(date +%s) - t0 + T)) -le "$M" ] || { r=timeout; break; }; sleep "$T"; done; renew; echo "$r"; }
+cmd_wait() { T=${VID_WAIT_TICK:-60}; t0=$(date +%s); M=$((${VID_WAIT_MAX:-540} - t0 + W0)); printf 'start=%s\nmax=%s\n' "$t0" "$M" > "$L/wait" || exit 1; trap 'rm -f "$L/wait"; lock_free "$L/lock"' EXIT; while :; do read_; sig_ > "$L/now"; if ! cmp -s "$L/now" "$L/seen"; then r=new; break; fi; [ $(($(date +%s) - t0 + T)) -le "$M" ] || { r=timeout; break; }; sleep "$T"; done; renew; echo "$r"; }
 fetch_() { gh_ results-fetch > /dev/null 2> "$L/e" || fail results-fetch "$(tail -n 1 "$L/e")"; FT=1; }
+# seen_ (FB-7 B7), at a step's end, once its save is made: what is new now kept as seen, and the notes of that same list the last one lacks printed, each once
+seen_() { sig_ | grep -v '^ask ' > "$L/sn" || true; grep '^note ' "$L/sn" | while IFS= read -r l; do grep -qxF -- "$l" "$L/seen" 2>/dev/null || printf '%s\n' "$l"; done > "$L/nt"; [ ! -s "$L/nt" ] || { cat "$L/nt"; DID=1; }
+  put "$L/seen" < "$L/sn" || exit 1; }
 cmd_step() { prog on "ViD's own work"; FT=''; renew; read_; sig_ > "$L/now"; cmp -s "$L/now" "$L/seen" || fetch_
   manual || stray   # GM-4 E5: it guards the round's own publishing, which GitHub manual's call does not do
   # v0.26.10.28.2 (R4): `main-changed` when the code repository's main differs from the last step's (never at the first), so vid-run runs next
@@ -324,15 +375,17 @@ cmd_step() { prog on "ViD's own work"; FT=''; renew; read_; sig_ > "$L/now"; cmp
   sed -n 's/^close-stage //p' "$L/ow2" | while read -r x; do c=$(ls ".vid/decide/stage/$x" | grep -E '^[0-9]+$' | sort -n | tail -n 1); [ -s ".vid/decide/stage/$x/$c/summary.md" ] || { manual || cl summary --stage "$x" > /dev/null; echo "summary $x"; }; done > "$L/sm"; cat "$L/sm"
   if manual; then mkdir -p .vid/next; { grep -E '^walk [0-9]+$' "$L/ow2"; grep -E '^walk-read [0-9]+$' "$L/wp"; grep -E '^summary [0-9]+$' "$L/sm"; } > "$L/smv" || true; put .vid/next/stage-moves < "$L/smv" || exit 1; fi
   PS=$(plan_stage); [ -z "$PS" ] || echo "plan-stage $PS"   # v0.26.10.26.4: walk-read <N>, the walker ended
-  sh "$HERE/queue.sh" sync > "$L/q" 2> "$L/e" || fail queue "$(tail -n 1 "$L/e")"; grep -v '^unreleased ' "$L/q"
+  sh "$HERE/queue.sh" sync --say > "$L/q" 2> "$L/e" || fail queue "$(tail -n 1 "$L/e")"; grep -v '^unreleased ' "$L/q"
   U=$(cat "$D/queue/update-at" 2>/dev/null); c=$(plan_block | cksum | tr -d ' '); case "$U" in '') u=1 ;; *) [ $(($(date +%s) - ${U%% *})) -ge 3600 ] || [ "${U#* }" != "$c" ] && u=1 || u='' ;; esac
-  manual || [ -z "$u" ] || { echo "$(date +%s) $c" > "$L/ua" || exit 1; put "$D/queue/update-at" < "$L/ua" || exit 1; echo update; }   # GM-4 E5: the call shows its own lines
-  alarms; state_; gh_ state-save > /dev/null 2> "$L/e" || fail state-save "$(tail -n 1 "$L/e")"; sig_ | grep -v '^ask ' > "$L/sn" || true; put "$L/seen" < "$L/sn" || exit 1; rm -f .vid/round-errors
+  manual || [ -z "$u" ] || { echo "$(date +%s) $c" > "$L/ua" || exit 1; put "$D/queue/update-at" < "$L/ua" || exit 1; echo update; echo 'say to the owner now, as text: the status, whole (`sh checks/queue.sh status`, then the `next:` line of `sh checks/queue.sh backlog`)'; }   # GM-4 E5: the call shows its own lines
+  alarms; state_; gh_ state-save > /dev/null 2> "$L/e" || fail state-save "$(tail -n 1 "$L/e")"; seen_; rm -f .vid/round-errors
   left=''; KR=''; KS=''; for s in $(plan_steps); do started "$s" || refused "start $s" || left=1; done
   # FB-1 B5: in GitHub auto, while .vid/tw/spec-owed holds a folder publish left unfinished (and not refused since), `retry spec-publish
   # <12>` in place of idle and nothing-left, so /vid run goes on to next, which tries it again
   SO=''; if ! manual && [ -s .vid/tw/spec-owed ] && [ "$(skey layout)" = one ]; then SO=$(head -n 1 .vid/tw/spec-owed); X12=$(awk '$1 == "export" { v = $2 } END { print substr(v, 1, 12) }' "$LOG" 2>/dev/null); ! refused "spec-publish $X12" || SO=''; fi
+  # FB-7 D2: a ticket refused for a file being written, and the gate open now: `retry tickets`, so /vid run goes on to next
   if [ -n "$SO" ]; then echo "retry spec-publish $SO"
+  elif ! manual && [ -f "$L/retry-tickets" ] && wr gate > /dev/null 2>&1; then echo 'retry tickets'
   elif [ -z "$(open_ | awk -v L=" $(sh "$HERE/grade.sh" lost 2>/dev/null | tr '\n' ' ') " 'index(L, " " $1 " ") == 0')" ] && [ -z "$left" ] && [ -z "$PS" ] && [ -z "$(wr due 2>/dev/null)" ] && [ -z "$(cl owed)$(cl out)" ] && [ -z "$(sh "$HERE/grade.sh" out 2>/dev/null)" ]; then echo nothing-left; elif [ -z "$DID" ]; then echo idle; fi; }
 # 0.26.10.29.2 (R3): the handovers of what is owed are logged before any ticket is written, so their order never matters. GM-4 K1:
 # each owed line goes out by tw-hand's own steps, github.sh tw-act (the write, a fix or reached ticket's warnings, the post), under
@@ -366,7 +419,7 @@ asks_() {
 cmd_asks() { renew; read_; asks_ || true; }
 cmd_next() { renew; read_; stray; case $(sed -n 's/^run:[[:space:]]*//p' .vid/RUN-STATE.md | head -n 1) in 'stopped owner asked to hold after stage '*) ;; stopped*) echo 'stopped: nothing is published'; return 0 ;; esac   # v0.26.10.26.5 (R3): a hold stops the next stage alone
   asks_ || return 0
-  gh_ tw-sync > "$L/o" 2> "$L/e" || fail tw-sync "$(tail -n 1 "$L/e")"; due_
+  gh_ tw-sync > "$L/o" 2> "$L/e" || fail tw-sync "$(tail -n 1 "$L/e")"; rm -f .vid/round/retry-tickets; due_
   gh_ tw-sync > "$L/o" 2> "$L/e" || fail tw-sync "$(tail -n 1 "$L/e")"; O=$(sed -n 's/.*open tickets //p' "$L/o" | tr ',' '\n' | grep -c '^[0-9]'); C=$(skey open-tickets); C=${C:-0}
   KR=''; KS=''; for s in $(plan_steps); do started "$s" && continue; refused "start $s" && continue; [ "$C" = 0 ] || [ "$O" -lt "$C" ] || break
     # GM-4 K1: the publish through the steps every publish takes (github.sh tw-publish: the admission, the write, its check, the post);

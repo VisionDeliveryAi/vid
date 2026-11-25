@@ -8,7 +8,8 @@
 # repo.bundle; the summary names the mode; in GitHub manual the manifest says the team's side is out of reach, and, with one
 # repository (FB-3 B2), the run card that the spec is in the code repository's folder. A named
 # logs folder with a planted clone (a folder holding .git), a blind copy, a checkout, a run's c/ and a tree gives logs/ without
-# them, its timeline gzipped and a note kept. With --leave-out conversations no conversations/ is written and the manifest
+# them, its timeline gzipped and a note kept; in the two GitHub modes its package stores and caches, folders named
+# *-store, cache, .cache or *-cache, are left out and listed (FB-8 E6), in local auto they stay, and in records/ a folder of such a name, and in logs/ a file of one, stay. With --leave-out conversations no conversations/ is written and the manifest
 # lists it as left out at the user's request; `share.sh pack` makes one archive file holding the bundle. Env: CHECKS.
 set -eu
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
@@ -54,11 +55,18 @@ cd "$T/Toy Project local-auto"; D=$T/dev; mkdir -p "$D/clones/c1" "$D/blind/b1" 
 printf 'x\n' > "$D/clones/c1/a.txt"; printf 'x\n' > "$D/blind/b1/a.txt"; printf 'x\n' > "$D/runs/r1/checkout/a.txt"; printf 'x\n' > "$D/runs/r1/c/a.txt"
 printf 'x\n' > "$D/trees/t1/a.txt"; mkdir -p "$D/work/repo/.git"; printf 'x\n' > "$D/work/repo/a.txt"
 printf 'step 1 passed\n' > "$D/runs/r2/timeline-chromium.log"; printf 'a note\n' > "$D/notes.txt"
+# FB-8 E6: in local auto a folder of such a name is in logs/, as it was
+dev_stores() { for x in pkg-store work/deps/pkg-store cache work/cache .cache work/.cache dl-cache work/dl-cache; do mkdir -p "$D/$x/v1"; printf 'package\n' > "$D/$x/v1/a.txt"; done
+  mkdir -p "$D/kept" "$D/store/in" "$D/cached"; printf 'x\n' > "$D/kept/cache"; printf 'x\n' > "$D/kept/a-store"; printf 'x\n' > "$D/store/in/a.txt"; printf 'x\n' > "$D/cached/a.txt"
+  mkdir -p .vid/decide/cache .vid/decide/a-store/in .round/cache; printf 'x\n' > .vid/decide/cache/a.txt; printf 'x\n' > .vid/decide/a-store/in/a.txt; printf 'x\n' > .round/cache/a.txt; }
+dev_stores
 sh checks/share.sh build --logs "$D" --run 2026-11-logs > "$T/out" 2>&1 || fail 'the build with logs failed'
 B=.vid/shares/2026-11-logs; [ -f "$B/logs/notes.txt" ] || fail 'the note is not in logs/'
 [ -f "$B/logs/runs/r2/timeline-chromium.log.gz" ] && gzip -dc "$B/logs/runs/r2/timeline-chromium.log.gz" | grep -q 'step 1 passed' || fail 'the timeline is not gzipped in logs/'
 L=$(cd "$B/logs" && find . | grep -E 'clones|blind|checkout|/c(/|$)|trees|work/repo' || true); [ -z "$L" ] || fail "code copies in logs/: $L"
 for x in logs/clones logs/blind logs/runs/r1/checkout logs/runs/r1/c logs/trees logs/work/repo; do grep -q "\"$x\"" "$B/MANIFEST.json" || fail "$x is not listed as left out"; done
+for x in pkg-store work/deps/pkg-store cache work/cache .cache work/.cache dl-cache work/dl-cache; do [ -f "$B/logs/$x/v1/a.txt" ] || fail "local auto left out logs/$x"; done
+for f in "$B/MANIFEST.json" "$B/MANIFEST.md"; do ! grep -q 'package store' "$f" || fail "local auto's words changed: $(grep -m 1 'package store' "$f")"; done
 # the conversations left out at the user's request, and the archive
 sh checks/share.sh build --leave-out conversations --run 2026-11-noconv > "$T/out" 2>&1 || fail 'the build without conversations failed'
 B=.vid/shares/2026-11-noconv; [ -d "$B/records" ] || fail 'no records/ without conversations'
@@ -69,4 +77,10 @@ A=$(sh checks/share.sh pack "$B" 2> "$T/out") || fail 'pack failed'
 [ "$(printf '%s\n' "$A" | grep -c .)" = 1 ] && [ -f "$A" ] || fail "pack printed no one archive: $A"
 N=$(gzip -dc "$A" | tar -tf - | sed 's|/.*||' | sort -u); [ "$N" = 2026-11-noconv ] || fail "the archive does not hold the bundle under its name: $N"
 gzip -dc "$A" | tar -tf - | grep -q '^2026-11-noconv/records/PLAN.md$' || fail 'the archive lacks the records'
+# FB-8 E6: in the two GitHub modes the dev side's package stores and caches, at any depth, are left out and listed; a file of such a name, or a folder whose name only holds one, is a log
+for m in github-auto github-manual; do cd "$T/Toy Project $m"; D=$T/dev-$m; mkdir -p "$D"; dev_stores; sh checks/share.sh build --logs "$D" --run "2026-11-$m" > "$T/out" 2>&1 || fail "$m: the build with logs failed"; B=.vid/shares/2026-11-$m
+  for x in pkg-store work/deps/pkg-store cache work/cache .cache work/.cache dl-cache work/dl-cache; do [ ! -e "$B/logs/$x" ] || fail "$m: a package store or a cache in logs/: $x"
+    grep -qF "[\"logs/$x\", \"the dev side's package store or a cache, not a record\"]" "$B/MANIFEST.json" || fail "$m: logs/$x is not listed as left out"; done
+  for x in logs/kept/cache logs/kept/a-store logs/store/in/a.txt logs/cached/a.txt records/.vid/decide/cache/a.txt records/.vid/decide/a-store/in/a.txt records/.round/cache/a.txt; do [ -f "$B/$x" ] || fail "$m: $x was left out"; done
+done
 echo 'share-layout: ok'

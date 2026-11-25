@@ -123,6 +123,7 @@ P='ROW-003=fail:gone SEAM-001=pass RULE-001=pass DIF-001=fail:nope'; rq p1c1-1 "
 cs decide --stage 1; ok '^close-again staging-1 p1c1$'; no '^failing '
 COV='covers: RULE-001 3'; rq p1c1-2 "$X" alpha $P SEAM-002=pass; fetch; cs decide --stage 1; ok '^failing DIF-001$'; ok '^paid SEAM-001$'; ok '^paid RULE-001$'; ok '^close-twice staging-1 ROW-003$'; no '^paid DIF-001$'
 no '^paid SEAM-002$'   # passed in alpha, no case in beta: not paid
+[ -f $K/cs/done ] && ! grep -qx CLOSED "$T/gh/issues/$N/state" || fail "FB-7 D3: the red staging run's issue closed, and a limit would have its walk there"
 grep -q "^fix DIF-001 | DIF-001: DIF-001 in alpha, DIF-001 in beta | CS #$N of stage 1: req-$N-p1c1-2, req-$N-p2c1-1 | stand-in: RM" .vid/tw/handed || fail "the fix line: $(grep '^fix' .vid/tw/handed)"
 grep -q "^row DIF-001 failing | stand-in: CS #$N" .vid/tw/handed && grep -q "^row SEAM-001 paid | stand-in: CS #$N" .vid/tw/handed || fail 'paid or failing lines'
 # the status counts by the inventory's marks: of the toy's five seam and staging-owed rows of stages 0 and 1, SEAM-001 is paid

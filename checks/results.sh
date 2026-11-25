@@ -350,12 +350,15 @@ EV=$HT'
   function add(set, name, st, f, fbd,   i) { i = ++nc[set]; cn[set, i] = norm(name); cs[set, i] = st; cf[set, i] = f; cb[set, i] = " " fbd " " }
   function scan(set, id,   i, w) { sn = 0; sfail = 0; sbad = 0; serr = 0; ssu = 0; sline = ""; sbline = ""; sfb = ""
     for (i = 1; i <= nc[set]; i++) if (hit(cn[set, i], id)) { sn++; w = cs[set, i]; if (w == "failed") { sfail++; if (sline == "") sline = cf[set, i]; sfb = sfb cb[set, i] } else if (w != "passed") { sbad++; serr += (w == "errored"); ssu += (w == "errored" && cf[set, i] ~ /^setup:/); if (sbline == "") sbline = w ": " cf[set, i] } } }
+  # FB-7 C6: a row with no case in an engine is missing, not failed; a case that failed, or stopped at setup:, in another engine replaces it, its words too (over)
+  function over() { if (TW ~ /^no case( in [^ ]+)?$/) TW = "" }
+  function nocase(w) { return w ~ /(^|; )(T[0-9]+: )?no case( in [^ ;]+)?(;|$)/ }
   function t3c(id,   j, e, rf) { T3 = "passed"; TW = ""
     for (j = 1; j <= ne; j++) { e = en[j]; scan("h:" e, id)
       if (CT) { ES[e] = 1; if (!sn || sfail || sbad) EN[e] = 1 }
-      if (e in xa) { rf = (sfail || serr > ssu); if (rf) { T3 = "failed"; if (TW == "") TW = (sline != "" ? sline : sbline) " in " e } else if ((!sn || sbad) && CT) UX[e] = 1; if (rf && CT) EF[e] = 1; continue }   # an engine not asked (R11): its failure fails the row; setup:, a skip or no case could not run
+      if (e in xa) { rf = (sfail || serr > ssu); if (rf) { T3 = "failed"; over(); if (TW == "") TW = (sline != "" ? sline : sbline) " in " e } else if ((!sn || sbad) && CT) UX[e] = 1; if (rf && CT) EF[e] = 1; continue }   # an engine not asked (R11): its failure fails the row; setup:, a skip or no case could not run
       if (CT && (sfail || sbad > ssu)) EF[e] = 1
-      if (!sn) { T3 = "failed"; if (TW == "") TW = "no case" (ne > 1 ? " in " en[j] : "") } else if (sfail || sbad) { T3 = (!sfail && ssu == sbad && T3 != "failed") ? "setup" : "failed"; if (TW == "") TW = (sline != "" ? sline : sbline) } } }
+      if (!sn) { if (T3 == "passed") T3 = "missing"; if (TW == "") TW = "no case" (ne > 1 ? " in " en[j] : "") } else if (sfail || sbad) { T3 = (!sfail && ssu == sbad && T3 != "failed") ? "setup" : "failed"; over(); if (TW == "") TW = (sline != "" ? sline : sbline) } } }
   # FB-3 A1.2 (GitHub manual, POOL): every file of the reports at the commit is one pool. A row passes when at least one file has a case of it and every
   # one there passed, and no file has a failed or errored case of it; a skipped or setup: case in another file stops nothing. A file of a report made
   # before the row was amended (of) is left out for it. FI: the reports a case of it failed in
@@ -368,7 +371,7 @@ EV=$HT'
     if (rl[id] && (id in cov)) { if (cov[id] + 0 == 0) { a = "failed"; w = why("covers 0", w) } else w = why("covers " cov[id], w) }
     T3 = a; TW = w; FI = f }
   function t3(id,   k, a, w) { if (POOL) { t3q(id); return } t3c(id); a = T3; w = TW
-    for (k = 1; k <= nj[id] + 0; k++) { t3c(id "-T" k); if (T3 != "passed") { a = (a == "failed" || T3 == "failed") ? "failed" : "setup"; w = why(w, "T" k ": " TW) } }
+    for (k = 1; k <= nj[id] + 0; k++) { t3c(id "-T" k); if (T3 != "passed") { if (rank[T3] > rank[a]) a = T3; w = why(w, "T" k ": " TW) } }
     if (rl[id]) { if (!(id in cov)) { if (a == "passed") a = "missing"; w = why("no covers: line", w) } else if (cov[id] + 0 == 0) { if (a != "setup") a = "failed"; w = why("covers 0", w) } else w = why("covers " cov[id], w) }
     T3 = a; TW = w }
   function fault(id,   set, c, w, nf, cw, ok, d, k) { FV = ""; FW = ""; FQ = 0; d = ((id in fdir) || (id in inc)) ? id : bm[id]; if (!(d in fdir) && !(d in inc)) return; set = "f:" d; used[d] = 1
@@ -396,17 +399,17 @@ EV=$HT'
         if (POOL) { RED = "n/a"; RW = ""; for (j = 1; j <= n2; j++) { k = o2[j]; if (((r, k) in of) || ((b, k) in of)) continue; scan("t:" k, r); if (!sn) continue; RED = (sfail && !serr) ? "red" : "no-red"; RW = (RED == "red") ? "" : (sbline != "" ? "T2: " sbline : "T2: it passed"); break } }
         else for (j = 1; j <= n2; j++) { k = o2[j]; if (ts[k] == "lost") { RW = "T2 " k " refused, its rows unread: " tw[k]; RED = "missing"; continue } if ((k, r) in tl || (k, b) in tl) { if (ts[k] != "read") { RED = "missing"; RW = "T2 " k " refused: " tw[k]; break }
             scan("t:" k, r); RED = (sfail && !serr) ? "red" : "no-red"; RW = (RED == "red") ? "" : (sbline != "" ? "T2: " sbline : (sn ? "T2: it passed" : "T2: no case")); break } } }
-      isret = (hs == "read" && ((r in ret) || (b in ret))); hs0 = hs; if (hs == "read" && ((r in old) || (b in old))) { hs = "old"; isret = 0 }   # GM-4 E3
+      isret = (hs == "read" && ((r in ret) || (b in ret))); hs0 = hs; if (hs == "read" && ((r in old) || (b in old))) { hs = "old"; isret = 0 }; ncs = 0   # GM-4 E3
       if (ow[i]) { T3v = "owed"; TR = isret ? "retested: owed again" : "" }
       else if (hs == "refused") { T3v = "missing"; TR = "head report refused: " hw } else if (hs == "none") { T3v = "missing"; TR = "no head report" } else if (hs == "old") { T3v = "missing"; TR = "no head report since its amendment" }
-      else { split("", ES); split("", EN); split("", EF); split("", UX); CT = 1; t3(r); CT = 0; T3v = T3; TR = TW; if (POOL && T3 == "failed" && FI != "") fin[++nfin] = "fin\t" r "\t" FI; Pe = ""; Fe = ""
+      else { split("", ES); split("", EN); split("", EF); split("", UX); CT = 1; t3(r); CT = 0; T3v = T3; TR = TW; ncs = (!POOL && T3 == "missing" && nocase(TW)); if (POOL && T3 == "failed" && FI != "") fin[++nfin] = "fin\t" r "\t" FI; Pe = ""; Fe = ""
         for (j = 1; j <= ne; j++) { e = en[j]; if (EF[e]) Fe = Fe (Fe == "" ? "" : " ") e; else if (ES[e] && !EN[e]) Pe = Pe (Pe == "" ? "" : " ") e; if (UX[e]) cx[e]++ }
         if (Pe != "" && Fe != "") spl[++nsl] = "split\t" r "\t" Pe "\t" Fe }
       need = !POOL && !ow[i] && (isret || (((r in fl) || (b in fl)) && c == "t") || (c == "t" && (KD == "skeleton" || RED == "no-red")))
       FVv = "n/a"; FR = ""
       if (!ow[i]) { if (hs == "read") fault(r); else FV = ""
-        if (FV == "") { if (need && (!FQ || isret)) { FVv = (T3v == "failed" || T3v == "setup") ? "waits" : "missing"; FR = (FVv == "waits") ? "" : "no fault folder" } }
-        else if (T3v == "failed" || T3v == "setup") FVv = "waits" (need ? "" : " extra"); else if (T3v != "passed") { FVv = "missing" (need ? "" : " extra"); FR = "no T3 to read it by" } else { FVv = FV (need ? "" : " extra"); FR = FW } }
+        if (FV == "") { if (need && (!FQ || isret)) { FVv = (T3v == "failed" || T3v == "setup" || ncs) ? "waits" : "missing"; FR = (FVv == "waits") ? "" : "no fault folder" } }
+        else if (T3v == "failed" || T3v == "setup" || ncs) FVv = "waits" (need ? "" : " extra"); else if (T3v != "passed") { FVv = "missing" (need ? "" : " extra"); FR = "no T3 to read it by" } else { FVv = FV (need ? "" : " extra"); FR = FW } }
       if (ow[i] && (r in fdir)) { used[r] = 1; FR = "a fault folder no owed row needs" }
       if (hs == "old" && ((r in fdir) || (b in fdir))) { used[r] = 1; used[b] = 1 } hs = hs0
       printf "%s\t%s\t%s\t%s\t%s\t%s\n", r, (c != "t" && kd[i] == "transition") ? "retested" : kd[i], RED, T3v, FVv, why(why(RW, TR), FR) }

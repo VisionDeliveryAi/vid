@@ -31,7 +31,8 @@ else the vid-connect skill's start first and its end after, however the call end
    again, take out each id that closed, and each `new` and Changed line the last sort said. A to-do's block copied unchanged whose items were
    all put off or set waiting since stays out of My to do: one that comes back is written again. Then `sh checks/queue.sh sort <the file>`. Refused: correct what it names and run it once
    more; refused again, go on: the panel keeps the last sort, and its line says `not sorted`. Each `flag` it prints is yours to
-   write again in product words, or shorter, once; none stops the call. Say its last line, and nothing more of the list in the chat.
+   write again in product words, or shorter, once; none stops the call. Say its last line, and nothing more of the list in the chat;
+   in /vid run a new question was said in its own words before (the vid-run skill, 2).
 
 ## The rules
 

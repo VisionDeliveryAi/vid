@@ -26,9 +26,14 @@
 # vid-grade as the GitHub modes'. Every row of the run's line table names one skill at most, and a row naming none is one K10 keeps as
 # the run's order; the stage's, the okays' and the grade ask's lines are each in one skill alone, none in the run skill. FB-2 A3: the
 # table's `flag ticket-left <n>: <why>` row tells the owner the left ticket and /vid:vid-tickets reopen, the way back.
+# FB-7 B3: the loop's first paragraph says that a round.sh call runs with the long timeout, that a command past its time or in the
+# background never ends the turn, and that a question is text in the chat, what its line does not gate going on at once; its step
+# line says that what a row has the run tell, say or print, and each new question whole, is text in the chat before anything more is
+# run, the owner seeing no command's output, and vid-sort's "nothing more of the list" leaves that out (the toy run).
 # FB-2 A2: "Before any work" holds the plan first, before the run's start: without --state, when .vid/plan/ratified holds no
 # ratified line, the vid-plan skill's sitting, its turn ended at the page for the owner's words, nothing published and no lock held,
 # a team of people sent to /vid:vid-next through the vid-mode skill; vid-plan's hand back sends either caller on at its own start.
+# FB-8 E7: vid-answer's finding row says once that a finding of a ticket whose stage has its candidate named is told at once, as the stage's close waits for it.
 # Reads skills/: skipped in a project's layout. Env: CHECKS.
 set -eu
 S=$CHECKS/../skills; [ -d "$S/vid-run" ] || { echo 'run-skill-text: no skills/ beside checks/ (a project layout)'; exit 77; }
@@ -78,6 +83,10 @@ once "Show the owner devagent-start.sh's output as it is" "$C" "$A"
 once 'never write the note, and never wait for the dev side' "$C" "$A"
 once 'queue.sh ask <n>:<k>' "$A" "$C"
 once 'A high one, or one whose words say the spec contradicts itself' "$A" "$C"
+# FB-8 E7: the finding row's sentence, once in vid-answer and in no other skill
+E7="but a ticket's whose stage has its candidate named are told at once: the stage's close waits for them."
+once "$E7" "$A" "$C"; [ "$(grep -oF -- "$E7" "$A" | grep -c .)" = 1 ] && grep -F '| `finding <ticket> <severity> <words>` |' "$A" | grep -qF -- "$E7" || fail "vid-answer's finding row does not say once: $E7"
+[ "$(cat "$S"/*/SKILL.md | grep -oF -- "$E7" | grep -c .)" = 1 ] || fail "another skill says it too: $E7"
 once 'autoCompactWindow' "$A" "$C"
 once 'compaction point to 300,000 tokens' "$A" "$C"
 once "The recommendation's rule" "$A" "$C"
@@ -212,7 +221,7 @@ awk '/^\| Line \| What you do \|/ { on = 1; next } on && !/^\|/ { exit } on && !
 while IFS= read -r l; do w=${l#| }; c1=${w%% | *}; c2=${w#* | }
   n=$(printf '%s\n' "$c2" | grep -oE '(^|[^:/])vid-[a-z-]+ skill' | sed 's/^[^v]*//' | sort -u | grep -c . || true)
   [ "$n" -le 1 ] || fail "a row of the run's table names two skills: $c1"
-  if [ "$n" = 0 ]; then case $c1 in '`main-changed`'*|'`update`'|'`flag devagent-quiet <n>`'*|'`flag devagent-stopped <id>: <why>`'*|'`flag ticket-left <n>: <why>`'*|'`flag <word> <what>`'|'`error <step> …`'|'`lock-lost`'|'`stop <why>`'|'`idle`') ;;
+  if [ "$n" = 0 ]; then case $c1 in '`main-changed`'*|'`update`'|'`flag devagent-quiet <items>: no sign since <UTC>`'*|'`flag devagent-stopped <id>: <why>`'*|'`flag ticket-left <n>: <why>`'*|'`flag <word> <what>`'|'`error <step> …`'|'`lock-lost`'|'`busy: round.sh <what>, since <UTC>, pid <p>`'*|'`stop <why>`'|'`idle`') ;;
     *) fail "a row of the run's table names no skill and is not one the run keeps: $c1" ;; esac; fi; done < "$T0"
 # FB-2 A3: the row that tells the owner a ticket DevAgent left, and its way back
 grep -q '^| `flag ticket-left <n>: <why>` (FB-2 A3) | Tell the owner once, in one line: `DevAgent left ticket #<n>: <why>\. When what it needs is in place, /vid:vid-tickets reopen #<n> "<your words>" has it taken up again\.` It stops nothing |' "$R" || fail "the run skill's table has no ticket-left row"
@@ -221,4 +230,13 @@ grep -q '^| `flag ticket-left <n>: <why>` (FB-2 A3) | Tell the owner once, in on
 grep -F -- '- **Everything left waits on the owner' "$R" | grep -qF 'a `nothing-left` before the final close' || fail "the run skill's waiting stop does not take a nothing-left before the final close"
 ! grep -F -- '- **A genuine block' "$R" | grep -qF 'nothing-left' || fail "the run skill's genuine-block stop takes a nothing-left"
 grep -F '| `close-stage <N>`, `summary <N>`' "$K4" | grep -qF "In GitHub manual, only through the owner's move \`write-summary\`" || fail "vid-stage-close's summary row writes the summary in GitHub manual without the owner's move"
+# FB-7 B3: a question or a slow command never stops the round: three sentences in the loop's first paragraph
+L3=$(awk '/^## The loop/ { on = 1; next } on && NF { p = 1; print; next } on && p { exit }' "$R")
+for w in "Every \`round.sh\` call runs with the Bash tool's timeout at 600000." \
+  'A command that passes its time, or runs in the background, never ends your turn: go on at 1, and look at it each time.' \
+  "A question to the owner is text in the chat beside its \`Q<n>\` line, never a box or any call that waits for the answer, and the round goes on at once: only what that question's line gates waits."; do
+  printf '%s\n' "$L3" | grep -qF "$w" || fail "the run skill's loop does not say: $w"; done
+# the toy run (26.11.1.12): its questions, its alarm and an hourly update reached command output alone
+grep '^2\. `sh checks/round.sh step`' "$R" | grep -qF '**Say them before the next command** (FB-7 B3): the owner sees your text alone, never what a command prints. What a row has you tell, say or print, and each `Q<n>` line new in RUN-STATE.md, whole (the question, its choices, what it recommends where it does), is your text in the chat before anything more is run, so `step` ends its Bash call' || fail "the run skill's step line does not say its lines in the chat before the next command"
+tr '\n' ' ' < "$S/vid-sort/SKILL.md" | tr -s ' ' | grep -qF 'Say its last line, and nothing more of the list in the chat; in /vid run a new question was said in its own words before (the vid-run skill, 2).' || fail 'vid-sort does not leave a new question to be said'
 echo 'run-skill-text: ok'

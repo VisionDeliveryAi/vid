@@ -226,8 +226,10 @@ inventory() {
       if (k == "proved-red") return
       if (k == "golden") { GL = V[k]; return }
       CC = add(CC, k ": " V[k]) }
-    # cut: an obligation with a "fails if" sentence gives its promise (before it) and its fail-if (it, to the end)
+    # cut: an obligation with a "fails if" sentence gives its promise (before it) and its fail-if (it, to the end); FB-7 C3: a `;` right
+    # before the first "fails if" ends the promise too, kept in it as a full stop is, so the two make the line
     function cut(ob,   i, j) { PP = ob; FF = GEN; i = index(tolower(ob), "fails if"); if (!i) return
+      if (match(substr(ob, 1, i - 1), /[^; ] *; +$/)) { j = RSTART + index(substr(ob, RSTART + 1), ";"); PP = substr(ob, 1, j); FF = substr(ob, j + 2); return }
       for (j = i - 1; j >= 2; j--) if (substr(ob, j - 1, 2) ~ /^[.!?] $/) { PP = substr(ob, 1, j - 1); FF = substr(ob, j + 1); return }
       PP = ""; FF = ob }
     # num: where `k. ` starts in s, from on, after no letter or digit; 0 when it is not there

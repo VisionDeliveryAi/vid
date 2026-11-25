@@ -23,11 +23,12 @@ again1() { againK "$C/$1/$2"; }
 # GM-4 K3: WHY, what holds it, for `step`'s refusal
 againK() { K=$1; WHY="its close ask ${K##*/} has ended with no fix line to wait on"; [ -f "$K/done" ] || WHY="its close ask ${K##*/} is out"
   [ -f "$K/done" ] && { [ -s "$K/fixes" ] || [ -s "$K/waits" ]; } || return 1; WHY="its close ask ${K##*/} waits on the owner's answer"; ! grep -qE '^(twice|lost|shrink) ' "$K/items" 2>/dev/null || return 1   # 0.26.10.29.2 (R7): a shrink item holds it too
-  WHY="a row its close ask ${K##*/} found red waits on another close's fix, not yet merged"; [ ! -s "$K/waits" ] || ! cmd_owned | grep -qxF -f "$K/waits" || return 1
-  # 0.26.10.29.2 (R11): a fix line whose ticket a plan change withdrew (every row of it moved out of its step, so the step
-  # that now holds them carries them and its own close covers them) is waited on no longer; a closed-outside one is written again (R4)
-  while IFS=$TAB read -r f rs; do [ -n "$(live "$rs")" ] || continue; t=$(fixt "$f"); [ -z "$t" ] || ! awk -v t="$t" '$1 == "withdrawn" && $2 == t && $3 != "decision=closed-outside" { f = 1 } END { exit !f }' "$LOG" 2>/dev/null || continue
+  WHY="a row its close ask ${K##*/} found red waits on another close's fix, or on another ticket, not yet merged"; [ ! -s "$K/waits" ] || ! { cmd_owned; orows; } | grep -qxF -f "$K/waits" || return 1   # FB-7 A2: the merge alone
+  while IFS=$TAB read -r f rs; do [ -n "$(live "$rs")" ] || continue; t=$(fixt "$f"); [ -z "$t" ] || ! gone "$t" || continue
     WHY="its fix ${t:+#$t }has no merge on record"; [ -z "$t" ] && WHY='its fix line has no ticket yet'; [ -n "$t" ] && [ -n "$(mrg "$t")" ] || return 1; done < "$K/fixes"; WHY=''; return 0; }
+# 0.26.10.29.2 (R11): a fix line whose ticket a plan change withdrew (every row of it moved out of its step, so the step
+# that now holds them carries them and its own close covers them) is waited on no longer (gone <t>); a closed-outside one is written again (R4)
+gone() { awk -v t="$1" '$1 == "withdrawn" && $2 == t && $3 != "decision=closed-outside" { f = 1 } END { exit !f }' "$LOG" 2>/dev/null; }
 # v0.26.10.26.7 (R9, W-11): rrows <step>, the rows its tickets hold and those its newest ask recorded as reached (land.sh);
 # rtix <file>, the published tickets, never withdrawn, whose reached rows (a reached-rows ticket: its rows) meet the file's;
 # rwait <step>, one of those tickets not yet merged; rpend <step>, a reached row no ticket holds yet meets its rows or is its own
@@ -69,7 +70,7 @@ cmd_owed() { reclose; for x in $(steps); do [ -f "$C/$x/tickets" ] && closed "$x
   for s in $(steps); do x=$(stof "$s"); if [ -n "$x" ]; then case " $SDUE " in *" $x "*) continue ;; esac; grep -q "^candidate $x " "$HAND" 2>/dev/null && continue; fi; owed1 "$s" && echo "close $s"; done
   # v0.26.10.26.2 (R1, R4): one okay, the highest stage's due; a CS once its D1 passed
   o=''; for x in $(ls "$SD" 2>/dev/null | sort -n); do ! okdue "$x" || o=$x; done; [ -z "$o" ] || echo "okay staging $o"
-  for x in $(ls "$SD" 2>/dev/null); do c=$(snc "$x"); [ -n "$c" ] && [ -f "$SD/$x/$c/d1/passed" ] && [ ! -f "$SD/$x/$c/cs/ask" ] && [ ! -f "$SD/$x/$c/cs/done" ] && echo "cs $x"; done
+  for x in $(ls "$SD" 2>/dev/null); do c=$(snc "$x"); [ -n "$c" ] && [ -f "$SD/$x/$c/d1/passed" ] && [ ! -f "$SD/$x/$c/cs/ask" ] && [ ! -f "$SD/$x/$c/cs/done" ] && ! bheld "$x" "$SD/$x/$c" > /dev/null && echo "cs $x"; done
   [ -z "$WOWED" ] || printf '%s\n' "$WOWED"
   for x in $(ls "$SD" 2>/dev/null | sort -n); do c=$(snc "$x"); [ -n "$c" ] || continue; set -- $(sclosed "$x"); [ "${2:-}" = "$c" ] && continue; ! cconds "$x" || echo "close-stage $x"; done   # v0.26.10.26.5 (R1)
   # v0.26.10.27.1 (R1, R2, R4, R5): the rehearsal, CR, the production okay and CP, at the newest closed candidate
@@ -108,16 +109,23 @@ reclose() { for W in $(ls "$C"/${1:-*}/*/withdrawn 2>/dev/null); do s=$(basename
       h=$(awk -F'\t' -v i="$i" '$1 == "issue" && $2 == i { print $4; f = 1; exit } END { exit !f }' "$RD" 2>/dev/null) || continue   # open, as the read shows it
       printf 'vid: withdrawn. The landing %s re-cut the stages and changed stage %s; its candidate %s is withdrawn, and a new one is named once one is due. A later report for this one is not read.\n' "$L0" "$N" "$c" > .vid/round/wc
       printf '%s\n' "$h" | tr '\001' '\n' | grep -qF "vid: withdrawn. The landing $L0 " || gh_ comment "$i" --body-file .vid/round/wc > /dev/null 2>&1 || continue
-      gh_ close "$i" > /dev/null 2>&1 && echo "issue $i" >> "$W"; done < .vid/round/wi; done; return 0; }
+      gh_ close "$i" > /dev/null 2>&1 && echo "issue $i" >> "$W"; done < .vid/round/wi; done
+  for x in $(ls "$SD" 2>/dev/null); do c=$(snc "$x"); [ -z "$c" ] || [ ! -f "$SD/$x/$c/named" ] || replaced "$x" "$c"; done; return 0; }   # FB-7 A1, D3
 # owned [<step>]: each row the newest ask of a step, but that one, found red whose fix line's ticket has not merged; in a subshell, so
 # its loop leaves the caller's variables
 cmd_owned() ( { for s in $(ls "$C" 2>/dev/null); do echo "$s $C/$s/$(nk "$s")"; done; for x in $(ls "$SD" 2>/dev/null); do echo "stage-$x $SD/$x/$(snc "$x")"; echo "cs-$x $SD/$x/$(snc "$x")/cs"; done; } | while read -r s F; do [ "$s" != "${1:-}" ] || continue; [ -f "$F/acted" ] || continue   # v0.26.10.26.1: a stage's newest C3 too
     a=$(sed -n "s/^asked$TAB//p" "$F/ask" | head -n 1); cut -f1 "$F/acted" | while read -r r; do   # v0.26.10.25.5: a row landed since the ask is no one's
       awk -v r="$r" -v a="$a" '$1 == r { t = $3 } END { exit !(t != "" && t > a) }' "$D/landed" 2>/dev/null && continue
       f=$(awk -F'\t' -v r="$r" '{ n = split($2, a, " "); for (i = 1; i <= n; i++) if (a[i] == r) k = $1 } END { print k }' "$F/fixes" 2>/dev/null)
-      if [ -n "$f" ]; then t=$(fixt "$f"); [ -n "$t" ] && [ -n "$(mrg "$t")" ] && continue; fi; limited "$r" || echo "$r"; done; done | sort -u )
+      if [ -n "$f" ]; then t=$(fixt "$f"); [ -n "$t" ] && { [ -n "$(mrg "$t")" ] || gone "$t"; } && continue; fi; limited "$r" || echo "$r"; done; done | sort -u )
 # the rows of the open fix tickets, whatever wrote their fix lines
 fxo() { awk '$1 == "published" { k = ""; r = ""; for (i = 3; i <= NF; i++) { if ($i ~ /^kind=/) k = substr($i, 6); if ($i ~ /^rows=/) r = substr($i, 6) } if (k == "fix") F[$2] = r } $1 == "withdrawn" { delete F[$2] } END { for (n in F) print n, F[n] }' "$LOG" 2>/dev/null | while read -r n r; do [ -n "$(mrg "$n")" ] || printf '%s\n' "$r" | tr , '\n'; done; }
+# FB-7 A2: the held rows at a commit, one set: orows [<commit>], the rows (amendments read) of every published ticket of any kind, not
+# withdrawn, with no merge on record or, with a commit, whose merge the commit does not hold (a merge whose commit is not in .vid/code
+# cannot be judged, and counts as held); hrows <run> <commit>, those and the rows another close found red and owns (cmd_owned)
+orows() { awk '$1 == "published" || $1 == "amended" { f = 0; for (i = 3; i <= NF; i++) if ($i ~ /^rows=/) { r = substr($i, 6); f = 1 } if ($1 == "published") F[$2] = f ? r : ""; else if (f && ($2 in F)) F[$2] = r } $1 == "withdrawn" { delete F[$2] } END { for (n in F) print n, F[n] }' "$LOG" 2>/dev/null | while read -r _on _or; do
+    _om=$(mrg "$_on" | cut -d' ' -f2); if [ -n "$_om" ]; then [ -n "${1:-}" ] && [ "$_om" != "$1" ] && git --git-dir=.vid/code cat-file -e "$_om^{commit}" 2>/dev/null && ! anc "$_om" "$1" || continue; fi; printf '%s\n' "$_or" | tr , '\n'; done | grep -v '^-*$' || true; }
+hrows() { { cmd_owned "$1"; orows "$2"; } | sort -u; }
 # a row's marks and kind in its ticket file; deploy-owed rows and known limits are left out
 tfile() { n=$(awk -v r="$1" '($1 == "published" || $1 == "amended") { for (i = 3; i <= NF; i++) if ($i ~ /^rows=/ && index("," substr($i, 6) ",", "," r ",")) n = $2 } END { print n }' "$LOG" 2>/dev/null)
   if [ -n "$n" ] && [ -f ".vid/tw/out/issue-$n.md" ]; then echo ".vid/tw/out/issue-$n.md"; else ls .vid/tw/out/issue-*.md 2>/dev/null; fi; }   # the newest ticket holding the row (R4)
@@ -135,16 +143,17 @@ crep() { if manual; then printf 'its results.txt beginning by: and the name of w
 cmd_ask() { s=$1; owed1 "$s" || die "no close is owed for $s"; E=$(sed -n 's/^engines \(.*\) | stand-in.*/\1/p' "$HAND" | tail -n 1); [ -n "$E" ] || die 'the handed record names no engines yet'
   set -- $E; P1=$1; shift; P2=$*; M=$(skey close-chunk-minutes); M=${M:-20}; p=$(nk "$s"); k=$(( ${p:-0} + 1 )); K=$C/$s/$k
   # the commit: the merge of the step's tickets, its fix tickets too, that holds every other's, whatever order they were read in
-  MS=$(for n in $(tix "$s" | cut -d' ' -f1); do mrg "$n" | cut -d' ' -f2; done; rrows "$s" | sort -u > .vid/round/rr; { [ -z "$p" ] || cat "$C/$s/$p/reached" 2>/dev/null; } > .vid/round/rh; for n in $(rtix .vid/round/rr .vid/round/rh); do mrg "$n" | cut -d' ' -f2; done); last=''   # R9: and the tickets that held its reached rows
+  MS=$(for n in $(tix "$s" | cut -d' ' -f1); do mrg "$n" | cut -d' ' -f2; done; rrows "$s" | sort -u > .vid/round/rr; { [ -z "$p" ] || cat "$C/$s/$p/reached" 2>/dev/null; } > .vid/round/rh; for n in $(rtix .vid/round/rr .vid/round/rh); do mrg "$n" | cut -d' ' -f2; done
+    [ -z "$p" ] || [ ! -s "$C/$s/$p/waits" ] || for n in $(rtix /dev/null "$C/$s/$p/waits"); do mrg "$n" | cut -d' ' -f2; done); last=''   # R9: and the tickets that held its reached rows; FB-7 A2: and those its waiting rows waited on
   for c in $MS; do a=1; for o in $MS; do [ "$o" = "$c" ] || git --git-dir=.vid/code merge-base --is-ancestor "$o" "$c" 2>/dev/null || a=''; done; [ -z "$a" ] || last=$c; done
   [ -n "$last" ] || last=$(printf '%s\n' "$MS" | tail -n 1); [ -n "$last" ] || die "no merge commit for $s"
   # the rows: its tickets' and the steps' it builds on, rows and regression rows, and every row an earlier ask covered; less deploy-owed rows,
-  # known limits, and rows an open fix ticket holds or another close found red (V2 §5.3 step 18)
+  # known limits, and the rows held at that commit (FB-7 A2): in a ticket whose merge it does not hold, or found red by another close (V2 §5.3 step 18)
   B=$(plan_block | awk -F' [|] ' -v s="step $s" '$1 == s { for (i = 2; i <= NF; i++) if ($i ~ /^builds-on: /) { sub(/^builds-on: /, "", $i); print $i } }' | tr ' ' '\n' | grep -v '^-$' | grep .)
   # 0.26.11.1.4 (R4): a ticket with no merge is skipped: its code is not at the close's commit, and its own decision and the stage's C3 cover its rows
   R=$( { for n in $(for x in "$s" $B; do tix "$x" | cut -d' ' -f1; done); do [ -n "$(mrg "$n")" ] || continue; awk '/^## / { x = substr($0, 4); next } x == "Rows" && /^> / { split(substr($0, 3), a, "|"); i = a[1]; gsub(/[ \t]/, "", i); if (i !~ /^[A-Z]+-[0-9]/) { i = a[2]; gsub(/[ \t]/, "", i) } print i } x == "Regression rows" && /^- [A-Z]+-[0-9]/ { print $2 }' ".vid/tw/out/issue-$n.md"; done
     [ -z "$p" ] || cut -d' ' -f1 "$C/$s/$p/rows"; } | awk '!s[$0]++')
-  { cmd_owned "$s"; fxo; } > .vid/round/cx   # v0.26.10.25.5: another step's close owns a row, never this step's own
+  hrows "$s" "$last" > .vid/round/cx   # v0.26.10.25.5: another step's close owns a row, never this step's own
   mkdir -p "$K"; : > "$K/rows"; for r in $R; do owed_ "$r" || limited "$r" || grep -qxF "$r" .vid/round/cx || printf '%s %s\n' "$r" "$(secs "$r")" >> "$K/rows"; done
   [ -s "$K/rows" ] || { echo "closed $s | stand-in: close, no row to run" >> "$HAND"; ev "close-closed step=$s rows=0"; echo "closed $s"; tclose "$s" "$last"; return 0; }
   awk -v m=$((M * 60)) '{ if (n && t + $2 > m) { n++; t = 0 } else if (!n) n = 1; t += $2; c[n] = c[n] (c[n] == "" ? "" : " ") $1 } END { for (i = 1; i <= n; i++) print i "\t" c[i] }' "$K/rows" > "$K/packed"

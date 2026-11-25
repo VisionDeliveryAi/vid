@@ -11,14 +11,18 @@
 #   dm.sh up <job note>     check, then the loop detached: nohup, its own process group, its output in the work folder's dm-loop.log, its pid and start
 #                           stamp in dm-loop.pid; refused while that loop lives; a dm-stop left from before is removed; it returns at once
 #   dm.sh down [<job note>] writes dm-stop, which the loop obeys at its next tick, and waits at most 120 seconds for the recorded loop to end; it stops nothing else
-#   dm.sh next              one line a ticket, close run (an issue labelled <prefix>run), stage grade (<prefix>grade, v0.26.10.26.1 R7) or deploy okay (<prefix>deploy: staging, v0.26.10.26.2 R8; rehearsal or production, v0.26.10.27.1 R8), lowest first: blocked, left (FB-2 A3: until a reopen after its newest `DM: left:`), claim, work, not-yet, merge or wait, then its number; `none` when no line
+#   dm.sh next              one line a ticket, close run (an issue labelled <prefix>run), stage grade (<prefix>grade, v0.26.10.26.1 R7) or deploy okay (<prefix>deploy: staging, v0.26.10.26.2 R8; rehearsal or production, v0.26.10.27.1 R8), the run, grade and deploy issues first, then the tickets by the stage their body's `- stage: <N>` names (none is 0), each by number (FB-8 E2): blocked, left (FB-2 A3: until a reopen after its newest `DM: left:`), claim, work, not-yet, merge or wait, then its number; `none` when no line
+#   dm.sh next --wait       (FB-8 E4) the conversation's quiet wait: next read again each DM_TICK seconds (60), for at most DM_NEXT (540, under the 10 minutes a
+#                           conversation's call may take); its lines, at the first that calls for work or a vid-silent line not said yet, else at its time
 #   dm.sh start <role> <job note> <clone>   a fresh claude -p on the role's file and a kept copy of the note, nothing else; prints the agent's id. 0.26.11.1.1 (R2): the role deployer, DP, a builder's tools.
 #                           0.26.11.1.3 (R5): with agents: conversation in dm-note.txt it starts nothing: the folder and its note, `mode`, then the id, the prompt, the
 #                           model, the limits and the hand-back path, for the conversation to run as a fresh helper in its foreground
-#   dm.sh here <job note>   (0.26.11.1.3, R5) agents: conversation's start, run once after check: the loop's own safeguards (a work folder outside ViD's
+#   dm.sh here <job note>   (0.26.11.1.3, R5) agents: conversation's start, run once after check: a compaction point where the folder has no settings (FB-8 E4), the loop's own safeguards (a work folder outside ViD's
 #                           records, no dollar key, no loop alive there), the note copied to dm-note.txt, each agent of an earlier conversation not
-#                           done written up with no hand-back, and the DM_WORK line for every later call
+#                           done written up with no hand-back, clones/dm made and the notes brought back (FB-7 B5), and the DM_WORK line for every later call.
+#                           With agents: conversation `next`, `done` and `take` save the notes, as the loop does at its ticks
 #   dm.sh done <id> <s>     (0.26.11.1.3, R5) a conversation's helper ended, its final message written to <agent>/handback: done/, and its line in agents.txt
+#   dm.sh stopped <why>     (FB-7 B5) agents: conversation: the conversation's stop, said where ViD reads it as a loop's stop is, and the notes saved
 #   dm.sh wait <id>         at most 200 seconds: `running` (75), `quiet` (4), `ended: no hand-back` (3), or the final message (0)
 #   dm.sh take <id>         prints the hand-back and marks it taken
 #   dm.sh stop <id>         stops that agent, by its recorded pid
@@ -34,6 +38,8 @@
 # `conversation`, each agent a helper the conversation runs: then check needs no claude, up and loop refuse, and the turn and time limits are the
 # conversation's to keep. dm.sh finds the work folder by DM_WORK, or as the current folder. A job note's `ticket: <n>` line names an agent's ticket. agents/<id>/ keeps its
 # note, log, hand-back, pid and start; a conversation's agent, `mode` and no pid, its end its done/ alone. agents.txt: role, ticket, model, seconds, turns, tab between, a line an ended agent, and `time-limit` after them for one stopped at its time limit.
+# FB-7 B4: `next` ends with `vid-silent <n> <minutes>` for each ticket whose `vid: decide` at its pull request's head has had no decision for over 30 minutes. The loop
+# writes it to dm-report.txt once while it stands (dm-loop.silent: the tickets said), and follow shows it beside the stops; nothing is stopped or posted.
 # Shorter times, for the self-test: DM_TICK 60, DM_IDLE 600, DM_IDLE_TICK 300, DM_QUIET 1200, DM_WAIT 200, DM_FIRST 30, DM_DOWN 120. DM_AGENT_CLAUDE: a stand-in for claude, for every role but the dev manager.
 # serves: dev side (0.26.10.28.4, M9)
 set -eu
@@ -117,9 +123,9 @@ cmd_list() { if lalive; then echo "loop: alive, pid $LP, for $(mins "$W/dm-loop.
     else ended "$a" || true; [ -f "$a/taken" ] || { echo "ended $i ticket $(cat "$a/ticket") $([ -s "$a/handback" ] && echo "hand-back $a/handback" || echo 'no hand-back')"; o=1; }; fi; done
   for r in "$W"/runs/*/; do [ -f "$r/pid" ] && [ ! -f "$r/exit" ] && alive "${r%/}" || continue; echo "run ${r%/}"; o=1; done; [ -n "$o" ] || echo none; }
 # next: one line a ticket, from gh, the record, the agents. The newest of `vid: decide <head>` and `vid: decision <head>` for the pull request's head says what is due; anything for another head is no answer
-DMPQ='.[] | [.number, .headRefName, .isDraft, .headRefOid, ([.labels[].name] | join(",")), (.body | split("\n") | .[0]), ([.comments[].body | split("\n") | .[0]] | join("\u0001")), (([.comments[] | select(.body | startswith("vid: decision "))] | last | .body) // ""), .updatedAt, (.author.login // "-")] | @tsv'
+DMPQ='.[] | [.number, .headRefName, .isDraft, .headRefOid, ([.labels[].name] | join(",")), (.body | split("\n") | .[0]), ([.comments[].body | split("\n") | .[0]] | join("\u0001")), (([.comments[] | select(.body | startswith("vid: decision "))] | last | .body) // ""), .updatedAt, (.author.login // "-"), ([.comments[] | (.createdAt // "")] | join("\u0001"))] | @tsv'
 DMMQ='.[] | [.number, .headRefOid, (.mergeCommit.oid // "-"), (.body | split("\n") | .[0])] | @tsv'
-DMIQ='.[] | [.number, ([.labels[].name] | join(",")), ([.comments[].body | split("\n") | .[0]] | join("\u0001")), .updatedAt, ([(.body // "") | split("\n") | .[] | select(startswith("- chunk ")) | ltrimstr("- chunk ") | split(",") | .[0]] | join(" "))] | @tsv'
+DMIQ='.[] | [.number, ([.labels[].name] | join(",")), ([.comments[].body | split("\n") | .[0]] | join("\u0001")), .updatedAt, ([(.body // "") | split("\n") | .[] | select(startswith("- chunk ")) | ltrimstr("- chunk ") | split(",") | .[0]] | join(" ")), (([(.body // "") | split("\n") | .[] | select(startswith("- stage: ")) | ltrimstr("- stage: ") | split(",") | .[0]] | .[0]) // "0")] | @tsv'
 # runl: a close run's line (v0.26.10.25.3 R8): blocked by its label; work while a chunk of its body has no `vid: reported <chunk>-<k>`, or a `vid: again <chunk>`
 # newer than its newest, unless the record's newest `lost <chunk> <k>` came after the k-th again, the last; else wait. A stage grade is one chunk, s1, and a comment begun
 # `vid: refused` newer than its newest report calls for its next attempt too, as an again does, but is not counted as one (v0.26.10.26.1 R7). A staging okay is one chunk, d1:
@@ -135,8 +141,8 @@ runl() { case ",$(printf '%s' "$I" | cut -f2)," in *",${P}blocked,"*) echo block
     END { if (c[1] == "d2" && q > v) { print "work"; exit } while ((getline l < rec) > 0) { split(l, x, " "); if (x[1] == "lost") { L[x[2]] = x[3]; U[x[2] " " x[3]] = 1 } if (x[1] == "said" && x[2] == "lost") delete U[x[3] " " x[4]] }
       for (u in U) { split(u, y, " "); if (y[1] ~ /^p[0-9]+c([0-9]+|x)$/) { print "work"; exit } }
       for (i = 1; i <= m; i++) if (!((c[i] in L) && L[c[i]] == A[i] + 0) && (!r[i] || a[i] > r[i])) { print "work"; exit } print "wait" }'; }
-cmd_next() { R=$(key repo); P=$(key labels-prefix); [ -n "$R" ] || die "no repo: in $N"; o=''; say() { o=1; echo "$1 $n"; }; F=$W/.next.$$; gh pr list -R "$R" --state open --limit 200 --json number,headRefName,isDraft,headRefOid,labels,body,comments,updatedAt,author --jq "$DMPQ" > "$F.o" && gh pr list -R "$R" --state merged --limit 20 --search 'sort:updated-desc' --json number,headRefOid,mergeCommit,body --jq "$DMMQ" > "$F.m" && gh issue list -R "$R" --state open --limit 200 --json number,labels,comments,updatedAt,body --jq "$DMIQ" > "$F.i" || { rm -f "$F".?; die 'the repository could not be read'; }
-  for n in $(awk -F'\t' -v l=",${P}ticket," -v r=",${P}run," -v g=",${P}grade," -v y=",${P}deploy," 'index("," $2 ",", l) || index("," $2 ",", r) || index("," $2 ",", g) || index("," $2 ",", y) { print $1 }' "$F.i" | sort -n); do I=$(awk -F'\t' -v n="$n" '$1 == n' "$F.i")
+cmd_next() { R=$(key repo); P=$(key labels-prefix); [ -n "$R" ] || die "no repo: in $N"; o=''; VS=''; say() { o=1; echo "$1 $n"; }; F=$W/.next.$$; gh pr list -R "$R" --state open --limit 200 --json number,headRefName,isDraft,headRefOid,labels,body,comments,updatedAt,author --jq "$DMPQ" > "$F.o" && gh pr list -R "$R" --state merged --limit 20 --search 'sort:updated-desc' --json number,headRefOid,mergeCommit,body --jq "$DMMQ" > "$F.m" && gh issue list -R "$R" --state open --limit 200 --json number,labels,comments,updatedAt,body --jq "$DMIQ" > "$F.i" || { rm -f "$F".?; die 'the repository could not be read'; }
+  for n in $(awk -F'\t' -v l=",${P}ticket," -v r=",${P}run," -v g=",${P}grade," -v y=",${P}deploy," 'index("," $2 ",", l) || index("," $2 ",", r) || index("," $2 ",", g) || index("," $2 ",", y) { a = index("," $2 ",", r) || index("," $2 ",", g) || index("," $2 ",", y); print (a ? 0 : 1), (a ? 0 : $6 + 0), $1 }' "$F.i" | sort -k1,1n -k2,2n -k3,3n | cut -d ' ' -f 3); do I=$(awk -F'\t' -v n="$n" '$1 == n' "$F.i")
     case ",$(printf '%s' "$I" | cut -f2)," in *",${P}run,"*) say "$(runl)"; continue ;; *",${P}grade,"*) I=$(printf '%s\n' "$I" | awk -F'\t' -v OFS='\t' '{ $5 = "s1"; print }'); say "$(runl)"; continue ;;
       *",${P}deploy,"*) b=$(gh issue view "$n" -R "$R" --json body --jq .body) || { rm -f "$F".?; die "the okay #$n could not be read"; }
         case $(printf '%s\n' "$b" | head -n 1) in 'okay: rehearsal') ck=rh ;; 'okay: production') ck=d2 ;; 'okay: down '*) ck=dn ;; *) ck=d1 ;; esac   # FB-2 A4: a take-down, dn
@@ -149,12 +155,25 @@ cmd_next() { R=$(key repo); P=$(key labels-prefix); [ -n "$R" ] || die "no repo:
     [ -n "$PN" ] || { say work; continue; }
     printf '%s\n' "$L" | cut -f7 | tr '\001' '\n' > "$F.c"; d=$(grep -nx "vid: decide $H" "$F.c" | tail -n 1 | cut -d: -f1); e=$(grep -nx "vid: decision $H" "$F.c" | tail -n 1 | cut -d: -f1)
     if [ -z "$d$e" ]; then say work
-    elif [ "${d:-0}" -gt "${e:-0}" ]; then u=wait
+    elif [ "${d:-0}" -gt "${e:-0}" ]; then u=wait; m=$(silent); [ -z "$m" ] || VS="${VS}vid-silent $n $m
+"
     else b=$(printf '%s\n' "$L" | cut -f8 | awk '{ gsub(/\\n/, "\n") } 1'); if [ "$(printf '%s\n' "$b" | sed -n 2p)" = 'ticket: accepted' ]; then say merge; continue
       elif printf '%s\n' "$b" | sed -e '1,2d' -e 's/^[^ ]* //' | grep -qE '^(failing|evidence missing)' || printf '%s\n' "$b" | sed '1,2d' | grep -q '^decisions missing'; then say not-yet; continue; else u=wait; fi; fi   # 0.26.10.29.5 (DP-1 R1): a missing Decisions section is a same-head route too
     [ -n "$d$e" ] || continue; for i in $(agents); do a=$W/agents/$i; [ "$(cat "$a/ticket")" = "$n" ] && alive "$a" && u=work; done; say $u; done
-  rm -f "$F".?; [ -n "$o" ] || echo none; }
+  rm -f "$F".?; [ -n "$o" ] || echo none; printf %s "$VS"; }
+# silent (FB-7 B4): in next, the minutes ViD has not answered the ask at this head, over 30, by the time of the first ask since its newest decision
+silent() { t=$(printf '%s\n' "$L" | cut -f11 | tr '\001' '\n' | sed -n "$(awk -v e="${e:-0}" -v k="vid: decide $H" 'NR > e && $0 == k { print NR; exit }' "$F.c")p")
+  [ -n "$t" ] || return 0; z=$(date -u -j -f '%Y-%m-%dT%H:%M:%SZ' "$t" +%s 2>/dev/null || date -u -d "$t" +%s 2>/dev/null) || return 0; z=$(($(date +%s) - z)); [ "$z" -le 1800 ] || echo $((z / 60)); }
+# silences <next's lines> (FB-7 B4): the loop's word of it in dm-report.txt, once while it stands
+silences() { f=$W/dm-loop.silent; v=$(printf '%s\n' "$1" | sed -n 's/^vid-silent //p'); [ -n "$v" ] || { rm -f "$f"; return 0; }
+  printf '%s\n' "$v" | while read -r n m; do grep -qx "$n" "$f" 2>/dev/null || echo "$(now) ViD has not answered #$n for $m minutes: its session may have stopped. Look at the conversation that runs /vid run." >> "$W/dm-report.txt"; done
+  printf '%s\n' "$v" | cut -d' ' -f1 > "$f"; }
 calls() { printf '%s\n' "$1" | grep -E '^(claim|work|not-yet|merge) ' | head -n 1 || true; }
+# newsilent <next's lines> (FB-8 E4): a vid-silent ticket the wait has not returned yet is among them; those that stand are kept where the loop keeps its own, dm-loop.silent
+newsilent() { f=$W/dm-loop.silent; v=$(printf '%s\n' "$1" | sed -n 's/^vid-silent \([0-9]*\) .*/\1/p'); [ -n "$v" ] || { rm -f "$f"; return 1; }; r1=1; for n in $v; do grep -qx "$n" "$f" 2>/dev/null || r1=0; done; printf '%s\n' "$v" > "$f"; return "$r1"; }
+# next_wait (FB-8 E4): a read that fails is tried again at the next tick, as the loop tries it; the last one failing is the wait's failure
+next_wait() { [ -n "$(key repo)" ] || die "no repo: in $N"; e=$(($(date +%s) + ${DM_NEXT:-540})); while :; do r=0; X=$(cmd_next) || r=1; [ "$r" = 1 ] || { q=0; newsilent "$X" || q=1; [ "$q" = 1 ] && [ -z "$(calls "$X")" ]; } || break
+    t=$((e - $(date +%s))); [ "$t" -gt 0 ] || break; [ "$t" -lt "${DM_TICK:-60}" ] || t=${DM_TICK:-60}; sleep "$t"; done; [ "$r" = 0 ] || return 1; printf '%s\n' "$X"; }
 # sig <line>: the line and the tickets' records. A line can come back with a new head or decision after a pass that moved it; a pass that moved nothing leaves this as it was
 sig() { { printf '%s\n' "$1"; cat "$W"/tickets/*.txt 2>/dev/null || true; } | cksum; }
 halt() { trap '' TERM INT; echo "$(now) the loop stopped: $1" >> "$W/dm-report.txt"; date +%s >> "$W/dm-loop.start"; for i in $(agents); do a=$W/agents/$i; [ ! -f "$a/pid" ] || stop_ "$a"; done; for r in "$W"/runs/*/; do [ -f "$r/pid" ] && [ ! -f "$r/exit" ] || continue; sh "$ROOT/devagent/test-manager/run.sh" stop "${r%/}" 2>/dev/null || true; done; said "$1"; notes_save; exit 0; }
@@ -173,18 +192,21 @@ said() { C=$W/clones/dm; U=$(git -C "$C" remote get-url origin 2>/dev/null) || {
     gh issue comment "$n" -R "$R" --body-file "$W/.said.$$.c" > /dev/null 2>&1 || echo "$(now) the stop could not be said on #$n" >> "$W/dm-report.txt"; done; rm -f "$W/.said.$$" "$W/.said.$$.c"; }
 # the work folder less what is rebuilt, on vid-dev/notes of the code repository (v0.26.10.25.1 R9), so a lost folder comes back: saved each tick of a pass, at its end and at a halt, a commit only when something changed
 notes_save() { U=$(git -C "$W/clones/dm" remote get-url origin 2>/dev/null) || return 0; NG=$W/.notes.git; ng() { git --git-dir="$NG" --work-tree="$W" "$@"; }; if [ ! -d "$NG" ]; then git init -q --bare "$NG" 2>/dev/null; git --git-dir="$NG" fetch -q "$U" '+refs/heads/vid-dev/notes:refs/heads/notes' 2>/dev/null || true; git --git-dir="$NG" config core.bare false; git --git-dir="$NG" symbolic-ref HEAD refs/heads/notes; fi
-  # 0.26.11.1.1 (R2): the exclusions written at every save, an older notes repository's too; captures/, the real answers a staging gave, is never committed
-  mkdir -p "$NG/info"; printf 'agents/\nclones/\nruns/\nblind/\ncaptures/\n.notes.git/\ndm-stop\ndm-loop.*\n.next.*\n' > "$NG/info/exclude"; ng rm -r -q --cached --ignore-unmatch -- ':(top)captures' > /dev/null 2>&1 || true
+  # 0.26.11.1.1 (R2): the exclusions written at every save, an older notes repository's too; captures/, the real answers a staging gave, is never committed, nor .claude/, this machine's settings (FB-8 E4), which notes_back drops too
+  mkdir -p "$NG/info"; printf 'agents/\nclones/\nruns/\nblind/\ncaptures/\n.claude/\n.notes.git/\ndm-stop\ndm-loop.*\n.next.*\n' > "$NG/info/exclude"; ng rm -r -q --cached --ignore-unmatch -- ':(top)captures' > /dev/null 2>&1 || true
+  ng rm -r -q -f --cached --ignore-unmatch -- ':(top).claude' > /dev/null 2>&1 || { echo "$(now) the notes could not be saved: .claude/ could not be taken out of them" >> "$W/dm-report.txt"; return 0; }
   ng add -A --ignore-errors > /dev/null 2>&1 || true; ng -c user.name='DevAgent DM' -c user.email=dev@devagent.invalid commit -qm 'dev notes' -m 'Role: DM' > /dev/null 2>&1 || return 0; ng push -q "$U" 'HEAD:refs/heads/vid-dev/notes' 2>/dev/null || echo "$(now) the notes could not be saved" >> "$W/dm-report.txt"; }
-notes_back() { [ ! -f "$W/dev-setup.txt" ] && [ ! -d "$W/tickets" ] || return 0; U=$(gh repo view "$(key repo)" --json url --jq .url) || return 0; T=$W/.notes.back; git clone -q --single-branch -b vid-dev/notes "$U" "$T" 2>/dev/null || { rm -rf "$T"; return 0; }; rm -rf "$T/.git"; cp -R "$T/." "$W/"; rm -rf "$T"; echo "$(now) the notes came back from vid-dev/notes" >> "$W/dm-report.txt"; }
-cmd_loop() { T0=$(date +%s); echo "$T0" > "$W/dm-loop.start"; IDLE=$T0; DM=''; BEGAN=''; SAME=0; NR=''; C=$W/clones/dm; trap 'halt "stopped by a signal"' TERM INT
-  notes_back
-  [ -d "$C" ] || { mkdir -p "$W/clones"; git clone -q "$(gh repo view "$(key repo)" --json url --jq .url)" "$C" || die 'the repository could not be cloned'; }
+notes_back() { [ ! -f "$W/dev-setup.txt" ] && [ ! -d "$W/tickets" ] || return 0; U=$(gh repo view "$(key repo)" --json url --jq .url) || return 0; T=$W/.notes.back; git clone -q --single-branch -b vid-dev/notes "$U" "$T" 2>/dev/null || { rm -rf "$T"; return 0; }; rm -rf "$T/.git" "$T/.claude"; cp -R "$T/." "$W/"; rm -rf "$T"; echo "$(now) the notes came back from vid-dev/notes" >> "$W/dm-report.txt"; }
+clone_dm() { C=$W/clones/dm; [ -d "$C" ] || { mkdir -p "$W/clones"; git clone -q "$(gh repo view "$(key repo)" --json url --jq .url)" "$C" || die 'the repository could not be cloned'; }; }
+cmd_loop() { T0=$(date +%s); echo "$T0" > "$W/dm-loop.start"; IDLE=$T0; DM=''; BEGAN=''; SAME=0; NR=''; NV=0; C=$W/clones/dm; trap 'halt "stopped by a signal"' TERM INT
+  notes_back; clone_dm
   while :; do [ ! -f "$W/dm-stop" ] || halt "the stop file: $(cat "$W/dm-stop")"; for i in $(agents); do overtime "$W/agents/$i" || true; done; L=$(key time-limit); [ -z "$L" ] || [ $(($(date +%s) - T0)) -lt "$L" ] || halt "the time limit: ${L}s"
-    if [ -n "$DM" ] && alive "$W/agents/$DM"; then [ "$(silence "$W/agents/$DM")" -lt "${DM_QUIET:-1200}" ] || stop_ "$W/agents/$DM"; notes_save; sleep "${DM_TICK:-60}"; continue; fi
+    if [ -n "$DM" ] && alive "$W/agents/$DM"; then [ "$(silence "$W/agents/$DM")" -lt "${DM_QUIET:-1200}" ] || stop_ "$W/agents/$DM"; notes_save
+      [ "$(date +%s)" -lt "$NV" ] || { NV=$(($(date +%s) + ${DM_IDLE_TICK:-300})); ! x=$(cmd_next) || silences "$x"; }   # FB-7 B4: ViD silent while a pass runs
+      sleep "${DM_TICK:-60}"; continue; fi
     # R3: idle, it stays and reads `next` at the longer tick; the stop file and the time limit are still read at every tick
     if [ -z "$DM" ] && [ -n "$NR" ] && [ "$(date +%s)" -lt "$NR" ]; then sleep "${DM_TICK:-60}"; continue; fi; NR=''
-    X=$(cmd_next) || { sleep "${DM_TICK:-60}"; continue; }; A=$(calls "$X")
+    X=$(cmd_next) || { sleep "${DM_TICK:-60}"; continue; }; silences "$X"; NV=$(($(date +%s) + ${DM_IDLE_TICK:-300})); A=$(calls "$X")
     if [ -n "$DM" ]; then ended "$W/agents/$DM" || true; : > "$W/agents/$DM/taken"; notes_save; if [ -n "$A" ] && [ "$(sig "$A")" = "$BEGAN" ]; then SAME=$((SAME + 1)); else SAME=0; fi; DM=''; IDLE=$(date +%s); [ "$SAME" -lt 2 ] || halt "a pass ended twice with the line it began with: $A"; fi
     if [ -n "$A" ]; then BEGAN=$(sig "$A"); q=$(mktemp); DM=$(cmd_start dev-manager "$N" "$C" 2> "$q") || { e=$(cat "$q"); rm -f "$q"; sm=$(printf '%s\n' "$e" | sed -n 's/^dm\.sh: dev-manager-[0-9]* showed \(.*\), not .*: stopped$/\1/p' | tail -n 1)   # R6: this start's own words, the model its first message showed
       [ -z "$sm" ] && halt "no dev manager could start${e:+: $(printf '%s' "$e" | tail -n 1 | sed 's/^dm\.sh: //')}" || halt "no dev manager could start: its first message showed the model $sm, not the job note's $(mdl); write the line model: $sm in the job note, the exact name the first message shows, or leave model: out for $MODEL0"; }; rm -f "$q"; IDLE=$(date +%s)
@@ -216,12 +238,22 @@ cmd_check() { [ -f "${1:-}" ] || die 'usage: dm.sh check <job note>'; f=$1; k=0;
 cmd_here() { [ -f "${1:-}" ] || die 'usage: dm.sh here <job note>'; conv "$1" || die "here is for a job note with agents: conversation; this one's agents run through the claude command: dm.sh up"
   W=$(workof "$1"); [ -d "$W" ] || die "no work folder '$W'"; W=$(cd "$W" && pwd -P); N=$W/dm-note.txt; v=$(invid "$W"); [ -z "$v" ] || die "the work folder is in $v, a folder of ViD's records"
   m=$(oldkeys "$1") || die "$m"; ! lalive || die "a loop runs in $W, pid $LP: dm.sh down first"; [ "$1" -ef "$N" ] || cp "$1" "$N"
+  # FB-8 E4: the conversation's compaction point, in a folder made before the start's first command wrote it; a settings file there is never changed
+  if [ ! -e "$W/.claude/settings.json" ]; then if { mkdir -p "$W/.claude" && printf '{\n  "autoCompactWindow": 300000\n}\n' > "$W/.claude/settings.json"; } 2>/dev/null; then echo "the work folder's compaction point is set (autoCompactWindow 300000, $W/.claude/settings.json): it takes effect when this conversation is opened again"; else echo "the work folder's compaction point could not be set: $W/.claude/settings.json"; fi; fi
   # no helper outlives its conversation: one not done when the last one closed is written up, ended with no hand-back (lane review)
   for i in $(agents); do a=$W/agents/$i; [ -f "$a/mode" ] && [ ! -d "$a/done" ] || continue; : > "$a/handback"; cdone "$a" $(($(date +%s) - $(cat "$a/start"))) || true; echo "${a##*/} was not done when the conversation closed: ended, no hand-back"; done
+  # FB-7 B5: the notes back and clones/dm, as the loop's start makes them. A folder that saved notes itself is not a lost one, and is left as it
+  # stands; the note given stands over an older one the notes hold
+  [ -d "$W/.notes.git" ] || { q=$(mktemp); cp "$N" "$q"; notes_back; cat "$q" > "$N"; rm -f "$q"; }; clone_dm
   echo "DM_WORK=$(sq "$W"); export DM_WORK"; echo "the work folder is set up: the line above goes before every later dm.sh call"; }
 # done <id> <seconds> (0.26.11.1.3, R5): a conversation's agent ended, its hand-back written
 cmd_done() { A=$(folder "${1:-}"); [ -f "$A/mode" ] || die "${1:-} runs through the claude command: its end is read from its process"; case ${2:-} in ''|*[!0-9]*) die 'usage: dm.sh done <id> <seconds>, a whole number' ;; esac
   cdone "$A" "$2" || die "${1:-} is done already"; echo "${A##*/} done: its hand-back is $A/handback"; }
+# csave, stopped <why> (FB-7 B5): a conversation's notes saved, and its stop said; with agents: command the loop does both
+csave() { ! conv "$N" || notes_save || true; }
+cmd_stopped() { conv "$N" || die 'stopped is for a job note with agents: conversation: a loop says its own stop'; [ -n "${1:-}" ] || die 'usage: dm.sh stopped "<why>"'
+  [ -n "$(key repo)" ] || die "no repo: in $N"; echo "$(now) the conversation stopped: $1" >> "$W/dm-report.txt"; n0=$(rlines); said "$1"; x=$(sed "1,${n0}d" "$W/dm-report.txt"); notes_save
+  [ -z "$x" ] || { printf '%s\n' "$x"; return 1; }; echo "the stop is said: $1"; }   # said's lines in dm-report.txt are what failed
 # lalive: the loop dm-loop.pid records lives, the process its start stamp names
 lalive() { [ -f "$W/dm-loop.pid" ] || return 1; LP=$(sed -n 1p "$W/dm-loop.pid"); q=$(mktemp) || return 1; sed 1d "$W/dm-loop.pid" > "$q"; r=0; sh "$ROOT/devagent/test-manager/run.sh" is "$LP" "$q" || r=1; rm -f "$q"; return "$r"; }   # the stamp in a temporary file outside the work folder, so list writes nothing there (R5)
 # up <job note> (R2): check, then `dm.sh loop` detached, exactly as a loop started by hand: nothing of the note or the environment is changed
@@ -258,8 +290,9 @@ cmd_used() { t=$(date +%s); a=$(sed -n 1p "$W/dm-loop.start" 2>/dev/null || true
 fpasses() { ls "$W/agents" 2>/dev/null | sed -n 's/^dev-manager-\([0-9][0-9]*\)$/\1/p' | while read -r k; do f=$W/agents/dev-manager-$k; { [ -f "$f/taken" ] || { [ -n "${2:-}" ] && [ -d "$f/done" ]; }; } && [ "$k" -gt "$1" ] && echo "$k"; done | sort -n || true; }
 rlines() { if [ -f "$W/dm-report.txt" ]; then wc -l < "$W/dm-report.txt" | tr -d ' '; else echo 0; fi; }
 # fhalts <after> <to> <since>: the numbers of the stop lines of dm-report.txt past line <after>, up to line <to>, written at <since> (UTC) or later:
-# a fresh work folder's loop brings back the saved dm-report.txt after the mark was taken, and its old stops are not this loop's
-fhalts() { [ -f "$W/dm-report.txt" ] || return 0; awk -v a="$1" -v b="$2" -v s="$3" 'NR > a && NR <= b && $1 >= s && index($0, " the loop stopped: ") { print NR }' "$W/dm-report.txt"; }
+# a fresh work folder's loop brings back the saved dm-report.txt after the mark was taken, and its old stops are not this loop's.
+# With a fourth argument the stop lines alone; with none, ViD's silences too (FB-7 B4)
+fhalts() { [ -f "$W/dm-report.txt" ] || return 0; awk -v a="$1" -v b="$2" -v s="$3" -v o="${4:-}" 'NR > a && NR <= b && $1 >= s && (index($0, " the loop stopped: ") || o == "" && index($0, $1 " ViD has not answered #") == 1) { print NR }' "$W/dm-report.txt"; }
 tks() { grep -E '^[0-9]+$' | sort -nu | sed 's/^/#/' | paste -sd ',' - | sed 's/,/, /g'; }
 # fpass <dev manager's folder>: its end is the loop's taken, else the halt's write-up (done); with no hand-back there, the halt cut it off
 fpass() { a=$1; E=$a/taken; v=ended; [ -e "$E" ] || { E=$a/done; [ -s "$a/handback" ] || v='cut off by the stop'; }
@@ -279,16 +312,16 @@ cmd_follow() { m=${1:-}; if [ -z "$m" ]; then k=$(fpasses 0 cut | tail -n 1); if
   # the loop gone: everything it wrote before it ended is read again (a halt written just before it), and a pass its halt cut off is shown too
   LA=1; lalive || { LA=''; P=$(fpasses "$K" cut); n=$(rlines); H=$(fhalts "$NL" "$n" "$S0"); }
   MORE=''; c=0; for k in $P; do c=$((c + 1)); [ "$c" -le 5 ] || break; fpass "$W/agents/dev-manager-$k"; K=$k; done; [ "$c" -le 5 ] || { echo 'and more passes: the next call shows them'; MORE=1; }
-  c=0; for h in $H; do c=$((c + 1)); [ "$c" -le 5 ] || break; echo "stop: $(sed -n "${h}p" "$W/dm-report.txt")"; NL=$h; done; [ "$c" -le 5 ] || { echo 'and more stops: the next call shows them'; MORE=1; }
+  c=0; for h in $H; do c=$((c + 1)); [ "$c" -le 5 ] || break; l=$(sed -n "${h}p" "$W/dm-report.txt"); case $l in *' the loop stopped: '*) echo "stop: $l" ;; *) echo "vid-silent: $l" ;; esac; NL=$h; done; [ "$c" -le 5 ] || { echo 'and more stops: the next call shows them'; MORE=1; }
   [ "$c" -gt 5 ] || NL=$n
   # a loop that ended on dm.sh's own refusal (a clone that failed at its start, say) writes no stop line: its log's last line says why.
   # Said only once nothing is held back, so a call that stops at its cap is followed by the next, which returns at once
   # (and only when no stop line was written since the mark: an error the loop recovered from is no reason for its stop)
-  if [ -z "$LA" ] && [ -z "$MORE" ]; then echo 'loop: not running'; l=$(tail -n 1 "$W/dm-loop.log" 2>/dev/null | cut -c1-300); [ -n "$(fhalts 0 "$n" "$S0")" ] || case $l in 'dm.sh: '*) echo "  last words of its log: $l" ;; esac; fi; echo "mark: $K:$NL:$S0"; }
+  if [ -z "$LA" ] && [ -z "$MORE" ]; then echo 'loop: not running'; l=$(tail -n 1 "$W/dm-loop.log" 2>/dev/null | cut -c1-300); [ -n "$(fhalts 0 "$n" "$S0" stops)" ] || case $l in 'dm.sh: '*) echo "  last words of its log: $l" ;; esac; fi; echo "mark: $K:$NL:$S0"; }
 case $CMD in
-  loop) cmd_loop ;; check) cmd_check "$@" ;; up) cmd_up "$@" ;; down) cmd_down ;; next) cmd_next ;; start) cmd_start "$@" ;; wait) cmd_wait "$@" ;; list) cmd_list ;; here) cmd_here "$@" ;; 'done') cmd_done "$@" ;;
-  take) A=$(folder "${1:-}"); ended "$A" || die "${1:-} is still alive"; cat "$A/handback"; : > "$A/taken" ;;
+  loop) cmd_loop ;; check) cmd_check "$@" ;; up) cmd_up "$@" ;; down) cmd_down ;; next) if [ "${1:-}" = --wait ]; then next_wait; else cmd_next; fi; csave ;; start) cmd_start "$@" ;; wait) cmd_wait "$@" ;; list) cmd_list ;; here) cmd_here "$@" ;; 'done') cmd_done "$@"; csave ;; stopped) cmd_stopped "$@" ;;
+  take) A=$(folder "${1:-}"); ended "$A" || die "${1:-} is still alive"; cat "$A/handback"; : > "$A/taken"; csave ;;
   stop) A=$(folder "${1:-}"); stop_ "$A"; : > "$A/taken"; echo "$(now) stopped ${A##*/}: what it started for a look may still stand" >> "$W/dm-report.txt" ;;
   used) cmd_used ;; follow) cmd_follow "$@" ;;
-  *) die 'usage: dm.sh loop|check|up|down|here|next|start|wait|done|take|stop|list|used|follow …, see its head' ;;
+  *) die 'usage: dm.sh loop|check|up|down|here|next|start|wait|done|stopped|take|stop|list|used|follow …, see its head' ;;
 esac

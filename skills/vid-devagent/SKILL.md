@@ -9,7 +9,7 @@ DevAgent's agents run in one of two ways, by the job note's `agents:` line (0.26
 - **`agents: command`:** each agent is a `claude -p` of its own, which needs the `claude` command signed in. DevAgent is then its loop, which this conversation starts and never replaces: the loop's passes, limits, checks and stops are its own, and each pass is a fresh dev manager the loop starts. This conversation only shows them.
 - **`agents: conversation`:** no `claude` sign-in is needed. This conversation is DevAgent's dev manager, one pass at a time, and each agent is a fresh helper it runs. There is no loop.
 
-Every command here is one of DevAgent's own, run on DevAgent's script in the plugin, with `"<the note>"` the job note's path, quoted as given, and `claude auth status` for the mode's question. Run no other script. With `agents: command`, read no file but the job note's head and what those commands print, and write nothing but the note's `agents:` line.
+Every command here is one of DevAgent's own, run on DevAgent's script in the plugin, with `"<the note>"` the job note's path, quoted as given, and `claude auth status` for the mode's question. Run no other script. The user sees your text alone, never what a command prints: what this file or the dev manager file has you say or show is your text in the chat before the next command. With `agents: command`, read no file but the job note's head and what those commands print, and write nothing but the note's `agents:` line.
 
 ## Before anything
 
@@ -31,6 +31,7 @@ Every command here is one of DevAgent's own, run on DevAgent's script in the plu
 6. Then, from the mark kept at 4, again and again, in the foreground with the Bash tool's timeout at 600000: `sh "${CLAUDE_PLUGIN_ROOT}/devagent/dev-manager/dm.sh" follow <the mark>`. It waits with no model and returns at once when a pass ends or the loop writes a stop, and otherwise within 9 minutes with `nothing new`. A permission prompt for the wait pauses only this view, and Esc ends only the wait, never DevAgent. Each time:
    - **Each `pass <id> ended: …` block, or `pass <id> cut off by the stop: …`:** say it in plain words, in at most three lines: which ticket, what the dev manager did (its hand-back's lines, shortened), and the report it pushed, or that it pushed none.
    - **Each `stop: …` line:** say it at once, word for word. It is the loop's own stop, the one ViD hears about.
+   - **Each `vid-silent: …` line** (FB-7 B4)**:** say its words after the time, at once, and wait again. It is no stop.
    - **`nothing new …`:** say nothing, and wait again.
    - **`loop: not running`:** say that DevAgent has stopped, with the stop's words if they were shown (a `stop:` line, or the `last words of its log:` line under it), and that `/vid:vid-devagent` again in this folder starts it. Then stop following.
    - Keep the new `mark:` for the next wait.
@@ -43,14 +44,14 @@ Every command here is one of DevAgent's own, run on DevAgent's script in the plu
 
 ## With `agents: conversation`: this conversation is the dev manager
 
-8. `sh "${CLAUDE_PLUGIN_ROOT}/devagent/dev-manager/dm.sh" check "<the note>"`. Show what it printed. On `missing:` lines, say each in plain words and stop. On `ready`, once: `sh "${CLAUDE_PLUGIN_ROOT}/devagent/dev-manager/dm.sh" here "<the note>"`. It sets the work folder up and prints a `DM_WORK=…` line: put that line before every later command of DevAgent's that this conversation runs, the dev manager file's included.
+8. `sh "${CLAUDE_PLUGIN_ROOT}/devagent/dev-manager/dm.sh" check "<the note>"`. Show what it printed. On `missing:` lines, say each in plain words and stop. On `ready`, once: `sh "${CLAUDE_PLUGIN_ROOT}/devagent/dev-manager/dm.sh" here "<the note>"`. It sets the work folder up, and shows when it gave the folder a compaction point: say that line once. It prints a `DM_WORK=…` line: put that line before every later command of DevAgent's that this conversation runs, the dev manager file's included.
 9. **Each pass:** read `${CLAUDE_PLUGIN_ROOT}/devagent/agents/dev-manager.md` whole, afresh, as a fresh dev manager would, and do one pass as it says, from its `sh "${CLAUDE_PLUGIN_ROOT}/devagent/dev-manager/dm.sh" next`. What it says a dev manager writes (job notes, records, comments, the report) this conversation writes.
 10. **Each agent it starts:** `sh "${CLAUDE_PLUGIN_ROOT}/devagent/dev-manager/dm.sh" start <role> <job note> <clone>` starts nothing. It prints the agent's id, the prompt, the model, the limits and the hand-back path.
    - Run that prompt as a fresh helper, on that model, in the foreground, and wait for it to end. Past the limits it printed, stop it.
    - Write the helper's final message, whole, to the hand-back path; a helper stopped, or ended with no final message, leaves it empty.
    - Then `sh "${CLAUDE_PLUGIN_ROOT}/devagent/dev-manager/dm.sh" done <id> <the seconds it ran>`, and go on as the dev manager file says: the hand-back, a line in the record, then `sh "${CLAUDE_PLUGIN_ROOT}/devagent/dev-manager/dm.sh" take <id>`.
-11. **A pass ended,** where the dev manager file ends one: say it in at most three lines: which ticket, what was done, and the report pushed, or none. Then the next pass. When `next` calls for nothing, say so, wait 5 minutes in one foreground call, and read it again. Past the note's `time-limit:`, stop and say so.
-12. On the user's word "stop", or "stop DevAgent": let a helper that runs hand back and run `done` for it, end the pass as the dev manager file ends one, and say that DevAgent is stopped until `/vid:vid-devagent` is typed again in this folder. Any other message: answer it in one line, then go on.
+11. **A pass ended,** where the dev manager file ends one: say it in at most three lines: which ticket, what was done, and the report pushed, or none; a `vid-silent` line in the dev manager file's words, once while it stands. Then the next pass. When `next` calls for nothing, say so once, then wait in the foreground, with the Bash tool's timeout at 600000, by `sh "${CLAUDE_PLUGIN_ROOT}/devagent/dev-manager/dm.sh" next --wait`, again and again, with no word between but one its lines call for: it reads `next` each minute and returns at the first line that calls for work, which is the next pass, at a `vid-silent` line not said yet, or within 9 minutes. Past the note's `time-limit:`, `sh "${CLAUDE_PLUGIN_ROOT}/devagent/dev-manager/dm.sh" stopped "the time limit: <its seconds>s"`, which says the stop where ViD reads it; show what it printed, and say so (FB-7 B5).
+12. On the user's word "stop", or "stop DevAgent": let a helper that runs hand back and run `done` for it, end the pass as the dev manager file ends one, run `sh "${CLAUDE_PLUGIN_ROOT}/devagent/dev-manager/dm.sh" stopped "the user's stop"`, show what it printed, and say that DevAgent is stopped until `/vid:vid-devagent` is typed again in this folder. Any other message: answer it in one line, then go on.
 
 ## Never
 

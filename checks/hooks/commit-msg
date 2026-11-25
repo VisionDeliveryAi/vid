@@ -35,6 +35,7 @@
 # end names them, comma-separated. Run by hand on a draft, `sh checks/hooks/commit-msg <file>`, it checks the draft against
 # the staged files. VID_NEEDS=1 (pre-commit's call on a commit it refuses, to say what the message will need): no event.
 # serves: both (0.26.10.28.4, M9)
+_vidwsl=${0%/*}/../lib/wsl.sh; [ ! -f "$_vidwsl" ] || . "$_vidwsl"   # FB-7 D1: the whole hook, in ticket mode on Windows
 set -eu
 
 MSG_FILE="$1"; BYM=''

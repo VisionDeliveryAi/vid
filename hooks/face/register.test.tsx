@@ -1208,6 +1208,103 @@ test('FB-3 D2 a stop is said in amber with Look at the chat, with the session st
   await ui.unmount()
 })
 
+// --- FB-7 B6: a run that has stopped, or hangs ----------------------------------------------------------------------
+
+const STATE = (run: string, session = 'sess-A'): string => `mode: tickets\nrun: ${run}\nsession: ${session}\nplan: required\n\n## The plan\n\nrun: nothing of this\n`
+const ENDED_RUN = 'ViD has stopped and its run is not finished. Say continue in the chat.'
+const amber = async (ui: any, text: string) => ((await ui.find({ type: 'Text', text })) as any)?.props.color
+
+test('FB-7 B6 a run whose last step is over 20 minutes old: amber, what it is still on and since when; gone at the next step', async ($, on) => {
+  const log = await start($, on, { standing: withBacklog(WORKING_STANDING, s => { s.wait = { ...PARTS, now: '' } }), run: RUN('running', 60, 19) })
+  log.files[`${ROOT}/.vid/RUN-STATE.md`] = STATE('active')
+  const ui = await $.ui.mount(PANE('desktop'))
+  expect((await texts(ui)).some(t => /^Still on /.test(t))).toBe(false)
+  expect(await texts(ui)).toContain('ViD is working')
+  const at = (parts: string) => `Still on ${parts}, since `
+  for (const [wait, on_] of [[{ ...PARTS, now: '' }, 'Working out what changed'], [{ ...PARTS, parts: [] }, 'ticket 7 of 21'], [{ ...PARTS, parts: [], now: '' }, 'its last step'], [{ ...PARTS, written: utc(200) }, 'its last step']] as const) {
+    log.files[`${ROOT}/.vid/face/standing.json`] = withBacklog(WORKING_STANDING, s => { s.wait = wait })
+    log.files[`${ROOT}/.vid/face/run.sess-A`] = RUN('running', 60, 21)
+    await $.command.run({ command: 'vid-panel', args: '' })
+    const t = (await texts(ui)).find(x => x.startsWith(at(on_)))
+    expect([on_, t !== undefined && /, since \d+ [A-Z][a-z]+, \d\d:\d\d UTC$/.test(t)]).toEqual([on_, true])
+    expect(await amber(ui, t!)).toBe('warning')
+    expect(await texts(ui)).not.toContain('ViD is working')
+    expect(await texts(ui)).not.toContain(ENDED_RUN)
+  }
+  // a turn begun 5 minutes ago, with no step yet, is not over 20 minutes on the step before it
+  log.files[`${ROOT}/.vid/face/run.sess-A`] = RUN('running', 5, 90)
+  await $.command.run({ command: 'vid-panel', args: '' })
+  expect((await texts(ui)).some(t => /^Still on /.test(t))).toBe(false)
+  // the next step
+  log.files[`${ROOT}/.vid/face/run.sess-A`] = RUN('running', 60, 0)
+  await $.command.run({ command: 'vid-panel', args: '' })
+  expect((await texts(ui)).some(t => /^Still on /.test(t))).toBe(false)
+  expect(await texts(ui)).toContain('ViD is working')
+  await ui.unmount()
+})
+
+test('FB-7 B6 a run whose session ended its turn with run: active: amber, gone at the next step', async ($, on) => {
+  const log = await start($, on, { standing: withBacklog(WORKING_STANDING, allDone), run: STOPPED })
+  log.files[`${ROOT}/.vid/RUN-STATE.md`] = STATE('active')
+  const ui = await $.ui.mount(PANE('desktop'))
+  await $.command.run({ command: 'vid-panel', args: '' })
+  expect(await amber(ui, ENDED_RUN)).toBe('warning')
+  expect((await texts(ui)).some(t => /^ViD is working|^Still on /.test(t))).toBe(false)
+  // a session line no conversation's id was known for, or none: said all the same
+  for (const st of [STATE('active', 'connect-4242-1763977200'), STATE('active').replace('session: sess-A\n', '')]) {
+    log.files[`${ROOT}/.vid/RUN-STATE.md`] = st
+    await $.command.run({ command: 'vid-panel', args: '' })
+    expect(await texts(ui)).toContain(ENDED_RUN)
+  }
+  log.files[`${ROOT}/.vid/face/run.sess-A`] = RUN('running', 0, 0)
+  await $.command.run({ command: 'vid-panel', args: '' })
+  expect(await texts(ui)).not.toContain(ENDED_RUN)
+  await ui.unmount()
+})
+
+test('FB-7 B6 a run that waits, is paused, stopped in words or complete, another conversation, a stop of a call or a sitting: no such line', async ($, on) => {
+  const log = await start($, on, { standing: withBacklog(WORKING_STANDING, allDone), run: STOPPED })
+  const ui = await $.ui.mount(PANE('desktop'))
+  for (const st of [STATE('waiting'), STATE('stopped owner asked to pause'), STATE('stopped the plan'), STATE('complete'), STATE('active', 'sess-B'), 'mode: tickets\n', '## The plan\n\nrun: active\n']) {
+    log.files[`${ROOT}/.vid/RUN-STATE.md`] = st
+    await $.command.run({ command: 'vid-panel', args: '' })
+    expect([st, (await texts(ui)).includes(ENDED_RUN)]).toEqual([st, false])
+  }
+  // the same while a step is over 20 minutes old: a run that waits, is paused, stopped, complete or another conversation's draws as working
+  log.files[`${ROOT}/.vid/face/run.sess-A`] = RUN('running', 60, 40)
+  for (const st of [STATE('waiting'), STATE('stopped owner asked to pause'), STATE('complete'), STATE('active', 'sess-B'), 'mode: tickets\n']) {
+    log.files[`${ROOT}/.vid/RUN-STATE.md`] = st
+    await $.command.run({ command: 'vid-panel', args: '' })
+    expect([st, (await texts(ui)).some(t => /^Still on /.test(t)), (await texts(ui)).includes('ViD is working')]).toEqual([st, false, true])
+  }
+  // GitHub manual, by the newest mode answered: neither line; GitHub auto again: both
+  log.files[`${ROOT}/.vid/RUN-STATE.md`] = STATE('active')
+  const modes = ['auto', 'manual', 'auto'].map(x => `setup-answered key=github-mode value="${x}" at=2026-11-20T00:00:00Z\n`)
+  for (const [n, drawn_] of [[2, false], [3, true]] as const) {
+    log.files[`${ROOT}/.vid/plan/setup`] = modes.slice(0, n).join('') + 'setup-answered key=layout value="one" at=2026-11-20T00:00:00Z\n'
+    for (const run of [STOPPED, RUN('running', 60, 40)]) {
+      log.files[`${ROOT}/.vid/face/run.sess-A`] = run
+      await $.command.run({ command: 'vid-panel', args: '' })
+      expect([n, run, (await texts(ui)).some(t => t === ENDED_RUN || /^Still on /.test(t))]).toEqual([n, run, drawn_])
+    }
+  }
+  log.files[`${ROOT}/.vid/face/run.sess-A`] = STOPPED
+  // a call that stopped says its own stop alone
+  log.files[`${ROOT}/.vid/RUN-STATE.md`] = STATE('active')
+  log.files[`${ROOT}/.vid/face/standing.json`] = withBacklog(WORKING_STANDING, s => { s.wait = { parts: [], now: 'your yes', stop: 'your yes', written: utc(3) } })
+  await $.command.run({ command: 'vid-panel', args: '' })
+  expect(await texts(ui)).not.toContain(ENDED_RUN)
+  expect(await texts(ui)).toContain('ViD stopped')
+  // a sitting's panel, and a project with no list, as they were
+  for (const run of [STOPPED, RUN('running', 60, 40)]) {
+    log.files[`${ROOT}/.vid/face/run.sess-A`] = run
+    log.files[`${ROOT}/.vid/face/standing.json`] = WORKING_STANDING
+    await $.command.run({ command: 'vid-panel', args: '' })
+    expect((await texts(ui)).some(t => t === ENDED_RUN || /^Still on /.test(t))).toBe(false)
+  }
+  await ui.unmount()
+})
+
 // --- FB-5 A1: the owner's list --------------------------------------------------------------------------------------
 
 const LIST = (fn: (l: any) => void = () => undefined): string => edited(JSON.stringify(LIST_DATA), fn)
@@ -1630,6 +1727,29 @@ test('FB-5 A1 the panel never holds more than the app draws, however long the pl
   const { all, has } = await drawn(await $.ui.mount(PANE('desktop', 56)))
   expect(all).toContain('How long a loan lasts')
   expect(has('too many to draw here')).toBe(true)
+})
+
+test('FB-7 B6 both lines drawn on a list at real size, within what the app draws', async ($, on) => {
+  const log = await start($, on, listed())
+  log.files[`${ROOT}/.vid/RUN-STATE.md`] = STATE('active')
+  for (const per of [15, 40, 130]) {
+    log.files[`${ROOT}/.vid/face/list.json`] = LIST(l => ofPlan(l, 3, per))
+    for (const [run, words] of [[STOPPED, /^ViD has stopped and its run is not finished/], [RUN('running', 60, 40), /^Still on its last step, since /]] as const) {
+      log.files[`${ROOT}/.vid/face/run.sess-A`] = run
+      await reread($)
+      for (const cols of [120, 56]) {
+        const x = await ($ as any).ui.render(PANE('desktop', cols) as any)
+        const m = measure(x)
+        console.log(`FB-7 B6: ${3 * per} steps, ${cols} columns, ${words.source.slice(1, 9)}: ${m.pieces} pieces, ${m.deep} deep, ${m.chars} characters`)
+        expect(inBounds(x)).toBe(true)
+      }
+      const ui = await $.ui.mount(PANE('desktop', 120))
+      const { all } = await drawn(ui)
+      expect(all.some(t => words.test(t))).toBe(true)
+      expect(all).toContain('How long a loan lasts')
+      await ui.unmount()
+    }
+  }
 })
 
 test('FB-5 A1 a sitting too long to draw whole is drawn in parts, every item reached, its marks kept; past that it says so, and is never blank', async ($, on) => {

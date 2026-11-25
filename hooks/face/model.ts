@@ -202,6 +202,25 @@ export function modeOf(standing: Standing | null, sitting: Sitting | null, marks
   return running(run) ? 'working' : 'stopped'
 }
 
+// FB-7 B6: in a run, what the session is still on, when its last step, or its turn with none yet, is over 20 minutes old
+export function stuckOn(standing: Standing, run: Run | null, nowMs: number): { on: string; since: string } | null {
+  if (!running(run)) return null
+  const t = Math.max(...[Date.parse(run!.since), Date.parse(run!.last)].filter(x => !Number.isNaN(x)))
+  if (!Number.isFinite(t) || nowMs - t <= 20 * 60000) return null
+  const w = live(standing, run) ? standing.wait : null
+  return { on: w?.parts.find(p => p.state === 'now')?.name || w?.now || 'its last step', since: new Date(t).toISOString() }
+}
+
+// FB-7 B6: a run in GitHub auto is on: RUN-STATE.md says `run: active` and names no other conversation (connect.sh writes its
+// session's id, or `connect-…` where it had none), its head alone, before its first part; and the setup's newest mode is not manual
+export function active(text: string, setup: string, here: string): boolean {
+  if ([...setup.matchAll(/^setup-answered key=github-mode value="([a-z]*)"/gm)].pop()?.[1] === 'manual') return false
+  const head = text.split(/^## /m)[0]!
+  const of = (k: string) => new RegExp(`^${k}:[ \\t]*(.*)$`, 'm').exec(head)?.[1]!.trim() ?? ''
+  const s = of('session')
+  return of('run') === 'active' && (s === '' || s.startsWith('connect-') || s === here)
+}
+
 // usability (P5): the wait in whole minutes, from the run file's times
 export function waitLines(run: Run | null, nowMs: number): string[] {
   if (!run || run.state !== 'running') return []

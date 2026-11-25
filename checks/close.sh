@@ -45,6 +45,7 @@
 #                   stand-in item, whose again asks D1 and CS afresh at the candidate; the owner's yes names the records kept
 #   (0.26.11.1.3, R3)    the staging okay lists the stage's open real checks (stage 0's skeleton line always, and each `finding: real` line
 #                   of its tickets), recorded `real <n> <line>` in its ask; a D1 refused twice for one is the owner's `notreal` item
+#   held <N>        (FB-7 A1) `held <row>` when stage N's newest candidate is held (close-candidate.sh's bheld), else `free`; walk.sh asks it
 # Settings: close-chunk-minutes: (20), close-wait-minutes: (180). Records: .vid/decide/close/<step>/<k>/ (ask, again, items, read, chunks, failed,
 # acted, lined, fixes, result, numbers, done), k the ask's number, the newest read.
 # serves: tickets (0.26.10.28.4, M9)
@@ -103,7 +104,7 @@ cmd_step() { reclose "$1"; s=$1; D0=''
 sref() { echo "refused stage $1: $2"; exit 1; }
 num() { case ${1:-} in ''|*[!0-9]*) die "usage — $2 <N>: the stage by its number" ;; esac; }
 sccw() { sed 's/^[0-9]* //' "$SX/cc$1" | paste -sd ';' - | sed 's/;/; /g'; }   # cconds's reasons, their numbers left out
-wwhy() { c=$(snc "$1"); F=$SD/$1/$c; if [ -z "$c" ] || [ ! -f "$F/named" ]; then echo 'no candidate'; elif [ ! -f "$F/cs/passed" ]; then echo "its candidate $c's staging run, CS, has not passed"
+wwhy() { c=$(snc "$1"); F=$SD/$1/$c; if [ -z "$c" ] || [ ! -f "$F/named" ]; then echo 'no candidate'; elif ! wfin "$F/w1" && _hr=$(bheld "$1" "$F"); then echo "row $_hr landed, not decided"; elif [ ! -f "$F/cs/passed" ]; then echo "its candidate $c's staging run, CS, has not passed"
   elif [ -f "$F/w1/none" ]; then echo "no walk is owed: $(head -n 1 "$F/w1/none")"; elif sh "$HERE/walk.sh" fin "$1" 2>/dev/null; then echo "candidate $c's walk has its outcome"; else rc=0; sh "$HERE/walk.sh" ended "$1" 2>/dev/null || rc=$?
     case $rc in 0) echo "candidate $c's walker ended: its walk is read next (read-walk $1)" ;; 3) echo "candidate $c's walker still runs" ;; *) echo "candidate $c's walk waits on the owner's answer" ;; esac; fi; }
 cmd_walk() { num "$1" walk; N=$1; sh "$HERE/walk.sh" none "$N" > /dev/null 2>&1 || true; sh "$HERE/walk.sh" due "$N" 2>/dev/null || sref "$N" "no walk is due: $(wwhy "$N")"
@@ -129,6 +130,7 @@ cmd_stage() { num "$1" stage; N=$1
 okwhy() { c=$(snc "$1"); F=$SD/$1/$c
   if sed -n 's/^candidate \([0-9][0-9]*\) .*/\1/p' "$HAND" 2>/dev/null | awk -v n="$1" '$1 > n { f = 1 } END { exit !f }'; then echo "a later stage's candidate is named: its okay takes staging"
   elif [ -z "$c" ] || [ ! -f "$F/named" ]; then echo "stage $1 has no candidate named"; elif [ -f "$F/withdrawn" ]; then echo "its candidate $c was withdrawn by a re-cut"
+  elif _hr=$(bheld "$1" "$F"); then echo "row $_hr landed, not decided"   # FB-7 A1
   elif [ ! -f "$F/passed" ]; then echo "its candidate $c's full run, C3, has not passed"; elif [ -f "$F/d1/ask" ]; then echo "its candidate $c's staging okay, #$(sed -n "s/^issue$TAB//p" "$F/d1/ask"), is asked already"
   elif ! afirst "$1"; then echo "rows of stage $1 landed since its previous candidate: the okay waits for candidate $c's grade read and each of its findings ruled"
   elif ! sfree && [ -n "$SWHY" ]; then echo "staging is taken: $SWHY"   # FB-2 A4: what holds it
@@ -159,6 +161,7 @@ case $CMD in owed) cmd_owed ;; out) cmd_out; cmd_dnout ;; owned) cmd_owned ;; wh
   deploy) cmd_deploy "$@" ;;   # GM-4 K5
   walk) [ $# -eq 1 ] || die 'usage — walk <N>'; cmd_walk "$1" ;;
   read-walk) [ $# -eq 1 ] || die 'usage — read-walk <N>'; cmd_readwalk "$1" ;;
+  held) c=$(snc "${1:?}"); if [ -n "$c" ] && _hr=$(bheld "$1" "$SD/$1/$c"); then echo "held $_hr"; else echo free; fi ;;   # FB-7 A1: for walk.sh
   conds) cconds "${1:?}"; cat "$SX/cc$1" ;;
   endconds) endconds && rc=0 || rc=1; cat "$SX/end"; exit $rc ;;   # v0.26.10.27.4 (R2)
   nextplan) cmd_nextplan ;;

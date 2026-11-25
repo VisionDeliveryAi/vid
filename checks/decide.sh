@@ -86,12 +86,14 @@ DE='function why(a, b) { return (a == "") ? b : (b == "") ? a : a "; " b }
     for (i = 1; i <= n; i++) s = s o[i] ", "; split("", done); return " — siblings: " s (n ? "and " : "") "any other test with the same data pattern" }
   function heldby(r, b,   k) { if (b != r && rul[b] != "limit" && cnt[b] + 0 >= ((b in lim) ? lim[b] : 2)) return 1; for (k in cnt) if (index(k, r "-T") == 1 && rul[k] != "limit" && cnt[k] + 0 >= ((k in lim) ? lim[k] : 2)) return 1; return 0 }
   function earlier(r,   f, l, a, v, g) { f = RD "/" r ".txt"; v = ""; g = ""; while ((getline l < f) > 0) { split(l, a, "\t"); if (a[3] == "answered") { if (g != "") v = " — earlier: " g ", answered by " a[2]; g = "" } else if (a[3] == "failing") { g = a[4]; sub(/ — (siblings|earlier):.*$/, "", g); sub(/^held — /, "", g); sub(/^failing, /, "", g) } } close(f); return v }
-  BEGIN { FS = "\t"; SP = 0
+  # FB-7 C6: nocase, whether a missing row is so for want of a case: a part of its reason, but `T2: no case` of a row whose tests-first run held none
+  function nocase(x, rd0,   n, w, j) { n = split(x, w, /; /); for (j = 1; j <= n; j++) if (w[j] ~ /^no case( in [^ ]+)?$/ || (rd0 == "n/a" && w[j] ~ /^T[0-9]+: no case( in [^ ]+)?$/)) return 1; return 0 }
+  BEGIN { FS = "\t"; SP = 0; NCW = "evidence missing — no case of it in the results at this commit (a test is found by the row\047s id in its name)"
     while ((getline l < CF) > 0) { split(l, x, " "); cnt[x[1]]++; if (x[2] ~ /-/) ev[x[1]]++; have[x[1] " " x[2]] = 1; c0[++n0] = l }
     while ((getline l < LF) > 0) { split(l, x, " "); lim[x[1]] = x[2] }
     while ((getline l < UF) > 0) { split(l, x, "\t"); rul[x[2]] = x[3] } while ((getline l < SF) > 0) { split(l, x, "\t"); sf[x[1]] = x[2] } while ((getline l < HF) > 0) { split(l, x, "\t"); hal[x[2]] = (x[3] == "") ? 1 : 2 }
     while ((getline l < NCF) > 0) noc[l] = 1   # GM-4 E3: amended since the decision before, so its fault proof is not carried
-    while ((getline l < PF) > 0) { split(l, x, "\t"); b1 = x[1]; sub(/-T[0-9]+$/, "", b1); pf[x[1]] = x[3]; pv[x[1]] = ((x[1] in noc) || (b1 in noc)) ? "" : x[5]; sb[x[1]] = (PH == H) ? x[11] : x[9]; if (x[10] == 1) { was[x[1]] = 1; nw++ } }
+    while ((getline l < PF) > 0) { split(l, x, "\t"); b1 = x[1]; sub(/-T[0-9]+$/, "", b1); pf[x[1]] = x[3]; pv[x[1]] = ((x[1] in noc) || (b1 in noc)) ? "" : x[5]; sb[x[1]] = (PH == H) ? x[11] : x[9]; if (x[10] == 1) { was[x[1]] = 1; nw++ }; NQ[x[1]] = (MAN == "" && x[6] == NCW) }   # FB-7 C6: NQ, a row with no case then, which by itself owes no break; one owed before it is kept owed (nc, below)
     while ((getline l < IF) > 0) { split(l, x, "\t"); ni++; irow[ni] = x[1]; item[ni] = x[2]; own[x[1], x[2]] = 1 } while ((getline l < OWF) > 0) cfl[l] = 1; while ((getline l < STF) > 0) stl[l] = 1 }
   /^ticket [0-9]+, pull request / { HEAD = $0; sub(/^.* head /, "", HEAD); next } /^ticket [0-9]+, at / { HEAD = $0; sub(/^.* at /, "", HEAD); next }
   /^request: / { RQL[++nrq] = substr($0, 10); next }
@@ -103,23 +105,23 @@ DE='function why(a, b) { return (a == "") ? b : (b == "") ? a : a "; " b }
   /^engine [^ ]+: [0-9]+ could not run$/ { eg[++neg] = $0; next }
   $1 == "split" && NF == 4 { print $2 "\t" $3 " " $4 > SPF; nsp++; ns2 = split($3 " " $4, w, " "); for (j = 1; j <= ns2; j++) if (!(w[j] in se)) { se[w[j]] = 1; SE = SE (SE == "" ? "" : " ") w[j] } next }
   /^setup errors [^ ]+: [0-9]+ cases over [0-9]+ runs$/ { split($0, w, " "); if (w[4] + 0 > an) { an = w[4] + 0; ae = w[3]; sub(/:$/, "", ae); ak = w[7] } next }
-  NF == 6 { b0 = $1; sub(/-T[0-9]+$/, "", b0); if (($1 in stl) || (b0 in stl)) next; i = ++n; r[i] = $1; ki[i] = $2; rd[i] = $3; t[i] = $4; f[i] = $5; re[i] = $6; next }
+  NF == 6 { b0 = $1; sub(/-T[0-9]+$/, "", b0); if (($1 in stl) || (b0 in stl)) next; i = ++n; r[i] = $1; ki[i] = $2; rd[i] = $3; t[i] = $4; f[i] = $5; re[i] = $6; nc[i] = ($4 == "missing" && (MAN != "" || nocase($6, $3))); next }
   END { if (hid == "") { hid = KP "-" H } if (MAN != "" && nhd > 1) hid = "results-at-" H
-    for (i = 1; i <= n; i++) { R = r[i]; B = R; sub(/-T[0-9]+$/, "", B); if ((t[i] == "failed" || (MAN != "" && t[i] == "missing")) && ki[i] == "regression") { nl = split(re[i], w, /; /); ok = 1; hl = 0; for (j = 1; j <= nl; j++) if (w[j] ~ /^T[0-9]+: no case( in [^ ]+)?$/ && rul[R "-" substr(w[j], 1, index(w[j], ":") - 1)] == "limit") hl = 1; else if (w[j] !~ /^no case( in [^ ]+)?$/) ok = 0; if (ok && hl) t[i] = "passed" }
-      rc = (pf[R] == "failing" || pf[R] == "evidence missing" || (R in sent) || (B in sent) || t[i] == "failed" || t[i] == "setup"); if (pv[R] ~ /^proven/ ? (!(R in rt) && !(B in rt) && f[i] !~ /^(proven|not-proven)/ && (!rc || f[i] ~ /^(n\/a|waits|inconclusive)/)) : (pv[R] ~ /^inconclusive/ && !rc && f[i] ~ /^(n\/a|missing|waits)/)) f[i] = pv[R]; else if (pv[R] ~ /^proven/ && f[i] ~ /^missing/ && !(R in rt) && !(B in rt)) kp[i] = pv[R]; if (f[i] ~ /^proven/) anyp = 1 }
+    for (i = 1; i <= n; i++) { R = r[i]; B = R; sub(/-T[0-9]+$/, "", B); if ((t[i] == "failed" || nc[i]) && ki[i] == "regression") { nl = split(re[i], w, /; /); ok = 1; hl = 0; for (j = 1; j <= nl; j++) if (w[j] ~ /^T[0-9]+: no case( in [^ ]+)?$/ && rul[R "-" substr(w[j], 1, index(w[j], ":") - 1)] == "limit") hl = 1; else if (w[j] !~ /^no case( in [^ ]+)?$/) ok = 0; if (ok && hl) { t[i] = "passed"; nc[i] = 0 } }
+      rc = (pf[R] == "failing" || (pf[R] == "evidence missing" && !NQ[R]) || (R in sent) || (B in sent) || t[i] == "failed" || t[i] == "setup"); if (pv[R] ~ /^proven/ ? (!(R in rt) && !(B in rt) && f[i] !~ /^(proven|not-proven)/ && (!rc || (f[i] ~ /^(n\/a|waits|inconclusive)/ && !(MAN == "" && nc[i])))) : (pv[R] ~ /^inconclusive/ && !rc && f[i] ~ /^(n\/a|missing|waits)/)) f[i] = pv[R]; else if (pv[R] ~ /^proven/ && f[i] ~ /^missing/ && !(R in rt) && !(B in rt)) kp[i] = pv[R]; if (f[i] ~ /^proven/) anyp = 1 }
     for (i = 1; i <= n; i++) { R = r[i]; B = R; sub(/-T[0-9]+$/, "", B); fe = (f[i] ~ / extra$/); fv = f[i]; sub(/ extra$/, "", fv); ih = 0
       prod = 0; weak = 0; fr = ""; mr = ""; K = ""
       if (t[i] == "failed") { prod = 1; fr = why(fr, "its test failed, " ((R in FN) ? FN[R] : hid)) }
       if (fv == "not-proven") { weak = 1; fr = why(fr, "its fault not proven, " hid) }
       if (rd[i] == "missing") { tk = (match(re[i], /T2 [^ ,:]+/) ? substr(re[i], RSTART + 3, RLENGTH - 3) : t2); mr = why(mr, "T2 refused, " tk); K = K " " tk }
       if (t[i] == "setup") { mr = why(mr, "its test could not run, " hid); K = K " " hid }
-      # FB-3 A1.2 (GitHub manual): a row with no case in the results at the commit is not tested yet: no count is spent on it
-      if (MAN != "" && t[i] == "missing") { w0 = (hs != "read") ? "no results at this commit" : index(re[i], "since its amendment") ? "no case in results sent since its amendment" : index(re[i], "no case ran") ? "no case of it ran at this commit" : "no case of it in the results at this commit"; mr = why(mr, w0 ((R in NE) ? "; passed at " NE[R] ", not at this commit" : "") (w0 ~ /^no case of it in/ ? " (a test is found by the row\047s id in its name)" : "")) }
+      # FB-3 A1.2, FB-7 C6: a row with no case in the results at the commit is not tested yet: no count is spent on it (GitHub manual, each row its results lack; GitHub auto, not one with no covers: line beside it)
+      if (nc[i] && (MAN != "" || !index("; " re[i] ";", "; no covers: line;"))) { w0 = (MAN != "" && hs != "read") ? "no results at this commit" : index(re[i], "since its amendment") ? "no case in results sent since its amendment" : index(re[i], "no case ran") ? "no case of it ran at this commit" : "no case of it in the results at this commit"; mr = why(mr, w0 ((R in NE) ? "; passed at " NE[R] ", not at this commit" : "") (w0 ~ /^no case of it in/ ? " (a test is found by the row\047s id in its name)" : "")) }
       else if (t[i] == "missing") { w0 = index(re[i], "no covers:") ? "no covers: line, " : (hs == "refused") ? "report refused, " : "no head report, "; mr = why(mr, w0 hid); K = K " " hid }
       if (!fe && fv == "missing" && !(KD == "skeleton" && anyp)) { mr = why(mr, "no fault folder, " hid); if (!index(K, " " hid)) K = K " " hid }
       S = ""; undo = 0
-      if (rul[R] == "limit") S = "known limit"; else if (rul[R] == "accept") { if (t[i] == "failed" || t[i] == "setup") undo = 1; else S = "accepted by ruling" }
-      if (S == "" && ki[i] == "regression" && (B in cfl) && (t[i] == "failed" || t[i] == "setup" || (MAN != "" && t[i] == "missing"))) { S = "its state stands"; prod = 0; weak = 0 }
+      if (rul[R] == "limit") S = "known limit"; else if (rul[R] == "accept") { if (t[i] == "failed" || t[i] == "setup") undo = 1; else if (MAN != "" || !nc[i]) S = "accepted by ruling" }
+      if (S == "" && ki[i] == "regression" && (B in cfl) && (t[i] == "failed" || t[i] == "setup" || nc[i])) { S = "its state stands"; prod = 0; weak = 0 }
       if (S == "") { if (prod || weak) S = "failing"; else if (mr != "") S = "evidence missing"; else if (BL != "") S = "question open"
         else if (t[i] == "owed") S = (ki[i] != "regression" || index(re[i], "retested")) ? "owed" : "its state stands"
         else if (ki[i] == "regression" || ki[i] == "retested") S = "passing"

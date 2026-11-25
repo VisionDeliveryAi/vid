@@ -26,14 +26,28 @@
 #                                       <args>`, an argument naming an existing file or folder translated by
 #                                       `wslpath -a` inside WSL. Standard input,
 #                                       output and the exit code pass through; nothing is added to standard output.
-#                                       It does nothing under a git hook (GIT_INDEX_FILE or GIT_DIR set: the hook's
-#                                       git setting cannot be carried across), inside WSL, on macOS and on Linux.
+#                                       It does nothing under a git hook (GIT_INDEX_FILE or GIT_DIR set: the hook
+#                                       itself is routed, below), inside WSL, on macOS and on Linux.
 #                                       When wsl.exe fails before the court starts — it does not run, or the
 #                                       court or a file argument is not there at its translated path (a drive WSL
 #                                       does not mount) — the court runs natively and says so once on standard error; VID_WSL_FAILED=1 is exported, so a court
 #                                       it starts runs natively without saying it again. ViD's own VID_* settings
 #                                       cross through WSLENV. Not routed: observe.sh and run.sh, which read process
 #                                       ids and record absolute paths, both of which differ between the two sides.
+#   sourced at the top of a git hook    (FB-7 D1: pre-commit, commit-msg, post-commit) re-runs the whole hook under WSL as
+#                                       a court is, its courts with it, in ticket mode (`mode: tickets` in
+#                                       .vid/RUN-STATE.md) at the main checkout, with `wsl: yes` and a git that answers
+#                                       there (`git rev-parse --git-dir`): `wsl.exe -e env … sh <hook> <args>`, the `env`
+#                                       arguments this side's core.autocrlf, so no line ending reads as a change there, its
+#                                       core.excludesFile (its file, else its default git/ignore, translated; /dev/null
+#                                       with neither), so the same files are ignored, and the index's name (git's,
+#                                       translated when absolute: a partial commit's is not .git/index). Both settings
+#                                       are asked back there first, and one that does not come back the same (a git
+#                                       before 2.31) means native. So does any of GIT_CONFIG_COUNT, GIT_CONFIG_PARAMETERS
+#                                       (`git -c`), GIT_CONFIG_GLOBAL and GIT_CONFIG_SYSTEM set here: settings given to
+#                                       one commit are not carried. A linked worktree (its git folder is this side's path,
+#                                       which WSL's git cannot read) and every other mode (the project's own tools) stay
+#                                       native. When it cannot start the hook runs natively, and says so as above.
 # One more use, the same mechanism for another per-machine answer (0.26.10.29.3 phase 2, R5):
 #   sh checks/lib/wsl.sh reviewers ask           prints the second-reviewer question when `codex` is on the PATH and
 #                                                no answer is in .vid/reviewers (beside .vid/windows); else nothing.
@@ -77,9 +91,14 @@ vid_wsl_path() {
   if command -v cygpath > /dev/null 2>&1; then _vw_p=$(cygpath -w "$1" 2>/dev/null) || _vw_p=$1; fi
   vid_wsl_exe -e sh -c "set -f; IFS=; p=\$(wslpath -a \$1) && [ \$2 \$p ] && printf '%s\n' \$p" vid-wsl "$_vw_p" "$2" < /dev/null 2>/dev/null
 }
-vid_wsl_failed() { echo "ViD: WSL did not start, so this check runs natively (slower)." >&2; VID_WSL_FAILED=1; export VID_WSL_FAILED; }
+vid_wsl_failed() { echo "ViD: ${1:-WSL did not start}, so this check runs natively (slower)." >&2; VID_WSL_FAILED=1; export VID_WSL_FAILED; }
 vid_wsl_route() { # the court's arguments
-  [ -z "${GIT_INDEX_FILE:-}" ] && [ -z "${GIT_DIR:-}" ] || return 0
+  _vw_hk=''   # FB-7 D1: a whole git hook, in ticket mode at the main checkout; a court under a hook run natively stays native
+  case ${0##*/} in
+    pre-commit|commit-msg|post-commit) [ -z "${GIT_DIR:-}" ] && [ -d .git ] && grep -q '^mode:[[:space:]]*tickets[[:space:]]*$' .vid/RUN-STATE.md 2>/dev/null || return 0
+      [ -z "${GIT_CONFIG_COUNT+x}${GIT_CONFIG_PARAMETERS+x}${GIT_CONFIG_GLOBAL+x}${GIT_CONFIG_SYSTEM+x}" ] || return 0; _vw_hk=1 ;;
+    *) [ -z "${GIT_INDEX_FILE:-}" ] && [ -z "${GIT_DIR:-}" ] || return 0 ;;
+  esac
   [ -z "${VID_WSL_FAILED:-}" ] || return 0   # a court this one starts, after WSL failed: native, and said once
   vid_wsl_native_windows || return 0
   command -v wsl.exe > /dev/null 2>&1 || return 0
@@ -93,12 +112,24 @@ vid_wsl_route() { # the court's arguments
     else _vw_t=$_vw_x; fi
     set -- "$@" "$_vw_t"; _vw_i=$((_vw_i + 1))
   done
+  # FB-7 D1: a hook's index and the two settings it is judged by, as arguments of env: WSLENV's values would be rewritten on the
+  # way. The git there must answer, or every commit would be refused, and give both settings back
+  if [ -n "$_vw_hk" ]; then
+    _vw_a=$(git config core.autocrlf || echo false); _vw_e=$(git config --path core.excludesFile) || _vw_e=${XDG_CONFIG_HOME:-${HOME:-}/.config}/git/ignore
+    if [ -f "$_vw_e" ]; then _vw_e=$(vid_wsl_path "$_vw_e" -r) && [ -n "$_vw_e" ] || { vid_wsl_failed; return 0; }; else _vw_e=/dev/null; fi
+    _vw_x=${GIT_INDEX_FILE:-}
+    case $_vw_x in /*|[A-Za-z]:[/\\]*) _vw_x=$(vid_wsl_path "$_vw_x" -e) && [ -n "$_vw_x" ] || { vid_wsl_failed; return 0; } ;; esac
+    set -- env GIT_CONFIG_COUNT=2 GIT_CONFIG_KEY_0=core.autocrlf "GIT_CONFIG_VALUE_0=$_vw_a" GIT_CONFIG_KEY_1=core.excludesFile "GIT_CONFIG_VALUE_1=$_vw_e" ${_vw_x:+"GIT_INDEX_FILE=$_vw_x"} sh "$_vw_s" "$@"
+    _vw_g=$(vid_wsl_exe -e "$1" "$2" "$3" "$4" "$5" "$6" sh -c 'git rev-parse --git-dir > /dev/null || exit 1; git config core.autocrlf; git config core.excludesFile; exit 0' < /dev/null 2>/dev/null) || { vid_wsl_failed 'git does not answer in WSL'; return 0; }
+    [ "$_vw_g" = "$_vw_a
+$_vw_e" ] || { vid_wsl_failed "WSL's git does not take this side's settings"; return 0; }
+  else set -- sh "$_vw_s" "$@"; fi
   # ViD's own settings (VID_*) cross with the court; WSL passes only the variables WSLENV names
   for _vw_v in $(env | sed -n 's/^\(VID_[A-Za-z0-9_]*\)=.*/\1/p'); do WSLENV="${WSLENV:+$WSLENV:}$_vw_v"; done
   [ -z "${WSLENV:-}" ] || export WSLENV
   # from here the court is WSL's: a failure in the short time between the probe above and this start (WSL stopping,
   # the drive going away) is not caught, and the court's exit code is then wsl.exe's
-  MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' exec wsl.exe -e sh "$_vw_s" "$@"
+  MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' exec wsl.exe -e "$@"
 }
 case ${0##*/} in
   wsl.sh)
