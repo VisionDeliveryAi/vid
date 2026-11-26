@@ -291,7 +291,7 @@ owes_() { awk -F'\t' -v T=",${PX}ticket," -v PX="$PX" -v R=" $(onrec | tr '\n' '
   for a in "$D"/close/*/*/ask "$D"/stage/*/*/ask "$D"/stage/*/*/s1ask "$D"/stage/*/*/cs/ask "$D"/stage/*/*/cr/ask "$D"/stage/*/*/cp/ask \
     "$D"/stage/*/*/d1/ask "$D"/stage/*/*/rh/ask "$D"/stage/*/*/d2/ask "$D"/stage/*/*/dn-*/ask "$D"/grade/*/ask; do [ -f "$a" ] || continue
     i=$(sed -n "s/^issue$TAB//p" "$a" | head -n 1); [ -n "$i" ] && grep -qx "$i" "$L/oi" && ask_ "$a" "$i" && echo "$i"; done; return 0; }
-# ask_ <ask> <issue>: the dev side's move on that ask. A run's: a chunk not read (no chunks yet, or one absent or incomplete) and in no open line
+# ask_ <ask> <issue>: the dev side's move on that ask. A run's: a chunk not read (no chunks yet, or one absent or incomplete), in no open line and waiting on no fix (PB-5)
 ask_() { w=${1%/*}; k=${w#"$D"/}; case $k in stage/*) k=stage-${k#stage/}; p=$(echo "$w" | cut -d/ -f1-5) ;; close/*) k=${k#close/}; p=$w; grep -q "^closed ${k%/*} " "$HAND" 2>/dev/null && return 1 ;; *) p=$w ;; esac
   [ ! -f "$p/withdrawn" ] || return 1
   case $1 in */s1ask) [ ! -f "$w/s1done" ] && [ ! -f "$w/s1withdrawn" ] && ! qop "close:$k:lost:s1"; return ;; */grade/*) for x in done withdrawn lost; do [ ! -f "$w/$x" ] || return 1; done; return 0 ;; esac
@@ -299,7 +299,7 @@ ask_() { w=${1%/*}; k=${w#"$D"/}; case $k in stage/*) k=stage-${k#stage/}; p=$(e
   for x in done passed withdrawn closed lost; do [ ! -f "$w/$x" ] || { [ "${w##*/}$x" = d2passed ] && [ -f "$w/recovery-asked" ]; } || return 1; done
   case ${w##*/} in d1|rh|d2|dn-*) ! qop "close:$k:" && ! qop "production-lost:$2"; return ;; esac
   [ -s "$w/chunks" ] || return 0
-  awk -F'|' -v P="close:$k:lost:" -v Q="$D/queue/items" 'BEGIN { while ((getline l < Q) > 0) { split(l, x, "\t"); if (index(x[1], P) == 1) { y = substr(x[1], length(P) + 1); sub(/:.*/, "", y); W[y] = 1 } } }
+  awk -F'|' -v P="close:$k:lost:" -v Q="$D/queue/items" -v WF="$w/waits-fix" 'BEGIN { while ((getline l < Q) > 0) { split(l, x, "\t"); if (index(x[1], P) == 1) { y = substr(x[1], length(P) + 1); sub(/:.*/, "", y); W[y] = 1 } } while ((getline l < WF) > 0) { split(l, x, "\t"); W[x[1]] = 1 } }
     ($2 == "absent" || $2 == "incomplete") && !($1 in W) { f = 1 } END { exit !f }' "$w/chunks"; }
 # qop <start>: an open line of the owner's queue whose key begins so
 qop() { awk -F'\t' -v p="$1" 'index($1, p) == 1 { f = 1 } END { exit !f }' "$D/queue/items" 2>/dev/null; }

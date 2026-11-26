@@ -7,6 +7,32 @@ drop() { [ -f "$2" ] || return 0; awk -F'\t' -v c="$1" '$1 != c' "$2" > .vid/rou
 item() { grep -qxF "$1" "$K/items" 2>/dev/null || { echo "$1" >> "$K/items"; ev "close-item step=$s what=$(printf %s "$1" | cut -d' ' -f1-2 | tr ' ' '-')"; }; }
 # a red row's one line in the handed record, its mark kept
 hfail() { m=$(sed -n "s/^row $1 [^ ]* \(fault-proven\).*/\1/p" "$HAND" | tail -n 1); { grep -v "^row $1 " "$HAND" || true; printf 'row %s failing%s | stand-in: %s #%s\n' "$1" "${m:+ $m}" "${HL:-close}" "$n"; } > .vid/round/h || exit 1; put "$HAND" < .vid/round/h || exit 1; }
+# PB-5: a stage's staging run whose tests cannot run there, GitHub auto. cnl <row>: the row's could-not-run fix line of this stage, its
+# stand-in apart: the handed fix line whose words for it begin `could not run there:` and whose label is `CS #<n> of stage <N>:`, matched
+# whole. cnst <row>: none, unpublished, open <n>, merged <n> (held by the run's commit), after <n> (merged, not in it), withdrawn <n> (by a
+# plan change, or an amendment that took the row out)
+cnl() { awk -v r="$1" -v L="^CS #[0-9]+ of stage $STG:" '/^fix / { l = $0; sub(/[ \t]*[|][ \t]*stand-in.*$/, "", l); n = split(l, p, /[ \t]*[|][ \t]*/); if (n < 3 || !index(" " p[1] " ", " " r " ") || p[3] !~ L) next
+    m = split(p[2], q, "; "); for (i = 1; i <= m; i++) if (index(q[i], r ": could not run there: ") == 1) c = l } END { if (c != "") print c }' "$HAND" 2>/dev/null; }
+cnst() { _l=$(cnl "$1"); [ -n "$_l" ] || { echo none; return 0; }; _t=$(fixt "$(printf '%s' "$_l" | cksum | cut -d' ' -f1)"); [ -n "$_t" ] || { echo unpublished; return 0; }
+  if gone "$_t" || ! awk -v n="$_t" -v r="$1" '($1 == "published" || $1 == "amended") && $2 == n { for (i = 3; i <= NF; i++) if ($i ~ /^rows=/) w = substr($i, 6) } END { exit !index("," w ",", "," r ",") }' "$LOG"; then echo "withdrawn $_t"; return 0; fi
+  _m=$(mrg "$_t" | cut -d' ' -f2); if [ -z "$_m" ]; then echo "open $_t"; elif anc "$_m" "$(akey commit)"; then echo "merged $_t"; else echo "after $_t"; fi; }
+# unrun <chunk> <attempt> <its unfinished rows>: at the second loss, R the rows that could not run in this attempt and the one before; every
+# unfinished row in R and none the owner's: the fix line written (or kept), the chunk in waits-fix, `close-unrun`; else exit 1, UW the
+# words for the owner, row by row, when a row of R has a fix
+unrun() { UW=''; { [ -n "$CSM" ] && [ "${CK:-cs}" = cs ] && ! manual; } || return 1
+  R=$(awk -v c="$1" -v a="$2" '$1 == c && $2 == a { u = $4 } $1 == c && $2 != a { p = $4 } END { n = split(u, x, ","); m = split(p, y, ","); for (j = 1; j <= m; j++) P[y[j]] = 1; for (i = 1; i <= n; i++) if (x[i] in P) print x[i] }' "$K/lostsig" | sort -u)
+  R=$(for x in $R; do limited "$x" || echo "$x"; done)
+  [ -n "$R" ] && for x in $3; do printf '%s\n' "$R" | grep -qxF "$x" || return 1; done || return 1
+  awk -F'\t' -v c="$1" -v SF="$D/state" "$LIMB"'$1 == "row" && $2 == c && !($4 in L) && $5 != "passed" && $5 != "failed" && $5 != "could not run" { f = 1 } END { exit f }' "$K/read" || return 1   # every engine's: none not run
+  hrows "$s" "$(akey commit)" > .vid/round/ow0; o=''; nw=''; tk=''; for r in $R; do st=$(cnst "$r"); w=$(sed -n "s/^row $r \([^ |]*\).*/\1/p" "$HAND" | tail -n 1)
+    case $st in none) UW="$UW; $r: no fix yet"; nw="$nw $r" ;; merged*) UW="$UW; $r still cannot run after its fix #${st#* }"; o=1 ;; withdrawn*) UW="$UW; $r: its fix ticket #${st#* } was withdrawn"; o=1 ;; after*) UW="$UW; $r: its fix #${st#* } merged after this build was named"; tk=${tk:-${st#* }} ;; unpublished) UW="$UW; $r: its fix line is not published yet" ;; *) UW="$UW; $r: its fix #${st#* } is open"; tk=${tk:-${st#* }} ;; esac
+    { awk -F'\t' -v r="$r" '$3 == r { f = 1 } END { exit !f }' "$K/failed" || [ "$w" = failing ] || [ "$w" = held ] || { grep -qxF "$r" .vid/round/ow0 && case $st in open*|after*) false ;; *) true ;; esac; }; } && o=1; done
+  [ -z "$o" ] || { printf '%s' "$UW" | grep -q 'fix #\|fix line\|fix ticket' || UW=''; UW=${UW#; }; return 1; }
+  if [ -n "$nw" ]; then wh=''; for r in $nw; do wh="$wh${wh:+; }$r: could not run there: its test in $(awk -F'\t' -v r="$r" '$1 == "row" && $4 == r && $5 == "could not run" && !s[$3]++ { printf "%s%s", (c++ ? ", " : ""), $3 }' "$K/read")"; done
+    lk=$(awk -F'\t' -v R=" $nw " -v n="$n" 'FILENAME == ARGV[1] { split($0, x, "|"); at[x[1]] = x[3]; next } $1 == "row" && $5 == "could not run" && index(R, " " $4 " ") && !s[$2]++ { printf "%sreq-%s-%s-%s", (c++ ? ", " : ""), n, $2, at[$2] }' "$K/chunks" "$K/read")
+    echo "fix$nw | $wh | $LB: $lk | stand-in: RM" >> "$HAND"; ev "close-unrun-fix step=$s issue=$n rows=$(echo $nw | tr ' ' ,)"; fi
+  awk -v c="$1" '!($1 == "lost" && $2 == c)' "$K/items" > .vid/round/ui && put "$K/items" < .vid/round/ui || exit 1   # an earlier loss of the chunk, its question, goes with it
+  printf '%s\t%s\n' "$1" "$(echo $R)" >> "$K/waits-fix"; ev "close-unrun step=$s chunk=$1"; echo "close-unrun $s $1 $(echo $R) #${tk:-unpublished}"; }
 # R4: each row of the ask green or red; after the first ask, against the step's last close
 numbers() { awk -F'\t' -v SF="$D/state" "$LIMB"' $1 == "row" && !($4 in L) { if ($5 == "failed") r[$4] = "red"; else if (r[$4] != "red") r[$4] = ($5 == "passed" && r[$4] != "-") ? "green" : "-" } END { for (y in r) if (r[y] != "-") print y "\t" r[y] }' "$K/read" | sort > "$SX/nr" || exit 1; put "$K/result" < "$SX/nr" || exit 1
   p=$(for P in $(prior); do [ -f "$P/result" ] && echo "$P"; done | tail -n 1); [ -n "$p" ] || return 0
@@ -46,10 +72,15 @@ decide_k() { K=$KD/$k; [ ! -f "$K/withdrawn" ] || return 0; n=$(akey issue); tou
   # (`<chunk> <attempt> <sig>`); lost with the sig of the attempt before, the chunk is `same` (queue.sh refuses a bare again);
   # an again's words, againwhy (`<chunk> TAB <words>`), go out with it as `why:`
   lsig() { awk -F'\t' -v c="$1" -v SF="$D/state" "$LIMB"'$1 == "row" && $2 == c && $5 != "passed" && $5 != "failed" && !($4 in L) { print $3 ":" $4 ":" $5 }' "$K/read" | sort | cksum | tr -d ' '; }
+  # PB-5: a chunk read green or red no longer waits on its fix; one that waits asks nothing, unless every fix of its rows is gone
+  if [ -s "$K/waits-fix" ]; then awk -F'|' 'NR == FNR { if ($2 == "incomplete" || $2 == "absent") I[$1] = 1; next } { split($0, x, "\t") } (x[1] in I)' "$K/chunks" "$K/waits-fix" > .vid/round/wf && put "$K/waits-fix" < .vid/round/wf || exit 1; fi
   while IFS='|' read -r ch st a fr xr; do case $st in
       red) item "red $ch$fr"; echo "close-red $s $ch$fr" ;;
-      incomplete|absent) LS=''; ! said "$ch" || LS=1; [ "$st" = incomplete ] || [ "$q" -ge "$W" ] || [ -n "$LS" ] || grep -qxF "allow $ch" "$K/again" || continue; g=$(awk -v c="$ch" '$1 == c { print $2 }' "$K/again" | tail -n 1)
-        sg=''; [ "$st" != incomplete ] || [ "${a:--}" = - ] || grep -q "^$ch $a " "$K/lostsig" 2>/dev/null || { sg=$(lsig "$ch"); echo "$ch $a $sg" >> "$K/lostsig"; }   # an attempt's first reading, from a report, never a refused or missing one
+      incomplete|absent) if grep -q "^$ch$TAB" "$K/waits-fix" 2>/dev/null; then gw=''; for r in $(sed -n "s/^$ch$TAB//p" "$K/waits-fix"); do st=$(cnst "$r")
+            case $st in none) awk -v r="$r" '/^fix / { split($0, p, /[ \t]*[|][ \t]*/); if (index(" " p[1] " ", " " r " ")) f = 1 } END { exit !f }' "$HAND" || gw="$gw; its fix line was cut" ;; withdrawn*) gw="$gw; its fix ticket #${st#* } was withdrawn" ;; *) gw=''; break ;; esac; done
+          [ -n "$gw" ] || continue; drop "$ch" "$K/waits-fix" || exit 1; item "lost $ch$xr · ${gw#; } #$(grep -c "^$ch " "$K/again")"; echo "$ch ${a:--} #$(grep -c "^$ch " "$K/again")" >> "$K/lostat"; echo "close-lost $s $ch"; continue; fi   # PB-5 §2.7: gone, the owner's
+        LS=''; ! said "$ch" || LS=1; [ "$st" = incomplete ] || [ "$q" -ge "$W" ] || [ -n "$LS" ] || grep -qxF "allow $ch" "$K/again" || continue; g=$(awk -v c="$ch" '$1 == c { print $2 }' "$K/again" | tail -n 1)
+        sg=''; [ "$st" != incomplete ] || [ "${a:--}" = - ] || grep -q "^$ch $a " "$K/lostsig" 2>/dev/null || { sg=$(lsig "$ch"); echo "$ch $a $sg $(awk -F'\t' -v c="$ch" -v SF="$D/state" "$LIMB"'$1 == "row" && $2 == c && $5 == "could not run" && !($4 in L) { printf "%s%s", (n++ ? "," : ""), $4 } END { if (!n) printf "-" }' "$K/read")" >> "$K/lostsig"; }   # an attempt's first reading, from a report, never a refused or missing one; PB-5: its rows that could not run
         if [ -z "$g" ] || grep -qxF "allow $ch" "$K/again"; then wy=$(awk -F'\t' -v c="$ch" '$1 == c { w = $2 } END { print w }' "$K/againwhy" 2>/dev/null)
           { printf 'vid: again %s\nby: RM\n' "$ch"; [ -z "$wy" ] || printf 'why: %s\n' "$wy"; } > .vid/round/again; gh_ comment "$n" --body-file .vid/round/again > /dev/null 2>&1 || die "the ask #$n could not be commented"
           grep -vxF "allow $ch" "$K/again" > .vid/round/ag; put "$K/again" < .vid/round/ag || exit 1; drop "$ch" "$K/againwhy" || exit 1; drop "$ch" "$K/same" || exit 1
@@ -57,10 +88,12 @@ decide_k() { K=$KD/$k; [ ! -f "$K/withdrawn" ] || return 0; n=$(akey issue); tou
         elif [ "$a" != "$g" ] || [ "$q" -ge "$W" ] || [ -n "$LS" ]; then
           pv=$(awk -v c="$ch" -v a="${a:--}" '$1 == c && $2 != a { p = $3 } END { print p }' "$K/lostsig" 2>/dev/null)   # the attempt before's sig
           [ -z "$sg" ] || [ -z "$pv" ] || [ "$pv" != "$sg" ] || grep -qxF "$ch" "$K/same" 2>/dev/null || echo "$ch" >> "$K/same"
-          item "lost $ch$xr #$(grep -c "^$ch " "$K/again")"; echo "close-lost $s $ch"; fi ;;
+          la="$ch ${a:--} #$(grep -c "^$ch " "$K/again")"; if grep -qxF "$la" "$K/lostat" 2>/dev/null; then echo "close-lost $s $ch"; continue; fi   # PB-5: the owner's at this attempt, once
+          ! unrun "$ch" "${a:--}" "$xr" || continue   # PB-5 §2.2: ViD's fix, no question
+          item "lost $ch$xr${UW:+ · $UW} #$(grep -c "^$ch " "$K/again")"; [ -z "$CSM" ] || echo "$la" >> "$K/lostat"; echo "close-lost $s $ch"; fi ;;
     esac; done < "$K/chunks"
   # R1: once no chunk waits on a report, each green, red, or lost to the owner
-  awk -F'|' -v IT="$K/items" 'BEGIN { while ((getline l < IT) > 0) { split(l, x, " "); if (x[1] == "lost") G[x[2]] = 1 } } ($2 == "incomplete" || $2 == "absent") && !($1 in G) { f = 1 } END { exit f }' "$K/chunks" || return 0
+  awk -F'|' -v IT="$K/items" -v WF="$K/waits-fix" 'BEGIN { while ((getline l < IT) > 0) { split(l, x, " "); if (x[1] == "lost") G[x[2]] = 1 } while ((getline l < WF) > 0) { split(l, x, "\t"); G[x[1]] = 1 } } ($2 == "incomplete" || $2 == "absent") && !($1 in G) { f = 1 } END { exit f }' "$K/chunks" || return 0
   [ -z "$CSM" ] || [ "${CK:-cs}" = cp ] || cs_paid   # v0.26.10.26.2 (R5): CS's passed deploy-owed rows paid, red ones failing below; CP's only when green (v0.26.10.27.1)
   # its red rows, each once: failing, with one count; a row red at an earlier ask of the step is the owner's, unless the owner allowed another
   # fix; the others in one fix line, in words the writer's check passes, the failures' messages staying in the reports the line links
@@ -88,6 +121,10 @@ decide_k() { K=$KD/$k; [ ! -f "$K/withdrawn" ] || return 0; n=$(akey issue); tou
       # since, or a new one after an answered one, is a new question to the owner; a grown open one replaces the old
       sl="shrink $(basename "$P")@$(paste -sd ',' "$SX/sk") $(paste -sd ' ' "$SX/sk") · before: $(paste -sd ' ' "$SX/sp")"
       grep -qxF "$sl" "$K/items" 2>/dev/null || { grep -v "^shrink $(basename "$P")@" "$K/items" > "$SX/si" 2>/dev/null || true; put "$K/items" < "$SX/si" || exit 1; }; item "$sl"; echo "close-shrink $s $(paste -sd ' ' "$SX/sk")"; fi; fi
+  # PB-5 §2.4: a red row's unpublished could-not-run fix line is cut, and the red path writes its fix
+  if [ -n "$CSM" ] && [ "${CK:-cs}" = cs ] && ! manual; then cut -f1 .vid/round/red | while read -r r; do [ "$(cnst "$r")" = unpublished ] || continue; l=$(cnl "$r")
+    awk -v l="$l" -v r="$r" '{ x = $0; sub(/[ \t]*[|][ \t]*stand-in.*$/, "", x) } x != l { print; next } { n = split(x, p, /[ \t]*[|][ \t]*/); m = split(p[1], w, " "); o = "fix"; for (i = 2; i <= m; i++) if (w[i] != r) o = o " " w[i]; if (o == "fix") next
+      k = split(p[2], q, "; "); y = ""; for (i = 1; i <= k; i++) if (index(q[i], r ": ") != 1) y = y (y == "" ? "" : "; ") q[i]; o = o " | " y; for (i = 3; i <= n; i++) o = o " | " p[i]; print o " | stand-in: RM" }' "$HAND" > .vid/round/hc && put "$HAND" < .vid/round/hc || exit 1; ev "close-unrun-cut step=$s row=$r"; done || exit 1; fi   # its row alone: the others keep their fix
   while IFS=$TAB read -r r w cs; do
     if ! grep -q "^$r$TAB" "$K/acted" && grep -qxF "$r" .vid/round/ow; then grep -qxF "$r" "$K/waits" || { echo "$r" >> "$K/waits"; echo "close-waits $s $r"; }; continue; fi   # another close's fix, or another ticket, holds it
     if ! grep -q "^$r$TAB" "$K/acted"; then printf '%s\t%s\n' "$r" "$w" >> "$K/acted"; hfail "$r"; grep -qxF "$r close#$n" "$D/counts" 2>/dev/null || echo "$r close#$n" >> "$D/counts"; ev "close-failing step=$s row=$r issue=$n"; echo "failing $r"; fi
@@ -103,4 +140,4 @@ decide_k() { K=$KD/$k; [ ! -f "$K/withdrawn" ] || return 0; n=$(akey issue); tou
     [ -z "$STG" ] || { psteps; EVS=$(awk -F'\t' -v r="$(echo $new | cut -d' ' -f1)" '$2 == r { print $1; exit }' "$SX/ps"); }   # C3's fix: the step of its first red row
     sh "$HERE/plan.sh" change other "a red close of $s:$new" --trigger test-evidence --evidence "step:${EVS:-$s}" --expect 'a fix ticket, then the close again' > .vid/round/pc 2>&1 || echo "plan-refused $s: $(tail -n 1 .vid/round/pc)"; fi
   # the ask's issue closed once nothing waits under it; the numbers; FB-7 D3: but a staging run's, open while its run can still pass at this build
-  [ -f "$K/done" ] || grep '^lost ' "$K/items" | grep -qv '^lost s1 ' || { numbers; { [ -n "$CSM" ] && [ "${CK:-cs}" = cs ]; } || gh_ close "$n" > /dev/null 2>&1 || true; : > "$K/done"; ev "close-done step=$s issue=$n"; echo "close-done $s"; }; return 0; }
+  [ -f "$K/done" ] || [ -s "$K/waits-fix" ] || grep '^lost ' "$K/items" | grep -qv '^lost s1 ' || { numbers; { [ -n "$CSM" ] && [ "${CK:-cs}" = cs ]; } || gh_ close "$n" > /dev/null 2>&1 || true; : > "$K/done"; ev "close-done step=$s issue=$n"; echo "close-done $s"; }; return 0; }

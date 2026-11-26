@@ -114,6 +114,7 @@ ticket() { F=.vid/tw/out/issue-$1.md; [ -f "$F" ] || die "no published ticket at
     s == "Rows" && /^> / { a = tr(substr($1, 3)); b = tr($2); if (a ~ /^[A-Z]+-[0-9]/) { id = a; k = b } else { id = b; k = a }; o[++n] = id; K[id] = k; t = 0; p = index($0, "transitions:")
       if (p) { r = " " substr($0, p + 12); while ((q = index(r, " " (t + 1) ". ")) > 0) { r = substr(r, q + 1); t++ } } N[id] = t; next }
     s == "Rows" && match($0, /^- [^ ]+ marks: /) { split($0, w, " "); m = substr($0, RLENGTH + 1); gsub(/\t/, " ", m); M[w[2]] = m; next }
+    s == "Rows" && /^- [A-Z]+-[0-9]+ could not run there: / { split($0, w, " "); print "unrun\t" w[2]; next }   # PB-5: a staging run row that could not run there
     s == "Regression rows" && /^- [A-Z]+-[0-9]/ { split($0, w, " "); print "reg\t" w[2]; next }
     s == "Faulted rows" && /^- [A-Z]+-[0-9]/ { split($0, w, " "); sub(/:$/, "", w[2]); print "flt\t" w[2]; next }
     END { for (i = 1; i <= n; i++) if (M[o[i]] !~ /^retired;/) printf "row\t%s\t%s\t%s\t%d\n", o[i], K[o[i]], (M[o[i]] == "" ? "-" : M[o[i]]), N[o[i]]; for (r in M) if (M[r] ~ /^retired;/) print "rtd\t" r }' "$F" > "$T/tk"
@@ -390,12 +391,13 @@ EV=$HT'
   $1 == "kind" { KD = $2 } $1 == "eng" { en[++ne] = $2 } $1 == "xeng" { en[++ne] = $2; xa[$2] = 1 } $1 == "later" { LAT = 1 }
   $1 == "line" { print $2 }
   $1 == "row" { i = ++nr; id[i] = $2; kd[i] = $3; cl[i] = $4; ow[i] = ($5 ~ /(^|[ ;])(owed-[a-z-]*|seam)($|[ ;])/); dwo[$2] = ow[i]; prot[$2] = ($5 ~ /(^|[ ;])protection($|[ ;])/); rl[$2] = ($5 ~ /(^|[ ;])rule($|[ ;])/); bs[i] = $6; bm[$2] = $6; nj[$2] = $7 + 0; if ($2 != $6) jt[$6] = jt[$6] " " $2 }
-  $1 == "flt" { fl[$2] = 1 } $1 == "old" { old[$2] = 1 } $1 == "hs" { hs = $2; hw = $3 } $1 == "h" { add("h:" $2, $3, $4, $5, $6) } $1 == "cov" { if (!POOL || !($2 in cov) || $3 + 0 < cov[$2] + 0) cov[$2] = $3 } $1 == "ret" { ret[$2] = 1 }
+  $1 == "flt" { fl[$2] = 1 } $1 == "unrun" { un[$2] = 1 } $1 == "old" { old[$2] = 1 } $1 == "hs" { hs = $2; hw = $3 } $1 == "h" { add("h:" $2, $3, $4, $5, $6) } $1 == "cov" { if (!POOL || !($2 in cov) || $3 + 0 < cov[$2] + 0) cov[$2] = $3 } $1 == "ret" { ret[$2] = 1 }
   $1 == "ts" { ts[$2] = $3; tw[$2] = $4; o2[++n2] = $2 } $1 == "tr" { tl[$2, $3] = 1 } $1 == "t" { add("t:" $2, $3, $4, $5, $6) }
   $1 == "fd" { fdir[$2] = 1; if ($3 != "") fctl[$2] = $3 } $1 == "fi" { inc[$2] = $3 } $1 == "f" { add("f:" $2, $3, $4, $5, $6) }
   $1 == "gx" { gx[++ng] = $2 } $1 == "gt" { gt[++ngt] = $2 } $1 == "tail" { tl2[++nt] = $2 }
   END { for (i = 1; i <= nr; i++) { r = id[i]; b = bs[i]; RED = "n/a"; RW = ""; c = cl[i]
-      if (c == "t" && KD != "skeleton" && KD != "reached" && !ow[i]) { RED = "no-red"; RW = (n2 ? "no T2 lists it" : "no T2")
+      if (c == "t" && !ow[i] && ((r in un) || (b in un))) RED = "unrun"   # PB-5: no red and no fault owed, the transitions of a journey too
+      else if (c == "t" && KD != "skeleton" && KD != "reached" && !ow[i]) { RED = "no-red"; RW = (n2 ? "no T2 lists it" : "no T2")
         if (POOL) { RED = "n/a"; RW = ""; for (j = 1; j <= n2; j++) { k = o2[j]; if (((r, k) in of) || ((b, k) in of)) continue; scan("t:" k, r); if (!sn) continue; RED = (sfail && !serr) ? "red" : "no-red"; RW = (RED == "red") ? "" : (sbline != "" ? "T2: " sbline : "T2: it passed"); break } }
         else for (j = 1; j <= n2; j++) { k = o2[j]; if (ts[k] == "lost") { RW = "T2 " k " refused, its rows unread: " tw[k]; RED = "missing"; continue } if ((k, r) in tl || (k, b) in tl) { if (ts[k] != "read") { RED = "missing"; RW = "T2 " k " refused: " tw[k]; break }
             scan("t:" k, r); RED = (sfail && !serr) ? "red" : "no-red"; RW = (RED == "red") ? "" : (sbline != "" ? "T2: " sbline : (sn ? "T2: it passed" : "T2: no case")); break } } }
@@ -405,7 +407,7 @@ EV=$HT'
       else { split("", ES); split("", EN); split("", EF); split("", UX); CT = 1; t3(r); CT = 0; T3v = T3; TR = TW; ncs = (!POOL && T3 == "missing" && nocase(TW)); if (POOL && T3 == "failed" && FI != "") fin[++nfin] = "fin\t" r "\t" FI; Pe = ""; Fe = ""
         for (j = 1; j <= ne; j++) { e = en[j]; if (EF[e]) Fe = Fe (Fe == "" ? "" : " ") e; else if (ES[e] && !EN[e]) Pe = Pe (Pe == "" ? "" : " ") e; if (UX[e]) cx[e]++ }
         if (Pe != "" && Fe != "") spl[++nsl] = "split\t" r "\t" Pe "\t" Fe }
-      need = !POOL && !ow[i] && (isret || (((r in fl) || (b in fl)) && c == "t") || (c == "t" && (KD == "skeleton" || RED == "no-red")))
+      need = !POOL && !ow[i] && RED != "unrun" && (isret || (((r in fl) || (b in fl)) && c == "t") || (c == "t" && (KD == "skeleton" || RED == "no-red")))
       FVv = "n/a"; FR = ""
       if (!ow[i]) { if (hs == "read") fault(r); else FV = ""
         if (FV == "") { if (need && (!FQ || isret)) { FVv = (T3v == "failed" || T3v == "setup" || ncs) ? "waits" : "missing"; FR = (FVv == "waits") ? "" : "no fault folder" } }
@@ -459,7 +461,7 @@ cmd_read() { N=''; P=''; HD=''; AT=''; while [ $# -ge 2 ]; do case $1 in --ticke
       if G cat-file -e "$D/inconclusive.txt" 2>/dev/null; then printf 'fi\t%s\t%s\n' "$r" "$(G show "$D/inconclusive.txt" | head -n 1 | tr '\t' ' ')" >> "$T/in"
       else push "$D/cases-$P1.xml" "f$TAB$r"; fi; done
     { for w in engines environments retested; do x=$(sl "$i" "$w" | tr '\n' ' ' | sed 's/ *$//'); [ -z "$x" ] || printf 'tail\t%s: %s\n' "$w" "$x"; done; } >> "$T/in"; fi; fi
-  awk -F'\t' '$1 == "flt"' "$T/tk" > "$T/in.rows"
+  awk -F'\t' '$1 == "flt" || $1 == "unrun"' "$T/tk" > "$T/in.rows"
   [ "$KIND" = reached ] || awk -F'\t' '$1 == "row" { if ($5 + 0 > 0) { for (i = 1; i <= $5; i++) printf "row\t%s-T%d\ttransition\tt\t%s\t%s\n", $2, i, $4, $2 } else printf "row\t%s\t%s\tt\t%s\t%s\n", $2, $3, $4, $2 }' "$T/tk" >> "$T/in.rows"
   { sed -n "s/^reg$TAB//p" "$T/tk"; [ "$KIND" != reached ] || cut -f1,2 "$T/tk" | sed -n "s/^row$TAB//p"; } > "$T/more"; for r in $(cat "$T/more"); do more "$r" regression r; done
   for r in $RET; do more "$r" retested o; done

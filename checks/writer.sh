@@ -318,7 +318,7 @@ rowsec() {
         if (x ~ /^(proved-red|golden|module|match):/ || (x ~ /^evidence:/ && x !~ /^evidence:[ \t]*owed$/) || (k ~ /^ROW-/ && i == 8 && x !~ /^owed:/ && y ~ /\//) || x ~ /^owed:[ \t]*prerequisite/ || (k ~ /^(rule|hostility)$/ && i >= 4 && x !~ /[ \t:]/ && x ~ /\//)) continue
         o = o (o == "" ? "" : "|") f[i] }
       sub(/[ \t]+$/, "", o); print "> " o; print "- " id " marks: " (M[id] == "" ? "none" : M[id]) (id in P ? "; run with the product'"'"'s processes" : "")
-      if (W != "") { m = split(W, wp, "; "); v = W; for (j = 1; j <= m; j++) if (index(wp[j], id ": ") == 1) { v = substr(wp[j], length(id) + 3); break } print "- " id " failed: " clean(v) } }' W="${WHY:-}" "$T/rl"; }
+      if (W != "") { m = split(W, wp, "; "); v = W; for (j = 1; j <= m; j++) if (index(wp[j], id ": ") == 1) { v = substr(wp[j], length(id) + 3); break } print "- " id ((v ~ /^could not run there: /) ? " " clean(v) "; make its test run on the deployed test site" : " failed: " clean(v)) } }' W="${WHY:-}" "$T/rl"; }   # PB-5: a row of a staging run that could not run there
 # lists: $T/reg and $T/flt — the regression rows (accepted or by ruling, of the golden path, a journey, a protection row
 # with fault-proven, a shell or reachability row, a rule row (v0.26.10.26.4 R5), a row of a bug finding, a reached row; never a known limit, a
 # deploy-owed row or the ticket's own) and the faulted rows (the ticket's rows not deploy-owed: every protection row with
@@ -326,13 +326,13 @@ rowsec() {
 # ticket's rows are regression rows, faulted only when retested (T4)
 lists() {
   G=$(awk -F'\t' '$6 == "skeleton" { print $5; exit }' "$T/steps")
-  awk -F'\t' -v IDS="$T/ids" -v ST="$T/st" -v G=" $G " -v RC=" $REACH " -v RG="$T/reg" -v FL="$T/flt" -v K="$K" '
+  awk -F'\t' -v IDS="$T/ids" -v ST="$T/st" -v G=" $G " -v RC=" $REACH " -v RG="$T/reg" -v FL="$T/flt" -v K="$K" -v CW="${WHY:-}" '
     BEGIN { while ((getline l < IDS) > 0) W[l] = 1; while ((getline l < ST) > 0) { split(l, a, "\t"); if (a[1] == "rs") { S[a[2]] = a[3]; F[a[2]] = a[4] } } }
     function has(m, x) { return index(" " m " ", " " x " ") }
     $2 == "tr" { k = $1; sub(/.*-T/, "", k); if (!($3 in lo) || k + 0 < lo[$3]) { lo[$3] = k + 0; ft[$3] = $1 } next }
     $2 == "row" { o[++n] = $1; mk[$1] = $7; cl[$1] = $6; d = $11; dis[$1] = ""; p = index(d, "disable: "); if (p) { x = substr(d, p); q = index(x, " · "); dis[$1] = q ? substr(x, 1, q - 1) : x } bug[$1] = (d ~ /origin: finding/) }
     END { for (i = 1; i <= n; i++) { r = o[i]; m = mk[r]; ow = (m ~ /(^| )(owed-[a-z]+|seam)( |$)/)
-        if ((r in W) && K != "reached") { if (ow) continue; k = r; sub(/^[A-Z]+-/, "", k)
+        if ((r in W) && K != "reached") { if (ow || index("; " CW, "; " r ": could not run there: ")) continue; k = r; sub(/^[A-Z]+-/, "", k)
           if (has(m, "protection")) { print "- " r ": make this row'"'"'s fail-if true, and nothing else; its disable: note, quoted:" > FL; d = dis[r]; sub(/[ \t]+$/, "", d); print "> " (d == "" ? "disable: none" : d) > FL }
           else if (has(m, "journey")) print "- " ft[r] " (of the journey " r "): make this transition'"'"'s fail-if true, and nothing else" > FL
           else if (k % 10 == 0 && !has(m, "service")) print "- " r ": make this row'"'"'s fail-if true, and nothing else" > FL; continue }
@@ -348,9 +348,12 @@ stack() { printf 'The stack, decided at init:\n\n'; { git show "$AT:BASELINE.md"
   printf '\nThe hosting, decided at init:\n\n'; sed -n '/^```vid-hosting[[:space:]]*$/,/^```[[:space:]]*$/p' "$T/arch" | grep -v '^```' > "$T/ho" || true; q_ "$T/ho"; }
 # GM-4 F16: no engines line recorded is the writer's refusal, wherever a ticket is written (write, and due's writings at a commit)
 noeng() { ref "no engines line in .vid/tw/handed: the skeleton's head report declares them first, or the owner names them with the engines move (vid-accept-step's, through results.sh declare)"; }
+# PB-5: cu, `yes` for a fix ticket of rows that could not run there (a fix line holds such rows alone)
+cu() { case "; ${WHY:-}" in *': could not run there: '*) echo yes ;; esac; }
 # FB-3 C5: QAT, set in qat alone, whose hash reads neither the engines nor the reading: there each stands in when none is on record
 engines() { set -- $(sv eng); [ $# -gt 0 ] || [ -z "$QAT" ] || set -- none; [ $# -gt 0 ] || noeng; printf '\n## Engines\n\n- primary: %s\n' "$1"; shift
-  if grep -q '^split' "$T/st"; then for e; do printf -- '- also: %s\n' "$e"; done; printf '\nEvery engine is asked: a row has failed in one engine and passed in another.\n'
+  if [ -n "$(cu)" ]; then for e; do printf -- '- also: %s\n' "$e"; done; printf '\nEvery engine is asked: a row could not run on the deployed test site.\n'   # PB-5
+  elif grep -q '^split' "$T/st"; then for e; do printf -- '- also: %s\n' "$e"; done; printf '\nEvery engine is asked: a row has failed in one engine and passed in another.\n'
   else printf '\nThe primary alone is asked: no row has yet failed in one engine and passed in another.\n'; fi; }
 reached() { if [ -n "$REACH" ]; then for r in $REACH; do i=$(awk -F'\t' -v r="$r" '$1 == "reached" && $2 == r { v = $3 } END { print v }' "$T/st")
       case $i in REQ-*|INV-*) w="its requirement $i" ;; *) w="the line $i it rests on" ;; esac
@@ -471,6 +474,7 @@ asks() {
         printf '\nThere is no T2: the skeleton has no red, so its fault stands in for it.\n'
       elif [ "$AO" = yes ]; then echo '- T3 (TM): at the pull request'"'"'s head, run the regression rows, in each asked engine.'; [ -n "$FU" ] || echo "$t5"
         printf '\nEvery row of this ticket is deploy-owed: no red and no fault, so no T2 and no T4; its next staging, rehearsal or production run proves it.\n'
+      elif [ -n "$(cu)" ]; then echo "$t3"; [ -n "$FU" ] || echo "$t5"; printf '\nIts rows could not run on the deployed test site: their tests are made to run there, with no red and no fault, so no T2 and no T4; T3 at the head proves them.\n'   # PB-5
       else printf '%s%s\n' '- T2 (TA, then TM): TA commits those tests alone, before any product code; TM runs them in the primary engine. This is the red proof.' "$([ "$K" != fix ] || echo ' In this fix ticket TA first makes the test catch the reason; TM may name the base as the tests-first commit when the test already fails there.')"
         echo "$t3"; echo "$t4"; [ -n "$FU" ] || echo "$t5"; fi ;;
   esac; echo
@@ -568,7 +572,7 @@ check() {
     qd && sec == "Further reading" && !(substr(l, 3) in XP) { ref("line " NR ": a path outside the export " X " — " substr(l, 3)) }
     sec == "Further reading" && (index(l, "The spec repository, https://github.com/") == 1 || index(l, "The spec, in the folder https://github.com/") == 1) { srn = 1 }   # GM-4 K13: or the folder
     sec == "Header" && match(l, /^- [a-z]+: /) { k = substr(l, 3, RLENGTH - 4); v = substr(l, RLENGTH + 1); gsub(/[ \t]+$/, "", v); hv[k] = v }
-    sec == "Rows" && l ~ /^- [A-Z]+-[0-9]+ failed: [^ ]/ { why++ }
+    sec == "Rows" && l ~ /^- [A-Z]+-[0-9]+ (failed|could not run there): [^ ]/ { why++ }
     sec == "Asks" { at = at " " l; if (l ~ /^- T[1-5] /) ask[substr(l, 3, 2)] = 1 }
     sec == "Engines" && l ~ /^- primary: [^ ]/ { prim = 1 }
     sec == "Roles" { rb = rb l "\n" }
@@ -584,7 +588,7 @@ check() {
       m = split(hv["rows"], R, " "); for (i = 1; i <= m; i++) if (!(R[i] in RW)) ref("item: the row " R[i] " is not quoted in ## Rows")
       if (!srn) ref("item: the further reading does not name the spec repository")
       if (K == "fix" && !why) ref("item: the fix ticket gives no reason its row failed")
-      need = (K == "skeleton") ? "T1 T3 T4 T5" : (K == "reached") ? "T1 T3 T4" : (index(at, "Every row of this ticket is deploy-owed") ? "T1 T3 T5" : "T1 T2 T3 T4 T5"); if (MANT != "") { sub(/ T5$/, "", need) }   # FB-3 A1.7: in GitHub manual no grade is asked
+      need = (K == "skeleton") ? "T1 T3 T4 T5" : (K == "reached") ? "T1 T3 T4" : ((index(at, "Every row of this ticket is deploy-owed") || index(at, "Its rows could not run on the deployed test site")) ? "T1 T3 T5" : "T1 T2 T3 T4 T5"); if (MANT != "") { sub(/ T5$/, "", need) }   # FB-3 A1.7: in GitHub manual no grade is asked
       FW = hv["follows"]; if (FW != "") { if (K != "step" || FW !~ /^#[0-9]+$/) ref("item: follows: is #<n> on a step ticket alone"); sub(/ T5$/, "", need) }   # 0.26.10.28.10 (R1)
       if ((FW != "") != (substr(TL, 3, 9) == "Follow-up")) ref("item: a follow-up is titled Follow-up ticket and has a follows: line, and only it")
       for (i = 1; i <= 5; i++) { t = "T" i; if (index(need, t) && !ask[t]) ref("item: the asks lack " t); if (!index(need, t) && ask[t]) ref("item: the asks hold " t ", which this ticket must not ask") }

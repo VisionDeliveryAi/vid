@@ -36,9 +36,9 @@ unland; cl_d1
 # before the staging run
 land ROW-007; cs owed; no '^cs 1$'; cs ask --cs 1; [ "$RC" != 0 ] || fail 'a staging run was asked at a held build'; [ ! -f $K/cs/ask ] || fail 'a staging run ask is on record'
 unland; cl_cs; cp -R $K "$T/k1"
-# the staging run out: a chunk lost to the owner keeps its question; every row landed, so the read holds none: held, not passed, no walk
-csr 1 'err:setup: no clock here'; ok '^close-again staging-1 p1c1$'; csr 2 'err:setup: no clock here' 'ROW-003=pass'; ok '^close-lost staging-1 p1c1$'
-land ROW-003; cs decide --stage 1; [ -n "$(qn 'chunk p1c1, lost twice')" ] || fail 'the question went with the landing'; unland
+# the staging run out: a chunk lost to the owner keeps its question (a held row of it keeps it the owner's, PB-5); every row landed, so the read holds none: held, not passed, no walk
+state ROW-007 held; csr 1 'err:setup: no clock here'; ok '^close-again staging-1 p1c1$'; csr 2 'err:setup: no clock here' 'ROW-003=pass'; ok '^close-lost staging-1 p1c1$'   # PB-5: a held row keeps it the owner's
+land ROW-003; cs decide --stage 1; [ -n "$(qn 'chunk p1c1, lost twice')" ] || fail 'the question went with the landing'; unland; state ROW-007 owed
 rm -rf $K; cp -R "$T/k1" $K; for b in $(git --git-dir="$T/code.git" for-each-ref --format='%(refname)' "refs/heads/vid-results/req-$CSN-*"); do git --git-dir="$T/code.git" update-ref -d "$b"; git --git-dir=.vid/code update-ref -d "$b" 2>/dev/null || true; done
 csr 1 'err:setup: no clock here'; land $CSR; cs decide --stage 1; ok '^close-held staging-1 '; no 'stage-cs 1 passed'; [ ! -f $K/cs/passed ] || fail 'the staging run passed with every row of it landed'; cs owed; no '^walk 1$'; cs decide --stage 1; no 'close-held'
 unland

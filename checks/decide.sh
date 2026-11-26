@@ -125,7 +125,7 @@ DE='function why(a, b) { return (a == "") ? b : (b == "") ? a : a "; " b }
       if (S == "") { if (prod || weak) S = "failing"; else if (mr != "") S = "evidence missing"; else if (BL != "") S = "question open"
         else if (t[i] == "owed") S = (ki[i] != "regression" || index(re[i], "retested")) ? "owed" : "its state stands"
         else if (ki[i] == "regression" || ki[i] == "retested") S = "passing"
-        else if (MAN != "" || rd[i] == "red" || fv == "proven" || (KD == "skeleton" && anyp)) S = "accepted"; else { S = "evidence missing"; if (fv == "inconclusive") { ih = 1; mr = "fault inconclusive, " hid } else mr = "no red and no proven fault" } }
+        else if (MAN != "" || rd[i] == "red" || (rd[i] == "unrun" && t[i] == "passed") || fv == "proven" || (KD == "skeleton" && anyp)) S = "accepted"; else { S = "evidence missing"; if (fv == "inconclusive") { ih = 1; mr = "fault inconclusive, " hid } else mr = "no red and no proven fault" } }
       L = (R in lim) ? lim[R] : 2; wash = (cnt[R] + 0 >= L && sf[R] == "held"); ruled = (S == "known limit" || S == "accepted by ruling"); s0 = sb[R]; fst = (S == "failing" && (s0 == "" || (prod && !index(s0, "p")))); fp = (fst && sf[R] != "held")
       if (!ruled) { if (S == "failing") { if (!(R " " H in have)) { have[R " " H] = 1; cnt[R]++; ad[++na] = R " " H } } else if (S == "evidence missing") { nk = split(K, kk, " "); for (j = 1; j <= nk; j++) if (!(R " " kk[j] in have)) { have[R " " kk[j]] = 1; cnt[R]++; ev[R]++; ad[++na] = R " " kk[j] } } }
       if ((S == "accepted" || S == "passing") && (R in hal) && hal[R] == 2) { delete hal[R]; print R > HX }   # 0.26.11.1.4 (R3): a head that proves the row releases its inconclusive halt

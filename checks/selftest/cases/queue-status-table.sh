@@ -86,7 +86,9 @@ mkdir -p "$D/close/S03/1" "$D/stage/1/1"; echo 'regressions introduced 1 · defe
 sh "$QS" sync > "$T/out" 2>&1; grep -qx 'regression S03/1 1' "$T/out" && grep -qx 'regression stage-1/1 3' "$T/out" || fail 'the step and stage regressions were not printed'
 st; is 'debt: owed staging 1 · production 0 · rehearsal 0 · held 1 (ROW-008 Q2) · deferred 0 · regressions S03 close 1: 1, stage-1 close 1: 3'
 echo 'closed S03 | stand-in: close #14 at 0123' >> .vid/tw/handed; : > "$D/stage/1/1/passed"; st
-is 'debt: owed staging 1 · production 0 · rehearsal 0 · held 1 (ROW-008 Q2) · deferred 0 · regressions none'; is 'stage: 1 — The daily digest · stages closed 1'
+is 'debt: owed staging 1 · production 0 · rehearsal 0 · held 1 (ROW-008 Q2) · deferred 0 · regressions none'; is 'stage: 1 — The daily digest · stages closed 0'
+# TOY-1: a full run passed is no stage closed; the stage's close is
+echo 'stage-closed 1 | stand-in: RM at 0123456789ab candidate 1' >> .vid/tw/handed; st; is 'stage: 1 — The daily digest · stages closed 1'
 # a landing of a transition alone: ROW-005-T1's evidence in #2, published before it, is read no more (ROW-005 leaves red and T3)
 echo 'landed 2 ids=ROW-005-T1 at=2026-11-09T11:30:00Z' >> .vid/tw/log; st; is 'test state: of 34 rows · red seen at T2 3 · T3 passed 2 · fault proven 2'
 # a later head of #2 fails ROW-001's T3: its newest T3 counts, its red and proven stand
