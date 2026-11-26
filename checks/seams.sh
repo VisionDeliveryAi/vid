@@ -9,7 +9,10 @@
 # artifact). (b) DISCOVERY (§3.2 door 2) — a staged outbound destination
 # (a scheme URL to a remote host) covered by no seam row demands one
 # before the code lands; a content link that is no outbound call takes a
-# ratified exception row naming class `seam`. Lockfile-shaped files
+# ratified exception row naming class `seam`. FIX-BATCH-T1 (B-9): the host is
+# the one after a URL's user part; a whole single-label host (no dot) is a
+# local network's name (a service, a container), no outside service, and is
+# skipped. Lockfile-shaped files
 # (*.lock, *lock.json, *lock.yaml, *.sum) are toolchain records, not app
 # outbound calls, and are excluded. Presence-gated: inactive without an
 # INVENTORY.md machine block. Usage: sh checks/seams.sh
@@ -54,9 +57,19 @@ for row in $SEAMS; do
 done
 
 # (b) discovery (§3.2 door 2): outbound destinations no seam row covers.
-URLS=$(printf '%s\n' "$ADDED" | grep -oE '[a-z][a-z0-9+.-]*://[A-Za-z0-9._-]+' | sort -u || true)
+# FIX-BATCH-T1 (B-9): two readings of each URL, each judged — the host straight after :// (as before), and, when a user part
+# (`<user>[:<password>]@`: any characters but / ? # @, a space, a double quote and angle brackets) comes first, the host after
+# its @ — so a dotted host is judged under either reading; the character after the host is kept for the single-label test
+# below (`;` when the host ends the line)
+URLS=$( { printf '%s\n' "$ADDED" | grep -oE '[a-z][a-z0-9+.-]*://[A-Za-z0-9._-]+([^A-Za-z0-9._-]|$)' || true
+  printf '%s\n' "$ADDED" | grep -oE '[a-z][a-z0-9+.-]*://[^/?#@[:space:]"<>]*@[A-Za-z0-9._-]+([^A-Za-z0-9._-]|$)' || true; } | sed 's/[A-Za-z0-9._-]$/&;/' | sort -u)
+HSEEN=''
 for u in $URLS; do
-  host=${u#*://}
+  host=${u#*://}; host=${host##*@}; _end=${host#"${host%?}"}; host=${host%?}
+  # FIX-BATCH-T1 (B-9): a whole single-label host (no dot; the character after it ends a host) is a name only a local
+  # network resolves — a service, a container, a machine's short name — never an outside service
+  case "$host" in *.*) ;; *) case "$_end" in ':'|'/'|'?'|'#'|'"'|"'"|' '|'	'|';') continue ;; esac ;; esac
+  case " $HSEEN " in *" $host "*) continue ;; esac; HSEEN="$HSEEN $host"   # one judgement a host, whatever follows it
   # not external services: loopback, reserved example/test names, doc/schema
   # namespaces that appear in markup rather than calls.
   case "$host" in

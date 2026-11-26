@@ -10,6 +10,7 @@
 # anywhere, in any case (`river`, and $USERNAME, here the GitHub login, so the login in a URL too), git's author name whole and
 # each word of it, and Claude's orgName (plain, inside an escaped JSON string, and `<email>'s Organization`, whose email goes
 # first, and a two-letter one as a whole word) are replaced; `user` and `"role":"user"` stay; a bare name planted in the bundle after its build is found by the scan.
+# SHARE-SCRUB §4.4.4: an orgName field of capitalised words is a name field now (personal-field); the prose keeps org-name.
 # Each is counted, and none of the replaced values is in the bundle, the summary, the manifest or the build's output. An id and
 # an email harvested from fields with JSON spaces; with the conversations left
 # out, a Windows name in the events still replaced; a non-ASCII $HOME name (Jose with an accent) replaced in its encoded form, one - a
@@ -57,10 +58,10 @@ for f in records/.vid/notes/text.txt logs/text.txt conversations/S-win/S-win.jso
   grep -qxF "the [REDACTED:user-name] flows; the box $HOST is named here as a word; pushed by [REDACTED:user-name] to github.com/[REDACTED:user-name]/app" "$T/f" || fail "$f: the bare name or the login-named user is not replaced, or the bare host did not stay"
   grep -qxF "by [REDACTED:author-name], then [REDACTED:author-name] alone, at the [REDACTED:user-name]; user and {\"role\":\"user\"} stay; orgs [REDACTED:org-name], [REDACTED:org-name] and [REDACTED:email]'s Organization, team [REDACTED:org-name], [REDACTED:author-name]%20[REDACTED:author-name]" "$T/f" || fail "$f: the author, a bare name or an organisation is not replaced, or user did not stay"
 done
-L=$(gzip -dc "$B/conversations/S-win/S-win.jsonl.gz" | head -n 1); [ "$L" = '{"type":"user","userEmail":"The user'"'"'s email address is [REDACTED:email]."}' ] || fail 'the session context email is not replaced'
+L=$(gzip -dc "$B/conversations/S-win/S-win.jsonl.gz" | head -n 1); [ "$L" = '{"type":"user","userEmail":"[REDACTED:personal-field]"}' ] || fail 'the session context email is not replaced'   # SHARE-SCRUB §4.4.4: userEmail is a personal field, its whole value goes
 grep -qF "transcript=\"C:\\$U\\[REDACTED:user-name]\\.claude\\projects\\C--$U-[REDACTED:user-name]-proj\\S-win.jsonl\"" "$B/records/.vid/metrics-events" || fail "the events' transcript= line still names the user"
 grep -qF "\"C--$U-[REDACTED:user-name]-proj/S-win.jsonl\"" "$B/MANIFEST.json" || fail "the manifest's source still names the user"
-gzip -dc "$B/conversations/S-win/S-win.jsonl.gz" | tail -n 4 > "$T/o"; printf '{"orgName":"[REDACTED:org-name]"}\n{"content":"{\\"orgName\\":\\"[REDACTED:org-name]\\"}"}\n{"orgName":"[REDACTED:email]%ss Organization"}\n{"orgName":"[REDACTED:org-name]"}\n' "'" | cmp -s - "$T/o" || fail "the transcript's orgName is not replaced: $(cat "$T/o")"
+gzip -dc "$B/conversations/S-win/S-win.jsonl.gz" | tail -n 4 > "$T/o"; printf '{"orgName":"[REDACTED:personal-field]"}\n{"content":"{\\"orgName\\":\\"[REDACTED:personal-field]\\"}"}\n{"orgName":"[REDACTED:email]%ss Organization"}\n{"orgName":"[REDACTED:org-name]"}\n' "'" | cmp -s - "$T/o" || fail "the transcript's orgName is not replaced: $(cat "$T/o")"
 for k in user-name email account-id host author-name org-name; do grep -q "\"$k\", [1-9]" "$B/MANIFEST.json" || fail "$k is not counted"; grep -q "^redacted	$k	[1-9]" "$B.summary" || fail "the summary does not count $k"; done
 ( cd "$B" && find . -type f | while IFS= read -r f; do case "$f" in *.gz) gzip -dc "$f" ;; *) cat "$f" ;; esac; done ) > "$T/all"
 cat "$B.summary" "$B/MANIFEST.json" "$T/out" >> "$T/all"

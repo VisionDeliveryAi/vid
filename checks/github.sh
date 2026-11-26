@@ -1551,7 +1551,17 @@ $1"; shift ;; esac; done
     G() { case "$1" in "$W"/i*) _gi=$1; shift; GIT_INDEX_FILE=$_gi GIT_WORK_TREE=$GW git -c core.bare=false -c core.hooksPath="$W/nohooks" -c core.autocrlf=false -c core.safecrlf=false --git-dir="$B" "$@" ;;
       *) git -c core.hooksPath="$W/nohooks" -c core.autocrlf=false -c core.safecrlf=false --git-dir="$B" "$@" ;; esac; }
     M=$(G ls-remote "$U" refs/heads/main 2>/dev/null | cut -f1)
+    # FIX-BATCH-T1 (B-8): a share repository holds shares alone — empty is no branch at all; with a main, every file is a
+    # top-level README.md or lies in a run folder projects/<p>/<n>/ that holds its MANIFEST.json; else nothing is written
+    if [ -z "$M" ]; then _hd=$(G ls-remote --heads "$U" 2>/dev/null) || gref "the branches of $SREPO could not be read: nothing is pushed"
+      _ob=$(printf '%s\n' "$_hd" | sed -n '1s#.*refs/heads/##p')
+      [ -z "$_ob" ] || gref "$SREPO has branches but no main (its branch $_ob): a share goes to a repository of its own; make one with share-create"; fi
     if [ -n "$M" ]; then G fetch -q "$U" "+refs/heads/main:refs/heads/main" 2>/dev/null || gref "$SREPO could not be fetched"
+      G ls-tree -rz --name-only refs/heads/main > "$W/tree" || gref "$SREPO's main could not be read: nothing is pushed"
+      _op=$(tr '\0' '\n' < "$W/tree" | awk '{ L[NR] = $0 } $0 ~ /^projects\/[^\/]+\/[^\/]+\/MANIFEST\.json$/ { R[substr($0, 1, length($0) - 13)] = 1 }
+        END { for (i = 1; i <= NR; i++) { f = L[i]; if (f == "") { print "a file name holding a line break"; exit } if (f == "README.md") continue
+          split(f, a, "/"); k = a[1] "/" a[2] "/" a[3] "/"; if (a[1] == "projects" && (k in R)) continue; print f; exit } }')
+      [ -z "$_op" ] || gref "$SREPO holds more than shares ($_op): a share goes to a repository of its own; make one with share-create"
       ! G cat-file -e "$M:projects/$P/$N" 2>/dev/null || gref "projects/$P/$N is in $SREPO already: a run's folder is never overwritten; pick another run name"; fi
     GW=$F; G "$W/i1" add -A -f . || gref "the bundle's files could not be read"; GW=$W/wt
     T1=$(G "$W/i1" write-tree) || gref 'the bundle tree could not be written'

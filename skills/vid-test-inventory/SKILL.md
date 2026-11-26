@@ -228,6 +228,12 @@ and consume each type mechanically, so the derivation is guess-free:
   invariant is the natural multi-item candidate — its denominator spans
   the sites of every item it names and its ledger test exercises the
   joint behavior, the interaction one inline Fail-if cannot falsify.
+  **At init no code exists:** a census over the code is written as an
+  extractor-path census, `checks/extractors/invariant.<name>.sh`, which
+  reports pending while checks/extractors/ holds no extractor and is
+  written with the code; an inline census command is for what exists at
+  the spec commit — checks/inventory.sh refuses, at the spec commit, one
+  that searches a path not there yet (FIX-BATCH-T1).
 - **`non_goal` rows are the graders' fence list**: they yield no ledger
   row; they ride into GRADING-CHECKLIST.md's fences and every grading
   brief — a grader treats building one as a defect.
@@ -490,8 +496,12 @@ its census command — the denominator is law), DIF rows for every knob that
 legitimately differs between test and prod, EXC/SUP rows only where the
 initial censuses justify them. **At init every rule row is ratified
 `owed:`** — before code exists every code-site census enumerates nothing,
-and an owed rule reports `pending` rather than failing the zero-denominator
-guard; materialising the rule's test in develop arms it. The joint
+and an owed rule whose census is an extractor-path census,
+`checks/extractors/invariant.<name>.sh`, reports `pending` rather than
+failing the zero-denominator guard; an inline census command over a path
+not there yet is no such census: checks/inventory.sh refuses it at the
+spec commit, owed or not (FIX-BATCH-T1). Materialising the rule's test in
+develop arms it. The joint
 behavior an `invariant` (or a `spans:` invariant) promises may therefore
 also carry a behavior ROW with a test materialised red now; the rule row
 stays the denominator, the ROW is the executable half until the census

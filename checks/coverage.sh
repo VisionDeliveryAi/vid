@@ -248,7 +248,7 @@ if [ -n "$DMARKERS" ]; then
   BOUND=''; SBOUND=''
   if [ -n "$ROWSF" ]; then
     BOUND=$(printf '%s\n' "$IBLOCK" | awk -F'|' '$1 ~ /^[[:space:]]*ROW-/ { id = $1; gsub(/^[ \t]+|[ \t]+$/, "", id); m = $5; gsub(/^[ \t]+|[ \t]+$/, "", m); if (m != "" && m != "n/a") print id " " m }')
-    SBOUND=$(printf '%s\n' "$BOUND" | while read -r _i _m; do if [ -n "$_i" ] && inscope "$_i"; then printf '%s\n' "$_m"; fi; done)
+    SBOUND=$(printf '%s\n' "$BOUND" | while IFS=' ' read -r _i _m; do if [ -n "$_i" ] && inscope "$_i"; then printf '%s\n' "$_m"; fi; done)
   fi
   for tok in $DMARKERS; do
     printf '%s\n' "$RESOLVED" | grep -qxF "$tok" && continue
@@ -313,13 +313,14 @@ if [ -f INVENTORY.md ] && [ -f checks/inventory.sh ]; then
 fi
 
 # The archive is invisible to the census (v0.9.1 3.4, R12-iii): PRD-HISTORY-*.md
-# and SEED.md keep every carrier verbatim; only live carriers count.
-Q=$(grep -rn 'VID-QUESTION:' --exclude-dir=.git --exclude-dir=checks --exclude=CLAUDE.md --exclude='PRD-HISTORY-*.md' --exclude=SEED.md . 2>/dev/null | wc -l | tr -d ' ')
+# and SEED.md keep every carrier verbatim; only live carriers count. FIX-BATCH-T1 (B-10): nor .vid/, ViD's records and
+# copies (rendered pages, old sitting files), never the project's live text.
+Q=$(grep -rn 'VID-QUESTION:' --exclude-dir=.git --exclude-dir=.vid --exclude-dir=checks --exclude=CLAUDE.md --exclude='PRD-HISTORY-*.md' --exclude=SEED.md . 2>/dev/null | wc -l | tr -d ' ')
 # v0.26.10.5 (R8): scoped, a marker whose ids (an OQ carrier read as the PRD items citing it) all lie outside the
 # scope file is left out; a marker naming nothing counts
 if [ -n "$ROWSF" ]; then
   EFFP=''; [ -f PRD.md ] && [ -f checks/prd.sh ] && EFFP=$(sh checks/prd.sh --effective PRD.md 2>/dev/null || true)
-  Q=$(grep -rh 'VID-QUESTION:' --exclude-dir=.git --exclude-dir=checks --exclude=CLAUDE.md --exclude='PRD-HISTORY-*.md' --exclude=SEED.md . 2>/dev/null | while IFS= read -r _l; do
+  Q=$(grep -rh 'VID-QUESTION:' --exclude-dir=.git --exclude-dir=.vid --exclude-dir=checks --exclude=CLAUDE.md --exclude='PRD-HISTORY-*.md' --exclude=SEED.md . 2>/dev/null | while IFS= read -r _l; do
       _ids=$(printf '%s\n' "$_l" | grep -oE '(REQ|INV|ROW|HOS|RULE|DIF|EXC|SUP)-[0-9]+' || true)
       for _oq in $(printf '%s\n' "$_l" | grep -oE 'OQ-[0-9]+' || true); do
         _ids="$_ids

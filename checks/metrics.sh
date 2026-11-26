@@ -216,7 +216,7 @@ vstate93() { # → $TMP93/vstate: id latest class attempts P T harness-quoted-li
     $1=="verdict" { r=kv("row"); q=kv("quoted-at"); if (r!="" && (r in am) && q!="" && q!=am[r]) print NR, am[r], q }' "$EV")
   _inel=''
   if [ -n "$_cand" ]; then
-    _inel=$(printf '%s\n' "$_cand" | while read -r _nr _a _q; do git merge-base --is-ancestor "$_a" "$_q" 2>/dev/null || printf '%s ' "$_nr"; done)
+    _inel=$(printf '%s\n' "$_cand" | while IFS=' ' read -r _nr _a _q; do git merge-base --is-ancestor "$_a" "$_q" 2>/dev/null || printf '%s ' "$_nr"; done)
   fi
   awk -v inel=" $_inel " '
     function kv(k, i) { for (i=2;i<=NF;i++) if (index($i, k "=")==1) return substr($i, length(k)+2); return "" }

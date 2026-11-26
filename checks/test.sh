@@ -1081,7 +1081,9 @@ case "${1:-}" in
     RQT=$(mktemp -d); trap 'rm -rf "$RQT"' EXIT
     # the rows
     case "$TYPE" in
-      prove-red|iterate|deployed)
+      prove-red)   # FIX-BATCH-T1 (B-2): a test author's rule and hostility rows too
+        { printf '%s\n' "$ROWS"; [ -n "$ROWSF" ] && cat "$ROWSF"; } | grep -oE '(ROW|RULE|HOS)-[0-9A-Za-z-]*[0-9A-Za-z]' | sort -u > "$RQT/rows" || true ;;
+      iterate|deployed)
         { printf '%s\n' "$ROWS"; [ -n "$ROWSF" ] && cat "$ROWSF"; } | grep -oE 'ROW-[0-9A-Za-z-]*[0-9A-Za-z]' | sort -u > "$RQT/rows" || true ;;
       close)
         if [ "$BATCH" = yes ]; then   # v0.9.7.0.12 (3.2, R2): the groups' rows; close-rows is read once, at serve, and frozen

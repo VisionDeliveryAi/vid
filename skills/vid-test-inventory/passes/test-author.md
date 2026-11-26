@@ -70,6 +70,11 @@ row) is quoted from the working tree's INVENTORY.md or listed
 `pending-append: REQ-…`. A develop or fix test-author brief is written
 with `sh checks/brief.sh write --role test-author` (v0.9.7.0.5 3.5),
 which does both from the working tree; the init pass is unchanged.
+A rule or hostility row (`--rows RULE-NNN` or `HOS-NNN`, FIX-BATCH-T1)
+comes in section 11, its line verbatim: its test pays the rule's
+statement or the probe's attempt, and every case names the row's id —
+the inventory court's proved-red check looks for that id in the test
+file at the `proved-red:` commit.
 
 **A `test`-class re-brief (v0.9.3 3.6).** When a verdict returns BREACHED
 `class=test` — the product may hold but the test cannot observe the

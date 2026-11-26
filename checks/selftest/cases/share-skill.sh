@@ -6,7 +6,8 @@
 # The read-only line comes where the repository's owner is chosen. It asks who to invite, offers none, names no default account,
 # and shows the write-access words, the people-only fact and the organisation's Read for a person or a team before the second
 # yes, which comes before share-invite; it asks the Read role in an organisation; it says how to invite later. The help card
-# lists /vid:vid-share between view and help, and the README lists it. Needs skills/ (ViD's layout). Env: CHECKS.
+# lists /vid:vid-share between view and help, and the README lists it. SHARE-SCRUB: what is caught for certain, by rule and not at
+# all, and the review page (what the user typed, the data files touched), both before the question. Needs skills/ (ViD's layout). Env: CHECKS.
 set -eu
 R=$CHECKS/..; [ -d "$R/skills/vid-help" ] && [ -f "$R/README.md" ] || { echo 'needs skills/ and README.md'; exit 77; }
 fail() { echo "share-skill: $*" >&2; exit 1; }
@@ -18,8 +19,11 @@ need() { n=$(at "$1"); [ -n "$n" ] || fail "the skill does not say: $1"; echo "$
 W=$(need 'where the bundle is, its size, and its parts with their file counts'); K=$(need 'the redaction counts by kind')
 L=$(need 'what was left out, and why, and what is missing'); C=$(need 'the conversations carry your own CLAUDE.md, your memory files, and anything a tool printed')
 O=$(need 'you may leave the conversations out'); P=$(need 'a pattern catches only what it knows')
+# SHARE-SCRUB §4.5.6: the three lines and the review page, before the question, the user asked to read what they typed
+C3=$(need 'what is caught for certain, what by rule, and what is not caught'); need '`caught-by-rule` and `not-caught` lines' > /dev/null
+RV=$(need 'the review page**, `.vid/shares/<run>.review`'); need 'read what they typed, at least' > /dev/null
 Q=$(need 'one question, with three answers'); A1=$(need '1. **send**'); A2=$(need '2. **file**'); A3=$(need '3. **stop**')
-for n in $W $K $L $C $O $P; do [ "$n" -lt "$Q" ] || fail 'an item is shown after the question'; done
+for n in $W $K $L $C $O $P $C3 $RV; do [ "$n" -lt "$Q" ] || fail 'an item is shown after the question'; done
 [ "$Q" -lt "$A1" ] && [ "$A1" -lt "$A2" ] && [ "$A2" -lt "$A3" ] || fail 'the three answers are not send, file, stop in order'
 need 'Nothing is sent without "send"' > /dev/null; need 'rebuild with `--leave-out conversations` or `--leave-out logs` and show' > /dev/null
 # R6: the account, then who to invite, then the words, then the second yes, then the invitation

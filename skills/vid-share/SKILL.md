@@ -26,7 +26,9 @@ Ask, one at a time, never in one message, taking a plain default when the user d
 Then build, with those answers:
 `sh checks/share.sh build --run <run> [--logs <folder>] [--session <path or id>]... [--redact-file <file>] [--leave-out conversations|logs]...`.
 It writes the bundle under `.vid/shares/<run>/`, with its summary, `.vid/shares/<run>.summary`, beside it (and `.vid/shares/<run>.known`,
-the personal values the scan needs, which never leaves the machine). Read what you show the user from the summary.
+the personal values the scan needs, and `.vid/shares/<run>.review`, the review page; neither ever leaves the machine). Read what you
+show the user from the summary. If the build refuses the run's name because it holds a value redaction covers (a person's name, the
+user name), ask for another name and build again.
 On Windows the build can take a few minutes; tell the user so before it starts.
 
 ## 2. Show it, then ask
@@ -38,7 +40,13 @@ Before any question about sending, show from the summary, in plain words:
 - what was left out, and why, and what is missing;
 - that **the conversations carry your own CLAUDE.md, your memory files, and anything a tool printed** during the run, and that
   you may leave the conversations out;
-- that **a pattern catches only what it knows**: look at the bundle yourself before you send it.
+- that **a pattern catches only what it knows**: look at the bundle yourself before you send it;
+- **what is caught for certain, what by rule, and what is not caught**, in plain words from the summary's `caught-certain`,
+  `caught-by-rule` and `not-caught` lines: say plainly that a secret or a person's data in a form the rules do not know is sent as it is;
+- **the review page**, `.vid/shares/<run>.review`, and its two counts from the summary's `review` line: **what you typed** in the
+  run's main sessions, as it would be sent, and the product's data files the conversations touched (fixtures, seeds, test data),
+  where personal data typed into them reached the conversations. Ask the user to **read what they typed, at least**, before they
+  answer.
 
 Then ask **one question, with three answers:**
 

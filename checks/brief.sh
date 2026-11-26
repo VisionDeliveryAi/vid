@@ -901,8 +901,19 @@ if [ "${1:-}" = write ]; then
   awk '!s[$0]++' "$W/ids" > "$W/ids.u" && mv "$W/ids.u" "$W/ids"
   [ -s "$W/ids" ] || wrefuse 'no row to brief'
   rowline() { awk -F'|' -v r="$1" '{ id = $1; gsub(/^[ \t]+|[ \t]+$/, "", id) } id == r { print; exit }' "$2"; }
-  PB=''; : > "$W/rows"
+  PB=''; : > "$W/rows"; : > "$W/trules"
+  # FIX-BATCH-T1 (B-2): a test author's RULE-NNN or HOS-NNN is its `rule` or `hostility` line (second field the id) at HEAD,
+  # else the working tree's (pending-birth:); quoted verbatim in section 11, never section 1. Any other role is refused one.
+  ruleline() { awk -F'|' -v r="$1" -v kd="$3" '{ k = $1; x = $2; gsub(/^[ \t]+|[ \t]+$/, "", k); gsub(/^[ \t]+|[ \t]+$/, "", x) } k == kd && x == r { print; exit }' "$2"; }
   for id in $(cat "$W/ids"); do
+    case "$id" in RULE-*|HOS-*)
+      _kd=rule; case "$id" in HOS-*) _kd=hostility ;; esac
+      [ "$WROLE" = test-author ] || wrefuse "$id is a $_kd row — a $_kd row is briefed to a test author only (--role test-author)"
+      l=''; printf '%s\n' "$id" | grep -qxE '(RULE|HOS)-[0-9]+' && l=$(ruleline "$id" "$W/inv.ref" "$_kd")
+      if [ -z "$l" ] && printf '%s\n' "$id" | grep -qxE '(RULE|HOS)-[0-9]+'; then l=$(ruleline "$id" "$W/inv.wt" "$_kd"); [ -n "$l" ] && PB="$PB${PB:+ }$id"; fi
+      [ -n "$l" ] || wrefuse "unknown $_kd id: $id — not a $_kd row of INVENTORY.md at HEAD, nor of the working tree's"
+      printf '%s\n' "$l" >> "$W/trules"; continue ;;
+    esac
     case "$id" in ROW-*) l=$(rowline "$id" "$W/inv.ref") ;; *) l='' ;; esac
     if [ -z "$l" ] && [ "$WROLE" = test-author ] && [ "${id#ROW-}" != "$id" ]; then l=$(rowline "$id" "$W/inv.wt"); [ -n "$l" ] && PB="$PB${PB:+ }$id"; fi
     [ -n "$l" ] || wrefuse "unknown row id: $id — not a row of INVENTORY.md at HEAD (nor, for a test-author, of the working tree's)"
@@ -917,7 +928,11 @@ if [ "${1:-}" = write ]; then
     fi ;;
   esac
   # the join ids: the briefed rows and every id in their derived-from
+  : > "$W/rowids"
   awk -F'|' '{ id = $1; gsub(/^[ \t]+|[ \t]+$/, "", id); print id > (D "/rowids"); n = split($7, a, /[ ,]+/); for (i = 1; i <= n; i++) if (a[i] != "") print a[i] > (D "/dfids") }' D="$W" "$W/rows"
+  # FIX-BATCH-T1 (B-2): a test author's rule rows join by the ids their origin: names, its hostility rows by their protects:
+  awk -F'|' '{ for (i = 3; i <= NF; i++) { f = $i; gsub(/^[ \t]+|[ \t]+$/, "", f); if (index(f, "origin:") != 1 && index(f, "protects:") != 1) continue
+      sub(/^(origin|protects):[ \t]*/, "", f); n = split(f, a, /[ ,]+/); for (k = 1; k <= n; k++) if (a[k] != "") print a[k] } }' "$W/trules" >> "$W/dfids"
   [ -f "$W/dfids" ] || : > "$W/dfids"; sort -u -o "$W/dfids" "$W/dfids"
   cat "$W/rowids" "$W/dfids" | sort -u > "$W/joinids"
   # the named decisions must exist
@@ -993,6 +1008,7 @@ if [ "${1:-}" = write ]; then
     rulerows "$W/inv.ref" "$W/itemids" > "$W/rules"
     awk -F'|' '{ x = $2; gsub(/^[ \t]+|[ \t]+$/, "", x); if (x ~ /^RULE-[0-9]+$/) print x }' "$W/rules" >> "$W/joinids"
   fi
+  [ "$WROLE" != test-author ] || cp "$W/trules" "$W/rules"   # FIX-BATCH-T1 (B-2): the rule rows it names, section 11
   # v0.26.10.2 (R17b): a builder's step modules, read from its step line before the filter, joined as archrows joins
   #   them (`/` and `.` equal, a trailing `/` ignored); a label naming one of them reaches the builder, as scope: project does
   : > "$W/stepmods"
@@ -1241,7 +1257,7 @@ if [ "${1:-}" = write ]; then
     case "$WROLE" in
       grader) printf 'Graders request nothing.\n\n' ;;
       fixer|builder) printf 'sh checks/test.sh request --type iterate --role %s --rows %s --try %s --why "<fill in>" -- %s%s\nsh checks/test.sh wait <ticket>\n\n' "$WROLE" "$(paste -sd, "$W/rowids")" "$TRY" "$WSEL" "${WDSEL:+ --deployed-selection $WDSEL}" ;;
-      test-author) printf 'sh checks/test.sh request --type prove-red --role test-author --rows %s --why "<one line>" -- <selection>\nsh checks/test.sh wait <ticket>\n\n' "$(paste -sd, "$W/rowids")" ;;
+      test-author) printf 'sh checks/test.sh request --type prove-red --role test-author --rows %s --why "<one line>" -- <selection>\nsh checks/test.sh wait <ticket>\n\n' "$({ cat "$W/rowids"; awk -F'|' '{ x = $2; gsub(/^[ \t]+|[ \t]+$/, "", x); print x }' "$W/rules"; } | paste -sd, -)" ;;
     esac
     if [ "$WROLE" = fixer ] || [ "$WROLE" = builder ] || { [ "$WROLE" = test-author ] && [ -s "$W/s7" ]; }; then printf '## 7 attempt record\n\n'; cat "$W/s7"; fi
     printf '## 8 further reading (optional)\n\n'
@@ -1268,6 +1284,7 @@ if [ "${1:-}" = write ]; then
       [ -s "$W/mods" ] && { printf '\n'; cat "$W/mods"; }
       printf '\n## 11 rules\n\n'; [ -s "$W/rules" ] && cat "$W/rules"
     fi
+    if [ "$WROLE" = test-author ] && [ -s "$W/rules" ]; then printf '\n## 11 rules\n\n'; cat "$W/rules"; fi   # FIX-BATCH-T1 (B-2)
     [ -n "$WNOTES" ] && { printf '\n## 12 notes\n\n'; cat "$WNOTES"; }
     # v0.9.7.1 (3.4c, R4): the continuation the successor restores after its checkout
     if [ -n "$WCONT" ]; then
@@ -1899,6 +1916,19 @@ if [ "$ROLE" = builder ] && [ -n "$REF" ]; then
   for l in $(sect 11 | grep -v '^[[:space:]]*$' || true); do
     case "$l" in rule*) grep -qxF -- "$l" "$T/inv.ref" && continue ;; esac
     bad "section 11: not a rule row of INVENTORY.md at $REF, verbatim: $l"
+  done
+fi
+# FIX-BATCH-T1 (B-2): a test author's section 11, the rule and hostility rows it writes tests for — each such line of INVENTORY.md
+# at quoted-at, verbatim, or of the working tree's, or one whose id is listed pending-birth: and absent from both
+if [ "$ROLE" = test-author ]; then
+  for l in $(sect 11 | grep -v '^[[:space:]]*$' || true); do
+    _k=$(printf '%s\n' "$l" | awk -F'|' '{ k = $1; gsub(/^[ \t]+|[ \t]+$/, "", k); print k }')
+    [ "$_k" = rule ] || [ "$_k" = hostility ] || { bad "section 11: not a rule or hostility row: $l"; continue; }
+    grep -qxF -- "$l" "$T/inv.ref" && continue
+    grep -qxF -- "$l" "$T/inv.wt" && continue
+    id=$(printf '%s\n' "$l" | awk -F'|' '{ x = $2; gsub(/^[ \t]+|[ \t]+$/, "", x); print x }')
+    if [ -n "$id" ] && inlist "$id" "$PBIRTH" && ! grep -qE "^[[:space:]]*$_k[[:space:]]*\|[[:space:]]*$id[[:space:]]*\|" "$T/inv.ref" "$T/inv.wt"; then continue; fi
+    bad "section 11: not a $_k row of INVENTORY.md at ${REF:-?} nor of the working tree's, verbatim, and not listed pending-birth: $l"
   done
 fi
 # v0.9.7.1 (3.2f, R2): a section 5 line over 300 characters ends with the generated marker

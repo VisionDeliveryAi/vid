@@ -160,7 +160,9 @@ here within the last 30 minutes. On exit 1 (rare, since you just started
 it), tell the owner what it printed and stop: record `run: stopped the
 watcher is not running`. The watcher sends nothing: its notices are
 `observe: notice —` lines in the run's heartbeat. A reboot or log-out ends
-the loop; the next resume starts it again (Resume, below).
+the loop; the next resume starts it again (Resume, below). The loop ends
+by itself at its first wake after `run: complete`; `sh checks/observe.sh
+stop` ends this home's loop at once (FIX-BATCH-T1).
 
 **Your context, the host, the builders' tool (v0.9.7.1 3.8, 3.9, 3.12).**
 Right after the watcher:
@@ -1206,7 +1208,9 @@ develop` where vid-deploy names it.
   full receipt of the current code.
 - `sh checks/coverage.sh --strict` — every REQ cited under app source and
   ledger-tested; every design marker cited; every route inventoried, no owed
-  rows, no unproved tests, no orphan surfaces; zero open markers
+  rows, no unproved tests, no orphan surfaces; zero open markers (a rule
+  row owing its test is briefed to a test author by its id, `sh
+  checks/brief.sh write --role test-author --rows RULE-NNN`, FIX-BATCH-T1)
 - `sh checks/census.sh` — zero unratified orphans, zero pending (nothing
   owed remains, so debt-awareness has nothing to excuse); the divergence
   table contains only ratified rows

@@ -11,6 +11,7 @@ amend-branch-no-clear.sh
 amend-new-row.sh
 amend-sibling-kept.sh
 amended-old-events.sh
+amended-verdict-eligible.sh
 amended.sh
 analyst-cap.sh
 analyst-due-retired.sh
@@ -57,6 +58,7 @@ brief-step.sh
 brief-write-decisions.sh
 brief-write-fixer.sh
 brief-write-grader.sh
+brief-write-rule-row.sh
 brief-write-test-author.sh
 brief.sh
 cap-clock.sh
@@ -102,6 +104,7 @@ connect-run-stops.sh
 connect-shared.sh
 connect-spec-repo-one.sh
 consolidate-keeps-amended-mechanisms.sh
+consolidate-redo-same-history.sh
 consolidate-refuses-lost-mechanism.sh
 consolidation-commit-needs-no-owner.sh
 cost-shell-target.sh
@@ -109,7 +112,9 @@ court-counts-open-oq.sh
 court-refuses-crlf.sh
 court-timing.sh
 coverage-deploy-owed.sh
+coverage-questions-vid.sh
 coverage-receipt.sh
+coverage-scoped-marker.sh
 create-prd-sentences.sh
 currency-modules.sh
 currency-tests.sh
@@ -162,6 +167,7 @@ dp-r8-missing.sh
 dp-r8-none.sh
 draft-withdrawal-is-owner-question.sh
 drop-alarm-causes.sh
+drop-alarm-gate-off.sh
 estimate-intermediate-teardown.sh
 estimate-unseen.sh
 estimate.sh
@@ -259,6 +265,7 @@ index-courts-env.sh
 index-courts.sh
 interrupt-wrapper.sh
 invalidated.sh
+inventory-census-init-text.sh
 inventory-cites-follows-chain.sh
 inventory-note-tier0-arm-probes.sh
 inventory-notes-control-sibling.sh
@@ -385,6 +392,7 @@ notice-overrun.sh
 notice-questions.sh
 notice-stopped.sh
 notice-waiting.sh
+observe-stop.sh
 observe.sh
 one-queue.sh
 one-read.sh
@@ -409,6 +417,7 @@ plan-grammar.sh
 plan-lane-reason.sh
 plan-mode-read.sh
 plan-row-order.sh
+plan-struck-row.sh
 plan-warnings-auto.sh
 plan-warnings.sh
 planner-mode-rulings.sh
@@ -450,6 +459,7 @@ progress-lanes.sh
 progress-notices.sh
 progress-table.sh
 progress-trigger.sh
+proof-after-complete.sh
 propose-flags-nonjoinable-label.sh
 proved-red-join.sh
 publish-home.sh
@@ -518,10 +528,12 @@ scorecard-coherent-label.sh
 scorecard-counted.sh
 seam-not-yet.sh
 seams-discovery.sh
+seams-service-name.sh
 seams.sh
 selection-refused.sh
 service-death.sh
 share-build-copy-fallback.sh
+share-push-code-repo.sh
 skeleton-real-run.sh
 skill-connect-plugin-copy.sh
 skip-add.sh
@@ -1268,3 +1280,9 @@ whose-move.sh
 windows-hook-routes.sh
 windows-hook-settings.sh
 cs-unrun-fix.sh
+share-redact-flag.sh
+share-redact-pii.sh
+share-known-values.sh
+share-token-like.sh
+share-review.sh
+share-pack-names.sh

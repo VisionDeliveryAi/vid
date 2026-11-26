@@ -394,6 +394,7 @@ tinv() { _ta=''; ! pman "$H" || _ta=$(lmode "$H" applied)
     git -C "$H" show "$_ta:./INVENTORY.md" 2>/dev/null; else [ -f "$H/INVENTORY.md" ] && cat "$H/INVENTORY.md"; fi; }
 tinvids() { tinv | awk '/^```vid-inventory/ { b = 1; next } /^```/ { b = 0 } b' | awk -F'|' '{ k = $1; gsub(/^[ \t]+|[ \t]+$/, "", k)
     if (k ~ /^(rule|difference|exception|suppression|hostility|seam)$/) { k = $2; gsub(/^[ \t]+|[ \t]+$/, "", k) } if (k ~ /^[A-Z]+-[0-9]+$/) print k }'; }
+invread() { tinv 2>/dev/null | grep -q '^```vid-inventory'; }   # FIX-BATCH-T1 (B-11): the inventory read finds its machine block
 invids() { if tickets_mode; then tinvids; return; fi; [ -f "$H/INVENTORY.md" ] && sed -n '/^```vid-inventory/,/^```$/p' "$H/INVENTORY.md" | sed '1d;$d' | awk -F'|' '$1 ~ /^[[:space:]]*ROW-/ { id = $1; gsub(/^[ \t]+|[ \t]+$/, "", id); print id }'; }
 # parse_block <block file> <inventory ids file or ''>: normalised lines, or ERR lines (exit 1)
 parse_block() {
@@ -509,6 +510,9 @@ started() {
     esac
   done
   awk -F'\t' '!seen[$1]++' "$TMPD/charged" > "$TMPD/charged.u"; mv "$TMPD/charged.u" "$TMPD/charged"
+  # FIX-BATCH-T1 (B-11): GM-3 U4 in every mode — a row the inventory no longer holds has no charge (no orphan of its started
+  # step, not in the map, not counted by rule A); only when the read found the inventory's machine block
+  if invread; then invids | sort -u > "$TMPD/inv.c"; awk -F'\t' 'FILENAME == ARGV[1] { I[$1] = 1; next } ($1 in I)' "$TMPD/inv.c" "$TMPD/charged" > "$TMPD/charged.k"; mv "$TMPD/charged.k" "$TMPD/charged"; fi
   sort -u "$TMPD/started" -o "$TMPD/started"
 }
 # mkmap <out> [all]: the currency map — block rows by their step; charged rows no longer in the block by the plan they were admitted under; with `all`, every other INVENTORY row;
@@ -908,7 +912,8 @@ change_body() {
   # v0.9.7.2 (3.3, R4): the plan's protected: line only grows, under either strategy
   if [ -n "$_pv" ]; then
     # GM-3 U4: in GitHub manual a retired row (one the spec at the applied commit no longer holds) leaves the protected: line with it
-    _m=''; : > "$TMPD/tids"; if pman "$H"; then tinvids | sort -u > "$TMPD/tids"; [ ! -s "$TMPD/tids" ] || _m=1; fi; [ -s "$TMPD/tids" ] || echo '-' > "$TMPD/tids"
+    # FIX-BATCH-T1 (B-11): in every mode, a row the inventory read no longer holds, once the read finds the machine block
+    _m=''; : > "$TMPD/tids"; if invread; then { if pman "$H"; then tinvids; else invids; fi; } | sort -u > "$TMPD/tids"; _m=1; fi; [ -s "$TMPD/tids" ] || echo '-' > "$TMPD/tids"
     _rm=$(awk -F'\t' -v M="$_m" 'FILENAME == ARGV[1] { I[$1] = 1; next } FILENAME == ARGV[2] { if ($1 == "prot") N[$2] = 1; next } $1 == "prot" && !($2 in N) && !(M && !($2 in I)) { printf "%s%s", (n++ ? " " : ""), $2 }' "$TMPD/tids" "$TMPD/parsed" "$_pv")
     [ -z "$_rm" ] || { echo "ViD plan: refused — the plan's protected: line only grows; this change removes $_rm." >&2; exit 1; }
   fi

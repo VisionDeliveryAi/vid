@@ -19,7 +19,7 @@ RC=0; PATH="$T/w:$PATH" sh checks/share.sh build --run 2026-11-c > "$T/out" 2>&1
 [ "$RC" = 0 ] || fail "the build failed when the rename into place failed ($RC)"
 B=.vid/shares/2026-11-c
 [ -f "$B/MANIFEST.json" ] && [ -f "$B/records/.vid/notes/n.md" ] || fail 'the bundle was not copied into place'
-[ ! -e .vid/shares/.2026-11-c.building ] || fail 'the building folder was left behind'
+! ls -a .vid/shares | grep -q '[.]building$' || fail 'the building folder was left behind'
 grep -q 'copied' "$T/out" || fail 'the build does not say it copied the bundle into place'
 sh checks/share.sh scan "$B" > "$T/out" 2>&1 || fail 'the copied bundle does not scan clean'
 echo 'share-build-copy-fallback: ok'

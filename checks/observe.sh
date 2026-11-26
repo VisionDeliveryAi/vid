@@ -140,12 +140,20 @@
 # change between, is told once (key handback.<the path's cksum>), until that brief is handed back or a newer builder
 # brief for the step is written. (R6) An `overrun` event is told once, whenever it was written (key overrun.<ticket>, never
 # cleared). `notices` prints each standing notice, `<key><TAB><text>`, an overrun's while its request runs; it writes nothing.
-# Usage: sh checks/observe.sh [tick [--now]] | start | loop <token> | resume | alive | notices
+# FIX-BATCH-T1 (B-4): `stop`, at the run's home — when .vid/observer.pid's loop is this home's (loop_proc: the pid alive,
+# its command line ending `observe.sh loop <token>`, the pid file's home this home), the pid file's token becomes `-` and
+# that one pid gets TERM (waited on up to 10 s): `watcher stopped (pid <p>)`; else `watcher: not running here`, exit 0.
+# It signals nothing else. Otherwise the loop ends at its first wake after `run: complete` (develop; in ticket mode it keeps
+# ticking after it, by design, and stop is what ends it). An unknown first word is
+# refused with the usage, exit 2 (it ran a tick before).
+# Usage: sh checks/observe.sh [tick [--now]] | start | stop | loop <token> | resume | alive | notices
 # serves: both (0.26.10.28.4, M9)
 set -u
 IFS='
 '
 MODE=${1:-tick}
+case "$MODE" in tick|start|stop|loop|resume|alive|notices) ;;   # FIX-BATCH-T1 (B-4): an unknown word runs nothing
+  *) echo "ViD observe: usage — sh checks/observe.sh [tick [--now]] | start | stop | loop <token> | resume | alive | notices (not '$MODE')" >&2; exit 2 ;; esac
 [ "$MODE" = tick ] && [ "${2:-}" = --now ] && { VID_OBSERVE_FORCE=1; export VID_OBSERVE_FORCE; }
 SELF=$(cd "$(dirname "$0")" && pwd)/$(basename "$0")
 
@@ -169,7 +177,7 @@ loop_proc() {
   case "$1" in ''|*[!0-9]*) return 1 ;; esac
   kill -0 "$1" 2>/dev/null || return 1
   _c=$(ps -p "$1" -o args= 2>/dev/null || ps -p "$1" -o command= 2>/dev/null)
-  case "$_c" in *"observe.sh loop $2"*) ;; *) return 1 ;; esac
+  case "$_c" in *"observe.sh loop $2") ;; *) return 1 ;; esac   # FIX-BATCH-T1 (B-4): the token whole, at the line's end
   [ "$(sed -n 2p "$PIDF" 2>/dev/null)" = "$3" ]
 }
 if [ "$MODE" = start ]; then
@@ -210,6 +218,16 @@ if [ "$MODE" = start ]; then
   if kill -0 "$LP" 2>/dev/null; then echo "ViD observe: the watcher loop (pid $LP) gave no acknowledgement in 30 s — no 'loop $TOK $HM' line in $HM/.vid/observer.state; its output is in .vid/observer.log"
   else echo "ViD observe: the watcher loop (pid $LP) ended before its acknowledgement — no 'loop $TOK $HM' line in $HM/.vid/observer.state; its output is in .vid/observer.log"; fi
   exit 1
+fi
+# --- FIX-BATCH-T1 (B-4): stop — this home's loop alone, the pid its pid file names, checked by loop_proc -------------
+if [ "$MODE" = stop ]; then
+  HM=$(pwd -P); _p=$(sed -n 1p "$PIDF" 2>/dev/null); _tk=$(sed -n 3p "$PIDF" 2>/dev/null)
+  if [ -z "$_tk" ] || [ "$_tk" = - ] || ! loop_proc "$_p" "$_tk" "$HM"; then echo 'watcher: not running here'; exit 0; fi
+  printf '%s\n%s\n%s\n' "$_p" "$HM" - > "$PIDF.tmp" && mv "$PIDF.tmp" "$PIDF"   # the token gone: the loop's live test fails
+  kill -TERM "$_p" 2>/dev/null || true
+  _w=0; while kill -0 "$_p" 2>/dev/null && [ "$_w" -lt 10 ]; do sleep 1; _w=$((_w + 1)); done
+  if kill -0 "$_p" 2>/dev/null; then echo "ViD observe: the watcher loop (pid $_p) did not end within 10 s of TERM; its token is withdrawn, so it ends at its next wake"; exit 1; fi
+  echo "watcher stopped (pid $_p)"; exit 0
 fi
 # --- v0.9.7.0.9 (3.8, R11): loop <token> — a tick each round, until the run completes ----------
 if [ "$MODE" = loop ]; then
@@ -761,7 +779,8 @@ drop_tick() {
   [ -f checks/evidence.sh ] && [ -f checks/plan.sh ] && [ -f "$RS" ] || return 0
   [ "$(sed -n 's/^plan:[[:space:]]*//p' "$RS" | head -n 1 | sed 's/[[:space:]]*$//')" = required ] || return 0
   _dt=$(mktemp -d) || return 0
-  sh checks/plan.sh map --all > "$_dt/map" 2> /dev/null && [ -s "$_dt/map" ] || { rm -rf "$_dt"; return 0; }
+  # FIX-BATCH-T1 (B-4): a map holds a map line (a row id, a tab) — with the gate off, map prints its note and exits 0
+  sh checks/plan.sh map --all > "$_dt/map" 2> /dev/null && grep -q "$(printf '\t')" "$_dt/map" || { rm -rf "$_dt"; return 0; }
   sh checks/evidence.sh rows --at HEAD --map "$_dt/map" > "$_dt/states" 2> /dev/null || { rm -rf "$_dt"; return 0; }
   _hm=$(awk -v e="$NOW" 'BEGIN { s = e % 86400; printf "%02d:%02d", int(s / 3600), int((s % 3600) / 60) }')
   _ids=$(awk -F'\t' '$2 == "pass" { print $1 }' "$_dt/states" | sort | paste -sd, -)

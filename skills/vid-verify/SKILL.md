@@ -108,7 +108,10 @@ row in ten. The grader returns a
 `fault:` line and a patch for each (`passes/grader.md`); it runs nothing.
 The run manager proves each, one at a time:
 1. a proof worktree at the brief's quoted-at: `git worktree add --detach
-   .vid/proofs/<ROW-id> <quoted-at>`;
+   .vid/proofs/<ROW-id> <quoted-at>`, and in it, before its first request,
+   its home recorded: `sh checks/plan.sh home --brief <the grader brief's
+   absolute path>` — after completion no live run is found, and without it
+   the proof's tickets and receipts stay in the worktree (FIX-BATCH-T1);
 2. from it, the clean baseline: `sh checks/test.sh request --type
    prove-red --role orchestrator --purpose proof --rows <ROW-id> --why
    "<…>" -- <the target and control, in the runner's syntax>` — for a row

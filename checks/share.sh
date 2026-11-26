@@ -50,6 +50,17 @@
 #   split          <path> <parts>                      a file over the size limit, cut into <path>.part-000 …
 #   scan           clean | found <count>
 #   limit          <one line of plain words>           that a pattern catches only what it knows
+#   caught-certain <one line>                          SHARE-SCRUB §5: what is caught for certain,
+#   caught-by-rule <one line>                          what by rule (a value in another form passes),
+#   not-caught     <one line>                          and what is not caught at all
+#   review         .vid/shares/<run>.review <prompts> <data files>   the review page, beside the bundle, never in it
+#
+# 0.26.11.2 (SHARE-SCRUB): beside the bundle, never in it, readable by the user alone: <run>.known (the personal values and, by
+# path alone, the dotenv files the scan reads again; never a secret value) and <run>.review (what the user typed in the main
+# sessions and the product data files the conversations touched, read from the redacted bundle). A file that holds secrets by its
+# name (.env, .env.*, *.env, .envrc, *.pem, *.key, *.p12, *.pfx, id_rsa, id_dsa, id_ecdsa, id_ed25519, .netrc, .pgpass,
+# credentials, credentials.*) is never copied. A project name redaction changes becomes `project`, and a run name it changes is
+# refused. pack's archive holds no user or group name.
 set -eu
 TAB=$(printf '\t')
 usage() {
@@ -67,7 +78,7 @@ size() { wc -c < "$1" | tr -d ' '; }
 lo() { printf '%s\t%s\n' "$1" "$2" >> "$W/leftout"; }
 ms() { printf '%s\t%s\t%s\n' "$1" "$2" "${3:-}" >> "$W/missing"; }
 # add <bundle path> <source file> <class>: one file to write; class rec, log, conv or doc decides its gzip
-add() { printf '%s\t%s\t%s\n' "$1" "$2" "$3" >> "$W/list"; }
+add() { printf '%s\t%s\t%s\n' "$1" "$2" "$3" >> "$W/list"; [ ! -f "$W/list.c" ] || printf '%s\t%s\t%s\t%s\n' "$1" "$2" "$3" "$2" >> "$W/list.c"; }
 # src <bundle path> <root name> <path from the root> <how>: a source row of the manifest
 src() { printf '%s\t%s\t%s\t%s\n' "$1" "$2" "$3" "$4" >> "$W/sources"; }
 
@@ -106,6 +117,7 @@ walk() {
   # another left out is not listed again, as find never reached it before
   ( cd "$_r" && { _pf -prune -print; _pf ! -name .git -prune -o -name .git -prune \( ! -type l -o -exec test -e {} \; \) -print | sed -n '/^\.\/\.git$/d; s|/\.git$||p'; } ) | sed 's|^\./||' | LC_ALL=C sort -u |
     awk '{ P[++n] = $0; S[$0] = 1 } END { for (i = 1; i <= n; i++) { x = P[i]; u = 0; while ((k = match(x, /\/[^\/]*$/)) > 0) { x = substr(x, 1, k - 1); if (x in S) { u = 1; break } } if (!u) print P[i] } }' > "$W/pruned"
+  awk -v R="$_r" '{ print R "/" $0 }' "$W/pruned" >> "$W/pruned.all"   # SHARE-SCRUB §4.1: their histories name people
   ( cd "$_r" && find . ! -type d -print ) | sed 's|^\./||' | LC_ALL=C sort | awk -v F="$W/pruned" '
     BEGIN { while ((getline l < F) > 0) P[++n] = l }
     { for (i = 1; i <= n; i++) if ($0 == P[i] || index($0, P[i] "/") == 1) next; print }' > "$W/found"
@@ -199,7 +211,9 @@ gzr() {
 # tokens and the names alike (bnd): the text before the match is empty, or ends in a character not a letter, digit or _, or in
 # \b \f \n \r \t, \u and 4 hex digits, \x and 2 hex digits, a colour code, or % and 2 hex digits. Its one named limit: an octal
 # escape (\342) is not a boundary. No interval braces: repeats are spelled out (rp), for every awk.
-# The kinds, in the order they apply:
+# 0.26.11.2 (SHARE-SCRUB §4): the context rules run on the text as it came, then the known values, then the shapes; on a JSON line
+# or a .json file's line a marker left as a bare value outside any string is quoted, so the line still parses. The kinds, in the
+# order they apply:
 #   private-key      from any BEGIN … PRIVATE KEY (or PRIVATE KEY BLOCK, PGP's) marker to its END marker, wherever on the line each sits, over lines
 #                    and inside \n-escaped strings; with no END, to the JSON string's end, else to the file's end
 #   literal          each line of the user's file
@@ -215,17 +229,48 @@ gzr() {
 #   bearer           Bearer and 16+ token characters (the word kept)
 #   url-credentials  scheme://user:password@ (the scheme and @ kept)
 #   token-header     x-…token: or = and 8+
+#   auth-header      the value of an Authorization, Proxy-Authorization, Cookie or Set-Cookie header (the scheme word kept), to the
+#                    close of a quote right before the name, else on a JSON line its string's end or a \n or \r escape, else the line's end
 #   aws-secret-key   (aws_)secret_access_key or SecretAccessKey, any case, and 40 key characters
 #   account-id       accountUuid, organizationUuid, account_id and the like, and an id; then each id found, anywhere
-#   secret-assignment  a name that is or ends in token, secret, password, passwd, _key or -key (each in any case), apikey,
-#                    or <word>Key, then = or :, then 6+ value characters, or a quoted value of any length to its closing
-#                    quote (one escaped deeper is its own), spaces included (a value starting $ or <, all *, wholly a marker, or
-#                    example…, none, null, true, false, unset, changeme or required is left)
-#   email            the user's email, as a literal
+#   secret-assignment  a secret name — one that is or ends in token, secret, password, passwd, passphrase, credential(s), auth,
+#                    cookie, _key or -key (each in any case), apikey, <word>Key, or _pass, -pass, <word>Pass, _pwd, -pwd, <word>Pwd
+#                    — then = or :, then 1+ value characters, or a quoted value of any length to its closing quote (one escaped
+#                    deeper is its own), spaces included; and <name>value</name>. Left: a marker, a whole variable reference
+#                    ($NAME, ${…, $(…), a whole <placeholder>, all *, none, null, true, false, unset. After a quoted name an
+#                    unquoted value (a JSON number) is written as a marker in the name's quote
+#   secret-flag      - or -- and a secret name at a boundary, spaces, then the value (quoted to its close, else the run; an
+#                    unquoted one starting - is the next flag); a secret name or IDENTIFIED BY, spaces and a quoted value; in
+#                    each command (between ; & | $( ` and \n or \r escapes): -p glued or not beside a user flag whose value is a
+#                    name (-u, -U, --user, --username), a port (digits, . and :) left; with no user flag, the closed list:
+#                    sshpass -p, mysql mysqldump mysqladmin mariadb mariadb-dump -p glued, redis-cli -a, docker login, podman
+#                    login and helm registry login -p; curl and wget -u user:<value>
+#   personal-field   the value of a field named (any case, _ or - or nothing between words, after a prefix ending _ or -, or
+#                    camel-cased) first/last/full/given/family/middle/maiden name, surname, birth date, date of birth, dob,
+#                    birthday, phone, telephone, tel, mobile, fax, address, street, address line, postcode, post code, postal
+#                    code, zip, zip code, ssn, national id, passport, tax id, iban, card number, cvv, cvc, email: quoted to its
+#                    close, else to a quote, backslash , ; { } [ ] < > or the line's end; a container left; and of a name field
+#                    (name, <x>_name, <x>Name, author, user, username, owner, contact, customer, sender, recipient, from, to)
+#                    holding 2 to 4 capitalised words; and <name>value</name>
+#   known-secret     each secret-named value of the environment and of the dotenv files .known lists, and every URL password
+#                    in their values, 6+ characters, whole tokens in any case, as it is, JSON-escaped once and twice, unescaped
+#                    and percent-encoded (a secret-name or stop word left)
+#   card-number      13 to 19 digits, plain or in groups of 4, starting 4, 51-55, 22-27, 34, 37 or 6, passing Luhn
+#   iban             two capitals, two digits, 11 to 30 letters or digits, plain or in groups of 4, passing mod 97
+#   email            every address local@domain.tld (and the user's, as a literal); never starting on a JSON escape's letter
+#   phone            + and a country code not 0 and 8 to 15 digits with single separators; (NNN) NNN-NNNN; NNN-NNN-NNNN
+#   ip-address       IPv4 (each part 0-255, not in a longer dotted number, the first not 0 or 127); IPv6 in full or with ::
+#                    and two hex groups, one of 3 or 4 characters, never ::1
+#   token-like       a run of letters, digits, _ and - with 20+ letters and digits, upper and lower case and 2+ digits, at least
+#                    half letters, 30 to 70% of them capitals; hex alone and Claude's ids (toolu_ srvtoolu_ msg_ req_ cse_
+#                    file_ session_) left
 #   host             the host name after @ (a prompt) or in a host or hostname field, never as a bare word
 #   user-name        a user name after a home prefix: the Users or home folder after any number of slashes or backslashes
 #                    (so a drive's, a WSL mount's and Git Bash's forms, and JSON's escaped ones), and its encoded form
 #                    (every character not a letter or digit as -) after -Users- or -home-, as Claude's folder names hold it
+#   person-name      every author, committer and Co-authored-by of two words or more in the home's and the left-out
+#                    repositories' histories (no [bot], .invalid, noreply@anthropic.com or noreply@github.com), whole phrase
+#                    in any case, and encoded (lower case, - for the rest)
 REDLIB='function rp(c, n,   s) { s = ""; while (n-- > 0) s = s c; return s }
 # bnd: the one boundary, the rule stated in the header, tested on the whole text t before a match (a colour code has no fixed length)
 function bnd(t,   c, n, H) { n = length(t); if (n == 0) return 1; c = substr(t, n, 1); if (c !~ /[A-Za-z0-9_]/) return 1; H = "^[0-9A-Fa-f]+$"
@@ -234,9 +279,35 @@ function bnd(t,   c, n, H) { n = length(t); if (n == 0) return 1; c = substr(t, 
   if (n >= 4 && substr(t, n - 3, 2) == "\\x" && substr(t, n - 1) ~ H) return 1
   if (n >= 3 && substr(t, n - 2, 1) == "%" && substr(t, n - 1) ~ H) return 1
   return (c == "m" && t ~ SGR) }
-function skipv(v,   lv) { lv = tolower(v); if (v ~ /^[$<]/ || v ~ /^[*]+$/ || lv ~ /^example/ || v ~ /^\[REDACTED:[a-z-]*\]$/) return 1
-  return (lv == "none" || lv == "null" || lv == "true" || lv == "false" || lv == "unset" || lv == "changeme" || lv == "required") }
+# skipv: a value that is surely no secret (SHARE-SCRUB §4.3.4): a marker, a whole variable reference ($NAME, ${NAME}), a whole
+# <placeholder>, all *, or none, null, true, false, unset
+function skipv(v,   lv) { lv = tolower(v); if (v ~ /^[$][A-Za-z_][A-Za-z0-9_]*$/ || v ~ /^[$][{][A-Za-z_][A-Za-z0-9_]*[}]$/ || v ~ /^<[^<>]*>$/ || v ~ /^[*]+$/ || v ~ /^\[REDACTED:[a-z-]*\]$/) return 1
+  return (lv == "none" || lv == "null" || lv == "true" || lv == "false" || lv == "unset") }
 function mark(k) { C[k]++; return "[REDACTED:" k "]" }
+# rep: every a in v replaced by b, as plain text (no awk’s replacement rules, which differ between awks)
+function rep(v, a, b,   o, p) { o = ""; while ((p = index(v, a)) > 0) { o = o substr(v, 1, p - 1) b; v = substr(v, p + length(a)) } return o v }
+function je(v) { return rep(rep(v, "\\", "\\\\"), "\"", "\\\"") }
+function ju(v) { return rep(rep(v, "\\\"", "\""), "\\\\", "\\") }
+function pe(v,   o, i, c) { o = ""; for (i = 1; i <= length(v); i++) { c = substr(v, i, 1); o = o (c ~ /[A-Za-z0-9._~-]/ ? c : sprintf("%%%02X", ORD[c])) } return o }
+# 0.26.11.2 (SHARE-SCRUB §4.1): a known value is used in its byte forms (as it is, JSON-escaped once and twice, unescaped, percent-
+# encoded), lower case, as om() matches it whole; not under 6 characters, a secret-name word, a stop word, a marker or all *
+function aks(v) { if (length(v) < 6 || tolower(v) ~ /^(token|secrets?|password|passwd|passphrase|pass|pwd|credentials?|auth|cookie|key|apikey|pat|pw|sig|signature)$/ || (tolower(v) in STOP) || v ~ /^\[REDACTED:[a-z-]*\]$/ || v ~ /^[*]+$/) return
+  ak1(v); ak1(je(v)); ak1(je(je(v))); if (index(v, "\\")) ak1(ju(v)); ak1(pe(v)) }
+function ak1(v,   lv) { lv = tolower(v); if (lv in KSS) return; KSS[lv] = 1; KS[++nk] = lv }
+# urlpw: the password of every URL with credentials in v, as a known value
+function urlpw(v,   m, a) { while (match(v, URL)) { m = substr(v, RSTART, RLENGTH); v = substr(v, RSTART + RLENGTH); a = substr(m, index(m, "://") + 3); aks(substr(a, index(a, ":") + 1, length(a) - index(a, ":") - 1)) } }
+# denv: a dotenv file read as a shell reads it (export dropped, the key to the first =, one pair of quotes removed, an unquoted
+# value ending at " #"): each secret-named key’s value, and every value’s URL password
+function denv(f,   x, e, key, val, q) {
+  while ((getline x < f) > 0) { sub(/\r$/, "", x); sub(/^[ \t]*export[ \t]+/, "", x); e = index(x, "="); if (x ~ /^[ \t]*#/ || (!e && !index(x, ":"))) continue
+    key = substr(x, 1, e - 1); if (key ~ /:/ && index(x, ":") < e) e = 0
+    if (!e && (e = index(x, ":"))) key = substr(x, 1, e - 1)   # a KEY: value line (a .env.yml)
+    gsub(/^[ \t]+|[ \t]+$/, "", key); val = substr(x, e + 1); sub(/^[ \t]+/, "", val)
+    if (substr(val, 1, 1) == "\"") { val = substr(val, 2); q = endq(val); if (q) val = substr(val, 1, q - 1); val = rep(val, "\\\"", "\"") }
+    else if (substr(val, 1, 1) == "\047") { val = substr(val, 2); sub(/\047.*/, "", val) }
+    else { sub(/[ \t]+#.*/, "", val); sub(/[ \t]+$/, "", val) }
+    if (key ~ SANW || key ~ SANUW) aks(val); urlpw(val) }
+  close(f) }
 function tok(s, k, re, b,   out, pre, m) { out = ""
   while (match(s, re)) { pre = substr(s, 1, RSTART - 1); m = substr(s, RSTART, RLENGTH); s = substr(s, RSTART + RLENGTH)
     if (b && !bnd(out pre)) { out = out pre substr(m, 1, 1); s = substr(m, 2) s; continue }
@@ -245,16 +316,312 @@ function tok(s, k, re, b,   out, pre, m) { out = ""
 # asg: an assignment, name then separator then value. The value is the run of class vc characters (at least mn); after a
 # separator ending in a quote (with its backslashes: ", \", \\\"), it is everything up to that quote again, spaces included;
 # with qk, else the run. A separator ending in two quotes (an empty value) is left.
-function asg(s, k, nre, vc, mn, qk,   out, pre, m, nl, r, sl, sp, post, v, p) { out = ""
+function asg(s, k, nre, vc, mn, qk,   out, pre, m, nl, r, sl, sp, post, v, p, q1, vx, p2) { out = ""
   while (match(s, nre SEP)) { pre = substr(s, 1, RSTART - 1); m = substr(s, RSTART, RLENGTH); s = substr(s, RSTART + RLENGTH)
-    match(m, "^" nre); nl = RLENGTH; r = substr(m, nl + 1); match(r, /[:=][ \t]*/); post = substr(r, RSTART + RLENGTH)
+    match(m, "^" nre); nl = RLENGTH; r = substr(m, nl + 1); match(r, SOP); q1 = substr(r, 1, RSTART - 1); post = substr(r, RSTART + RLENGTH)
     v = ""; p = 0
-    if (qk && post ~ /^\\*["\047]$/) { p = closeq(s, post); if (p) v = substr(s, 1, p - 1) }
+    if ((JLN && post == "\"" && q1 !~ /"[ \t]*$/) || (q1 == "" && post != "" && substr(pre, length(pre) - length(post) + 1) == post)) { out = out pre m; continue }
+    if (qk && post ~ /^\\*["\047]$/) { p = cq(s, post); if (p) v = substr(s, 1, p - 1) }
     if (!p) { if (post != "" && post !~ /^\\*["\047]$/) { out = out pre m; continue }
-      if (match(s, "^" vc "+")) v = substr(s, 1, RLENGTH) }
-    if (length(v) < (p ? 1 : mn) || skipv(v)) { out = out pre m; continue }
-    out = out pre m mark(k); s = substr(s, length(v) + 1) }
+      # SHARE-SCRUB adversarial 1: after an unquoted name a plain value runs to a space, a quote or a backslash; after a quoted
+      # name (a JSON value) as before; a ${…} whole
+      vx = (vc == VW && q1 ~ /["\047][ \t]*$/) ? V6 : vc
+      if (substr(s, 1, 2) == "${" && (p2 = index(s, "}"))) { v = substr(s, 1, p2); if (match(substr(s, p2 + 1), "^" vx "+")) v = v substr(s, p2 + 1, RLENGTH) }
+      else if (match(s, "^" vx "+")) v = substr(s, 1, RLENGTH) }
+    if (length(v) < (p ? 1 : mn) || skipv(v) || (!p && v ~ /^=/)) { out = out pre m; continue }   # a comparison (==) is no assignment
+    # adversarial 2: name: Type = value (a typed declaration) takes the value after the =; a YAML block scalar (| or >) inside a
+    # JSON string takes its next line
+    if (!p && vc == VW && match(substr(s, length(v) + 1), /^[ \t]*=[ \t]*\\*["\047`]/) && substr(s, length(v) + 1) !~ /^[ \t]*==/) {
+      p2 = substr(s, length(v) + 1, RLENGTH); r = substr(s, length(v) + RLENGTH + 1); match(p2, /\\*["\047`]$/); sl = substr(p2, RSTART)
+      if ((sp = cq(r, sl)) > 1) { if (skipv(substr(r, 1, sp - 1))) { out = out pre m; continue } out = out pre m v p2 mark(k); s = substr(r, sp); continue } }
+    if (!p && v ~ /^[|>][-+]?$/ && match(substr(s, 2 + (length(v) > 1)), /^[ \t]*\\n[ \t]+/)) {
+      r = substr(s, length(v) + 1); p2 = substr(r, 1, RLENGTH); r = substr(r, RLENGTH + 1)
+      if (match(r, /^[^\\"]+/)) { if (skipv(substr(r, 1, RLENGTH))) { out = out pre m; continue } out = out pre m v p2 mark(k); s = substr(r, RLENGTH + 1); continue } }
+    # SHARE-SCRUB §4.3.4: an unquoted value right after a quoted name (a JSON number) becomes a marker in the name’s own quote
+    gsub(/[ \t]/, "", q1); if (p || post != "" || q1 !~ /^\\*"$/) q1 = ""
+    out = out pre m q1 mark(k) q1; s = substr(s, length(v) + 1) }
   return out s }
+# 0.26.11.2 (SHARE-SCRUB). xel: <name>value</name> for a name nre matches, the value to the next <; on a JSON line (jl) not past
+# an unescaped quote, the end of the JSON string it sits in
+function xel(s, k, nre, jl, nf,   out, pre, m, v) { out = ""
+  while (match(s, "<" nre ">")) { pre = substr(s, 1, RSTART - 1); m = substr(s, RSTART, RLENGTH); s = substr(s, RSTART + RLENGTH)
+    if (match(s, /^[^<]+<\//)) { v = substr(s, 1, RLENGTH - 2); if (!skipv(v) && !(jl && endq(v)) && !(nf && !pname(v))) { out = out pre m mark(k); s = substr(s, length(v) + 1); continue } }
+    out = out pre m }
+  return out s }
+# fv: the value at the start of r: a quoted one (its quote and backslashes in FQ, FQL long) to its closing quote, else the run of
+# V6 characters; FV the value, FVL its length; 0 when there is none, it is empty, or skipv leaves it
+function fv(r,   p) { FQ = ""; FQL = 0; FVL = 0; FV = ""
+  if (match(r, /^\\*["\047]/)) { FQ = substr(r, 1, RLENGTH); FQL = RLENGTH; if (JLN && FQ == "\"") { FQ = ""; FQL = 0; return 0 } p = cq(substr(r, FQL + 1), FQ); if (!p) { FQ = ""; FQL = 0; return 0 } FV = substr(r, FQL + 1, p - 1) }
+  else if (substr(r, 1, 2) == "${" && (p = index(r, "}"))) { FV = substr(r, 1, p); if (match(substr(r, p + 1), "^" VW "+")) FV = FV substr(r, p + 1, RLENGTH) }
+  else if (match(r, "^" VW "+")) FV = substr(r, 1, RLENGTH); else return 0
+  FVL = length(FV); return (FVL > 0 && !skipv(FV)) }
+# flg (§4.3.2): a dash or two at a boundary, a secret name, spaces, then its value (an unquoted one starting - is the next flag);
+# then a secret name or IDENTIFIED BY at a boundary, spaces and a quoted value (IDENTIFIED BY’s unquoted too)
+function flg(s,   out, pre, m, r, id) { out = ""
+  while (match(s, FLA)) { pre = substr(s, 1, RSTART - 1); m = substr(s, RSTART, RLENGTH); s = substr(s, RSTART + RLENGTH)
+    if (!bnd(out pre)) { out = out pre substr(m, 1, 1); s = substr(m, 2) s; continue }
+    if (!fv(s) || (FQ == "" && substr(FV, 1, 1) == "-")) { out = out pre m; continue }
+    out = out pre m FQ mark("secret-flag"); s = substr(s, FQL + FVL + 1) }
+  s = out s; out = ""
+  while (match(s, FLB)) { pre = substr(s, 1, RSTART - 1); m = substr(s, RSTART, RLENGTH); s = substr(s, RSTART + RLENGTH)
+    if (!bnd(out pre) || substr(pre, length(pre), 1) == "-") { out = out pre substr(m, 1, 1); s = substr(m, 2) s; continue }
+    id = (m ~ "^" IDB); if (!fv(s) || (FQ == "" && !id)) { out = out pre m; continue }
+    out = out pre m FQ mark("secret-flag"); s = substr(s, FQL + FVL + 1) }
+  s = out s; out = ""
+  # a .netrc printed (machine <host> login <user> password <v>, adversarial 2)
+  if (tolower(s) ~ /machine[ \t]+[^ \t]+[ \t]+login[ \t]/) { while (match(s, /(^|[ \t])[Pp][Aa][Ss][Ss][Ww]([Oo][Rr])?[Dd][ \t]+/)) { pre = substr(s, 1, RSTART + RLENGTH - 1); s = substr(s, RSTART + RLENGTH)
+      if (!fv(s)) { out = out pre; continue } out = out pre FQ mark("secret-flag"); s = substr(s, FQL + FVL + 1) }
+    s = out s; out = "" }
+  # -storepass, -keypass, -passin, -passout and their like, a pass: prefix kept (adversarial 1)
+  while (match(s, FLP)) { pre = substr(s, 1, RSTART + RLENGTH - 1); s = substr(s, RSTART + RLENGTH)
+    if (!fv(s) || (FQ == "" && substr(FV, 1, 1) == "-")) { out = out pre; continue }
+    r = (FV ~ /^pass:./) ? "pass:" : ""; if (r != "" && skipv(substr(FV, 6))) { out = out pre; continue }
+    out = out pre FQ r mark("secret-flag"); s = substr(s, FQL + FVL + 1) }
+  return out s }
+# cal (adversarial 2): a secret name given as a quoted argument or subscript, then its value (os.environ["DB_PASSWORD"] = "v",
+# define("DB_PASSWORD", "v"), setenv("API_KEY", "v"), put("password", "v")); and a method named for a secret given a quoted
+# value (setPassword("v"), with_password("v"))
+function cal(s,   out, pre, m, e) { out = ""
+  while (match(s, CAL1)) { pre = substr(s, 1, RSTART - 1); m = substr(s, RSTART, RLENGTH); s = substr(s, RSTART + RLENGTH)
+    match(m, /\\*["\047]$/); e = cq(s, substr(m, RSTART)); if (e < 2 || skipv(substr(s, 1, e - 1)) || substr(s, e, 16) ~ /^\\*["\047][ \t]*:/) { out = out pre m; continue }   # a JSON key after it is no value
+    out = out pre m mark("secret-assignment"); s = substr(s, e) }
+  s = out s; out = ""
+  while (match(s, CAL2)) { pre = substr(s, 1, RSTART - 1); m = substr(s, RSTART, RLENGTH); s = substr(s, RSTART + RLENGTH)
+    if (!bnd(out pre)) { out = out pre substr(m, 1, 1); s = substr(m, 2) s; continue }
+    match(m, /\\*["\047]$/); e = cq(s, substr(m, RSTART)); if (e < 2 || skipv(substr(s, 1, e - 1))) { out = out pre m; continue }
+    out = out pre m mark("secret-assignment"); s = substr(s, e) }
+  return out s }
+# pvx (adversarial 2): flag f of a command cre names (sqlcmd -P, ldapsearch -w, plink -pw, zip -P, lftp -u user,pw, smbclient
+# -U user%pw, httpie -a user:pw), the value, or with sep its part after sep
+function pvx(s, f, cre, sep,   t, out, pre, r, gl, off, c) { out = ""; off = 0; t = s
+  while (match(s, "(^|[ \t])" f)) { pre = substr(s, 1, RSTART + RLENGTH - 1); r = substr(s, RSTART + RLENGTH); cmd(t, off + RSTART)
+    gl = (r !~ /^[ \t]/); if (!gl) { match(r, /^[ \t]+/); pre = pre substr(r, 1, RLENGTH); r = substr(r, RLENGTH + 1) }
+    off += length(pre)
+    if (r == "" || CMW !~ (CW "(" cre ")" CE) || !fv(r) || (!gl && FQ == "" && substr(FV, 1, 1) == "-")) { out = out pre; s = r; continue }
+    c = (sep == "") ? 0 : index(FV, sep); if (sep != "" && (!c || c == FVL || skipv(substr(FV, c + 1)))) { out = out pre; s = r; continue }
+    out = out pre FQ substr(FV, 1, c) mark("secret-flag"); s = substr(r, FQL + FVL + 1); off += FQL + FVL }
+  return out s }
+# awp: an AWS secret key given after its name and spaces (aws configure set aws_secret_access_key <v>)
+function awp(s,   out, pre) { out = ""
+  while (match(s, AWSN "[ \t]+")) { pre = substr(s, 1, RSTART + RLENGTH - 1); s = substr(s, RSTART + RLENGTH)
+    if (match(s, /^[A-Za-z0-9\/+]+/) && RLENGTH >= 20) { out = out pre mark("aws-secret-key"); s = substr(s, RLENGTH + 1) } else out = out pre }
+  return out s }
+# nvp: a name or key that is a secret name, then its value (kubectl and HAR name/value pairs, .NET <add key= value=>); and the
+# value written first, its name after it (adversarial 2)
+function nvp(s,   out, pre, m, e) { out = ""
+  while (match(s, NVR)) { pre = substr(s, 1, RSTART - 1); m = substr(s, RSTART, RLENGTH); s = substr(s, RSTART + RLENGTH)
+    if (!match(m, /\\*["\047]$/)) { out = out pre m; continue }
+    e = cq(s, substr(m, RSTART)); if (e < 2 || skipv(substr(s, 1, e - 1))) { out = out pre m; continue }
+    out = out pre m mark("secret-assignment"); s = substr(s, e) }
+  s = out s; out = ""
+  while (match(s, NVV)) { pre = substr(s, 1, RSTART - 1); m = substr(s, RSTART, RLENGTH); s = substr(s, RSTART + RLENGTH)
+    if (!match(m, /\\*["\047]$/)) { out = out pre m; continue }
+    e = cq(s, substr(m, RSTART)); if (e < 2 || skipv(substr(s, 1, e - 1)) || substr(s, e, 200) !~ NVN) { out = out pre m; continue }
+    out = out pre m mark("secret-assignment"); s = substr(s, e) }
+  return out s }
+# pfl (§4.3.2): -p, redis-cli’s -a and curl’s -u user:pass, each read in its command: the text between the nearest command
+# separators around the flag (; & | $( ` and \n or \r escapes), within 512 characters each way; the value read from the whole text,
+# so a quoted value holding a separator is taken whole
+function pfl(s,   out, p) { if (length(s) <= 8192) return pf1(s); out = ""
+  # a long line in pieces cut after a \n or \r escape (a command separator), so each piece is read in linear time
+  while (length(s) > 8192 && match(substr(s, 4097), /\\[nr]/)) { p = 4096 + RSTART + 1; out = out pf1(substr(s, 1, p)); s = substr(s, p + 1) }
+  return out pf1(s) }
+function pf1(s) { if (s !~ /(^|[ \t])-[pauPUw]/ && !index(s, "--user")) return s; s = pv(s, "-p", 0); s = pv(s, "-a", 1); s = cuu(s)
+  if (s ~ /(^|[ \t])-[PwuUap]/) { s = pvx(s, "-P", "sqlcmd|bcp|zip", ""); s = pvx(s, "-w", "ldap[a-z]*", ""); s = pvx(s, "-pw", "plink|pscp|psftp", "")
+    s = pvx(s, "-u", "lftp", ","); s = pvx(s, "-U", "smbclient", "\045"); s = pvx(s, "-a", "https?", ":") }
+  return s }
+# cmd: the command around position q of t, CMD, for the user flag; and CMW, the text back to a \n or \r escape (no ; & | inside a
+# quote can cut it), for the closed list’s and curl’s command names
+function cmd(t, q,   a, l, r, w) { a = q > 512 ? q - 512 : 1; l = substr(t, a, q - a); w = l
+  while (match(l, PSEP)) l = substr(l, RSTART + RLENGTH)
+  while (match(w, /\\[nr]/)) w = substr(w, RSTART + RLENGTH)
+  r = substr(t, q, 512); if (match(r, PSEP)) r = substr(r, 1, RSTART - 1)
+  CMD = l r; CMW = w r }
+# pv: each flag f standing alone, glued to its value or before spaces and it: taken in the closed list’s commands (sshpass, the
+# login commands, the mysql clients glued; with ra, redis-cli’s -a), else beside a user flag unless the value is a port (digits, . :)
+function pv(s, f, ra,   t, out, pre, r, gl, off, cl) { out = ""; off = 0; t = s
+  while (match(s, "(^|[ \t])" f)) { pre = substr(s, 1, RSTART + RLENGTH - 1); r = substr(s, RSTART + RLENGTH); cmd(t, off + RSTART)
+    gl = (r !~ /^[ \t]/); if (!gl) { match(r, /^[ \t]+/); pre = pre substr(r, 1, RLENGTH); r = substr(r, RLENGTH + 1) }
+    off += length(pre); cl = ra ? (CMW ~ CLR) : ((CMW ~ CLS) || (CMW ~ CLL) || ((CMW ~ CLM) && gl))
+    if (r == "" || !fv(r) || (!gl && FQ == "" && substr(FV, 1, 1) == "-") || !(cl || (!ra && (CMD ~ UFL) && FV !~ /^[0-9.:]+$/))) { out = out pre; s = r; continue }
+    out = out pre FQ mark("secret-flag"); s = substr(r, FQL + FVL + 1); off += FQL + FVL }
+  return out s }
+# cuu: curl’s and wget’s -u user:pass, the password after the first colon, quoted on its own or not
+function cuu(s,   t, out, pre, r, c, off, u) { out = ""; off = 0; t = s
+  while (match(s, /(^|[ \t])(-u|--user)([ \t]+|=)?/)) { pre = substr(s, 1, RSTART + RLENGTH - 1); r = substr(s, RSTART + RLENGTH); cmd(t, off + RSTART); off += length(pre)
+    if (CMW !~ CLC || !fv(r) || !(c = index(FV, ":"))) { out = out pre; s = r; continue }
+    if (FQ == "" && substr(r, c + 1) ~ /^\\*["\047]/) { u = substr(FV, 1, c); r = substr(r, c + 1); off += c; if (!fv(r)) { out = out pre u; s = r; continue } out = out pre u FQ mark("secret-flag"); s = substr(r, FQL + FVL + 1); off += FQL + FVL; continue }
+    if (c == FVL || skipv(substr(FV, c + 1))) { out = out pre; s = r; continue }
+    out = out pre FQ substr(FV, 1, c) mark("secret-flag"); s = substr(r, FQL + FVL + 1); off += FQL + FVL }
+  return out s }
+# ahd (§4.3.3): an Authorization, Proxy-Authorization, Cookie or Set-Cookie header’s value, the scheme word kept. It ends at the
+# close of a quote standing right before the name, else on a JSON line at its JSON string’s end or a \n or \r escape, else at the line’s end
+function ahd(s, jl,   out, pre, m, r, e, v, sc, x, ar, q) { out = ""
+  while (match(s, AHR)) { pre = substr(s, 1, RSTART - 1); m = substr(s, RSTART, RLENGTH); r = substr(s, RSTART + RLENGTH)
+    if (!bnd(out pre)) { out = out pre substr(m, 1, 1); s = substr(m, 2) r; continue }
+    if (m ~ /:[ \t]*\\+$/) { out = out pre m; s = r; continue }
+    if (jl && m ~ /[^"\047\\][ \t]*:[ \t]*"$/) { out = out pre m; s = r; continue }
+    if (m ~ /["\047][ \t]*:[ \t]*$/ && r !~ /^\[/) { out = out pre m; s = r; continue }
+    # a JSON array of strings as the value: its first string is the value
+    ar = 0; if (match(r, /^\[[ \t]*\\*["\047]/)) { ar = 1; x = substr(r, 1, RLENGTH); m = m x; r = substr(r, RLENGTH + 1); match(x, /\\*["\047]$/); e = cq(r, substr(x, RSTART)); if (!e) { out = out pre m; s = r; continue } }
+    else if (r ~ /^[[{]/) { out = out pre m; s = r; continue }
+    else
+    if (match(m, /\\*["\047]$/)) { e = cq(r, substr(m, RSTART)); if (!e) { out = out pre m; s = r; continue } }
+    else if (match(pre, /\\*["\047]$/)) { e = cq(r, substr(pre, RSTART)); if (!e) e = length(r) + 1 }
+    else if (jl) { e = endq(r); if (!e) e = length(r) + 1; if (match(substr(r, 1, e - 1), /\\[nr]/)) e = RSTART }
+    else e = length(r) + 1
+    v = substr(r, 1, e - 1); sc = ""
+    if (tolower(m) ~ /auth/ && match(v, /^[A-Za-z][A-Za-z0-9_-]*[ \t]+/) && RLENGTH < length(v)) { sc = substr(v, 1, RLENGTH); v = substr(v, RLENGTH + 1) }
+    x = v; sub(/[ \t]+$/, "", x)
+    if (x == "" || skipv(x)) { if (!ar) { out = out pre m; s = r; continue } out = out pre m substr(r, 1, e - 1); s = substr(r, e) }
+    else { out = out pre m sc mark("auth-header"); s = substr(r, e) }
+    # an array: each further string of it too (adversarial 2), to its ]
+    while (ar && match(s, /^\\*["\047][ \t]*,[ \t]*\\*["\047]/)) { x = substr(s, 1, RLENGTH); s = substr(s, RLENGTH + 1); match(x, /\\*["\047]$/); q = substr(x, RSTART)
+      e = cq(s, q); if (!e) { out = out x; break } v = substr(s, 1, e - 1); sc = ""
+      if (tolower(m) ~ /auth/ && match(v, /^[A-Za-z][A-Za-z0-9_-]*[ \t]+/) && RLENGTH < length(v)) { sc = substr(v, 1, RLENGTH); v = substr(v, RLENGTH + 1) }
+      out = out x (skipv(v) ? sc v : sc mark("auth-header")); s = substr(s, e) } }
+  return out s }
+# kv (§4.4.4): a personal field’s value, as an assignment is read (its name at a boundary): quoted to its close, else the run of VL
+# characters, its trailing spaces kept out; a container ({ or [) left; with nf, only a name of 2 to 4 capitalised words
+function kv(s, k, nre, nf,   out, pre, m, nl, r, post, v, p, q1) { out = ""
+  while (match(s, nre SEP)) { pre = substr(s, 1, RSTART - 1); m = substr(s, RSTART, RLENGTH); s = substr(s, RSTART + RLENGTH)
+    if (!bnd(out pre)) { out = out pre substr(m, 1, 1); s = substr(m, 2) s; continue }
+    match(m, "^" nre); nl = RLENGTH; r = substr(m, nl + 1); match(r, SOP); q1 = substr(r, 1, RSTART - 1); post = substr(r, RSTART + RLENGTH)
+    v = ""; p = 0
+    if ((JLN && post == "\"" && q1 !~ /"[ \t]*$/) || (q1 == "" && post != "" && substr(pre, length(pre) - length(post) + 1) == post)) { out = out pre m; continue }
+    if (post ~ /^\\*["\047]$/) { p = cq(s, post); if (!p) { out = out pre m; continue } v = substr(s, 1, p - 1) }
+    else if (post != "") { out = out pre m; continue }
+    else if (match(s, "^" ((q1 ~ /["\047][ \t]*$/) ? VL : VLW) "+")) { v = substr(s, 1, RLENGTH); sub(/[ \t]+$/, "", v) }
+    if (v == "" || skipv(v) || (nf && !pname(v))) { out = out pre m; continue }
+    gsub(/[ \t]/, "", q1); if (p || q1 !~ /^\\*"$/) q1 = ""
+    out = out pre m q1 mark(k) q1; s = substr(s, length(v) + 1) }
+  return out s }
+# pname: a person’s name: 2 to 6 words, each a capitalised name (an apostrophe, a hyphen, an inner capital), an initial (B.), a
+# title (Mr, Mrs, Ms, Dr, Prof, Sir, Dame), a particle (van, von, de, der, da, di, du, le, la, del, bin, al) or a suffix (Jr, Sr,
+# II, III, MD, PhD); at least one a capitalised name
+function pname(v,   n, w, i, c) { n = split(v, w, " "); if (n < 2 || n > 6) return 0; c = 0
+  for (i = 1; i <= n; i++) { if (w[i] ~ /^[A-Z][A-Za-z\200-\377\047-]*[a-z\200-\377][A-Za-z\200-\377\047-]*,?$/) { c++; continue }
+    if (w[i] ~ /^[A-Z][.]$/ || w[i] ~ /^(Mr|Mrs|Ms|Miss|Dr|Prof|Sir|Dame)[.]?$/ || w[i] ~ /^(van|von|de|der|den|da|di|du|le|la|del|della|bin|al)$/ || w[i] ~ /^(Jr|Sr|II|III|IV|MD|PhD|Esq)[.]?$/) continue
+    return 0 }
+  return c >= 1 }
+# esl: when a shape’s match starts on the letter of a JSON escape (\n, \t, …, \u and 4 hex), the number of characters to give back
+function esl(pre, m) { if (substr(pre, length(pre), 1) != "\\") return 0; if (m ~ /^u[0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f]/) return 5; return (m ~ /^[bfnrt]/) }
+function ema(s,   out, pre, m, e) { out = ""
+  while (match(s, EMR)) { pre = substr(s, 1, RSTART - 1); m = substr(s, RSTART, RLENGTH); s = substr(s, RSTART + RLENGTH)
+    if ((e = esl(pre, m))) { pre = pre substr(m, 1, e); m = substr(m, e + 1); if (m !~ "^" EMR "$") { out = out pre m; continue } }
+    out = out pre mark("email") }
+  if (!index(s, "%40") && !index(out, "%40")) return out s
+  s = out s; out = ""
+  while (match(s, EMP)) { out = out substr(s, 1, RSTART - 1) mark("email"); s = substr(s, RSTART + RLENGTH) }   # adversarial 2: %40 for @
+  return out s }
+# phn (§4.4.2): + and a country code not 0, 8 to 15 digits with single separators; (NNN) NNN-NNNN; NNN-NNN-NNNN
+function phn(s,   out, pre, m, t, d, c) { out = ""
+  while (match(s, PHA)) { pre = substr(s, 1, RSTART - 1); m = substr(s, RSTART, RLENGTH); s = substr(s, RSTART + RLENGTH)
+    t = m; d = gsub(/[0-9]/, "", t)
+    # more than 15 digits: the trailing groups after a space given back (a date, a count beside the number)
+    while (d > 15 && match(m, / [0-9]+$/)) { s = substr(m, RSTART) s; m = substr(m, 1, RSTART - 1); t = m; d = gsub(/[0-9]/, "", t) }
+    if (!bnd(out pre) || d < 8 || d > 15 || m ~ /  |--|[.][.]|[.-][.-]|[(][(]|[)][)]/) { out = out pre m; continue }
+    out = out pre mark("phone") }
+  s = out s; out = ""
+  while (match(s, PHB)) { pre = substr(s, 1, RSTART - 1); m = substr(s, RSTART, RLENGTH); s = substr(s, RSTART + RLENGTH); c = substr(out pre, length(out pre), 1)
+    if (!bnd(out pre) || c == "-" || c == "." || substr(s, 1, 1) ~ /[0-9-]/) { out = out pre m; continue }
+    out = out pre mark("phone") }
+  return out s }
+# ip4, ip6 (§4.4.3)
+function ip4(s,   out, pre, m, a, i, ok, c) { out = ""
+  while (match(s, IP4)) { pre = substr(s, 1, RSTART - 1); m = substr(s, RSTART, RLENGTH); s = substr(s, RSTART + RLENGTH); c = substr(out pre, length(out pre), 1)
+    split(m, a, "."); ok = (bnd(out pre) && c != "." && a[1] + 0 != 0 && a[1] + 0 != 127 && s !~ /^([.]?[0-9])/)
+    for (i = 1; i <= 4 && ok; i++) if (length(a[i]) > 3 || a[i] + 0 > 255) ok = 0
+    if (!ok) { out = out pre m; continue } out = out pre mark("ip-address") }
+  return out s }
+function ip6(s,   out, pre, m, a, n, i, g, dc, l3, bad, c) { out = ""
+  while (match(s, IP6)) { pre = substr(s, 1, RSTART - 1); m = substr(s, RSTART, RLENGTH); s = substr(s, RSTART + RLENGTH); c = substr(out pre, length(out pre), 1)
+    bad = (!bnd(out pre) || c == ":" || substr(s, 1, 1) ~ /[A-Za-z0-9_:]/ || m == "::1")
+    dc = index(m, "::"); if (dc && index(substr(m, dc + 2), "::")) bad = 1
+    n = split(m, a, ":"); g = 0; l3 = 0; for (i = 1; i <= n; i++) if (a[i] != "") { if (length(a[i]) > 4) bad = 1; g++; if (length(a[i]) >= 3) l3 = 1 }
+    if (!bad && !(dc ? (g >= 2 && g <= 7 && l3) : (g == 8 && n == 8))) bad = 1
+    if (bad) { out = out pre m; continue } out = out pre mark("ip-address") }
+  return out s }
+function luhn(d,   i, t, x, a) { t = 0; a = 0; for (i = length(d); i >= 1; i--) { x = substr(d, i, 1) + 0; if (a) { x *= 2; if (x > 9) x -= 9 } t += x; a = !a } return (t % 10 == 0) }
+function m97(v,   w, i, c, r, t) { w = substr(v, 5) substr(v, 1, 4); r = 0
+  for (i = 1; i <= length(w); i++) { c = substr(w, i, 1); t = (c ~ /[A-Z]/) ? index("ABCDEFGHIJKLMNOPQRSTUVWXYZ", c) + 9 : c + 0; r = (t >= 10) ? (r * 100 + t) % 97 : (r * 10 + t) % 97 }
+  return r == 1 }
+function crd(s,   out, pre, m, i, j, d, n, g, p, P0) { out = ""
+  while (match(s, CRR)) { pre = substr(s, 1, RSTART - 1); m = substr(s, RSTART, RLENGTH); s = substr(s, RSTART + RLENGTH)
+    if (length(m) < 13 || !bnd(out pre) || (out pre) ~ /[0-9][.]$/ || s ~ /^([.][0-9]|[eE][-+]?[0-9])/) { out = out pre m; continue }
+    # every window of whole groups, from each group (a number before the card) to the longest that is 13 to 19 digits
+    n = split(m, g, "[ -]"); p = 1; for (i = 1; i <= n; i++) { P0[i] = p; p += length(g[i]) + 1 }
+    for (i = 1; i <= n; i++) { d = ""; for (j = i; j <= n && length(d g[j]) <= 19; j++) d = d g[j]; for (j--; j >= i; j--) {
+        if (length(d) >= 13 && d ~ /^(4|5[1-5]|2[2-7]|3[47]|6)/ && luhn(d)) break; d = substr(d, 1, length(d) - length(g[j])) } if (j >= i) break }
+    if (i > n) { out = out pre m; continue }
+    out = out pre substr(m, 1, P0[i] - 1) mark("card-number"); s = substr(m, P0[j] + length(g[j])) s }
+  return out s }
+function iba(s,   out, pre, m, i, j, d, n, g, p, P0) { out = ""
+  while (match(s, IBR)) { pre = substr(s, 1, RSTART - 1); m = substr(s, RSTART, RLENGTH); s = substr(s, RSTART + RLENGTH)
+    if (!bnd(out pre)) { out = out pre m; continue }
+    # every window of whole groups, from each group, the longest that is 15 to 34 characters and passes first
+    n = split(m, g, "[ ]"); p = 1; for (i = 1; i <= n; i++) { P0[i] = p; p += length(g[i]) + 1 }
+    for (i = 1; i <= n; i++) { if (g[i] !~ /^[A-Z][A-Z][0-9][0-9]/) continue; d = ""; for (j = i; j <= n && length(d g[j]) <= 34; j++) d = d g[j]; for (j--; j >= i; j--) {
+        if (length(d) >= 15 && d ~ /^[A-Z][A-Z][0-9][0-9][A-Z0-9]+$/ && m97(d) && !(j == n && s ~ /^[A-Za-z0-9]/)) break; d = substr(d, 1, length(d) - length(g[j])) } if (j >= i) break }
+    if (i > n) { out = out pre m; continue }
+    out = out pre substr(m, 1, P0[i] - 1) mark("iban"); s = substr(m, P0[j] + length(g[j])) s }
+  return out s }
+# tkl (§4.3.6): a mixed-case run with digits, the ids a share is made of left
+function tkl(s,   out, pre, m, t, L, nu, nl, nd, u, e) { out = ""
+  while (match(s, TKR)) { pre = substr(s, 1, RSTART - 1); m = substr(s, RSTART, RLENGTH); s = substr(s, RSTART + RLENGTH)
+    if ((e = esl(pre, m))) { pre = pre substr(m, 1, e); m = substr(m, e + 1) }
+    if (m ~ /^[0-9A-Fa-f_-]+$/ || m !~ /[A-Z]/ || m !~ /[a-z]/ || m ~ TKX) { out = out pre m; continue }
+    t = m; gsub(/[-_]/, "", t); L = length(t)
+    if (L < 20) { out = out pre m; continue }
+    u = t; nu = gsub(/[A-Z]/, "", u); u = t; nl = gsub(/[a-z]/, "", u); u = t; nd = gsub(/[0-9]/, "", u)
+    if (!nu || !nl || nd < 2 || (nu + nl) * 2 < L || nu * 10 < 3 * (nu + nl) || nu * 10 > 7 * (nu + nl)) { out = out pre m; continue }
+    out = out pre mark("token-like") }
+  return out s }
+# tkb: a base64 blob (200 or more of A-Z a-z 0-9 + /, then =), mixed case with a digit, blanked whole in one match
+function tkb(s,   out, pre, m, e) { out = ""
+  while (match(s, TKB)) { pre = substr(s, 1, RSTART - 1); m = substr(s, RSTART, RLENGTH); s = substr(s, RSTART + RLENGTH)
+    if ((e = esl(pre, m))) { pre = pre substr(m, 1, e); m = substr(m, e + 1) }
+    out = out pre ((m ~ /[A-Z]/ && m ~ /[a-z]/ && m ~ /[0-9]/) ? mark("token-like") : m) }
+  return out s }
+# shp: the shape rules (§4.4, §4.3.6); shpc: over pieces of about 8 KB cut after a \n, \r or \t escape or a quote, which no shape
+# holds, so a long line is read in linear time
+function shp(s) {
+  if (s ~ CRP) s = crd(s)
+  if (s ~ /[A-Z][A-Z][0-9][0-9]/) s = iba(s)
+  if (index(s, "@") || index(s, "%40")) s = ema(s)
+  if (index(s, "+") || s ~ /[0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]/) s = phn(s)
+  if (s ~ /[0-9][.][0-9]+[.][0-9]+[.][0-9]/) s = ip4(s)
+  if (index(s, "::") || s ~ /[0-9A-Fa-f]:[0-9A-Fa-f]+:[0-9A-Fa-f]+:[0-9A-Fa-f]+:/) s = ip6(s)
+  return tkl(s) }
+function shpc(s,   out, p) { if (length(s) <= 8192) return shp(s); out = ""
+  while (length(s) > 8192 && match(substr(s, 4097), /\\[nrt]|"/)) { p = 4096 + RSTART + RLENGTH - 1; out = out shp(substr(s, 1, p)); s = substr(s, p + 1) }
+  return out shp(s) }
+# jfx (§4.3.5): on a JSON line or a .json file’s line, a marker standing as a bare value outside any string (after : [ or , and
+# before , } ] or the end) is put in quotes, so the line still parses
+function jfx(s,   out, p) { JODD = 0; JT = ""; if (length(s) <= 8192) return jf1(s); out = ""
+  while (length(s) > 8192 && (p = cut8(s))) { out = out jf1(substr(s, 1, p)); s = substr(s, p + 1) }
+  return out jf1(s) }
+# jf1: one piece; JODD whether the piece starts inside a string, JT the last 64 characters before it
+function jf1(s,   out, p, e, g, m, b, a, n, P, i, t) { out = ""
+  while ((p = index(s, "[REDACTED:")) > 0 && (e = index(substr(s, p), "]")) > 0) {
+    g = substr(s, 1, p - 1); m = substr(s, p, e); s = substr(s, p + e)
+    n = split(g, P, "\""); for (i = 1; i < n; i++) { match(P[i], /\\*$/); if (RLENGTH % 2 == 0) JODD = !JODD }
+    # a marker inside a JSON number (a sign before it, a fraction or an exponent after it) takes the whole number
+    t = (length(g) >= 64) ? substr(g, length(g) - 63) : substr(JT out, length(JT out) - 63 + length(g)) g
+    if (match(t, /[-+.0-9eE]+$/) && substr(t, 1, RSTART - 1) ~ /(:|\[|,)[ \t]*$/ && RLENGTH <= length(g)) { m = substr(g, length(g) - RLENGTH + 1) m; g = substr(g, 1, length(g) - RLENGTH); t = substr(t, 1, RSTART - 1) }
+    if (match(s, /^[-+.0-9eE]+/) && substr(s, RLENGTH + 1, 64) ~ /^[ \t]*(,|}|\]|$)/) { m = m substr(s, 1, RLENGTH); s = substr(s, RLENGTH + 1) }
+    b = t; sub(/[ \t]+$/, "", b); a = substr(s, 1, 64); sub(/^[ \t]+/, "", a)
+    if (!JODD && b ~ /(:|\[|,)$/ && (a == "" || a ~ /^(,|}|\])/)) m = "\"" m "\""
+    out = out g m }
+  n = split(s, P, "\""); for (i = 1; i < n; i++) { match(P[i], /\\*$/); if (RLENGTH % 2 == 0) JODD = !JODD }
+  out = out s; JT = substr(JT out, length(JT out) - 63); return out }
+# people (§4.1): each committer’s name of two words or more, as written, with - . or _ between its words and as "last, first", as
+# om() matches it; past 160 of these a line is first read for their first two words
+function ppl(s,   ls, t, n, W, j, k, i, x) { ls = tolower(s)
+  if (np <= 160) { for (i = 1; i <= np; i++) if (index(ls, PN[i])) { s = om(s, PN[i], "person-name", 1); ls = tolower(s) } return s }
+  t = ls; gsub(/\\(u[0-9a-f][0-9a-f][0-9a-f][0-9a-f]|[bfnrt])/, " ", t); gsub(/[^a-z0-9\200-\377]+/, " ", t); n = split(t, W, " ")
+  for (j = 1; j < n; j++) { k = W[j] SUBSEP W[j + 1]; if (k in BG) { x = split(BG[k], I2, " "); for (i = 1; i <= x; i++) s = om(s, PN[I2[i]], "person-name", 1) } }
+  return s }
 # closeq: where a quoted value opened by qd (a quote after n backslashes) closes in s: the first such quote after n backslashes and
 # any number of escaped backslashes at that level (c mod 2(n+1) = n; with n 0, any even number), the start of its backslashes; a quote escaped deeper belongs to the value (0 for none)
 function closeq(s, qd,   n, q, b, i, p, c, f1) { n = length(qd) - 1; q = substr(qd, n + 1, 1); b = 0; f1 = 0
@@ -265,6 +632,9 @@ function closeq(s, qd,   n, q, b, i, p, c, f1) { n = length(qd) - 1; q = substr(
     if (q == "\047") { if (c == n) return p - n; if (c > n) f1 = p - n; b = p; continue }   # at the depth of the opener; deeper may escape it; shallower is inside
     if (c % (2 * (n + 1)) == n) return p - n; b = p }   # the integration: a quote after n backslashes, plus any number of escaped backslashes at its level (2(n+1) a pair), closes
   return f1 }
+# cq: closeq, but on a JSON line (JLN) a value opened by any quote but a bare " never reads past the
+# end of the JSON string it sits in (the first quote with an even number of backslashes before it)
+function cq(s, qd,   e) { if (JLN && qd != "\"" && (e = endq(s))) return closeq(substr(s, 1, e - 1), qd); return closeq(s, qd) }
 # endq: where a JSON string ends in r, the first quote with an even number of backslashes before it (0 for none)
 function endq(r,   p, b, i) { b = 0
   while ((i = index(substr(r, b + 1), "\"")) > 0) { p = b + i; i = p - 1; while (i > 0 && substr(r, i, 1) == "\\") i--; if ((p - 1 - i) % 2 == 0) return p; b = p }
@@ -299,7 +669,7 @@ function ctx(s, x, k, pre, nx,   out, p, L, b, t) { L = length(x); out = ""
     if (t ~ pre && substr(s, p + L, 1) !~ nx) out = out b mark(k); else out = out b x
     s = substr(s, p + L) }
   return out s }
-function line(s,   i, ls) {
+function line(s,   i, ls, jl) { jl = ISJ || (s ~ JLR); JLN = jl
   for (i = 1; i <= nl; i++) if (index(s, LIT[i])) s = lit(s, LIT[i], "literal")
   if (index(s, "gh")) s = tok(s, "github-token", GH, 1)
   if (index(s, "github_pat_")) s = tok(s, "github-token", GHP, 1)
@@ -312,17 +682,50 @@ function line(s,   i, ls) {
   if (index(s, "npm_")) s = tok(s, "npm-token", NPM, 1)
   if (index(s, "eyJ")) s = tok(s, "jwt", JWT, 1)
   if (s ~ /[Bb][Ee][Aa][Rr][Ee][Rr]/) s = bear(s)
+  # 0.26.11.2 (SHARE-SCRUB §4.3, §4.4): the context rules, then the known values, then the shapes, then the identities; a long line
+  # in pieces (cut8), so every rule reads it in linear time
+  s = chk(s, 1, jl)
+  if (length(s) > 4096) s = tkb(s)
+  s = shpc(s)
+  s = chk(s, 2, jl)
+  if (jl && index(s, "[REDACTED:")) s = jfx(s)
+  return s }
+# cut8: where to cut a long line s, after 4096 characters: after a \n or \r escape, else after the end of a JSON string at depth 0
+# (a quote with no backslash before it) and its comma (no value of a rule crosses either); 0 when there is no such place
+function cut8(s) { if (match(substr(s, 4097), /\\[nr]|[^\\]",/)) return 4096 + RSTART + RLENGTH - 1; return 0 }
+function chk(s, w, jl,   out, p) { if (length(s) <= 8192) return stg(w, s, jl); out = ""
+  while (length(s) > 8192 && (p = cut8(s))) { out = out stg(w, substr(s, 1, p), jl); s = substr(s, p + 1) }
+  return out stg(w, s, jl) }
+function stg(w, s, jl) { return w == 1 ? ctx1(s, jl) : id1(s) }
+function ctx1(s, jl,   ls, i) {
+  if (s ~ AHQ) s = ahd(s, jl)
   if (index(s, "://")) s = url(s)
   if (s ~ /[Tt][Oo][Kk][Ee][Nn]/) s = asg(s, "token-header", THN, V6, 8, 1)
-  if (s ~ /[Aa][Cc][Cc][Ee][Ss][Ss]/) s = asg(s, "aws-secret-key", AWSN, "[A-Za-z0-9/+]", 40, 0)
+  if (s ~ /[Aa][Cc][Cc][Ee][Ss][Ss]/) { s = asg(s, "aws-secret-key", AWSN, "[A-Za-z0-9/+]", 40, 0); s = awp(s) }
   if (s ~ /[Aa]ccount|[Oo]rgani[sz]ation|[Oo]rg_?[Ii]d/) s = asg(s, "account-id", ACN, "[0-9A-Fa-f-]", 8, 0)
-  if (s ~ /[=:]/) s = asg(s, "secret-assignment", SAN, V6, 6, 1)
+  ls = tolower(s)
+  if (ls ~ SAQ) s = asg(s, "secret-assignment", SAN, VW, 1, 1)
+  if (s ~ SANUQ) s = asg(s, "secret-assignment", SANU, VW, 1, 1)
+  if (ls ~ PSQ) s = kv(s, "secret-assignment", PSN, 0)
+  ls = tolower(s)
+  if (ls ~ /(name|key)[\\"\047]*[ \t]*[:=]/ && ls ~ /value/) s = nvp(s)
+  if (index(s, "</")) s = xel(s, "secret-assignment", SAN, jl)
+  if (ls ~ FLQ) s = flg(s)
+  if (s ~ /(^|[ \t])-[pauPUw]/ || index(s, "--user")) s = pfl(s)
+  if (ls ~ CLQ) s = cal(s)
+  if (ls ~ PFQ) s = kv(s, "personal-field", PFN, 0)
+  if (ls ~ NFQ) s = kv(s, "personal-field", NFN, 1)
+  if (index(s, "</")) { s = xel(s, "personal-field", PFN, jl); s = xel(s, "personal-field", NFN, jl, 1) }
+  if (nk) { ls = tolower(s); for (i = 1; i <= nk; i++) if (index(ls, KS[i])) { s = om(s, KS[i], "known-secret", 1); ls = tolower(s) } }
+  return s }
+function id1(s,   i, ls) {
   for (i = 1; i <= ne; i++) if (index(s, EM[i])) s = lit(s, EM[i], "email")
   for (i = 1; i <= na; i++) if (index(s, AC[i])) s = lit(s, AC[i], "account-id")
   for (i = 1; i <= nh; i++) if (index(s, HO[i])) s = ctx(s, HO[i], "host", HPRE, "[A-Za-z0-9_-]")
   for (i = 1; i <= nn; i++) { if (index(s, NM[i])) s = ctx(s, NM[i], "user-name", UPRE, "[A-Za-z0-9_]"); if (index(s, NE[i])) s = ctx(s, NE[i], "user-name", EPRE, "[A-Za-z0-9]") }
   for (i = 1; i <= no; i++) if (index(s, OR[i])) s = om(s, OR[i], "org-name", 0)
   if (nw) { ls = tolower(s); for (i = 1; i <= nw; i++) if (index(ls, BW[i])) { s = om(s, BW[i], BK[i], 1); ls = tolower(s) } }
+  if (np) s = ppl(s)
   return s }
 # 0.26.10.28.9 (S3). om: the value v replaced in the text outside the [REDACTED:…] markers, so a marker is never cut into; with bare,
 # as a whole word in any case (bnd before it, a character not a letter, digit or _ after it)
@@ -335,10 +738,11 @@ function rw(s, v, k, bare,   o, ls, n, p, st, b, ok) { n = length(v); ls = bare 
       ok = bnd(substr(s, 1, p - 1)) && (b == "" || b !~ /[A-Za-z0-9_]/) }
     if (ok) { o = o substr(s, st, p - st) mark(k); st = p + n } else { o = o substr(s, st, p - st + 1); st = p + 1 } }
   return o substr(s, st) }
+function ci(w,   o, i, c) { o = ""; for (i = 1; i <= length(w); i++) { c = substr(w, i, 1); o = o (c ~ /[a-z]/ ? "[" toupper(c) c "]" : c) } return o }
 function srt(A, n,   i, j, t) { for (i = 2; i <= n; i++) { t = A[i]; for (j = i - 1; j >= 1 && length(A[j]) < length(t); j--) A[j + 1] = A[j]; A[j + 1] = t } }
 BEGIN { MODE = ENVIRON["SHARE_MODE"]; SCAN = (MODE == "scan")
   W = "[A-Za-z0-9]"; B64 = "[A-Za-z0-9_-]"; Q = "[\\\\\"\047]*"
-  SEP = Q "[ \t]*[:=][ \t]*" Q
+  SEP = Q "[ \t]*(:=|=>|[|][|]=|[?]=|[:=])[ \t]*" Q
   V6 = "[^][ \t\"\047\\\\,;{}()<>]"
   PKB = "-----BEGIN [A-Z ]*PRIVATE KEY( BLOCK)?-----"; PKE = "-----END [A-Z ]*PRIVATE KEY( BLOCK)?-----"
   GH = "gh[pousr]_" rp(W, 20) W "*"; GHP = "github_pat_" rp("[A-Za-z0-9_]", 20) "[A-Za-z0-9_]*"
@@ -347,31 +751,93 @@ BEGIN { MODE = ENVIRON["SHARE_MODE"]; SCAN = (MODE == "scan")
   SLACK = "xox[baprs]-" rp("[A-Za-z0-9-]", 10) "[A-Za-z0-9-]*"; GOOG = "AIza" rp(B64, 35); NPM = "npm_" rp(W, 36)
   JWT = "eyJ" rp(B64, 10) B64 "*[.]eyJ" rp(B64, 10) B64 "*[.]" rp(B64, 8) B64 "*"
   BEARER = "[Bb][Ee][Aa][Rr][Ee][Rr][ \t]+" rp("[A-Za-z0-9._~+/-]", 16) "[A-Za-z0-9._~+/-]*=*"
-  URL = "[a-z][a-z0-9+.-]*://[^][ \t:/@\"\047\\\\<>]+:[^][ \t@/\"\047\\\\<>]+@"
+  URL = "[a-z][a-z0-9+.-]*://[^][ \t:/@\"\047\\\\<>]*:[^][ \t@/\"\047\\\\<>]+@"
   THN = "[Xx]-[A-Za-z-]*[Tt][Oo][Kk][Ee][Nn]"
   AWSN = "([Aa][Ww][Ss][_-]?)?[Ss][Ee][Cc][Rr][Ee][Tt][_-]?[Aa][Cc][Cc][Ee][Ss][Ss][_-]?[Kk][Ee][Yy]"
   ACN = "([Aa]ccount|[Oo]rgani[sz]ation|[Oo]rg)[_-]?([Uu][Uu][Ii][Dd]|[Ii][Dd])"
-  SAN = "([A-Za-z][A-Za-z0-9_-]*)?([Tt][Oo][Kk][Ee][Nn]|[Ss][Ee][Cc][Rr][Ee][Tt]|[Pp][Aa][Ss][Ss][Ww][Oo][Rr][Dd]|[Pp][Aa][Ss][Ss][Ww][Dd]|[_-][Kk][Ee][Yy]|[Aa][Pp][Ii][Kk][Ee][Yy]|[a-z]Key)"
+  # 0.26.11.2 (SHARE-SCRUB §4.3.1): the one list of secret names, wider
+  SAN = "([A-Za-z_][A-Za-z0-9_-]*)?([Tt][Oo][Kk][Ee][Nn]|[Ss][Ee][Cc][Rr][Ee][Tt]|[Pp][Aa][Ss][Ss][Ww][Oo][Rr][Dd]|[Pp][Aa][Ss][Ss][Ww][Dd]|" \
+    "[Pp][Aa][Ss][Ss][Pp][Hh][Rr][Aa][Ss][Ee]|[_-][Pp][Aa][Ss][Ss]|[a-z]Pass|[_-][Pp][Ww][Dd]|[a-z]Pwd|[Cc][Rr][Ee][Dd][Ee][Nn][Tt][Ii][Aa][Ll][Ss]?|" \
+    "[Aa][Uu][Tt][Hh]|[Cc][Oo][Oo][Kk][Ii][Ee]|[_-][Kk][Ee][Yy]|[Aa][Pp][Ii][Kk][Ee][Yy]|[a-z]Key|" \
+    "[Ss][Ee][Cc][Rr][Ee][Tt][Ss]|[_-][Pp][Aa][Tt]|[_-][Pp][Ww]|[Ss][Ii][Gg]|[Ss][Ii][Gg][Nn][Aa][Tt][Uu][Rr][Ee])"
+  SANW = "^" SAN "$"; SOP = "(:=|=>|[|][|]=|[?]=|[:=])[ \t]*"; VW = "[^ \t\"\\\\]"
+  SANU = "[A-Z0-9_]*(PASSWORD|PASSWD|PASSPHRASE|SECRET|TOKEN|CREDENTIALS?|AUTH|KEY|PASS|PWD|COOKIE)(_[A-Z0-9]+)+"; SANUQ = "(PASSWORD|PASSWD|PASSPHRASE|SECRET|TOKEN|CREDENTIALS?|AUTH|KEY|PASS|PWD|COOKIE)_[A-Z0-9]"; SANUW = "^" SANU "$"
+  PSN = "([Pp]ass|[Pp]wd)"; FLP = "(^|[ \t])-[a-z]*pass(in|out)?[ \t]+"; SWQ = "pass|pwd|token|secret|key|auth|cookie|credential|identified"
+  IDB = "[Ii][Dd][Ee][Nn][Tt][Ii][Ff][Ii][Ee][Dd][ \t]+[Bb][Yy]"
+  FLA = "--?" SAN "[ \t]+"; FLB = "(" SAN "|" IDB ")[ \t]+"
+  PSEP = "[;&|`]|[$][(]|\\\\[nr]"
+  UFL = "(^|[ \t])(-u|-U|--user|--username)([ \t]+|=)?\\\\*[\"\047]?[A-Za-z0-9_.@][A-Za-z0-9_.@-]*"
+  CW = "(^|[ \t\"\047/\\\\;&|(`])"; CE = "([ \t\"\047]|$)"
+  CLS = CW "(sshpass|7z|7za)" CE; CLM = CW "(mysql|mysqldump|mysqladmin|mariadb|mariadb-dump)" CE
+  CLL = CW "((docker|podman)[ \t]+login|helm[ \t]+registry[ \t]+login)" CE; CLR = CW "redis-cli" CE; CLC = CW "(curl|wget)" CE
+  AHQ = "[Aa][Uu][Tt][Hh][Oo][Rr][Ii][Zz][Aa][Tt][Ii][Oo][Nn]|[Cc][Oo][Oo][Kk][Ii][Ee]"
+  AHR = "(([Pp][Rr][Oo][Xx][Yy]-)?[Aa][Uu][Tt][Hh][Oo][Rr][Ii][Zz][Aa][Tt][Ii][Oo][Nn]|([Ss][Ee][Tt]-)?[Cc][Oo][Oo][Kk][Ii][Ee])" Q "[ \t]*:[ \t]*" Q
+  NVR = "([Nn][Aa][Mm][Ee]|[Kk][Ee][Yy])" Q "[ \t]*[:=][ \t]*" Q "(" SAN "|" ci("authorization") ")" Q "[ \t]*,?[ \t]*" Q "[Vv][Aa][Ll][Uu][Ee]" Q "[ \t]*[:=][ \t]*" Q
+  NVV = "[Vv][Aa][Ll][Uu][Ee]" Q "[ \t]*[:=][ \t]*" Q; NVN = "^" Q "[ \t]*,?[ \t]*" Q "([Nn][Aa][Mm][Ee]|[Kk][Ee][Yy])" Q "[ \t]*[:=][ \t]*" Q "(" SAN "|" ci("authorization") ")" Q
+  # the personal field names (§4.4.4): any case, _ or - between their words or none, after a prefix ending _ or -, or camel-cased
+  split("first,name last,name full,name given,name family,name middle,name maiden,name surname birth,date date,of,birth dob birthday " \
+    "phone,no mobile,no passport,no contact,number cell msisdn national,insurance,number nino tax,number birth born " \
+    "line1 line2 social,security,number account,number sort,code routing,number driver,license drivers,license license,number " \
+    "phone phone,number telephone tel mobile mobile,number fax address street address,line postcode post,code postal,code zip zip,code ssn national,id passport passport,number " \
+    "tax,id iban card,number cvv cvc email", PW, " ")
+  PA = ""; PC = ""; for (i = 1; i in PW; i++) { nb = split(PW[i], PB, ","); a = ""; c = ""
+    for (j = 1; j <= nb; j++) { a = a (j > 1 ? "[_-]?" : "") ci(PB[j]); c = c (j > 1 ? "[_-]?" : "") (j == 1 ? toupper(substr(PB[j], 1, 1)) ci(substr(PB[j], 2)) : ci(PB[j])) }
+    if (PW[i] == "address,line" || PW[i] == "address") { a = a "[0-9]?"; c = c "[0-9]?" }
+    PA = PA (PA == "" ? "" : "|") a; PC = PC (PC == "" ? "" : "|") c }
+  PFN = "(([A-Za-z0-9_-]*[_-])?(" PA ")|[A-Za-z0-9_-]*[a-z](" PC "))"
+  NFN = "(([A-Za-z0-9_-]*[_-])?" ci("name") "|[A-Za-z0-9_-]*[a-z]Name|" ci("author") "|" ci("user") "|" ci("username") "|" ci("owner") "|" ci("contact") "|" \
+    ci("customer") "|" ci("sender") "|" ci("recipient") "|" ci("from") "|" ci("to") ")"
+  # the gates: a field word right before a separator (any quote and spaces between), on the line in lower case
+  # the gate: the endings of every personal field name above, on the line in lower case
+  PFQ = "(name|birth|born|date|day|dob|phone|no|number|tel|mobile|cell|msisdn|fax|address[0-9]?|street|line[0-9]?|code|zip|ssn|nino|national[_-]?id|tax[_-]?id|passport|iban|cvv|cvc|email|licen[cs]e)" Q "[ \t]*(:|=|[?]=|[|][|]=)"
+  # the gates of the secret rules, on the line in lower case: a secret word right before a separator; before spaces (a flag, a
+  # quoted value, IDENTIFIED BY)
+  SAQ = "(token|secrets?|password|passwd|passphrase|pass|pwd|credentials?|auth|cookie|key|pat|pw|sig|signature)" Q "[ \t]*(:|=|[?]=|[|][|]=)"
+  PSQ = "(^|[^a-z0-9_])(pass|pwd)" Q "[ \t]*(:|=|[?]=|[|][|]=)"
+  FLQ = "(token|secrets?|password|passwd|passphrase|pass|pwd|credentials?|auth|cookie|key|pat|pw|sig|signature|identified[ \t]+by)[ \t]+"
+  CAL1 = "[[(, \t]\\\\*[\"\047]" SAN "\\\\*[\"\047][ \t]*(\\][ \t]*:?=|,)[ \t]*\\\\*[\"\047]"; CAL2 = "[A-Za-z_.]*" SAN "[ \t]*[(][ \t]*\\\\*[\"\047]"
+  CLQ = "(token|secrets?|password|passwd|passphrase|pass|pwd|credentials?|auth|cookie|key|pat|pw|sig|signature)(\\\\*[\"\047][ \t]*(\\]|,)|[ \t]*[(])"
+  NFQ = "(name|author|user|owner|contact|customer|sender|recipient|from|to)" Q "[ \t]*[:=]"
+  VL = "[^][\"\047\\\\,;{}<>]"; VLW = "[^][\"\\\\;{}<>]"   # after a quoted name (a JSON value); after an unquoted one (YAML, ini: a name with an apostrophe, an address with commas)
+  EMR = "[A-Za-z0-9._%+\200-\377-]+@[A-Za-z0-9\200-\377-]+([.][A-Za-z0-9\200-\377-]+)*[.][A-Za-z\200-\377][A-Za-z\200-\377]+"
+  EMP = "[A-Za-z0-9._+\200-\377-]+%40[A-Za-z0-9\200-\377-]+([.][A-Za-z0-9\200-\377-]+)*[.][A-Za-z\200-\377][A-Za-z\200-\377]+"
+  PHA = "[+][1-9][0-9 ().-]*[0-9]"; PHB = "([(][0-9][0-9][0-9][)] ?|[0-9][0-9][0-9]-)[0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]"
+  IP4 = "[0-9]+[.][0-9]+[.][0-9]+[.][0-9]+"; IP6 = "[0-9A-Fa-f]*:[0-9A-Fa-f:]*:[0-9A-Fa-f]*"
+  CRR = "[0-9]+([ -][0-9]+)*"; CRP = "[2-6][0-9][0-9][0-9][ -]?[0-9][0-9][0-9][0-9][0-9]?[0-9]?[ -]?[0-9][0-9][0-9][0-9]"   # 4, 4 to 6, 4 digits (4-4-4-4, 4-6-5, plain)
+  IBR = "[A-Z][A-Z][0-9][0-9][A-Z0-9]*( [A-Z0-9]+)*"
+  TKR = rp("[A-Za-z0-9_-]", 20) "[A-Za-z0-9_-]*"; TKX = "^(toolu_|srvtoolu_|msg_|req_|cse_|file_|session_)"; JLR = "^[ \t]*([{][ \t]*(\"|[}]|$)|\\[[ \t]*([[{\"]|\\]|$))"; TKB = rp("[A-Za-z0-9+/]", 200) "[A-Za-z0-9+/]*=*"
+  for (i = 1; i < 256; i++) ORD[sprintf("%c", i)] = i
   HPRE = "(@|[Hh][Oo][Ss][Tt]([Nn][Aa][Mm][Ee])?" Q "[ \t]*[:=\t][ \t]*" Q ")$"
   UPRE = "[/\\\\]+([Uu]sers|home)[/\\\\]+$"; EPRE = "-([Uu]sers|home)-$"
   KF = ENVIRON["SHARE_KNOWN"]; SGR = "(\\\\u001[bB]|\\\\x1[bB]|" sprintf("%c", 27) ")\\[[0-9;]*m$"
   # the words a transcript, a marker or the folders of the bundle are made of, never taken as a bare name or an organisation (S3)
   n = split("vid records logs conversations subagents findings user assistant system tool human type role content text message name home root admin redacted literal github token anthropic key openai stripe aws slack google npm jwt bearer url secret assignment header account email host org author password private", X, " ")
   for (i = 1; i <= n; i++) STOP[X[i]] = 1
+  STOP["claude"] = 1
   if (KF != "") while ((getline l < KF) > 0) { t = index(l, "\t"); if (!t) continue; k = substr(l, 1, t - 1); v = substr(l, t + 1); if (v == "") continue
     if (k == "name") { NM[++nn] = v; e = v; gsub(/[\200-\277]/, "", e); gsub(/[^A-Za-z0-9]/, "-", e); NE[nn] = e }
-    else if (k == "email" && length(v) >= 5) EM[++ne] = v
+    else if (k == "email" && length(v) >= 5) { EM[++ne] = v; if (pe(v) != v) EM[++ne] = pe(v) }
     else if (k == "account" && length(v) >= 8) AC[++na] = v
     else if (k == "host" && length(v) >= 2) HO[++nh] = v
     else if (k == "literal-file") while ((getline x < v) > 0) { sub(/\r$/, "", x); if (length(x) >= 3) LIT[++nl] = x }
+    else if (k == "secret-file") denv(v)
+    else if (k == "person" && (x = split(v, X2, " ")) >= 2) { lv = tolower(v); if (!(lv in PNS)) { PNS[lv] = 1
+        # the name as written, with - . or _ between its words, and as "last, first" (adversarial 1)
+        e = lv; gsub(/[^a-z0-9\200-\377]+/, " ", e); split(e, X3, " "); y = tolower(X2[x]) ", " tolower(X2[1]); for (j = 2; j < x; j++) y = y " " tolower(X2[j])
+        PV[1] = lv; PV[2] = rep(e, " ", "-"); PV[3] = rep(e, " ", "."); PV[4] = rep(e, " ", "_"); PV[5] = y
+        for (j = 1; j <= 5; j++) if (!(PV[j] in PNV)) { PNV[PV[j]] = 1; PN[++np] = PV[j]; z = PV[j]; gsub(/[^a-z0-9\200-\377]+/, " ", z); split(z, X4, " "); BG[X4[1] SUBSEP X4[2]] = BG[X4[1] SUBSEP X4[2]] " " np } } }
     else if (k == "org" && !(tolower(v) in STOP)) { if (length(v) >= 3) OR[++no] = v; else BS[tolower(v)] = "org-name" }
     if ((k == "name" || k == "author") && length(v) >= 3 && !(tolower(v) in STOP)) { lv = tolower(v); if (!(lv in BS) || (k == "author" && BS[lv] != "org-name")) BS[lv] = (k == "author" ? "author-name" : "user-name") } }
   for (lv in BS) { BW[++nw] = lv; BK[nw] = BS[lv] }
   for (i = 2; i <= nw; i++) { t = BW[i]; u = BK[i]; for (j = i - 1; j >= 1 && (length(BW[j]) < length(t) || (length(BW[j]) == length(t) && BW[j] > t)); j--) { BW[j + 1] = BW[j]; BK[j + 1] = BK[j] } BW[j + 1] = t; BK[j + 1] = u }
+  # SHARE-SCRUB §4.1: the environment’s secret-named values and every value’s URL password; the known values longest first
+  for (k in ENVIRON) { if (k ~ SANW || k ~ SANUW) aks(ENVIRON[k]); if (index(ENVIRON[k], "://")) urlpw(ENVIRON[k]) }
+  srt(KS, nk)
   srt(LIT, nl); srt(OR, no); srt(EM, ne); srt(AC, na); srt(HO, nh)
   for (i = 2; i <= nn; i++) { t = NM[i]; u = NE[i]; for (j = i - 1; j >= 1 && length(NM[j]) < length(t); j--) { NM[j + 1] = NM[j]; NE[j + 1] = NE[j] } NM[j + 1] = t; NE[j + 1] = u } }
 '
-REDONE='{ s = $0; w = inkey; if (inkey || index(s, "PRIVATE KEY")) s = pk(s, ($0 ~ /^[ \t]*[[{]/)); if (w && s == "") next
+REDONE='FNR == 1 { ISJ = (FILENAME ~ /[.]json$/) }
+{ s = $0; w = inkey; if (inkey || index(s, "PRIVATE KEY")) s = pk(s, ($0 ~ /^[ \t]*[[{]/)); if (w && s == "") next
   s = line(s); if (!SCAN) print s }
 END { if (SCAN) { for (k in C) printf "%s\t%d\n", k, C[k] } else if (MODE == "redact" && ENVIRON["SHARE_COUNTS"] != "") { for (k in C) printf "%s\t%d\n", k, C[k] > ENVIRON["SHARE_COUNTS"] } }'
 # 0.26.10.28.9 (S1): the same redactor over many files in one awk. ENVIRON SHARE_MAP: `<input>\t<output>\t<name>` lines, the output
@@ -383,7 +849,7 @@ REDMANY='function fl(   n, i, j, t, K) { if (CUR == "") return; n = 0; for (t in
     for (i = 1; i <= n; i++) printf "%s\t%s\t%d\n", CUR, K[i], C[K[i]] >> CF
     if (!SCAN) close(OUT); split("", C); inkey = 0; CUR = "" }
   BEGIN { CF = ENVIRON["SHARE_COUNTS"]; MF = ENVIRON["SHARE_MAP"]; while ((getline l < MF) > 0) { split(l, F, "\t"); MO[F[1]] = F[2]; MN[F[1]] = F[3] } }
-  FNR == 1 { fl(); CUR = MN[FILENAME]; OUT = MO[FILENAME]; inkey = 0 }
+  FNR == 1 { fl(); CUR = MN[FILENAME]; OUT = MO[FILENAME]; inkey = 0; ISJ = (CUR ~ /[.]json$/) }
   { s = $0; w = inkey; if (inkey || index(s, "PRIVATE KEY")) s = pk(s, ($0 ~ /^[ \t]*[[{]/)); if (w && s == "") next
     s = line(s); if (!SCAN) print s > OUT }
   END { fl() }'
@@ -436,6 +902,9 @@ put() { awkf
     k=$((k + 1))
     if [ "$rr" != "$rel" ]; then plo "$rr" 'its path holds a value redaction covers, so it is not copied'; continue; fi
     if [ ! -f "$c" ]; then plo "$rel" 'it could not be copied (it went, or could not be read, during the build)'; continue; fi
+    # SHARE-SCRUB §4.5.1: a file that exists to hold secrets is never copied, wherever it sits
+    case "${rel##*/}" in .env|.env.*|.env-*|*.env|.envrc|*.pem|*.key|*.p12|*.pfx|id_rsa|id_dsa|id_ecdsa|id_ed25519|.netrc|.pgpass|credentials|credentials.*)
+      plo "$rel" 'a file that holds secrets by its name, never copied'; continue ;; esac
     if [ "$dup" = dup ]; then cp "$c" "$W/gzi/$k.d"; c=$W/gzi/$k.d; fi
     isgz=no
     case "$rel" in *.gz) gzip -dc < "$c" > "$W/gzi/$k" 2>/dev/null || { plo "$rel" 'not a readable gzip, so it cannot be read for secrets'; continue; }; c=$W/gzi/$k; isgz=yes ;; esac
@@ -473,6 +942,47 @@ put() { awkf
   cat "$W/cnt" >> "$W/redactions"
 }
 
+# namecheck (SHARE-SCRUB §4.5.3): the project's and the run's names name the bundle's folder, the archive's members and the pushed
+# folder and its commit message, which no scan reads: a project name redaction changes becomes project, and a run name it changes
+# is refused (the default one made again from the new project name first)
+namecheck() {
+  _nc() { printf '%s\n' "$1" | SHARE_MODE=plain SHARE_KNOWN=$W/known LC_ALL=C awk "$RED"; }
+  [ "$(_nc "$PROJ")" = "$PROJ" ] || { PROJ=project; [ -n "$RUNGIVEN" ] || RUN="$RUNPFX-$PROJ"; }
+  [ "$(_nc "$RUN")" = "$RUN" ] || die "refused — the run name holds a value redaction covers; give another with --run <name>."
+  B=$OUTROOT/$RUN
+}
+
+# dotenvs (SHARE-SCRUB §4.1): `secret-file\t<path>` for each dotenv file (not a template) under the home, the logs folder and each
+# taken transcript's recorded cwd (never /, the user's home folder or a folder above it), outside .git and node_modules; read by
+# the redactor, which takes their secret-named values and URL passwords. Never their values: .known holds paths alone
+dotenvs() {
+  _hh=$(cd "$HOME" 2>/dev/null && pwd -P || printf '%s' "$HOME")
+  { printf '%s\n' "$H"; [ -z "$LOGS" ] || printf '%s\n' "$LOGS"
+    [ ! -s "$W/convs" ] || xa grep -ohE '"cwd"[[:space:]]*:[[:space:]]*"([^"\\]|\\.)*"' < "$W/convs" 2>/dev/null | sed 's/^"cwd"[[:space:]]*:[[:space:]]*"//; s/"$//; s/\\\\/\\/g' || true
+  } | awk '!s[$0]++' | while IFS= read -r d; do
+    [ -n "$d" ] && [ -d "$d" ] || continue; d=$(cd "$d" 2>/dev/null && pwd -P) || continue
+    [ "$d" != / ] || continue; case "$_hh/" in "$d"/*) continue ;; esac
+    find "$d" \( -name .git -o -name node_modules \) -prune -o -type f \( -name .env -o -name '.env.*' -o -name '.env-*' -o -name '*.env' -o -name .envrc \) \
+      ! -name '*.example' ! -name '*.sample' ! -name '*.template' ! -name '*.dist' -print 2>/dev/null
+  done | awk '!s[$0]++ { print "secret-file\t" $0 }'
+}
+
+# people (SHARE-SCRUB §4.1): `person\t<name>` and `email\t<address>` for every author, committer and Co-authored-by of the home's
+# history and of each repository the walk left out; never a [bot], an address at .invalid, noreply@anthropic.com or noreply@github.com
+people() {
+  # the home, each left-out folder, and each repository inside one (a clone in logs/clones/<name>), as deep as 4
+  { printf '%s\n' "$H"; cat "$W/pruned.all" 2>/dev/null
+    while IFS= read -r d; do [ -d "$d" ] || continue; case "${d##*/}" in node_modules|__pycache__) continue ;; esac
+      find "$d" -maxdepth 4 \( -name node_modules -prune \) -o -name .git -print 2>/dev/null | sed 's|/\.git$||'; done < "$W/pruned.all"
+  } | awk '!s[$0]++' | while IFS= read -r d; do
+    [ -e "$d/.git" ] || [ -f "$d/HEAD" ] || continue
+    git -C "$d" log --all --format='%an%x09%ae%n%cn%x09%ce%n%(trailers:key=Co-authored-by,valueonly)' 2>/dev/null || true
+  done | awk -F'\t' 'NF < 2 { if (!match($0, /<[^>]*>/)) next; e = substr($0, RSTART + 1, RLENGTH - 2); n = substr($0, 1, RSTART - 1) }
+    NF >= 2 { n = $1; e = $2 } { sub(/^[ \t]+/, "", n); sub(/[ \t]+$/, "", n); le = tolower(e) }
+    n == "" || n ~ /\[bot\]$/ || le ~ /[.]invalid$/ || le == "noreply@anthropic.com" || le == "noreply@github.com" { next }
+    !s[n]++ { print "person\t" n } e != "" && !t[e]++ { print "email\t" e }'
+}
+
 # known: the personal values redaction looks for, one `<kind>\t<value>` a line in $W/known. User names: $HOME's, when it
 # sits in a Users or home folder, and each name after a home prefix in the events file (whatever is left out) and every
 # transcript path the events or the user named; emails: git config's, the session context's ("the user's email address
@@ -496,6 +1006,7 @@ known() {
       # Claude's organisation name (S3): the value runs to the first backslash or quote; its \u escapes are not decoded
       xa grep -ohE 'orgName[\\"]*[[:space:]]*:[[:space:]]*\\*"[^\\"]+' < "$W/convs" 2>/dev/null | sed 's/^orgName[\\"]*[[:space:]]*:[[:space:]]*\\*"[[:space:]]*//; s/[[:space:]]*$//; s/^/org	/' || true
     fi
+    dotenvs; people
     h=${VID_SHARE_HOST:-$(hostname 2>/dev/null || uname -n)}; if [ -n "$h" ]; then printf 'host\t%s\n' "$h"; [ "${h%%.*}" = "$h" ] || printf 'host\t%s\n' "${h%%.*}"; fi
     [ -z "$LITFILE" ] || printf 'literal-file\t%s\n' "$(cd "$(dirname "$LITFILE")" && pwd -P)/$(basename "$LITFILE")"
   } | awk '!s[$0]++' > "$W/known"
@@ -539,6 +1050,11 @@ cut_big() {
   done
 }
 
+# SHARE-SCRUB §5: what is caught for certain, by rule, and not at all, in the summary, the manifest, the review page and the skill
+LC1='every whole-token copy of the secret-named values of the environment and of the dotenv files read (6 characters or more), the URL passwords in them, your own names, user name, emails, ids and host, the committers of two words or more in the repositories, and the words of your file; every private key; every email address; binary files and secrets files left out'
+LC2='secret-named flags, assignments, quoted values, headers and XML elements, URL credentials and Bearer tokens, a password given by the p flag beside a user flag, or to sshpass, the mysql and mariadb clients, redis-cli and docker, podman and helm registry login; the known token shapes and mixed-case tokens with digits; phone numbers, IP addresses, card numbers and IBANs; named personal fields (names, birth dates, addresses, postcodes, ids)'
+LC3='a secret with no secret-named context or known shape (login admin <v>) or after -p elsewhere; a value caught in one place and bare in another; other people'"'"'s names in free text, CSV or SQL rows, one-word names; addresses, birth dates and ids in free text; GitHub logins; read the review page, and look before you send'
+
 # js: a JSON string of $0's text
 JS='function js(s) { gsub(/\\/, "\\\\", s); gsub(/"/, "\\\"", s); gsub(/\t/, "\\t", s); gsub(/\r/, "\\r", s); return "\"" s "\"" }'
 # manifest: MANIFEST.json, every path in it relative to the bundle or to its source's root
@@ -557,7 +1073,7 @@ manifest() {
     awk -F'\t' '{ n[$2] += $3 } END { for (k in n) print k "\t" n[k] }' "$W/redactions" | LC_ALL=C sort > "$W/kinds"
     printf ' "redactions_by_kind": {'; awk -F'\t' '{ printf "%s\"%s\": %s", (NR > 1 ? ", " : ""), $1, $2 }' "$W/kinds"; printf '},\n'
     printf ' "scan": {"result": "%s", "found": [' "$(if [ -s "$W/scan" ]; then echo found; else echo clean; fi)"; _rows "$W/scan" 3; printf ']},\n'
-    printf ' "limit": "a pattern catches only what it knows; look at the bundle before you send it"\n'
+    printf ' "limit": {"caught_certain": "%s", "caught_by_rule": "%s", "not_caught": "%s"}\n' "$LC1" "$LC2" "$LC3"
     printf '}\n'
   } > "$W/MANIFEST.json"
   # the manifest's own text redacted too (an encoded folder name in a source), its matches not counted
@@ -740,7 +1256,8 @@ manifest_md() {
     echo '## Split'; echo; if [ -s "$W/split" ]; then awk -F'\t' '{ printf "- %s: %s parts, %s.part-000 on\n", $1, $2, $1 }' "$W/split"; else echo '- none'; fi; echo
     echo '## Left out'; echo; if [ -s "$W/leftout" ]; then awk -F'\t' '{ printf "- %s: %s\n", $1, $2 }' "$W/leftout"; else echo '- none'; fi; echo
     echo '## Missing'; echo; if [ -s "$W/missing" ]; then awk -F'\t' '{ printf "- %s: %s\n", $1, $2 }' "$W/missing"; else echo '- none'; fi; echo
-    echo '## The limit'; echo; echo 'A pattern catches only what it knows. Look at the bundle yourself before you send it.'
+    echo '## The limit'; echo; echo 'A pattern catches only what it knows. Look at the bundle yourself before you send it.'; echo
+    echo "- **Caught for certain:** $LC1."; echo "- **Caught by rule** (a value in another form passes): $LC2."; echo "- **Not caught:** $LC3."
   } > "$W/MANIFEST.md"
   SHARE_MODE=plain SHARE_KNOWN=$W/known LC_ALL=C awk "$RED" "$W/MANIFEST.md" > "$NB/MANIFEST.md"
 }
@@ -757,6 +1274,49 @@ missing_md() {
   add conversations/MISSING.md "$W/gen/conversations/MISSING.md" doc
 }
 
+# review_md (SHARE-SCRUB §4.5.4): .vid/shares/<run>.review, beside the bundle and never in it, readable by the user alone, read from
+# the redacted files, so it shows what would be sent: every prompt and ! command of the run's main sessions (a user line that is no
+# tool result, no meta, side-chain or compact summary, and of human origin when it names one), and each product data file the
+# conversations read, wrote or edited (a file_path or notebook_path under fixture(s), seed(s), testdata, test-data, test_data,
+# mock(s), factories or sample(s), or ending .csv, .tsv or .sql), with how many times. NPROMPT and NDATA count them
+review_md() {
+  _rv=$OUTROOT/$RUN.review; : > "$W/rv.list"
+  [ ! -s "$W/rmap.r" ] || awk -F'\t' -v T="$W/took" 'BEGIN { while ((getline l < T) > 0) { split(l, a, "\t"); M["conversations/" a[1] "/" a[1] ".jsonl.gz"] = 1 } }
+    $4 == "conv" { print (($2 in M) ? "main" : "any") "\t" $3 }' "$W/rmap.r" > "$W/rv.list"
+  LC_ALL=C awk -v L="$W/rv.list" -v O="$W/rv.typed" -v D="$W/rv.data" '
+    function endq(r,   p, b, i) { b = 0
+      while ((i = index(substr(r, b + 1), "\"")) > 0) { p = b + i; i = p - 1; while (i > 0 && substr(r, i, 1) == "\\") i--; if ((p - 1 - i) % 2 == 0) return p; b = p }
+      return 0 }
+    function js(r,   q) { q = endq(r); return q ? substr(r, 1, q - 1) : r }
+    function un(x,   o, i, c, n) { o = ""; n = length(x)
+      for (i = 1; i <= n; i++) { c = substr(x, i, 1); if (c == "\\" && i < n) { i++; c = substr(x, i, 1); o = o (c == "n" ? "\n" : c == "t" ? "\t" : c == "r" ? "" : c) } else o = o c }
+      return o }
+    BEGIN { FS = "\t"; while ((getline e < L) > 0) { split(e, f, "\t")
+        while ((getline l < f[2]) > 0) {
+          if (f[1] == "main" && index(l, "\"type\":\"user\"") && !index(l, "\"tool_result\"") && !index(l, "\"isMeta\":true") && !index(l, "\"isSidechain\":true") && !index(l, "\"isCompactSummary\":true") && (!index(l, "\"origin\":{\"kind\":\"") || index(l, "\"origin\":{\"kind\":\"human\""))) {
+            t = ""; p = index(l, "\"content\":\""); if (p) t = js(substr(l, p + 11))
+            else { r = l; while ((p = index(r, "\"type\":\"text\",\"text\":\"")) > 0) { r = substr(r, p + 22); t = t (t == "" ? "" : "\n") js(r) } }
+            ts = ""; if (match(l, /"timestamp":"[^"]*"/)) ts = substr(l, RSTART + 13, RLENGTH - 14)
+            if (t != "") { np++; printf "### %d%s\n\n%s\n\n", np, (ts == "" ? "" : " · " ts), un(t) > O } }
+          r = l; if (index(l, "_path\":\"")) while (match(r, /"(file_path|notebook_path)":"([^"\\]|\\.)*"/)) { x = substr(r, RSTART, RLENGTH); r = substr(r, RSTART + RLENGTH); sub(/^"[a-z_]*":"/, "", x); x = un(substr(x, 1, length(x) - 1))
+            if (x ~ /(^|\/)(fixtures?|seeds?|testdata|test-data|test_data|mocks?|factories|samples?)(\/|$)/ || x ~ /[.](csv|tsv|sql)$/) { if (!(x in C)) K[++nk] = x; C[x]++ } } }
+        close(f[2]) }
+      for (i = 1; i <= nk; i++) printf "- %s: %d time%s\n", K[i], C[K[i]], (C[K[i]] == 1 ? "" : "s") > D
+      printf "%d\t%d\n", np, nk }' < /dev/null > "$W/rv.n"
+  NPROMPT=$(cut -f1 "$W/rv.n"); NDATA=$(cut -f2 "$W/rv.n")
+  ( umask 077
+    { echo "# Before you send · $PROJ / $RUN"; echo
+      echo 'This page is not in the share and never leaves this machine. It is read from the redacted bundle, so it shows what would be sent. The rules catch only the forms they know: read what you typed, at least, before you say send.'; echo
+      echo "## What you typed ($NPROMPT)"; echo
+      if [ -s "$W/rv.typed" ]; then cat "$W/rv.typed"; else echo 'Nothing: no prompt of a main session is in the share.'; echo; fi
+      echo "## The product's data files the conversations touched ($NDATA)"; echo
+      echo 'Personal data typed into these files reached the conversations whenever a tool read or wrote them. It is caught only in the forms ViD knows: emails, phone numbers, IP addresses, card numbers, IBANs, and named fields such as name, phone, address or birth date.'; echo
+      if [ -s "$W/rv.data" ]; then cat "$W/rv.data"; else echo '- none'; fi; echo
+      echo '## What is caught, and what is not'; echo
+      echo "- **Caught for certain:** $LC1."; echo "- **Caught by rule** (a value in another form passes): $LC2."; echo "- **Not caught:** $LC3."
+    } > "$_rv.tmp" && mv "$_rv.tmp" "$_rv" )
+}
+
 summary() {
   _s=$OUTROOT/$RUN.summary
   nb=$(find "$B" -type f -exec cat {} + | wc -c | tr -d ' ')
@@ -770,6 +1330,8 @@ summary() {
     awk -F'\t' '{ printf "split\t%s\t%s\n", $1, $2 }' "$W/split"
     if [ -s "$W/scan" ]; then printf 'scan\tfound\t%s\n' "$(awk -F'\t' '{ n += $3 } END { print n + 0 }' "$W/scan")"; else printf 'scan\tclean\n'; fi
     printf 'limit\ta pattern catches only what it knows: look at the bundle yourself before you send it\n'
+    printf 'caught-certain\t%s\ncaught-by-rule\t%s\nnot-caught\t%s\n' "$LC1" "$LC2" "$LC3"
+    printf 'review\t%s\t%s\t%s\n' ".vid/shares/$RUN.review" "${NPROMPT:-0}" "${NDATA:-0}"
   } > "$_s.tmp"
   # every line redacted but the folder's: the user's own path on their own machine, which the verb needs as it is
   SHARE_MODE=plain SHARE_KNOWN=$W/known LC_ALL=C awk "$RED" "$_s.tmp" | awk -F'\t' 'NR == FNR { r[FNR] = $0; next } { print ($1 == "folder" ? $0 : r[FNR]) }' - "$_s.tmp" > "$_s.red"
@@ -802,16 +1364,15 @@ build() {
     if [ "$(sed -n 's/^setup-answered key=github-mode value="\([a-z]*\)".*/\1/p' "$H/.vid/plan/setup" 2>/dev/null | tail -n 1)" = auto ]; then MODE=github-auto; else MODE=github-manual; fi
   fi
   PROJ=$(basename "$H" | tr 'A-Z' 'a-z' | sed 's/[^a-z0-9]/-/g; s/--*/-/g; s/^-//; s/-$//'); PROJ=${PROJ:-project}
-  if [ -z "$RUN" ]; then
-    M=$(sed -n 's/.* at=\([0-9][0-9][0-9][0-9]-[0-9][0-9]\).*/\1/p' "$H/.vid/metrics-events" 2>/dev/null | head -n 1)
-    RUN="${M:-$(date -u '+%Y-%m')}-$MODE-$PROJ"
-  fi
+  M=$(sed -n 's/.* at=\([0-9][0-9][0-9][0-9]-[0-9][0-9]\).*/\1/p' "$H/.vid/metrics-events" 2>/dev/null | head -n 1)
+  RUNPFX="${M:-$(date -u '+%Y-%m')}-$MODE"; RUNGIVEN=$RUN
+  [ -n "$RUN" ] || RUN="$RUNPFX-$PROJ"
   case "$RUN" in *[!A-Za-z0-9._-]*|.*|'') die "refused — the run name '$RUN' may hold only letters, digits, '.', '_' and '-'." ;; esac
   OUTROOT=$H/.vid/shares; B=$OUTROOT/$RUN
   mkdir -p "$OUTROOT"
-  W=$(mktemp -d); NB=$OUTROOT/.$RUN.building; trap 'rm -rf "$W" "$NB"' EXIT
+  W=$(mktemp -d); NB=$OUTROOT/.share-$$.building; trap 'rm -rf "$W" "$NB"' EXIT   # SHARE-SCRUB: no run name on disk before namecheck
   rm -rf "$NB"; mkdir -p "$NB" "$W/gen"
-  : > "$W/list"; : > "$W/leftout"; : > "$W/missing"; : > "$W/sources"; : > "$W/split"; : > "$W/gz"; : > "$W/redactions"; : > "$W/named.u"; : > "$W/took"; : > "$W/tokens"
+  : > "$W/list"; : > "$W/leftout"; : > "$W/missing"; : > "$W/sources"; : > "$W/split"; : > "$W/gz"; : > "$W/redactions"; : > "$W/named.u"; : > "$W/took"; : > "$W/tokens"; : > "$W/pruned.all"
   # records/: the home's .vid/ and the root's extras
   walk "$H/.vid" records/.vid rec records
   src records/.vid/ home .vid 'the records, redacted; files over 256 KB gzipped; clones, object stores, worktrees, earlier exports and the share'"'"'s output left out'
@@ -826,10 +1387,14 @@ build() {
   else lo logs/ 'no logs folder named'; fi
   # conversations/: the sessions the events name, and the user's
   if [ "$NOCONV" = yes ]; then lo conversations/ 'left out at the user'"'"'s request'
-  else sessions; missing_md; index_md; fi
-  findings_md; run_md
+  else sessions; fi
+  # SHARE-SCRUB §4.5.3: the copies and the known values first, so the project's and the run's names are checked before any page
+  # is written with them; the pages made after the snapshot are their own copies (add)
   snapshot
   known
+  namecheck
+  [ "$NOCONV" = yes ] || { missing_md; index_md; }
+  findings_md; run_md
   put
   cut_big
   # the scan: the bundle read back, then the manifest, which holds the first scan's result, read back too
@@ -846,6 +1411,7 @@ build() {
   fi
   # the personal values the scan needs, beside the bundle and never in it, readable by the user alone
   ( umask 077; cp "$W/known" "$OUTROOT/$RUN.known" )
+  review_md
   summary
   if [ -s "$W/scan" ]; then
     awk -F'\t' '{ printf "ViD share: left in %s: %s (%s)\n", $1, $2, $3 }' "$W/scan" >&2
@@ -872,7 +1438,8 @@ pack() {
   [ -d "$1" ] && [ -f "$1/MANIFEST.json" ] || die "refused — $1 is not a share bundle."
   ( scan "$1" ) > /dev/null || die "refused — the scan found something left in $1; nothing is packed."
   _d=$(cd "$1" && pwd -P); _a=$_d.tar.gz
-  ( cd "$(dirname "$_d")" && tar -cf - "$(basename "$_d")" ) | gzip -9n > "$_a.tmp"
+  # SHARE-SCRUB §4.5.2: no user or group name in the archive's headers (GNU tar and bsdtar both take --numeric-owner)
+  ( cd "$(dirname "$_d")" && tar --numeric-owner -cf - "$(basename "$_d")" ) | gzip -9n > "$_a.tmp"
   mv "$_a.tmp" "$_a"
   printf '%s\n' "$_a"
 }

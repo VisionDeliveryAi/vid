@@ -247,8 +247,6 @@ fi
 # --- the archive and the arm ledger (only when there is something to keep) -
 ARCHIVE=no
 { [ -n "$APP_CONTENT" ] || [ "$NAMENDED" -gt 0 ] || [ "$NQ" -gt 0 ] || [ -n "$OQ_PROSE" ]; } && ARCHIVE=yes
-HIST="$DIR/PRD-HISTORY-$DATE.md"; k=1
-while [ "$ARCHIVE" = yes ] && [ -f "$HIST" ]; do k=$((k + 1)); HIST="$DIR/PRD-HISTORY-$DATE-$k.md"; done
 if [ "$ARCHIVE" = yes ]; then
   {
     printf '%s — history (consolidated %s)\n\n' "$TITLE" "$DATE"
@@ -258,6 +256,18 @@ if [ "$ARCHIVE" = yes ]; then
     printf '## Base — Open decisions as ratified\n\n'; printf '%s\n\n' "$(printf '%s\n' "$OQ_SECT" | sed '1d')"
     printf '## Appends\n\n'; printf '%s\n' "$APP_BODY"
   } | awk '{ lines[NR] = $0 } END { last = NR; while (last > 1 && lines[last] ~ /^[ \t]*$/) last--; for (i = 1; i <= last; i++) print lines[i] }' > "$T/HISTORY.md"
+fi
+# FIX-BATCH-T1 (B-6): named after it is made — an existing PRD-HISTORY-<date>.md or -<k>.md byte-identical to it is its name
+# and nothing is written (a redo from the same input); else the first free name, as before
+HSAME=no
+if [ "$ARCHIVE" = yes ]; then
+  for HIST in "$DIR/PRD-HISTORY-$DATE.md" "$DIR/PRD-HISTORY-$DATE"-*.md; do
+    [ -f "$HIST" ] && cmp -s "$T/HISTORY.md" "$HIST" && { HSAME=yes; break; }
+  done
+fi
+if [ "$HSAME" = no ]; then
+  HIST="$DIR/PRD-HISTORY-$DATE.md"; k=1
+  while [ "$ARCHIVE" = yes ] && [ -f "$HIST" ]; do k=$((k + 1)); HIST="$DIR/PRD-HISTORY-$DATE-$k.md"; done
 fi
 LEDGER="$DIR/.vid/consolidation-arms-$DATE.md"; NLOSING=0; NLEDGER=0
 if [ "$NAMENDED" -gt 0 ]; then
@@ -310,7 +320,7 @@ fi
 # --- write ------------------------------------------------------------------
 cp "$OUT" "$DIR/$BASE"
 [ "$WRITE_SEED" = yes ] && cp "$T/SEED.md" "$DIR/SEED.md"
-[ "$ARCHIVE" = yes ] && cp "$T/HISTORY.md" "$HIST"
+[ "$ARCHIVE" = yes ] && [ "$HSAME" = no ] && cp "$T/HISTORY.md" "$HIST"
 if [ "$NAMENDED" -gt 0 ]; then mkdir -p "$DIR/.vid"; cp "$T/LEDGER.md" "$LEDGER"; fi
 NOPEN=$(printf '%s\n' "$CARRIERS" | grep -c '^VID-QUESTION:' || true); NRES=$(printf '%s\n' "$CARRIERS" | grep -c '^RESOLVED:' || true)
 echo "consolidate: items=$NEFF (amended-rows-folded=$NAMENDED) answers=$(printf '%s\n' "$AEFF" | grep -c . || true) (questions-archived=$NQ) carriers open=$NOPEN resolved=$NRES seed=$( [ "$WRITE_SEED" = yes ] && echo written || echo verified ) history=$( [ "$ARCHIVE" = yes ] && basename "$HIST" || echo none ) arm-ledger=$( [ "$NAMENDED" -gt 0 ] && echo "$NLEDGER items ($NLOSING arm-losing)" || echo none ) court=green"

@@ -14,7 +14,7 @@ sh_toy() {
   SHAREGH=$1/gh; export SHAREGH; PATH="$1/bin:$PATH"; export PATH
   echo quill-tester > "$SHAREGH/login"; echo User > "$SHAREGH/users/bramble-reader"; echo User > "$SHAREGH/users/ferngrove"
   echo Organization > "$SHAREGH/users/quill-labs"; echo 'active admin' > "$SHAREGH/orgs/quill-labs/quill-tester"; : > "$SHAREGH/log"
-  cd "$1/home" && git init -q && git config user.name 'Jane Q Toy' && git config user.email 'jane.toy@example.org'
+  cd "$1/home" && git init -q && git config user.name 'Jane Q Ferrow' && git config user.email 'jane.ferrow@example.org'
   GIT_AUTHOR_NAME='Jane Env'; GIT_AUTHOR_EMAIL='jane.env@example.org'; GIT_COMMITTER_NAME='Jane Env'; GIT_COMMITTER_EMAIL='jane.env@example.org'
   export GIT_AUTHOR_NAME GIT_AUTHOR_EMAIL GIT_COMMITTER_NAME GIT_COMMITTER_EMAIL
   B=.vid/shares/2026-11-local-toy; mkdir -p "$B/records" "$B/findings" "$B/conversations"
