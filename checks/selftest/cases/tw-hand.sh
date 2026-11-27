@@ -20,7 +20,8 @@ issues() { ls "$T/gh/issues" | grep -c .; }
 RG=$(command -v git); mkdir -p "$T/shim"; cat > "$T/shim/git" <<EOF
 #!/bin/sh
 if [ "\$1" = ls-remote ] && [ "\${3:-}" = refs/heads/vid-state/lock ] && [ -f "$T/shim/empty-lock" ]; then rm -f "$T/shim/empty-lock"; exit 0; fi
-if [ "\$1" = ls-remote ] && [ "\${3:-}" = refs/heads/vid-state/records ] && [ -f "$T/shim/fail-records" ]; then rm -f "$T/shim/fail-records"; exit 128; fi
+# a failed read fails both of github.sh's tries (FIX-BATCH-T2 OW-1: a read that fails once with 128 is tried again)
+if [ "\$1" = ls-remote ] && [ "\${3:-}" = refs/heads/vid-state/records ] && [ -f "$T/shim/fail-records" ]; then if [ -f "$T/shim/fail-records.1" ]; then rm -f "$T/shim/fail-records" "$T/shim/fail-records.1"; else : > "$T/shim/fail-records.1"; fi; exit 128; fi
 if [ "\$1" = ls-remote ] && [ "\${3:-}" = refs/heads/vid-state/records ] && [ -f "$T/shim/move-head" ] && grep -q "^amended \$(cat "$T/shim/move-head") " .vid/tw/log 2>/dev/null; then
   echo x >> "$T/shim/moves"; if [ "\$(grep -c . "$T/shim/moves")" = 2 ]; then rm -f "$T/shim/move-head"
     ( cd "$T/b" && echo 'note by=self-test-2' >> .vid/metrics-events && sh "$CHECKS/github.sh" state-save ) > "$T/shim/moved.out" 2>&1; fi; fi

@@ -92,6 +92,9 @@ hooks_() { [ -z "$(git config --get core.hooksPath 2>/dev/null)" ] || return 0; 
 case ${1:-} in
   start) shift; Y=''; RUN=''; SR=''
     while [ $# -gt 0 ]; do case $1 in --yes) Y=--yes ;; --run) RUN=1 ;; --state) [ $# -ge 2 ] || { sed -n 's/^# Usage: /usage: /p' "$0" >&2; exit 2; }; SR=$2; shift ;; *) sed -n 's/^# Usage: /usage: /p' "$0" >&2; exit 2 ;; esac; shift; done
+    # FIX-BATCH-T2 (B-13): git on Windows refuses ViD's deep paths unless core.longpaths is true; set first, silently, before the restore
+    # (its fast-forward writes the project's files) and the refresh (its add stages checks/); an unknown key to git elsewhere
+    if git rev-parse --git-dir > /dev/null 2>&1 && [ "$(git config --bool --get core.longpaths 2>/dev/null || true)" != true ]; then git config core.longpaths true 2> /dev/null || :; fi
     # GM-1 S1, GM-4 F2: the run's start in GitHub manual refused first, before anything is restored, refreshed or written (a --state
     # folder, empty, has its mode only once restored: the mode step below refuses it there)
     if [ -n "$RUN" ] && manual; then echo 'connect mode: this project is in GitHub manual: call /vid next; nothing refreshed or written, no lock is held'; exit 1; fi

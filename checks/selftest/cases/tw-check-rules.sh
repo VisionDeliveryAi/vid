@@ -9,7 +9,9 @@
 # a pointer and a profanity in the title are refused; an artifact id with a full stop after it is rewritten and refused;
 # a requirement statement's own quote, and in a decision a quote after "owners", "SLA: " or a key's "owner", stay.
 # And: an AMENDED answer's named form is refused; "artifact" before an ordinary word (no digit) is no
-# pointer. The cut (only the three named forms rewritten and refused): the lines A-177, A-090, A-175, D-056
+# pointer. FIX-BATCH-T2 (OW-3): an answer whose last quoted reply holds a word of the list (A-305) is written with that
+# word as "(a word)", and so is a law of CLAUDE.md holding one; the ticket passes, and its amendment, the law unchanged,
+# does not say the laws it quotes changed. The cut (only the three named forms rewritten and refused): the lines A-177, A-090, A-175, D-056
 # and D-042, toy-shaped, keep their other quotes and pass; a quote after the owner in no named form passes. v0.26.10.24.2: a
 # quoted path into ViD's checks/ is rewritten and refused like the other pointers; a product's own path and plain words are not. FB-7 C5: an
 # answer of two or three quoted replies is quoted whole, each left out, and the ticket passes; a quotation that is no answer, and one planted
@@ -28,9 +30,10 @@ A177='A: REQ-006 and REQ-001 each add "except for a deleted subscriber: no mail 
 awk -v a="$A177" -v b="$A090" -v c="$A175" '/^REQ-006 / { sub(/source: A-005/, "source: A-005, A-177, A-090, A-175") } { print } /^A-005 / { print "A-177 | human | 2026-10-23 | Q: deleted? | " a "; owner: \"Yes, all recommended\" | settles: REQ-006"; print "A-090 | human | 2026-10-23 | Q: text? | " b " | settles: REQ-006"; print "A-175 | human | 2026-10-23 | Q: state? | " c " | settles: REQ-006" }' PRD.md > "$T/p" && cat "$T/p" > PRD.md
 printf -- '- **D-005** REQ-006 the cap is ten, owner: "ten is plenty", as .vid/milestones-prelim.json and https://claude.ai/artifact/JTBFCZ4Y8xhDKzpgttPvAC say | why: cost | enforced: convention\n' >> DECISIONS.md
 # FB-7 C5: an answer of two and of three quoted replies, beside A-005's one
-sed 's/source: A-005, A-177/source: A-005, A-301, A-302, A-303, A-177/' PRD.md > "$T/p" && cat "$T/p" > PRD.md
+sed 's/source: A-005, A-177/source: A-005, A-301, A-302, A-303, A-305, A-177/' PRD.md > "$T/p" && cat "$T/p" > PRD.md
 printf '%s\n' 'A-301 | human | 2026-10-23 | Q: two? | A: "the first one"; "and the second"; the list holds both | settles: REQ-006' 'A-302 | human | 2026-10-23 | Q: three? | A: "one such"; "two such"; "three such"; the list holds the three | settles: REQ-006' \
-  'A-303 | human | 2026-10-23 | Q: words? | A: the page says "one; two"; "three" follows | settles: REQ-006' > "$T/a3"
+  'A-303 | human | 2026-10-23 | Q: words? | A: the page says "one; two"; "three" follows | settles: REQ-006' \
+  'A-305 | human | 2026-10-23 | Q: tone? | A: "Yes, as described (Recommended)"; "keep it damn simple" | settles: REQ-006' > "$T/a3"
 awk -v f="$T/a3" '{ print } /^A-005 / { while ((getline l < f) > 0) print l }' PRD.md > "$T/p" && cat "$T/p" > PRD.md
 D6='REQ-006 the message is "ten saved", as recorded in artifact JTBFCZ4Y8xhDKzpgttPvAC.'; D7='REQ-006 for owners the SLA: "99.9" and the "owner": "ops" key stay'
 printf -- '- **D-006** %s | why: clarity | enforced: convention\n- **D-007** %s | why: product text | enforced: convention\n' "$D6" "$D7" >> DECISIONS.md
@@ -38,6 +41,7 @@ D8='REQ-006 the message is "Ask the owner!"; the action says "Save"'; printf -- 
 D56='**D-056** REQ-006 the name confirmed by the owner as "Sparrow" | why: brand'; D42='**D-042** REQ-006 the cap holds | why: owner ("Ten it is", 2026-10-23)'
 printf -- '- %s | enforced: convention\n- %s | enforced: convention\n' "$D56" "$D42" >> DECISIONS.md
 printf -- '- **D-013** REQ-006 the row is counted by checks/extractors/invariant.cap.sh, as `checks/test.sh` runs it | why: cost | enforced: convention\n- **D-014** REQ-006 the product'"'"'s src/checks/cap.py runs the health checks/alarms. | why: cost | enforced: convention\n' >> DECISIONS.md
+{ [ -f CLAUDE.md ] && cat CLAUDE.md; printf '\n## Import law\n\n- Every import crosses a seam the table declares, damn the shortcut.\n'; } > "$T/cl" && cat "$T/cl" > CLAUDE.md; g add CLAUDE.md
 g commit -qam 'owner words and records planted'; tw_ratify 'Yes, with D-005' || fail 'the toy was not ratified again'
 tw_skel || fail 'the skeleton round failed'; tw_closed S02; tw_closed S03; tw_start S04 || fail 'S04 was refused'
 F=$(sh "$W" write step S04 2> "$T/werr") || fail "S04's ticket was refused"
@@ -48,6 +52,14 @@ grep -qF '| A: cap at ten saved searches per subscriber for MVP (chosen by the o
 grep -qF '| A: the list holds both | settles: REQ-006' "$F" && grep -qF '| A: the list holds the three | settles: REQ-006' "$F" || fail 'an answer of several quoted replies is not written by its own words'
 grep -qF '| A: the page says "one; two"; "three" follows | settles: REQ-006' "$F" || fail 'a quotation that is no reply is changed'
 ! grep -q 'the first one\|and the second\|two such\|three such' "$F" || fail 'a quoted reply reaches the ticket'
+# FIX-BATCH-T2 (OW-3): an answer whose last reply holds a word of the list: that word blanked, as the export blanks it, and the ticket passes
+grep -qF '| A: "keep it (a word) simple" | settles: REQ-006' "$F" || fail "the last reply's word of the list is not blanked: $(grep 'A-305' "$F" | head -n 1)"
+grep -qF '> - Every import crosses a seam the table declares, (a word) the shortcut.' "$F" || fail "a law's word of the list is not blanked: $(grep 'Every import' "$F" | head -n 1)"
+! grep -qi 'damn' "$F" || fail 'a word of the list reaches the ticket'
+# and an amendment of the posted ticket, its laws unchanged, does not say the laws it quotes changed
+cp "$F" "$T/s04.md"; cp "${F%.md}.meta" "$T/s04.meta"; tw_post step S04 || fail "S04's ticket could not be posted"; AM=$(sh "$W" write amend "$TW_N" 2> "$T/werr") || fail "the amendment of #$TW_N was refused"
+! grep -q 'the laws it quotes changed' "$AM" "${AM%.md}.meta" || fail 'an unchanged law holding a word of the list reads as changed'
+cp "$T/s04.md" "$F"; cp "$T/s04.meta" "${F%.md}.meta"
 grep -q 'ten is plenty\|ten, final\|milestones-prelim\|claude\.ai' "$F" && fail "the owner's words or a pointer reach the ticket"
 grep -qF '> - **D-006** REQ-006 the message is "ten saved", as recorded in (ViD'"'"'s records). | why: clarity' "$F" || fail 'an artifact id with a full stop after it is not rewritten'
 grep -qF "| $A177; confirmed by the owner | settles: REQ-006" "$F" || fail "A-177's added clause is not kept, or its owner's words not rewritten"

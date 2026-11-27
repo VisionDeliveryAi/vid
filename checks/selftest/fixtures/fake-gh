@@ -6,7 +6,7 @@
 # draft, merge, comments/<k>), milestones/<n>/ (title, description, state), labels/<name>, `runs` (one line per run:
 # `<id> <attempt> <sha> <workflow, spaces as %20> <event> <status> <conclusion>`, the newest attempt of each run) and
 # artifacts/<run id>/<name>/ (only the newest attempt's, as GitHub keeps them). Every call is appended to $FAKEGH/log.
-# $FAKEGH/auth-fail makes `gh auth status` fail; $FAKEGH/no-workflow drops the workflow scope. `gh pr merge` merges in
+# $FAKEGH/auth-fail makes `gh auth status` fail; $FAKEGH/auth-blip holding <n> makes its next n fail as a network blip (FIX-BATCH-T2 OW-2); $FAKEGH/no-workflow drops the workflow scope. `gh pr merge` merges in
 # the bare repository (--merge, the body in the merge commit, refused when --match-head-commit is not the head) and
 # closes the issue a "Closes #<n>" in the description names. `gh workflow run <workflow> --ref main` (v0.26.10.12 R3)
 # adds a run of main's tip to `runs`, `<id> 1 <sha> <workflow> workflow_dispatch queued -`, its id one past the largest
@@ -119,7 +119,7 @@ asg() { [ -f "$1/assignees" ] && grep -v '^$' "$1/assignees" | paste -sd ',' - |
 CMD="${1:-} ${2:-}"
 case "$CMD" in
   'auth status')
-    [ -f "$F/auth-fail" ] && { echo 'You are not logged into any GitHub hosts. To log in, run: gh auth login' >&2; exit 1; }
+    [ ! -s "$F/auth-blip" ] || { _bn=$(cat "$F/auth-blip"); [ "$_bn" -le 0 ] || { echo $((_bn - 1)) > "$F/auth-blip"; echo 'error connecting to api.github.com: check your internet connection' >&2; exit 1; }; }; [ -f "$F/auth-fail" ] && { echo 'You are not logged into any GitHub hosts. To log in, run: gh auth login' >&2; exit 1; }
     if [ -f "$F/no-workflow" ]; then sc="'repo', 'read:org'"; else sc="'repo', 'read:org', 'workflow'"; fi
     printf 'github.com\n  ✓ Logged in to github.com account toy (keyring)\n  - Active account: true\n  - Git operations protocol: https\n  - Token scopes: %s\n' "$sc"; exit 0 ;;
   'repo view')

@@ -21,6 +21,11 @@ and in every mode (GM-4 K6); no other path records one.
    changed is shown again, nothing posted.
 3. **The answer.** `sh checks/queue.sh answer <Q<n>|<n>:<k>> <answer> "<their words>"`, one argument each, quoted. Say what it
    printed in plain words: what was recorded, what was posted, or what was refused and why. A refusal records nothing.
+   **An answer that lands a draft** (the `yes` of a draft's `Q<n>` line, which runs `sh checks/land.sh <n>`, alone or among a
+   call's moves) can take longer than one command may run (a landing took about eleven minutes in a run on Windows, and the
+   tool allows ten): start it with `run_in_background: true`, under no `timeout` of your own, and wait until its task ends
+   (its notice) before anything else touches the spec files or ViD's records: under /vid run no round step, `round.sh` or
+   save runs meanwhile; never stop it, by a limit or by hand. Then say its output as any answer's (FIX-BATCH-T2 OW-5).
 4. **A `door:` line.** The answer changes rows: the change goes through the door, the vid-fix skill's ticket-mode branch, run here
    on the words the line gives. It drafts and asks; it lands nothing.
 5. **What waits.** After an answer, its one line: `sh checks/queue.sh sorted --line`. When the owner asks what waits, `sh checks/queue.sh list`: each

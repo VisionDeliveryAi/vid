@@ -518,7 +518,7 @@ apply_() { WD=''; RVF=''; while [ $# -gt 0 ]; do case $1 in --words) [ $# -ge 2 
     ref "the proposal's review changed since its page showed it (above): shown again; your next implement-replan words keep each finding as written, or run the analysis again"; fi
   # checked whole before anything is recorded: the check again, then steps 1 to 5 on a scratch copy (land.sh's dry run)
   judge "$P/block"; if grep -q '^rule-' "$T/jo"; then grep '^rule-' "$T/jo" >&2; ref "the proposal breaks $(grep -c '^rule-' "$T/jo") re-plan rule(s) (above): nothing applied"; fi
-  TGT=$(cat "$P/target"); SC=$T/sc; git clone -q --no-hardlinks . "$SC" 2> "$T/e" || ref "no scratch copy for the dry run: $(tail -n 1 "$T/e")"
+  TGT=$(cat "$P/target"); SC=$T/sc; git clone -q -c core.longpaths=true --no-hardlinks . "$SC" 2> "$T/e" || ref "no scratch copy for the dry run: $(tail -n 1 "$T/e")"
   BR=$(git symbolic-ref -q --short HEAD || true); if [ -n "$BR" ]; then git -C "$SC" checkout -q -B "$BR" HEAD 2>/dev/null; fi
   for k in core.hooksPath user.name user.email; do v=$(git config --get "$k" || true); [ -z "$v" ] || git -C "$SC" config "$k" "$v"; done
   [ ! -d checks ] || cp -R checks "$SC/"
@@ -677,7 +677,7 @@ awk -F'\t' -v OFS='\t' -v RS_="$T/rs" 'BEGIN { while ((getline l < RS_) > 0) { s
 # warnings: the check's, then each published step's GM M12 warnings on a scratch copy: the candidate's block in RUN-STATE, HEAD applied
 awk '/^(size|builds) / { k = $1; id = $2; w = $0; p = index(w, " \342\200\224 "); print k "\t" id "\t" substr(w, p + 5) }' "$T/jo" > "$PD/warnings"
 if [ -s "$PD/publish" ]; then
-  SC=$T/sc; git clone -q --no-hardlinks . "$SC" 2> "$T/e" || fail_ "no scratch copy for the new steps' warnings: $(tail -n 1 "$T/e")"
+  SC=$T/sc; git clone -q -c core.longpaths=true --no-hardlinks . "$SC" 2> "$T/e" || fail_ "no scratch copy for the new steps' warnings: $(tail -n 1 "$T/e")"
   mkdir -p "$SC/.vid"; for e in .vid/* .vid/.[!.]*; do [ -e "$e" ] || continue; case ${e#.vid/} in code|spec.git|results|*.lock|*.lock.steal|.proposal.*) continue ;; esac; cp -R "$e" "$SC/.vid/"; done
   rm -rf "$SC/.vid/next/proposal" "$SC/.vid/next/candidate" "$SC/.vid/next"/.proposal.*; printf '%s\n' "$HD" > "$SC/.vid/tw/applied"; cp "$T/cpm" "$SC/PLAN.md"
   awk -v NB="$C/block" 'BEGIN { while ((getline l < NB) > 0) K[++k] = l } /^## The plan/ { s = 1 } s && !d && /^```vid-plan[ \t]*$/ { print; for (i = 1; i <= k; i++) print K[i]; b = 1; d = 1; next } b && /^```[ \t]*$/ { b = 0 } !b { print }' .vid/RUN-STATE.md > "$SC/.vid/RUN-STATE.md"

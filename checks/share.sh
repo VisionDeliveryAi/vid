@@ -267,7 +267,9 @@ gzr() {
 #   host             the host name after @ (a prompt) or in a host or hostname field, never as a bare word
 #   user-name        a user name after a home prefix: the Users or home folder after any number of slashes or backslashes
 #                    (so a drive's, a WSL mount's and Git Bash's forms, and JSON's escaped ones), and its encoded form
-#                    (every character not a letter or digit as -) after -Users- or -home-, as Claude's folder names hold it
+#                    (every character not a letter or digit as -) after -Users- or -home-, as Claude's folder names hold it;
+#                    FIX-BATCH-T2 (B-12): any Windows short folder name in a user folder's place, by its shape (1 to 6 of
+#                    the 8.3 characters, ~, digits, an optional extension of 1 to 3), whoever's it is; not in Claude's folder names
 #   person-name      every author, committer and Co-authored-by of two words or more in the home's and the left-out
 #                    repositories' histories (no [bot], .invalid, noreply@anthropic.com or noreply@github.com), whole phrase
 #                    in any case, and encoded (lower case, - for the rest)
@@ -687,6 +689,9 @@ function line(s,   i, ls, jl) { jl = ISJ || (s ~ JLR); JLN = jl
   s = chk(s, 1, jl)
   if (length(s) > 4096) s = tkb(s)
   s = shpc(s)
+  # FIX-BATCH-T2 (B-12): a short folder name on the whole line, before the identity stage cuts a long one (a cut after a false \r of
+  # C:\Users\richar~1 would part it from its prefix) and before the known names (a known name that starts a short one is no half)
+  if (index(s, "~")) s = sfn(s, "user-name", UPRE, "[A-Za-z0-9_]")
   s = chk(s, 2, jl)
   if (jl && index(s, "[REDACTED:")) s = jfx(s)
   return s }
@@ -697,6 +702,22 @@ function chk(s, w, jl,   out, p) { if (length(s) <= 8192) return stg(w, s, jl); 
   while (length(s) > 8192 && (p = cut8(s))) { out = out stg(w, substr(s, 1, p), jl); s = substr(s, p + 1) }
   return out stg(w, s, jl) }
 function stg(w, s, jl) { return w == 1 ? ctx1(s, jl) : id1(s) }
+# FIX-BATCH-T2 (B-12). sfn: each short name (one to six characters of SFC, ~, digits, a dot and one to three of SFC) whose 40 characters
+# before it end in pre and whose next character is not in nx is marked k; the others stay as they are. The line is split on ~ once and
+# each piece read once, the output kept in two buffers (256, then 16384 characters), so a long line with many ~ is read in linear time
+function sfn(s, k, pre, nx,   n, P, i, cur, cs, r, t6, nm, d, e, bf, w, buf, mid, out, tl) {
+  n = split(s, P, "~"); if (n < 2) return s
+  out = ""; mid = ""; buf = ""; tl = ""; cur = P[1]; cs = 0
+  for (i = 2; i <= n; i++) { r = P[i]; nm = ""; d = 0; e = 0
+    t6 = length(cur) - cs > 6 ? substr(cur, length(cur) - 5) : substr(cur, cs + 1)
+    if (t6 != "" && match(t6, SFC "+$")) nm = substr(t6, RSTART)
+    if (nm != "" && match(r, /^[0-9]+/)) { d = RLENGTH; if (match(substr(r, d + 1, 4), "^\\." SFC SFC "?" SFC "?")) e = RLENGTH
+      bf = substr(cur, 1, length(cur) - length(nm)); w = length(bf) >= 40 ? substr(bf, length(bf) - 39) : tl buf bf; w = length(w) > 40 ? substr(w, length(w) - 39) : w
+      if (w ~ pre && substr(r, d + e + 1, 1) !~ nx) { buf = buf bf mark(k); cur = substr(r, d + e + 1); cs = 0 }
+      else { buf = buf cur "~"; cur = r; cs = d + e } }
+    else { buf = buf cur "~"; cur = r; cs = 0 }
+    if (length(buf) > 256) { w = tl buf; tl = substr(w, length(w) - 39); mid = mid buf; buf = ""; if (length(mid) > 16384) { out = out mid; mid = "" } } }
+  return out mid buf cur }
 function ctx1(s, jl,   ls, i) {
   if (s ~ AHQ) s = ahd(s, jl)
   if (index(s, "://")) s = url(s)
@@ -809,6 +830,7 @@ BEGIN { MODE = ENVIRON["SHARE_MODE"]; SCAN = (MODE == "scan")
   for (i = 1; i < 256; i++) ORD[sprintf("%c", i)] = i
   HPRE = "(@|[Hh][Oo][Ss][Tt]([Nn][Aa][Mm][Ee])?" Q "[ \t]*[:=\t][ \t]*" Q ")$"
   UPRE = "[/\\\\]+([Uu]sers|home)[/\\\\]+$"; EPRE = "-([Uu]sers|home)-$"
+  SFC = "[A-Za-z0-9!#$%&\047()@^_{}-]"
   KF = ENVIRON["SHARE_KNOWN"]; SGR = "(\\\\u001[bB]|\\\\x1[bB]|" sprintf("%c", 27) ")\\[[0-9;]*m$"
   # the words a transcript, a marker or the folders of the bundle are made of, never taken as a bare name or an organisation (S3)
   n = split("vid records logs conversations subagents findings user assistant system tool human type role content text message name home root admin redacted literal github token anthropic key openai stripe aws slack google npm jwt bearer url secret assignment header account email host org author password private", X, " ")
@@ -1051,9 +1073,9 @@ cut_big() {
 }
 
 # SHARE-SCRUB §5: what is caught for certain, by rule, and not at all, in the summary, the manifest, the review page and the skill
-LC1='every whole-token copy of the secret-named values of the environment and of the dotenv files read (6 characters or more), the URL passwords in them, your own names, user name, emails, ids and host, the committers of two words or more in the repositories, and the words of your file; every private key; every email address; binary files and secrets files left out'
+LC1='every whole-token copy of the secret-named values of the environment and of the dotenv files read (6 characters or more), the URL passwords in them, your own names, user name, emails, ids and host, every Windows short folder name in a user folder'"'"'s place, the committers of two words or more in the repositories, and the words of your file; every private key; every email address; binary files and secrets files left out'
 LC2='secret-named flags, assignments, quoted values, headers and XML elements, URL credentials and Bearer tokens, a password given by the p flag beside a user flag, or to sshpass, the mysql and mariadb clients, redis-cli and docker, podman and helm registry login; the known token shapes and mixed-case tokens with digits; phone numbers, IP addresses, card numbers and IBANs; named personal fields (names, birth dates, addresses, postcodes, ids)'
-LC3='a secret with no secret-named context or known shape (login admin <v>) or after -p elsewhere; a value caught in one place and bare in another; other people'"'"'s names in free text, CSV or SQL rows, one-word names; addresses, birth dates and ids in free text; GitHub logins; read the review page, and look before you send'
+LC3='a secret with no secret-named context or known shape (login admin <v>) or after -p elsewhere; a value caught in one place and bare in another; other people'"'"'s names in free text, CSV or SQL rows, one-word names; addresses, birth dates and ids in free text; a Windows short folder name in Claude'"'"'s folder names; GitHub logins; read the review page, and look before you send'
 
 # js: a JSON string of $0's text
 JS='function js(s) { gsub(/\\/, "\\\\", s); gsub(/"/, "\\\"", s); gsub(/\t/, "\\t", s); gsub(/\r/, "\\r", s); return "\"" s "\"" }'
@@ -1150,7 +1172,7 @@ findings_md() {
       function cell(s) { gsub(/\|/, "/", s); gsub(/\n/, " ", s); return (s == "" ? "unrated" : s) }
       function g(k) { return (k in F) ? F[k] : "" }
       function flush(   f, k, i, o) { if (!act) return; act = 0; f = sprintf("%s/F-%03d.md", D, n)
-        o = "# F-" sprintf("%03d", n) " · " TT "\n\n| Field | Value |\n|---|---|\n| Run | " RID " |\n| Original id | F-" ON " in " SRC " |\n"
+        o = "# F-" sprintf("%03d", n) " · " TT "\n\n| Field | Value |\n|---|---|\n| Run | " RID " |\n| Original id | " (ON != "" ? "F-" ON " in " SRC : "line " OL " of " SRC ", the entry \"" cell(OH) "\"") " |\n"
         o = o "| Seen | " cell(g("Seen")) " |\n| Class | unrated |\n| Severity | unrated |\n| Where | " cell(g("Where")) " |\n| Recurrence | unrated |\n"
         o = o "| Cost | " cell(g("Cost")) " |\n| Status | unrated |\n| Backlog | unrated |\n| Related | unrated |\n\n"
         o = o "## What happened\n\n" (g("What happened") == "" ? "unrated" : g("What happened")) "\n\n## Evidence\n\n" (g("Evidence") == "" ? "unrated" : g("Evidence")) "\n\n"
@@ -1160,13 +1182,14 @@ findings_md() {
         printf "| %d | [F-%03d](findings/F-%03d.md) | %s | unrated | unrated | unrated | %s | unrated |\n", n, n, n, cell(TT), cell(g("Cost")) >> RF; close(RF)
         split("", F); split("", K); nk = 0; cur = "" }
       /^## F-[0-9]+ · / { flush(); FM = 1; st = 0; n++; act = 1; ON = $2; sub(/^F-/, "", ON); TT = $0; sub(/^## F-[0-9]+ · /, "", TT); cur = ""; next }
-      /^## / { flush(); FM = 2; cur = ""; h = substr($0, 4); st = 1; next }
+      # FIX-BATCH-T2 (OW-6): the original id of a queue entry is its line and its heading (hl, OH, OL), never a number made up
+      /^## / { flush(); FM = 2; cur = ""; h = substr($0, 4); hl = FNR; st = 1; next }
       FM == 1 && act && /^- \*\*[^*]+:\*\* / { k = $0; sub(/^- \*\*/, "", k); v = k; sub(/:\*\* .*/, "", k); sub(/^[^*]*:\*\* /, "", v); if (!(k in F)) K[++nk] = k; F[k] = v; cur = k; next }
       FM == 1 && act && cur != "" { F[cur] = F[cur] "\n" $0; next }
       FM == 2 && st == 1 && /^- seen: [0-9]+$/ { se = substr($0, 9); st = 2; next }
       FM == 2 && st == 2 && /^- first: / { fi = substr($0, 10); st = 3; next }
       FM == 2 && st == 3 && /^- words: / { if (tolower(substr(h, 1, 4)) == "note") { st = 0; next }
-        n++; act = 1; ON = n; w = substr($0, 10); stp = h; sub(/:.*/, "", stp); TT = w; if (match(TT, /[a-z)][:.] /)) TT = substr(TT, 1, RSTART); TT = substr(TT, 1, 160)
+        n++; act = 1; ON = ""; OH = h; OL = hl; w = substr($0, 10); stp = h; sub(/:.*/, "", stp); TT = w; if (match(TT, /[a-z)][:.] /)) TT = substr(TT, 1, RSTART); TT = substr(TT, 1, 160)
         K[++nk] = "Seen"; F["Seen"] = fi " · " stp " · seen " se " time" (se == "1" ? "" : "s") " (queue.sh defect)"; K[++nk] = "What happened"; F["What happened"] = w; cur = "What happened"; st = 4; next }
       FM == 2 && st == 4 { F[cur] = F[cur] "\n" $0; next }
       FM == 2 { st = 0 }

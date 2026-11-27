@@ -1100,11 +1100,12 @@ ViD repairs nothing it says, and it stays one round, no loop.
 ## Consolidation — the scheduled event (v0.9.1 3.4: 7a, then 7b)
 
 Triggered in two places and nowhere else: vid-test-inventory §5 (init
-mode, after the sitting's append lands — before the initial commit) and
+mode, after the sitting's append lands — before init's spec commit, vid-init step 7) and
 vid-fix "After applying" (after the last batch of a grade adjudication —
 before the final report). Never during develop's slices; never at add.
 
-**7a — the mechanical copy.** `sh checks/prd-consolidate.sh` — a script,
+**7a — the mechanical copy.** `sh checks/prd-consolidate.sh` (at init, before step 6 copies `checks/`,
+`sh "${CLAUDE_PLUGIN_ROOT}/checks/prd-consolidate.sh"`, the plugin's copy) — a script,
 no model: the seed to `SEED.md` with its hash on the header line, the
 input's grammar when it is 0.9.4 or later and `grammar: 0.9.1` otherwise,
 one ```vid-prd-features block of the effective feature rows (base and

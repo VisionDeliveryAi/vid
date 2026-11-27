@@ -4,7 +4,7 @@
 # type, User or Organization), orgs/<org>/<login> (`<state> <role>`, as GitHub's membership read gives it), repos/<owner%name>/
 # (`private`, true, false or internal, read as the visibility PRIVATE, PUBLIC or INTERNAL, or `private-next`, one answer a line, each read taking the first; `org`, true when the owner is an
 # organisation; `remote.git`, the bare repository standing in for it; collab/<name> for a collaborator; invitations/<name>,
-# holding the permission asked; invitations-page2/<name>, a pending one on a later page, listed only with --paginate). $SHAREGH/auth-fail makes gh auth status fail; repos/<…>/view-fail makes its reads fail.
+# holding the permission asked; invitations-page2/<name>, a pending one on a later page, listed only with --paginate). $SHAREGH/auth-fail makes gh auth status fail; $SHAREGH/auth-blip holding <n> makes its next n fail as a network blip; repos/<…>/view-fail makes its reads fail.
 # Every call is appended to $SHAREGH/log, one line. Only the share's calls are understood; any other exits 64.
 set -u
 IFS='
@@ -15,7 +15,7 @@ die() { echo "fake gh: $*" >&2; exit "${2:-1}"; }
 rd() { printf '%s/repos/%s' "$F" "$(printf '%s' "$1" | tr '/' '%')"; }
 opt() { _o=$1; shift; while [ $# -gt 0 ]; do [ "$1" = "$_o" ] && { printf '%s' "${2:-}"; return 0; }; shift; done; return 0; }
 case "${1:-} ${2:-}" in
-  'auth status') [ -f "$F/auth-fail" ] && { echo 'You are not logged into any GitHub hosts. To log in, run: gh auth login' >&2; exit 1; }
+  'auth status') [ ! -s "$F/auth-blip" ] || { _bn=$(cat "$F/auth-blip"); [ "$_bn" -le 0 ] || { echo $((_bn - 1)) > "$F/auth-blip"; echo 'error connecting to api.github.com: check your internet connection' >&2; exit 1; }; }; [ -f "$F/auth-fail" ] && { echo 'You are not logged into any GitHub hosts. To log in, run: gh auth login' >&2; exit 1; }
     printf 'github.com\n  ✓ Logged in to github.com account %s (keyring)\n' "$(cat "$F/login")"; exit 0 ;;
   'repo view') d=$(rd "${3:-}"); [ -d "$d" ] || die "Could not resolve to a Repository with the name '${3:-}'."; [ ! -f "$d/view-fail" ] || die 'HTTP 502' 1
     case "$(opt --json "$@")" in

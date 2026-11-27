@@ -839,9 +839,9 @@ pass (vid-create-prd, "Reviews converge", in Pass mechanics: every repaired roun
 append, no review: the review's record goes in the append itself before
 the commit — its findings, ruled, as rows of the section's own ```vid-prd-findings block (pass `review`), and the line `review: delta, round <r>, <n> findings` (`<r>` the round the review ended on, `<n>` the rows of the section's findings block, every round's; one round and no findings: `round 1, 0 findings`; vid-create-prd, "The findings record"); pre-commit refuses a new append section holding rows
 without it (0.26.10.29.3 R3). Write the rulings as an edits file and apply it with `sh "${CLAUDE_PLUGIN_ROOT}/checks/prd-apply.sh" PRD.md <file>`; never edit the machine blocks by hand or with a script of your own. In init mode, consolidation follows this sitting and
-precedes the initial commit (§7): the scheduled event of vid-create-prd's
-"Consolidation" — 7a `sh checks/prd-consolidate.sh`, 7b's review, one
-row-set-diff sitting, two commits.
+precedes init's spec commit (vid-init step 7): the scheduled event of vid-create-prd's
+"Consolidation" — 7a `sh "${CLAUDE_PLUGIN_ROOT}/checks/prd-consolidate.sh"` (the plugin's copy: at init
+the project has no `checks/` yet), 7b's review, one row-set-diff sitting, two commits.
 Run every helper in the foreground (`run_in_background: false` on the Agent call), wait for its result, and never end a turn, nor schedule a wake-up, while one, or a command you started in the background, is running.
 
 **The `tests-review` sitting (0.26.10.29.6, S1, S2),** the append's

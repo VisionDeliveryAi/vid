@@ -111,6 +111,11 @@ askall_() { [ -f "$1" ] || return 0; awk -F'\t' "$ASKF"'BEGIN { OFS = "\t"; whil
     END { close(".vid/decide/unit-merges"); while ((getline l < ".vid/decide/unit-merges") > 0) { split(l, x, "\t"); UH[x[1]] = x[3] } close(".vid/decide/pr-asks"); while ((getline l < ".vid/decide/pr-asks") > 0) { split(l, x, "\t"); if ((x[1] in SN) || !(x[2] in P) || UH[x[1]] != x[3]) continue
         f = ".vid/decide/posted-step-" x[2] "-" substr(x[3], 1, 12); if ((getline y < f) >= 0) { close(f); continue } print x[2], x[3], x[1], 0, x[3] } }' "$1"; }
 tasks_() { askall_ "$1" | awk -F'\t' '$4 == 0 && ($3 == "-" || $2 == $5) { print $1 "\t" $2 "\t" $3 }'; }
+# FIX-BATCH-T2 (F-34): uasks_ <read> (GitHub manual), each piece's pull request (FB-5 B1.5: its ticket line names no published ticket)
+# asking `vid: decide` at its head: `<p> TAB <its ticket line's number or -> TAB <head12> TAB <1 when a vid: decision of the ask
+# follows it, else 0>`. The one reading, for round.sh's uask_ (once a head) and next.sh's lines (own work off)
+uasks_() { [ -f "$1" ] || return 0; awk -F'\t' "$ASKF"'BEGIN { while ((getline l < ".vid/tw/log") > 0) { split(l, x, " "); if (x[1] == "published") P[x[2]] = 1; else if (x[1] == "withdrawn") delete P[x[2]] } }
+    $1 == "open" && !($3 in P) && askd($10) && index($4, AK) == 1 { print $2 "\t" $3 "\t" substr($4, 1, 12) "\t" AKD }' "$1"; }
 # FB-6 A1: gclosed <n>, the call's read holds ticket n as closed on GitHub; CLOSEDL, the last line of a `not yet` posted on such a ticket
 gclosed() { awk -F'\t' -v n="$1" '$1 == "ticket" && $2 == n && $3 == "CLOSED" { f = 1 } END { exit !f }' .vid/round/read 2>/dev/null; }
 # gclosedl: those tickets, for the readers that count open tickets (FB-6 A1.2: an `issue` line does not make one open)

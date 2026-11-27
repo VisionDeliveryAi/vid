@@ -309,7 +309,7 @@ dryrun() { X=$1; B=$2; WORDS=$3
     for N in $(cat "$T/cut"); do ! sclosed_ "$N" || ref "the re-cut changes stage $N, which is closed: a closed stage stands as it is (a new rule row sits in stage 1 unless the cut places it: give it a line \`row: <id> -> STAGE-<k>\` for an open stage, or cut with \`rules: by-origin\` where its requirements are in an open stage); nothing landed"
       ! deployed "$N" || ref "the re-cut changes stage $N, which is deployed (a candidate's D1 passed, or it runs in production): a deployed stage stands as it is (a new rule row sits in stage 1 unless the cut places it: give it a line \`row: <id> -> STAGE-<k>\` for an open stage, or cut with \`rules: by-origin\` where its requirements are in an open stage); nothing landed"; done; fi
   # the dry run: a scratch copy, the records and commits made there with the hooks on, the plan change, planner.sh check
-  SC=$T/sc; git clone -q --no-hardlinks . "$SC" 2> "$T/ge" || ref "no scratch copy: $(tail -n 1 "$T/ge")"
+  SC=$T/sc; git clone -q -c core.longpaths=true --no-hardlinks . "$SC" 2> "$T/ge" || ref "no scratch copy: $(tail -n 1 "$T/ge")"
   BR=$(git symbolic-ref -q --short HEAD || true); if [ -n "$BR" ]; then git -C "$SC" checkout -q -B "$BR" "$B"; else git -C "$SC" checkout -q --detach "$B"; fi
   for k in core.hooksPath core.filemode user.name user.email; do v=$(git config --get "$k" || true); [ -z "$v" ] || git -C "$SC" config "$k" "$v"; done   # core.filemode: 0.26.11.1.4 (R5), below
   [ ! -d checks ] || cp -R checks "$SC/"   # the hooks and courts as the working tree holds them, committed or not

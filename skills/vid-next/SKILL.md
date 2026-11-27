@@ -19,7 +19,7 @@ The call's order, nothing more: every tier, warning, count, check and every move
    end. Its start opens the call's stage: every move below runs in it. The panel beside the chat shows the call's parts as they
    run; the scripts say them (FB-3 D2).
 2. **ViD's own work by its rules,** behind the owner's switch: `sh "${CLAUDE_PLUGIN_ROOT}/checks/next.sh" own-work`.
-   - Unless it prints `on`: say in one line that ViD's own work is off, with the move that turns it on, `own-work on "<your words>"`, and run nothing here. Each `context ask` line step 5 shows is then said with its command, as the vid-accept-step skill says it. A `context closed` line is said so with own work on too.
+   - Unless it prints `on`: say in one line that ViD's own work is off, with the move that turns it on, `own-work on "<your words>"`, and run nothing here. Each `context ask` line step 5 shows is then said with its command, and each `context unit-ask` line with its words (a piece's ask: its step's ticket and that ticket's command, or that it names none, and where the team's rules are), as the vid-accept-step skill says them. A `context closed` line is said so with own work on too.
    - With it on, these in order, one line each, every line they print said as its skill says:
      - Invoke the `vid-accept-step` skill (the Skill tool): `sh "${CLAUDE_PLUGIN_ROOT}/checks/round.sh" step`, then `sh "${CLAUDE_PLUGIN_ROOT}/checks/round.sh" accept <n> <commit>` for each `decide` line it printed;
      - Invoke the `vid-step-close` skill (the Skill tool): the close's lines those printed;
@@ -32,7 +32,9 @@ The call's order, nothing more: every tier, warning, count, check and every move
 5. **Show.** The lines as `next.sh triggers --short` printed them. With no move named, `sh "${CLAUDE_PLUGIN_ROOT}/checks/next-move.sh" call`:
    it keeps what was shown in the owner's queue and prints the re-plan's question when one is due: a `proposal due` line, its yes the
    move it names. No list is said in the chat: the panel has it, once sorted (step 7).
-6. **The moves named.** With `/vid next <moves>`, in place of step 5's call:
+6. **The moves named.** With `/vid next <moves>`, in place of step 5's call (a call whose moves hold an answer that lands
+   a draft, or `implement-replan`, whose apply lands the plan change through `land.sh`'s step, runs with
+   `run_in_background: true`, under no `timeout`, waited on until its task ends, as the vid-answer skill's step 3 says):
    `sh "${CLAUDE_PLUGIN_ROOT}/checks/next-move.sh" call <move> [-- <move>]…`, each move as the owner named it, in the
    owner's order, `--` between two, one argument each, quoted (a bare `#` would open a shell comment), the owner's words the
    last. Each move is named by its kind and its subject, never by a number:

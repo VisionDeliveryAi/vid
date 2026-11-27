@@ -517,7 +517,9 @@ ticket() {
     printf '\n## History\n\n'; hist; [ "$K" = skeleton ] || { printf '\n## Test lessons\n\n'; lessons; }; printf '\n## Known, ruled by the owner\n\n'; known; printf '\n## Further reading\n\n'; reading
     printf '\n## Roles\n\n'; roles; printf '\n## Asks\n\n'; asks
   } > "$T/wf" || exit 1
-  awk "$A1"' /^## / { s = substr($0, 4) } /^>/ { $0 = unptr($0); if (isr(s, $0)) $0 = unq($0) } { print }' "$T/wf" > "$T/a1" || exit 1; put "$F" < "$T/a1" || exit 1   # Amendment 1
+  # FIX-BATCH-T2 (OW-3): every quoted line's words of lib.sh's list blanked (profx), as the export blanks them: an owner's last quoted
+  # reply in their own words, or a law, holding one never refuses the ticket, and never reaches the team
+  awk "$A1"' /^## / { s = substr($0, 4) } /^>/ { $0 = unptr($0); if (isr(s, $0)) $0 = unq($0); $0 = profx($0) } { print }' "$T/wf" > "$T/a1" || exit 1; put "$F" < "$T/a1" || exit 1   # Amendment 1
   regtell
   { printf 'kind=%s step=%s rows=%s %sreached=%s rulings=%s fix=%s qhash=%s plan=%s base=%s export=%s\n' "$K" "$S" "$(paste -sd , "$T/ids")" "${RET:+retired=$(echo $RET | tr ' ' ,) }" "$(echo $REACH | tr ' ' ,)" "$(echo $RUL | tr ' ' ,)" "${FIXL:--}" "$(qhash "$F")" "$PH" "$BASE" "$EXP"
     [ -z "$AMW" ] || { printf 'why %s\n' "$AMW"; sed 's/^/tell /' "$T/tell"; }; for r in $(cat "$T/ids"); do printf 'sent %s %s\n' "$r" "$(rhash "$r")"; done; } > "$T/wm" || exit 1; put "${F%.md}.meta" < "$T/wm" || exit 1
@@ -705,7 +707,7 @@ amendset() {
   REACH=$( { fld "$L" reached | tr , '\n'; cut -f2 "$T/ur"; } | grep -v '^-*$' | awk '!s[$0]++' | paste -sd ' ' -); RUL=$( { fld "$L" rulings | tr , '\n'; cut -f1 "$T/ur"; } | grep -v '^-*$' | paste -sd ' ' -)
   WHY=''; [ -z "$FIXL" ] || WHY=$(awk -F'\t' -v k="$FIXL" '$1 == "fix" && $2 == k { print $4 }' "$T/st")
   AMW=$(chgs "$1" "$S" | awk -F'\t' '{ printf "%s%s, what %s", (c++ ? "; " : ""), $1, $2 }')
-  awk '/^## / { on = ($0 == "## Laws"); next } on' ".vid/tw/out/issue-$1.md" > "$T/ol" 2>/dev/null || :; { echo; laws; echo; } | awk "$A1"' /^>/ { $0 = unptr($0) } { print }' > "$T/nl"   # the laws alone, as written
+  awk '/^## / { on = ($0 == "## Laws"); next } on' ".vid/tw/out/issue-$1.md" > "$T/ol" 2>/dev/null || :; { echo; laws; echo; } | awk "$A1"' /^>/ { $0 = profx(unptr($0)) } { print }' > "$T/nl"   # the laws alone, as written (OW-3: blanked as written)
   # GM-2 T5: in GitHub manual the cause is the move's own, never read from the plan= hash a taken-over ticket brings
   # GM-3 U4 (GM M5): RET, the tests it holds that the spec at AT no longer holds (retired): each stays listed in it, marked retired,
   # and leaves its rows (its log line's retired=, kept over every later writing); none is ever dropped for it, nor the ticket withdrawn

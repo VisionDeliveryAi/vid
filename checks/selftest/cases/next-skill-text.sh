@@ -91,6 +91,9 @@ S2=$(awk '/^2\. \*\*/ { on = 1 } on && /^3\. \*\*/ { exit } on' "$N")
 printf '%s\n' "$S2" | grep -qF 'next.sh" own-work' || fail "vid-next's step 2 does not read the owner's switch, next.sh own-work"
 printf '%s\n' "$S2" | grep -F 'own-work on "' | grep -qi 'off' || fail "vid-next's step 2 does not say in one line that own work is off, listing the move own-work on"
 printf '%s\n' "$S2" | grep -F '`context ask' | grep -qi 'command' || fail "vid-next's step 2 does not say each context ask line with its command"
+# FIX-BATCH-T2 (F-34): and each context unit-ask line, a piece's ask, with its words; vid-accept-step's row says it at each call with own work off
+printf '%s\n' "$S2" | grep -F '`context unit-ask' | grep -qi 'its words' || fail "vid-next's step 2 does not say each context unit-ask line with its words"
+grep -F '| `context unit-ask #<p>' "$K2" | grep -q 'With own work off.*at each call, with its words' || fail "vid-accept-step's context unit-ask row does not say the call's line with own work off"
 a=$(printf '%s\n' "$S2" | grep -n '`vid-accept-step`' | head -n 1 | cut -d: -f1); b=$(printf '%s\n' "$S2" | grep -n '`vid-step-close`' | head -n 1 | cut -d: -f1); c=$(printf '%s\n' "$S2" | grep -n 'round.sh" asks' | head -n 1 | cut -d: -f1)
 [ -n "$a" ] && [ -n "$b" ] && [ -n "$c" ] && [ "$a" -lt "$b" ] && [ "$b" -lt "$c" ] || fail "vid-next's step 2 does not name vid-accept-step, vid-step-close and round.sh asks in that order"
 L1=$(printf '%s\n' "$S2" | grep '`vid-accept-step`' | head -n 1); x=${L1%%round.sh\" step*}; y=${L1%%round.sh\" accept*}

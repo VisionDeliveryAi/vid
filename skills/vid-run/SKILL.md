@@ -21,7 +21,7 @@ Every event this skill names is written with `sh checks/event.sh '<event>'`. Rew
 
 ## The loop
 
-Run `round.sh wait` and `round.sh step` yourself, in the foreground, in this turn; never from a script of your own, nor in the background. Every `round.sh` call runs with the Bash tool's timeout at 600000. A command that passes its time, or runs in the background, never ends your turn: go on at 1, and look at it each time. A question to the owner is text in the chat beside its `Q<n>` line, never a box or any call that waits for the answer, and the round goes on at once: only what that question's line gates waits. Once at each session's start: `sh checks/round.sh step`, then, unless it printed `stop`, `sh checks/round.sh next`. Then, again and again:
+Run `round.sh wait` and `round.sh step` yourself, in the foreground, in this turn; never from a script of your own, nor in the background. Every `round.sh` call runs with the Bash tool's timeout at 600000. A command that passes its time, or runs in the background, never ends your turn: go on at 1, and look at it each time. A landing in the background alone is waited on, as "After any owner message" says. A question to the owner is text in the chat beside its `Q<n>` line, never a box or any call that waits for the answer, and the round goes on at once: only what that question's line gates waits. Once at each session's start: `sh checks/round.sh step`, then, unless it printed `stop`, `sh checks/round.sh next`. Then, again and again:
 
 1. `sh checks/round.sh wait`, in the foreground, with the Bash tool's timeout at 600000. It blocks with no model, for at most 9 minutes, and prints `new` or `timeout`. A wait never ends your turn: on `timeout`, go to 2.
 2. `sh checks/round.sh step`: the round's read of GitHub is the vid-read skill's one read (`round.sh`'s own, GM-4 F3). Read its lines, and act on them. **Say them before the next command** (FB-7 B3): the owner sees your text alone, never what a command prints. What a row has you tell, say or print, and each `Q<n>` line new in RUN-STATE.md, whole (the question, its choices, what it recommends where it does), is your text in the chat before anything more is run, so `step` ends its Bash call; a line `say to the owner now, as text: …`, any command's, is said so at once:
@@ -63,7 +63,12 @@ Run `round.sh wait` and `round.sh step` yourself, in the foreground, in this tur
 
 5. **Sort** (FB-5 A1), after a step that raised or changed an item of the owner's list: Invoke the `vid-sort` skill and say its one line; with nothing new, changed or moved it reads and sorts nothing.
 
-**After any owner message** (v0.26.10.26.7, R3), act on it, say in one line what you did, then go on at 2. Asking the owner never ends your turn. Only the stops below end it. When everything left waits on the owner, the hold's Q line included, that is the waiting stop: the `vid-sort` skill first, then write `run: waiting`, save, free the lock, and end. The owner's answer, a bare "continue" too, then starts the run again. The same holds when the vid-fix or vid-add skill's ticket-mode branch hands back: back to the loop at 2.
+**After any owner message** (v0.26.10.26.7, R3), act on it, say in one line what you did, then go on at 2. An answer that lands
+a draft runs in the background (the vid-answer skill's step 3): until its task ends (its notice), go on at nothing, neither 2
+nor any other step, since every step reads or saves the spec files and ViD's records the landing is writing. That wait ends
+your turn with nothing else run, the lock kept, no stop and nothing saved or freed: the landing's notice starts your next
+turn; say its output and go on at 2 (FIX-BATCH-T2 OW-5). Asking the owner never ends your turn. Only the stops below, and
+that wait, end it. When everything left waits on the owner, the hold's Q line included, that is the waiting stop: the `vid-sort` skill first, then write `run: waiting`, save, free the lock, and end. The owner's answer, a bare "continue" too, then starts the run again. The same holds when the vid-fix or vid-add skill's ticket-mode branch hands back: back to the loop at 2.
 
 **The owner's queue** and every answer, the owner's own, under their delegation or from the spec, are the vid-answer skill's: each goes through it, and is acted on at once.
 

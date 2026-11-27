@@ -218,8 +218,11 @@ gate-scope.sh
 gate-stopped-agent.sh
 gated-work.sh
 genus-bar-and-arm-count.sh
+git-longpaths.sh
+github-auth-retry.sh
 github-one-lock.sh
 github-record-read.sh
+github-stall.sh
 golden-paying-step.sh
 grade-manual.sh
 guard-add.sh
@@ -263,6 +266,7 @@ incorporate-mark.sh
 incorporate-rows.sh
 index-courts-env.sh
 index-courts.sh
+init-consolidation-text.sh
 interrupt-wrapper.sh
 invalidated.sh
 inventory-census-init-text.sh
@@ -274,6 +278,7 @@ inventory-refuses-census-on-missing-path.sh
 inventory.sh
 journey-transitions.sh
 json-reader.sh
+land-background-text.sh
 land-one-step.sh
 land-recut-new-req-open-stage.sh
 late-removal-under-delegated-answer.sh
@@ -283,6 +288,7 @@ lease-wait.sh
 ledger-imports.sh
 leftovers-live-claude-agent.sh
 leftovers.sh
+lock-free-default.sh
 logs-kept.sh
 manual-admit-unheld.sh
 manual-amend-form.sh
@@ -377,6 +383,7 @@ next-copies-cut.sh
 next-count.sh
 next-phase1-call.sh
 next-read.sh
+next-same-blanked.sh
 next-skill-text.sh
 next-tiers-critical.sh
 next-tiers-important.sh
@@ -401,6 +408,7 @@ overhead-recorded.sh
 override.sh
 pass-not-completed.sh
 passes.sh
+piece-ask-off.sh
 placement-allows-settings.sh
 placement.sh
 plan-admit-dry.sh
@@ -534,6 +542,7 @@ selection-refused.sh
 service-death.sh
 share-build-copy-fallback.sh
 share-push-code-repo.sh
+share-short-name.sh
 skeleton-real-run.sh
 skill-connect-plugin-copy.sh
 skip-add.sh

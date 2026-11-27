@@ -80,9 +80,9 @@ to do nothing: the line names the file to edit to turn WSL off. The courts
 follow the answer by themselves, so nothing else in this skill changes.
 
 **Init makes the spec only (v0.26.10.9 R1, VS-3).** What init still does:
-steps 1 to 4, with the inventory at call point 1 only; from step 6 only the
+steps 1 to 4, with the inventory at call point 1 only, its consolidation included; from step 6 only the
 copy of `checks/` (the shipped courts, helpers and self-test), `git config
-core.hooksPath checks/hooks`, `.vid/budget` and the two host-settings
+core.longpaths true`, `git config core.hooksPath checks/hooks`, `.vid/budget` and the two host-settings
 questions; the final review (step 6b); the labelling pass; the spec
 commit (step 7); step 7b, the stage cut, with its final review; the
 hand-back. Nothing is rewritten: the code
@@ -345,7 +345,12 @@ skill derives is the inventory, and what the owner ratifies there is
 ratification 3. A row that would be materialised is written with the
 `test` field `owed: spec-only — first stage`; the deploy-gate form and the
 legitimate deferral classes keep theirs (that skill's §5, call point 1).
-When its hand-back arrives, continue at step 6. **Call point 2 — §6
+Call point 1 ends with the consolidation that skill's §5 schedules
+(vid-create-prd's "Consolidation": 7a, 7b's review, its sitting, two commits;
+FIX-BATCH-T2 B-14), before its hand-back. The project has no `checks/` before
+step 6, so 7a runs the plugin's own copy, `sh "${CLAUDE_PLUGIN_ROOT}/checks/prd-consolidate.sh"`
+(it finds `prd.sh` beside itself), as init runs `event.sh`. When its
+hand-back arrives, continue at step 6. **Call point 2 — §6
 materialisation, §7 the red gate and proved-red — is no longer init's**
 (v0.26.10.9 R3): in develop mode its caller is vid-skeleton Part 3 (skeleton
 mode); in ticket mode its §6 runs per ticket, with no red gate of ViD's
@@ -378,7 +383,9 @@ ticket mode the skeleton is the dev team's first ticket (/vid plan).
   version its `records:` line names (v0.9.5 3.10) — selftest/ with its fixtures: the whole
   directory, verbatim), then
   `chmod +x checks/*.sh checks/hooks/* checks/selftest/run.sh checks/selftest/cases/*.sh`
-- `git init` (if needed), then `git config core.hooksPath checks/hooks` —
+- `git init` (if needed), then `git config core.longpaths true` (FIX-BATCH-T2 B-13: Git for Windows refuses a path past 260
+  characters without it, and `checks/selftest/` holds deep ones; git elsewhere ignores the key) and
+  `git config core.hooksPath checks/hooks` —
   pre-commit, commit-msg and post-commit (v0.9.3 3.7: the amendment
   record) are all installed by it; `chmod +x checks/hooks/*`.
 - **`.vid/budget`** (v0.9.3 3.10) — numbers only, the defaults unless the

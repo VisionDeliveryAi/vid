@@ -17,6 +17,7 @@
 # reads it), its `gh repo view` and, holding main, its git fetch (FB-2 B1) each failing once: exit 5 with the words. The one line, exit 0, of a code repository with no main removes the marker.
 # Env: CHECKS.
 set -eu
+VID_NET_WAIT=0; export VID_NET_WAIT   # FIX-BATCH-T2: github.sh's tries again, with no wait
 unset CLAUDE_CODE_SESSION_ID VID_CALLER 2>/dev/null || true
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 . "$CHECKS/selftest/fixtures/form.sh"
@@ -28,19 +29,20 @@ C=$T/code.git
 # the fake gh: while $T/fail-<blobs|trees|fold|commits|refs|move|prcreate|prlist|label|issue|specview> exists, that call fails once
 # with GitHub's words (fold: the read of a tree; move: the PATCH of a branch already
 # standing; prcreate, prlist, label, issue: gh pr create, gh pr list, gh label create, gh issue create; specview: gh repo view of the
-# spec repository); while $T/fail-auth exists, gh auth status fails once with gh's neutral words; while $T/wrong-trees exists, the
+# spec repository); while $T/fail-auth exists, gh auth status fails with gh's neutral words, three times (FIX-BATCH-T2 OW-2: a
+# login check is tried three times, so one failure is no failed call); while $T/wrong-trees exists, the
 # tree call answers once with another tree
 mv "$T/bin/gh" "$T/bin/gh-fake"
 cat > "$T/bin/gh" <<WRAP
 #!/bin/sh
 k=''; for a; do case \$a in */git/blobs) k=blobs ;; */git/trees) k=trees ;; */git/trees/*) k=fold ;; */git/commits) k=commits ;; */git/refs/heads/*) k=move ;; */git/refs) k=refs ;; esac; done
 case "\$1 \${2:-}" in 'pr create') k=prcreate ;; 'pr list') k=prlist ;; 'label create') k=label ;; 'issue create') k=issue ;; 'repo view') [ "\${3:-}" != owner/code-spec ] || k=specview ;; esac
-if [ "\$1 \${2:-}" = 'auth status' ] && [ -f "$T/fail-auth" ]; then rm -f "$T/fail-auth"; echo 'error connecting to api.github.com' >&2; exit 1; fi
+if [ "\$1 \${2:-}" = 'auth status' ] && [ -f "$T/fail-auth" ]; then n=\$(cat "$T/fail-auth"); n=\$((\${n:-3} - 1)); if [ "\$n" -le 0 ]; then rm -f "$T/fail-auth"; else echo "\$n" > "$T/fail-auth"; fi; echo 'error connecting to api.github.com' >&2; exit 1; fi
 if [ -n "\$k" ] && [ -f "$T/fail-\$k" ]; then rm -f "$T/fail-\$k"; echo "gh: GitObject \$k refused for the self-test (HTTP 422)" >&2; exit 1; fi
 if [ "\$k" = trees ] && [ -f "$T/wrong-trees" ]; then rm -f "$T/wrong-trees"; echo 4b825dc642cb6eb9a060e54bf8d69288fbee4904; exit 0; fi
 exec "$T/bin/gh-fake" "\$@"
 WRAP
-# the git before it: while $T/fail-lsbranch exists, the branch read (git ls-remote of refs/heads/vid-spec/…) fails once; while
+# the git before it (FIX-BATCH-T2 OW-1: each read below fails twice, since github.sh tries a read again once): while $T/fail-lsbranch exists, the branch read (git ls-remote of refs/heads/vid-spec/…) fails once; while
 # $T/fail-mainfetch exists, results-fetch's fetch of the commits into .vid/code fails once; FB-2 B1: while $T/fail-specfetch
 # exists, a fetch from the spec repository's address fails once; while $T/fail-lsmain exists, the git ls-remote of main from the
 # code repository's address fails once
@@ -52,7 +54,7 @@ k=''; l=''; f=''; m=''; u=''; for a; do case \$a in ls-remote) l=1 ;; fetch) f=1
   [ "\$a" != "$SU" ] || u=spec; [ "\$a" != "$CU" ] || u=code; done
 [ -z "\$f" ] || [ "\$u" != spec ] || k=specfetch
 [ -z "\$l" ] || [ -z "\$m" ] || [ "\$u" != code ] || k=lsmain
-if [ -n "\$k" ] && [ -f "$T/fail-\$k" ]; then rm -f "$T/fail-\$k"; echo "fatal: the remote could not be reached for the self-test (\$k)" >&2; exit 128; fi
+if [ -n "\$k" ] && [ -f "$T/fail-\$k" ]; then n=\$(cat "$T/fail-\$k"); n=\$((\${n:-2} - 1)); if [ "\$n" -le 0 ]; then rm -f "$T/fail-\$k"; else echo "\$n" > "$T/fail-\$k"; fi; echo "fatal: the remote could not be reached for the self-test (\$k)" >&2; exit 128; fi
 exec "$RG" "\$@"
 WRAP
 chmod +x "$T/bin/gh" "$T/bin/git"

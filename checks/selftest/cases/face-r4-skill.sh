@@ -13,7 +13,8 @@
 # own, recommendations and blanket yes, S4's changed-since section and repairs in two groups, S5's research request,
 # S6's priority marks after answers are written, S7's plain words and counted numbers, S10's where to look, S11's wait
 # parts and drafts; the join of its lanes: consolidation's section ids as face.sh takes them; 0.26.11.1.2: R3's foreground sentence, R7's rule, R13's numbered parts;
-# 0.26.11.1.3: R2's WSL notice in place of the standalone WSL question, its comment naming the version);
+# 0.26.11.1.3: R2's WSL notice in place of the standalone WSL question, its comment naming the version; 0.26.11.2.1: B-14's
+# trigger naming init's spec commit and 7a's plugin copy at init);
 # the added paragraphs are exactly two, writing the interview and each pause and ending each; and no line of them makes anything depend on a panel being present.
 # 0.26.10.29.6 (S1): also convicts unless each of the six skills that owns a sitting of stops 6 to 9 carries the
 # `face.sh" write <sitting>` call for each, and names each section id face.sh's table holds for that sitting
@@ -28,7 +29,7 @@ awk '/^\*\*The face \(0\.26\.10\.29\)/ { skip = 1 } skip && /^$/ { skip = 0; nex
 A2S='Write the rulings as an edits file and apply it with `sh "${CLAUDE_PLUGIN_ROOT}/checks/prd-apply.sh" PRD.md <file>`; never edit the machine blocks by hand or with a script of your own. '
 awk -v s="$A2S" 'BEGIN { c = 0 } { l = $0; out = ""; while ((i = index(l, s)) > 0) { out = out substr(l, 1, i - 1); l = substr(l, i + length(s)); c++ } print out l } END { print c > "/dev/stderr" }' "$T/base" > "$T/base2" 2> "$T/a2n"
 [ "$(cat "$T/a2n")" = 5 ] || fail "the PRD writer's sentence is not in the skill five times (FB-1 A2)"
-[ "$(cksum < "$T/base2" | awk '{ print $1, $2 }')" = '115045415 71731' ] || fail 'the skill changed beyond its face paragraphs'
+[ "$(cksum < "$T/base2" | awk '{ print $1, $2 }')" = '1056608423 71865' ] || fail 'the skill changed beyond its face paragraphs'
 awk '/^\*\*The face \(0\.26\.10\.29\)/ { on = 1 } on && /^$/ { on = 0 } on' "$F" > "$T/face"
 [ "$(grep -c '^\*\*The face (0\.26\.10\.29)' "$F")" = 2 ] || fail 'the face paragraphs are not two'
 for c in 'face.sh" write interview' 'face.sh" end interview' 'face.sh" write pause-N' 'face.sh" end pause-N'; do

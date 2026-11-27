@@ -43,6 +43,11 @@
 # Shorter times, for the self-test: DM_TICK 60, DM_IDLE 600, DM_IDLE_TICK 300, DM_QUIET 1200, DM_WAIT 200, DM_FIRST 30, DM_DOWN 120. DM_AGENT_CLAUDE: a stand-in for claude, for every role but the dev manager.
 # serves: dev side (0.26.10.28.4, M9)
 set -eu
+# FIX-BATCH-T2 (OW-1): a git call to GitHub that moves nothing ends (https: under 1 byte a second for 60 seconds; ssh: a handshake
+# or a connection silent for a minute), each only when the user set none, in the environment or in git's own setting for GitHub
+if [ -z "${GIT_HTTP_LOW_SPEED_LIMIT:-}" ] && [ -z "$(git config --get-urlmatch http.lowSpeedLimit https://github.com 2>/dev/null || true)" ]; then GIT_HTTP_LOW_SPEED_LIMIT=1; export GIT_HTTP_LOW_SPEED_LIMIT; fi
+if [ -z "${GIT_HTTP_LOW_SPEED_TIME:-}" ] && [ -z "$(git config --get-urlmatch http.lowSpeedTime https://github.com 2>/dev/null || true)" ]; then GIT_HTTP_LOW_SPEED_TIME=60; export GIT_HTTP_LOW_SPEED_TIME; fi
+if [ -z "${GIT_SSH_COMMAND:-}${GIT_SSH:-}" ] && [ -z "$(git config --get core.sshCommand 2>/dev/null || true)" ]; then GIT_SSH_COMMAND='ssh -o ConnectTimeout=60 -o ServerAliveInterval=15 -o ServerAliveCountMax=4'; export GIT_SSH_COMMAND; fi
 die() { echo "dm.sh: $*" >&2; exit 1; }
 CMD=${1:-}; [ $# -eq 0 ] || shift
 HERE=$(cd "$(dirname "$0")" && pwd -P); ROOT=$(dirname "$(dirname "$HERE")"); TAB=$(printf '\t')

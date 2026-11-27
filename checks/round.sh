@@ -237,8 +237,8 @@ mdec_() { ta_; while IFS=$TAB read -r m_n m_c _m <&9; do owed_ "$m_n" "$m_c"; do
     grep -qE "^(withdrawn) $f " "$LOG" 2>/dev/null && continue; [ -z "$(accepted "$f")" ] || continue
     awk -F'\t' -v n="$f" -v RF="$D/step-$f-$h.rows" -v EF=".vid/results/step-$f-$h.txt" 'BEGIN { hit = 0 } { if ($1 == "row") { R[$2] = 1; b = $2; sub(/-T[0-9]+$/, "", b); R[b] = 1 } else if ($2 == n) hit = 1 }
       END { if (!hit) { while ((getline l < RF) > 0) { split(l, y, "\t"); b = y[1]; sub(/-T[0-9]+$/, "", b); if ((y[1] in R) || (b in R)) hit = 1 } while (!hit && (getline l < EF) > 0) { gsub(/[^A-Za-z0-9-]+/, " ", l); m = split(l, y, " "); for (i = 1; i <= m; i++) if (y[i] in R) hit = 1 } } exit !hit }' "$L/touch" && owed_ "$f" "$c"; done; }
-# GM-4 E1 (GitHub manual): uask_, a piece's pull request (FB-5 B1.5: its line names no published ticket) asking `vid: decide` at its head, never answered: listed once a head
-uask_() { touch "$D/unit-asks"; awk -F'\t' -v LG="$LOG" "$ASKF"'BEGIN { while ((getline l < LG) > 0) { split(l, x, " "); if (x[1] == "published") P[x[2]] = 1; else if (x[1] == "withdrawn") delete P[x[2]] } } $1 == "open" && !($3 in P) && askd($10) && index($4, AK) == 1 { print $2 "\t" $3 "\t" substr($4, 1, 12) }' "$L/read" | while IFS=$TAB read -r p t h; do grep -qxF "$p $h" "$D/unit-asks" && continue
+# GM-4 E1 (GitHub manual): uask_ (FIX-BATCH-T2 F-34: through lib.sh's uasks_, the one reading), a piece's pull request (FB-5 B1.5: its line names no published ticket) asking `vid: decide` at its head, never answered: listed once a head
+uask_() { touch "$D/unit-asks"; uasks_ "$L/read" | while IFS=$TAB read -r p t h _a; do grep -qxF "$p $h" "$D/unit-asks" && continue
     echo "$p $h" >> "$D/unit-asks"; echo "context unit-ask #$p $t $h"; done; }
 # 0.26.10.29.5 (DP-1 R2): a merge with no decision of ViD's states no decisions ViD reads (decisions-recorded n=missing, as a description
 # with no section); record_, the dev side's decisions of the merges recorded and of the deploy reports read, into DECISIONS.md (decisions.sh

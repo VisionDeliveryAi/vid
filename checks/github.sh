@@ -185,6 +185,15 @@ putd() { _q=$(dirname "$1")/.put.$$.$(basename "$1"); _o=$(dirname "$1")/.old.$$
 # (IR I1, FB-3 A1.4: never by record-read nor pr-files, which change nothing under the project)
 [ "${1:-}" = record-read ] || [ "${1:-}" = pr-files ] || for _o in .vid/.old.*.decide .vid/.old.*.tw .vid/.old.*.plans .vid/.old.*.plan .vid/.old.*.next .vid/.old.*.results; do [ -d "$_o" ] && [ ! -e ".vid/${_o##*.}" ] || continue; mvr "$_o" ".vid/${_o##*.}"; done
 W=$(mktemp -d); trap 'rm -rf "$W"' EXIT
+# FIX-BATCH-T2 (OW-1): a git call to GitHub that moves nothing ends. Over https, under 1 byte a second for 60 seconds (git's http
+# transport, exit 128); over ssh, a handshake or a connection silent for a minute. Each only when the user set none: the variables
+# would override git's own setting, so git's setting for GitHub (a GitHub-specific one counts) and the environment's win
+if [ -z "${GIT_HTTP_LOW_SPEED_LIMIT:-}" ] && [ -z "$(git config --get-urlmatch http.lowSpeedLimit https://github.com 2>/dev/null || true)" ]; then GIT_HTTP_LOW_SPEED_LIMIT=1; export GIT_HTTP_LOW_SPEED_LIMIT; fi
+if [ -z "${GIT_HTTP_LOW_SPEED_TIME:-}" ] && [ -z "$(git config --get-urlmatch http.lowSpeedTime https://github.com 2>/dev/null || true)" ]; then GIT_HTTP_LOW_SPEED_TIME=60; export GIT_HTTP_LOW_SPEED_TIME; fi
+if [ -z "${GIT_SSH_COMMAND:-}${GIT_SSH:-}" ] && [ -z "$(git config --get core.sshCommand 2>/dev/null || true)" ]; then GIT_SSH_COMMAND='ssh -o ConnectTimeout=60 -o ServerAliveInterval=15 -o ServerAliveCountMax=4'; export GIT_SSH_COMMAND; fi
+# gn <command…> (OW-1): a read of GitHub (ls-remote, fetch), run once more after VID_NET_WAIT seconds (5) when git itself failed (exit
+# 128); any other exit is the command's answer, kept. Each try's output in its own file, so a cut-off first answer is never printed twice
+gn() { _gf=$(mktemp "$W/gn.XXXXXX") || return 1; _gr=0; "$@" > "$_gf" || _gr=$?; if [ "$_gr" = 128 ]; then sleep "${VID_NET_WAIT:-5}"; _gr=0; "$@" > "$_gf" || _gr=$?; fi; cat "$_gf"; rm -f "$_gf"; return "$_gr"; }
 REPO=''; SHARE=''; SCREATE=''; MKREPO=''; FORMPOST=''; RECREAD=''; RR=''; SPUB=''   # 0.26.10.28.7: the share's allow-list switches never come from the environment; GM-2 T3: nor the form post's (IR I1: nor record-read's)
 RESREAD=''   # FB-3 A2: results-fetch's graphql read (A1.4: closing-prs' too), its switch never from the environment
 PRREAD=''   # FB-3 A1.4: pr-files' read of a pull request's files, its switch never from the environment
@@ -265,8 +274,12 @@ ghc() {
 }
 # auth (low-1, R4): one of three refusals — gh not on PATH; gh's words say no account is signed in; else a neutral line, as gh prints its login advice for a network failure too
 # (FB-2 B1: in spec-publish the neutral line is the call unfinished, exit 5; the login's stays a refusal, $W/gfail removed first)
+# ghauth <file> (FIX-BATCH-T2 OW-2): gh auth status up to three times, VID_NET_WAIT seconds (10) apart, the last try's words in the file;
+# a logged-out answer ends it at once. auth(), access and share-login each keep their own words and exit
+ghauth() { _ga=1; while :; do ghc auth status > "$1" 2>&1 && return 0; grep -q 'not logged into any' "$1" && return 1; [ "$_ga" -lt 3 ] || return 1
+  _ga=$((_ga + 1)); sleep "${VID_NET_WAIT:-10}"; done; }
 auth() { command -v gh > /dev/null 2>&1 || gref "gh is not found on this machine's PATH: install it, or put it on PATH; signing in is not the problem"
-  ghc auth status > "$W/auth" 2>&1 || { sed 's/^/    /' "$W/auth" >&2; ! grep -q 'not logged into any' "$W/auth" || { rm -f "$W/gfail"; gref 'gh auth status fails — log in with gh auth login (ViD never handles a token)'; }
+  ghauth "$W/auth" || { sed 's/^/    /' "$W/auth" >&2; ! grep -q 'not logged into any' "$W/auth" || { rm -f "$W/gfail"; gref 'gh auth status fails — log in with gh auth login (ViD never handles a token)'; }
     gref 'gh auth status failed (its words above); it may not be the login: check the network and the machine'"'"'s load, then run gh auth status by hand'; }; }
 cg() { git --git-dir=.vid/code -c log.showSignature=false "$@"; }   # ViD's copy of the code repository's reports and commits
 # FB-3 A1.4: ownrefs, each of ViD's own reviews as a report. A folder .vid/decide/review/<id>/ holding grade.txt or sorted.txt is the local
@@ -349,7 +362,7 @@ pubrev() { awk -F'\t' -v OFS='\t' -v n="$1" -v me="$ME" '
     for (i = 1; i <= k; i++) { split(L[i], x, "\t"); if (A[i] && !M[i] && (x[4] "") > (s "")) print 2, x[4], "publish", n, "said", x[2], x[4], x[5] } }' | LC_ALL=C sort -t "$(printf '\t')" -k1,1 -k2,2r | cut -f3-; }
 # codemain (v0.26.10.28.2, R3): the code repository's main as git ls-remote reads it, its commit; `none` when the read succeeds and lists no head at all, an empty
 # repository; `absent` when it lists heads but no main; a failed read returns 1 and says nothing. codemain <its address> reads that address, no gh call
-codemain() { _u=${1:-}; [ -n "$_u" ] || { _u=$(ghc repo view "$REPO" --json url --jq .url 2>/dev/null) && [ -n "$_u" ]; } || return 1; git ls-remote "$_u" > "$W/lsr" 2>/dev/null || return 1
+codemain() { _u=${1:-}; [ -n "$_u" ] || { _u=$(ghc repo view "$REPO" --json url --jq .url 2>/dev/null) && [ -n "$_u" ]; } || return 1; gn git ls-remote "$_u" > "$W/lsr" 2>/dev/null || return 1
   _m=$(awk '$2 == "refs/heads/main" { print $1; exit }' "$W/lsr"); if [ -n "$_m" ]; then echo "$_m"; elif grep -q 'refs/heads/' "$W/lsr"; then echo absent; else echo none; fi; }
 # exptree [say]: TR, the tree of exactly R2's paths at ViD's HEAD (H), built in a temporary index — never ViD's own;
 # $W/xp the paths it holds. A path not at HEAD is left out (named, with say); an ignored file is refused
@@ -408,15 +421,15 @@ oprs() { _lm=${VID_OPRS_LIMIT:-1000}; ghc pr list -R "$REPO" --state open --limi
   [ "$(grep -c . "$W/op")" -lt "$_lm" ] || gref "the open pull requests could not be read whole ($_lm or more), so those naming #$1 are not known — nothing posted"
   awk -F'\t' -v n="$1" '{ t = $6; if (t !~ /^ticket: #/) next; sub(/^ticket: #/, "", t); sub(/[^0-9].*$/, "", t); if (t == n) print $1 }' "$W/op"; }
 # rhd: the saved records' head (empty while none is saved); a failed read is a refusal, never "none"
-rhd() { _o=$(git ls-remote "$SU" refs/heads/vid-state/records 2>/dev/null) || gref "the saved records' head could not be read (git ls-remote) — nothing posted"; printf '%s' "$_o" | cut -f1; }
+rhd() { _o=$(gn git ls-remote "$SU" refs/heads/vid-state/records 2>/dev/null) || gref "the saved records' head could not be read (git ls-remote) — nothing posted"; printf '%s' "$_o" | cut -f1; }
 # 0.26.10.29.2 (R12): rhead, outside the round (which marks its calls VID_CALLER=round, GM-4 F2: the one mark; /vid next's calls and every
 # direct call are checked alike, and pass while the lock is this session's, as vid-connect's start leaves it), a post, amendment, withdrawal or telling refuses
 # while another live session holds the run's lock, and while .vid/state-at is not the saved records' head (with no state-at: only while
 # none is saved), so a folder behind them never sends a row twice and nothing goes out unrecorded beside a run
 rhead() { [ "${VID_CALLER:-}" != round ] || return 0
    sturl; _h=$(rhd) || exit 1
-  _ll=$(git ls-remote "$SU" refs/heads/vid-state/lock 2>/dev/null) || gref 'the lock could not be read — nothing posted'
-  if [ -n "$(printf '%s' "$_ll" | cut -f1)" ]; then rm -rf "$W/rl"; git init -q "$W/rl" && git -C "$W/rl" fetch -q "$SU" refs/heads/vid-state/lock && _lb=$(git -C "$W/rl" show FETCH_HEAD:lock) || gref 'the lock could not be read — nothing posted'
+  _ll=$(gn git ls-remote "$SU" refs/heads/vid-state/lock 2>/dev/null) || gref 'the lock could not be read — nothing posted'
+  if [ -n "$(printf '%s' "$_ll" | cut -f1)" ]; then rm -rf "$W/rl"; git init -q "$W/rl" && gn git -C "$W/rl" fetch -q "$SU" refs/heads/vid-state/lock && _lb=$(git -C "$W/rl" show FETCH_HEAD:lock) || gref 'the lock could not be read — nothing posted'
     _ls=$(printf '%s\n' "$_lb" | sed -n 's/^session: //p'); _la=$(printf '%s\n' "$_lb" | sed -n 's/^at: //p'); _ag=$(($(date +%s) - ${_la:-0})); _me=${CLAUDE_CODE_SESSION_ID:-$(cat .vid/lock-session 2>/dev/null)}
     [ "$_ls" = "$_me" ] || [ "$_ag" -ge "${VID_LOCK_COLD:-900}" ] || gref "the run's lock is held by $_ls, ${_ag}s old: this goes out through that run, or by sh checks/github.sh tw-hand once the lock is free — nothing posted"; fi
   if [ -f .vid/state-at ]; then [ "$_h" = "$(cat .vid/state-at)" ] || gref "this folder's records are not the saved records' head (${_h:-none}): another folder saved since. sh checks/github.sh tw-hand restores them first — nothing posted"
@@ -434,7 +447,7 @@ wasmanual() { grep -q '^setup-answered key=github-mode value="manual"' .vid/plan
 XR=refs/vid/export; XFETCH=''
 # xfollow: refs/vid/export moved to .vid/spec.git's main, forward only (the relative path, so Git Bash needs no translation); 1 when it is none
 xfollow() { _xo=$(git rev-parse -q --verify "$XR^{commit}" 2>/dev/null || true); _xn=$(git --git-dir="$SG" rev-parse -q --verify refs/heads/main) || return 1; [ "$_xo" != "$_xn" ] || return 0
-  [ -z "$_xo" ] || git --git-dir="$SG" merge-base --is-ancestor "$_xo" "$_xn" 2>/dev/null || return 1; git fetch -q --no-tags .vid/spec.git "refs/heads/main:$XR" 2>/dev/null && [ "$(git rev-parse -q --verify "$XR^{commit}")" = "$_xn" ]; }
+  [ -z "$_xo" ] || git --git-dir="$SG" merge-base --is-ancestor "$_xo" "$_xn" 2>/dev/null || return 1; gn git fetch -q --no-tags .vid/spec.git "refs/heads/main:$XR" 2>/dev/null && [ "$(git rev-parse -q --verify "$XR^{commit}")" = "$_xn" ]; }
 # specloc (FB-3 B2, xlocal's specgit): SM the newest export, refs/vid/export, and .vid/spec.git's main set from it. A project whose exports
 # were pushed moves them in once, while the ref lacks the log's newest export: from .vid/spec.git's main when that holds it, else from
 # the spec repository its spec-repo: still names, fetched this once; from neither, refused (no export a ticket names is lost)
@@ -464,8 +477,8 @@ specgit() {
   if xlocal; then specloc; else specmain; fi; }
 specmain() {   # the spec repository's main, fetched
   SURL=$(ghc repo view "$SPEC" --json url --jq .url 2>/dev/null) && [ -n "$SURL" ] || gref "no access to the spec repository $SPEC: gh repo view $SPEC failed (sh checks/github.sh spec-setup makes it)"
-  SM=$(git --git-dir="$SG" ls-remote "$SURL" refs/heads/main 2>/dev/null | cut -f1)
-  if [ -n "$SM" ]; then keeperr git --git-dir="$SG" fetch -q "$SURL" "+refs/heads/main:refs/heads/main" 2>/dev/null || gref "the spec repository $SPEC could not be fetched (git needs its credentials: gh auth setup-git)"
+  SM=$(gn git --git-dir="$SG" ls-remote "$SURL" refs/heads/main 2>/dev/null | cut -f1)
+  if [ -n "$SM" ]; then keeperr gn git --git-dir="$SG" fetch -q "$SURL" "+refs/heads/main:refs/heads/main" 2>/dev/null || gref "the spec repository $SPEC could not be fetched (git needs its credentials: gh auth setup-git)"
   else git --git-dir="$SG" update-ref -d refs/heads/main 2>/dev/null || true; fi; }
 
 # ownp <tree> (GM-2 T1): $W/own, the export's own files, once a call: every file of the tree it builds now, and every file an
@@ -603,7 +616,7 @@ case "$CMD" in
     [ $# -eq 0 ] || usage; M=0; B=0
     say() { M=$((M + 1)); [ "$1" = ok ] || B=$((B + 1)); shift; echo "access $*"; }
     words() { tr '\n' ' ' < "$1" | sed 's/[[:space:]]*$//'; }
-    if ghc auth status > "$W/auth" 2>&1; then say ok 'gh — signed in'; else say no "gh — not signed in: $(words "$W/auth")"; echo "access: $B of $M not ready"; exit 0; fi
+    if ghauth "$W/auth"; then say ok 'gh — signed in'; else say no "gh — not signed in: $(words "$W/auth")"; echo "access: $B of $M not ready"; exit 0; fi
     for k in repo spec-repo; do   # GM-4 J5: the private spec repository in both layouts; FB-3 B2: but with one repository in GitHub manual
       [ "$k" = repo ] || ! xlocal || continue
       n=$(twkey "$k")
@@ -893,8 +906,8 @@ $1"; shift ;; esac; done
       *) usage ;; esac
     hw() { [ -z "$HWS" ] || printf -- '--words\n%s\n' "$HW"; }; hc() { [ -z "$HC" ] || printf -- '--cause\n%s\n' "$HC"; }
     stloc; SU=$(ghc repo view "$ST" --json url --jq .url) || gref "no access to $ST"
-    LL=$(git ls-remote "$SU" refs/heads/vid-state/lock 2>/dev/null) || gref 'the lock could not be read'; LO=$(printf '%s' "$LL" | cut -f1); LS=''
-    if [ -n "$LO" ]; then git init -q "$W/hl"; git -C "$W/hl" fetch -q "$SU" refs/heads/vid-state/lock && LS=$(git -C "$W/hl" show FETCH_HEAD:lock | sed -n 's/^session: //p') || gref 'the lock could not be read'; fi
+    LL=$(gn git ls-remote "$SU" refs/heads/vid-state/lock 2>/dev/null) || gref 'the lock could not be read'; LO=$(printf '%s' "$LL" | cut -f1); LS=''
+    if [ -n "$LO" ]; then git init -q "$W/hl"; gn git -C "$W/hl" fetch -q "$SU" refs/heads/vid-state/lock && LS=$(git -C "$W/hl" show FETCH_HEAD:lock | sed -n 's/^session: //p') || gref 'the lock could not be read'; fi
     HM=${CLAUDE_CODE_SESSION_ID:-$(cat .vid/lock-session 2>/dev/null)}; FR=''; HS=''
     hfail() { [ -z "$FR" ] || sh "$0" lock-free > /dev/null 2>&1 || echo "ViD github: the lock this call took could not be freed" >&2; gref "$1"; }
     BR=''; if [ -n "$LO" ] && [ -n "$HM" ] && [ "$LS" = "$HM" ]; then sh "$0" lock-renew > "$W/hk" 2>&1 || { sed 's/^/    /' "$W/hk" >&2; gref "the run's lock could not be renewed — nothing written"; }; BR=1
@@ -907,7 +920,7 @@ $1"; shift ;; esac; done
     if [ -z "$BR" ]; then
       if [ -n "$T0" ] && [ "$T0" != "$SA" ]; then
         # the records here against the last save this folder knows (its state-at, else the saved head): any that differ would be lost
-        git init -q "$W/hr" && git -C "$W/hr" fetch -q "$SU" refs/heads/vid-state/records || hfail 'the saved records could not be read — nothing written'
+        git init -q "$W/hr" && gn git -C "$W/hr" fetch -q "$SU" refs/heads/vid-state/records || hfail 'the saved records could not be read — nothing written'
         B0=$T0; [ -z "$SA" ] || ! git -C "$W/hr" cat-file -e "$SA^{commit}" 2>/dev/null || B0=$SA; mkdir -p "$W/hb" "$W/hc/results"
         git -C "$W/hr" archive "$B0" | tar -x -C "$W/hb" || hfail 'the saved records could not be read — nothing written'; rm -f "$W/hb/home.head" "$W/hb/home.bundle"
         for f in RUN-STATE.md budget metrics-events decide tw plans plan next VID-FINDINGS.md; do [ ! -e ".vid/$f" ] || cp -R ".vid/$f" "$W/hc/$f"; done; rm -rf "$W/hc"/decide/tmp.*; cp .vid/results/*.txt "$W/hc/results/" 2>/dev/null || true
@@ -1042,7 +1055,7 @@ $1"; shift ;; esac; done
     # its main read on its own first, a failed read refused with git's words (an absent main is a read that succeeded)
     tw; if xlocal; then XFETCH=yes; specgit; echo "ViD github: ViD's exports, kept in the project, read into .vid/spec.git, the newest ${SM:-none}"; exit 0; fi   # FB-3 B2: no network, but the one move of pushed exports (specloc)
     [ -z "$SPEC" ] || { U=$(ghc repo view "$SPEC" --json url --jq .url 2>/dev/null) && [ -n "$U" ] || gref "no access to the spec repository $SPEC: gh repo view $SPEC failed"
-      git ls-remote "$U" refs/heads/main > /dev/null 2> "$W/sle" || { sed 's/^/    /' "$W/sle" >&2; gref "the spec repository $SPEC could not be read (git ls-remote, the lines above)"; }; }
+      gn git ls-remote "$U" refs/heads/main > /dev/null 2> "$W/sle" || { sed 's/^/    /' "$W/sle" >&2; gref "the spec repository $SPEC could not be read (git ls-remote, the lines above)"; }; }
     specgit; echo "ViD github: the spec repository $SPEC read into .vid/spec.git, its main ${SM:-none}"; exit 0 ;;
 
   spec-setup)   # v0.26.10.12.3 (R2, main 436–448): the private spec repository, made once, then an export
@@ -1180,7 +1193,7 @@ $1"; shift ;; esac; done
     # FB-3 B1: the fetch is made first, each call, so the folder is read, and what is deleted decided, as main stands
     RF=''; sh "$0" results-fetch > /dev/null 2> "$W/rfe" || RF=no
     MC=$(git --git-dir=.vid/code rev-parse -q --verify refs/heads/main 2>/dev/null) || {
-      CU=$(ghc repo view "$REPO" --json url --jq .url 2>/dev/null) && [ -n "$CU" ] && keeperr git ls-remote "$CU" refs/heads/main > "$W/pm" 2>/dev/null && [ ! -s "$W/pm" ] &&
+      CU=$(ghc repo view "$REPO" --json url --jq .url 2>/dev/null) && [ -n "$CU" ] && keeperr gn git ls-remote "$CU" refs/heads/main > "$W/pm" 2>/dev/null && [ ! -s "$W/pm" ] &&
         { echo "ViD github: the code repository has no main yet, so no folder $SP to publish the export $E12 into: nothing posted; it goes there once main exists"; spok; exit 0; }
       [ -f "$W/gfail" ] || cp "$W/rfe" "$W/gfail" 2>/dev/null || : > "$W/gfail"; gref "the code repository's main is not in .vid/code (sh checks/github.sh results-fetch) — nothing posted; the next call fetches it"; }
     [ -z "$RF" ] || { cp "$W/rfe" "$W/gfail"; gref 'the code repository could not be fetched into .vid/code — nothing posted; the next call fetches it'; }
@@ -1222,7 +1235,7 @@ $1"; shift ;; esac; done
     [ -z "$BADF" ] || gref "the folder's tree could not be made as the export holds it (GitHub made $TOP, where $BADF) — nothing posted"
     printf '{"message":"ViD export %s into %s","tree":"%s","parents":["%s"],"author":{"name":"ViD","email":"vid@export.invalid"}}\n' "$E12" "$SP" "$TOP" "$MC" > "$W/pj"; PC=$(gd commits .sha) || spfail "the commit could not be made$(gw) — nothing posted; the next call makes it"; [ -n "$PC" ] || gref "the commit could not be made$(gw) — nothing posted"
     # GM-4 K13: the branch, ViD's own: made, or, left by a call that failed after making it, moved to this commit (forced)
-    BR=vid-spec/$E12; CU=$(ghc repo view "$REPO" --json url --jq .url) && [ -n "$CU" ] && keeperr git ls-remote "$CU" "refs/heads/$BR" > "$W/pbr" 2>/dev/null || gref "the code repository's branches could not be read — nothing posted"
+    BR=vid-spec/$E12; CU=$(ghc repo view "$REPO" --json url --jq .url) && [ -n "$CU" ] && keeperr gn git ls-remote "$CU" "refs/heads/$BR" > "$W/pbr" 2>/dev/null || gref "the code repository's branches could not be read — nothing posted"
     if [ -s "$W/pbr" ]; then printf '{"sha":"%s","force":true}\n' "$PC" > "$W/pj"; SPUB=yes ghc api -X PATCH "repos/$REPO/git/refs/heads/$BR" --input "$W/pj" --jq .ref > /dev/null 2> "$W/gde" || spfail "the branch $BR, left by an earlier call, could not be moved to the new commit$(gw) — nothing posted; the next call moves it"
     else printf '{"ref":"refs/heads/%s","sha":"%s"}\n' "$BR" "$PC" > "$W/pj"; gd refs .ref > /dev/null || spfail "the branch $BR could not be made$(gw) — nothing posted; the next call makes it"; fi
     { printf 'vid: this pull request brings the spec ViD exported, export %s, into the folder %s, and changes nothing outside it.' "$E12" "$SP"; [ -z "$SS" ] || printf ' The file %s/%s names the export.' "$SP" "$SS"
@@ -1249,7 +1262,7 @@ $1"; shift ;; esac; done
     tw; [ "$(twkey layout)" = one ] && [ -n "$(twkey spec-stamp)" ] || exit 0
     SPP=$(twkey spec-path); SPP=${SPP:-docs/specs}; SST=$(twkey spec-stamp); SPF=$SPP/${SST#"$SPP"/}   # the stamp read as spec-publish reads it, with or without the folder
     U=$(ghc repo view "$REPO" --json url --jq .url) || gref "no access to $REPO"
-    SMN=$(git ls-remote "$U" refs/heads/main 2> /dev/null | cut -f1) || gref "$REPO's main could not be read"; [ -n "$SMN" ] || exit 0
+    SMN=$(gn git ls-remote "$U" refs/heads/main 2> /dev/null | cut -f1) || gref "$REPO's main could not be read"; [ -n "$SMN" ] || exit 0
     STAMPREAD=yes; SV=$(ghc api "repos/$REPO/contents/$SPF?ref=$SMN" --jq '.content | @base64d' 2> "$W/se") || { STAMPREAD=''; grep -q '404' "$W/se" && exit 0; sed 's/^/    /' "$W/se" >&2; gref "the stamp $SPF could not be read"; }; STAMPREAD=''
     printf '%s\n' "$SV" | sed -n '1s/[[:space:]]*$//p'; exit 0 ;;
 
@@ -1258,7 +1271,7 @@ $1"; shift ;; esac; done
     manual && [ "$(twkey layout)" = one ] || exit 0
     mkdir -p .vid/round; : > "$W/kept"; [ ! -f .vid/round/folder ] || mv -f .vid/round/folder "$W/kept"   # out until it is read
     tw; spdest; spplain || gref "spec-path: '$SP' is no folder inside the code repository (a plain path from its top)"
-    spfail() { gref "$*"; }; U=$(ghc repo view "$REPO" --json url --jq .url) && [ -n "$U" ] && git ls-remote "$U" refs/heads/main > "$W/fm" 2> "$W/gde" || gref "the folder $SP could not be read: $REPO's main could not be read"
+    spfail() { gref "$*"; }; U=$(ghc repo view "$REPO" --json url --jq .url) && [ -n "$U" ] && gn git ls-remote "$U" refs/heads/main > "$W/fm" 2> "$W/gde" || gref "the folder $SP could not be read: $REPO's main could not be read"
     SMN=$(cut -f1 "$W/fm"); [ -n "$SMN" ] || exit 0
     printf 'main\t%s\t%s\t%s\n' "$SMN" "$REPO" "$SP" > "$W/fo"
     if [ "$(sed -n 1p "$W/kept")" = "$(cat "$W/fo")" ]; then cp "$W/kept" "$W/fo"; else FOLDREAD=yes; fold "$SMN"; FOLDREAD=''; cat "$W/fold" >> "$W/fo"; fi
@@ -1305,7 +1318,7 @@ $1"; shift ;; esac; done
     if [ -d .vid/code ] && [ "$(cg config extensions.partialClone 2>/dev/null)" != vid-commits ]; then rm -rf .vid/code; echo "ViD github: .vid/code held DevAgent's files, the earlier form — replaced by a copy that holds none"; fi
     [ -d .vid/code ] || { git init -q --bare .vid/code && cg config core.repositoryformatversion 1 && cg config extensions.partialClone vid-commits; } || { rm -rf .vid/code; gref ".vid/code could not be made"; }
     cg symbolic-ref HEAD refs/vid/none || gref ".vid/code's HEAD could not be set"   # unborn, outside both fetches' refs
-    LR=$(git ls-remote "$U" 'refs/heads/vid-results/*' 2>/dev/null) || gref "$REPO's reports could not be listed (git ls-remote)"   # whole: a branch ending in vid-results/… is no report
+    LR=$(gn git ls-remote "$U" 'refs/heads/vid-results/*' 2>/dev/null) || gref "$REPO's reports could not be listed (git ls-remote)"   # whole: a branch ending in vid-results/… is no report
     # FB-3 A2: of a report branch its own folder alone is read and fetched, whatever else the branch holds. GitHub names that folder's tree (one
     # read-only graphql query of 50 branches; nothing of the rest is named or sent), that tree alone is fetched, and the branch's ref here is a
     # parentless commit of ViD's holding the folder alone, at the branch's commit's time, its message `vid-report: <the branch's commit>`; a branch
@@ -1326,8 +1339,8 @@ $1"; shift ;; esac; done
           for (k = 1; k <= n; k++) if (t[k] == "Tree") print c[k], id[k], f[k], d[k]; else print id[k], c[k], a[k], d[k], (t[k] == "-" ? "it has no folder " id[k] : id[k] " is a file there, not a folder") >> SK }' "$W/gq" > "$W/g1" || gref "$REPO's reports could not be read: $(tail -n 1 "$W/g1") is listed, its commit not there"
       cat "$W/g1" >> "$W/got"; done; RESREAD=''
     # the folders by their trees' own ids; noop, so no commit held here is taken as holding files that are not here
-    [ ! -s "$W/got" ] || cg -c fetch.negotiationAlgorithm=noop fetch -q --no-tags --no-write-fetch-head "$U" $(cut -f3 "$W/got" | sort -u) 2>/dev/null || gref "$REPO's reports could not be fetched into .vid/code"
-    cg -c remote.vid-commits.url="$U" fetch -q --no-tags --filter=tree:0 vid-commits '+refs/heads/*:refs/heads/*' '^refs/heads/vid-results/*' '+refs/pull/*/head:refs/pull/*/head' 2>/dev/null || gref "$REPO's commits could not be fetched into .vid/code"
+    [ ! -s "$W/got" ] || gn cg -c fetch.negotiationAlgorithm=noop fetch -q --no-tags --no-write-fetch-head "$U" $(cut -f3 "$W/got" | sort -u) 2>/dev/null || gref "$REPO's reports could not be fetched into .vid/code"
+    gn cg -c remote.vid-commits.url="$U" fetch -q --no-tags --filter=tree:0 vid-commits '+refs/heads/*:refs/heads/*' '^refs/heads/vid-results/*' '+refs/pull/*/head:refs/pull/*/head' 2>/dev/null || gref "$REPO's commits could not be fetched into .vid/code"
     while IFS="$(printf '\t')" read -r c i f d <&4; do t=$(printf '040000 tree %s\t%s\n' "$f" "$i" | cg mktree --missing) && n=$(GIT_AUTHOR_NAME=ViD GIT_AUTHOR_EMAIL=vid@export.invalid GIT_AUTHOR_DATE="$d" GIT_COMMITTER_NAME=ViD GIT_COMMITTER_EMAIL=vid@export.invalid GIT_COMMITTER_DATE="$d" cg commit-tree "$t" -m "vid-report: $c") && cg update-ref "refs/heads/vid-results/$i" "$n" || gref "the report $i could not be kept in .vid/code"; done 4< "$W/got"
     for i in $(cut -f1 "$W/sk"); do cg update-ref -d "refs/heads/vid-results/$i" 2>/dev/null || :; done
     # each report its folder alone; what no ref reaches dropped; then each report read whole, and nothing present that no report holds
@@ -1439,7 +1452,7 @@ $1"; shift ;; esac; done
     twlog "asked $N close step=$S commit=$C at=$(now)"; ev "ticket issue=$N step=$S kind=close state=asked"; echo "$N"; exit 0 ;;
 
   state-save)   # v0.26.10.25.1 (R6): ViD's records and project on vid-state/records of the state repository, as files and a bundle; nothing to push when nothing changed
-    tw; sturl; RP=$W/sr; git init -q "$RP"; T0=$(git ls-remote "$SU" refs/heads/vid-state/records 2>/dev/null | cut -f1); HD=$(git rev-parse HEAD) || gref 'no commit at HEAD'; rm -f "$RP/.git/hooks"/* 2>/dev/null
+    tw; sturl; RP=$W/sr; git init -q "$RP"; T0=$(gn git ls-remote "$SU" refs/heads/vid-state/records 2>/dev/null | cut -f1); HD=$(git rev-parse HEAD) || gref 'no commit at HEAD'; rm -f "$RP/.git/hooks"/* 2>/dev/null
     # 0.26.10.29.2 (R12): a hand-call's save names the head it checked (VID_SAVE_AT, `none` for no records yet); when the head read
     # here, the parent of this save, is another, another folder saved meanwhile and nothing is saved over it. The run's own save names none
     [ -z "${VID_SAVE_AT:-}" ] || [ "${T0:-none}" = "$VID_SAVE_AT" ] || gref "the saved records' head (${T0:-none}) is not the one this call checked ($VID_SAVE_AT): nothing saved over them"
@@ -1451,17 +1464,18 @@ $1"; shift ;; esac; done
     if manual; then for f in read read.prev; do [ ! -f ".vid/round/$f" ] || { mkdir -p "$W/sr/round" && cp ".vid/round/$f" "$W/sr/round/$f"; } || gref "the round's $f could not be copied"; done; fi
     # GM-3 S2 (GM M15): the bundle carries refs/vid/*, the take-over commits among them; it is reused only when HEAD and they are unchanged
     HK=$(printf '%s\n' "$HD"; git for-each-ref --format='%(objectname) %(refname)' refs/vid/) || gref 'the refs under refs/vid could not be read'
-    if [ -n "$T0" ]; then git -C "$RP" fetch -q "$SU" refs/heads/vid-state/records || gref "$ST could not be fetched"; fi; printf '%s\n' "$HK" > "$RP/home.head"
+    if [ -n "$T0" ]; then gn git -C "$RP" fetch -q "$SU" refs/heads/vid-state/records || gref "$ST could not be fetched"; fi; printf '%s\n' "$HK" > "$RP/home.head"
     if [ -n "$T0" ] && [ "$(git -C "$RP" show FETCH_HEAD:home.head 2>/dev/null)" = "$HK" ]; then git -C "$RP" show FETCH_HEAD:home.bundle > "$RP/home.bundle"; else git bundle create -q "$RP/home.bundle" --all 2>/dev/null || gref 'the project could not be bundled'; fi
-    git -C "$RP" -c core.excludesFile=/dev/null add -A -f . ; TR=$(git -C "$RP" write-tree); if [ -n "$T0" ] && [ "$(git -C "$RP" rev-parse FETCH_HEAD^{tree})" = "$TR" ]; then echo "$T0" > "$W/sa" || exit 1; put .vid/state-at < "$W/sa" || exit 1; echo 'ViD github: the records are as saved'; exit 0; fi
+    # FIX-BATCH-T2 (B-13): the add with core.longpaths, and checked, so a refused add never drops records without a word
+    git -C "$RP" -c core.longpaths=true -c core.excludesFile=/dev/null add -A -f . || gref 'the records could not be staged (above): nothing saved'; TR=$(git -C "$RP" write-tree); if [ -n "$T0" ] && [ "$(git -C "$RP" rev-parse FETCH_HEAD^{tree})" = "$TR" ]; then echo "$T0" > "$W/sa" || exit 1; put .vid/state-at < "$W/sa" || exit 1; echo 'ViD github: the records are as saved'; exit 0; fi
     set -- -m 'ViD records'; [ -z "$T0" ] || set -- -p "$T0" "$@"; C=$(GIT_AUTHOR_NAME=ViD GIT_AUTHOR_EMAIL=vid@export.invalid GIT_COMMITTER_NAME=ViD GIT_COMMITTER_EMAIL=vid@export.invalid git -C "$RP" commit-tree "$TR" "$@") || gref 'the records could not be committed'
     git -C "$RP" push -q "$SU" "$C:refs/heads/vid-state/records" 2> "$W/e" || { sed 's/^/    /' "$W/e" >&2; gref "the records could not be pushed to $ST"; }; echo "$C" > "$W/sa" || exit 1; put .vid/state-at < "$W/sa" || exit 1; echo "ViD github: the records saved to $ST"; exit 0 ;;
 
   state-restore)   # v0.26.10.25.1 (R6): state-restore <repo> in an empty folder, or with no repository in a project whose records are behind the branch
-    if [ -n "${1:-}" ]; then auth; stpriv "$1"; else tw; sturl; fi; T0=$(git ls-remote "$SU" refs/heads/vid-state/records 2>/dev/null | cut -f1); [ -n "$T0" ] || { [ -z "${1:-}" ] || gref "$ST holds no records"; echo 'ViD github: no records saved yet'; exit 0; }
-    [ "$T0" != "$(cat .vid/state-at 2>/dev/null)" ] || { echo 'ViD github: the records are current'; exit 0; }; RP=$W/sr; mkdir "$W/rt"; git init -q "$RP"; git -C "$RP" fetch -q "$SU" refs/heads/vid-state/records && git -C "$RP" archive FETCH_HEAD | tar -x -C "$W/rt" || gref "$ST could not be read"
-    if [ -e .git ]; then git fetch -q "$W/rt/home.bundle" HEAD && git merge -q --ff-only FETCH_HEAD || gref 'the project is not behind the saved one'; else [ -z "$(ls -A)" ] || gref 'state-restore <repo> takes an empty folder'; git clone -q "$W/rt/home.bundle" . && git remote remove origin || gref 'the project could not be cloned from its bundle'; fi
-    git fetch -q "$W/rt/home.bundle" '+refs/vid/*:refs/vid/*' || gref 'the refs under refs/vid could not be restored from the bundle'   # GM-3 S2 (GM M15)
+    if [ -n "${1:-}" ]; then auth; stpriv "$1"; else tw; sturl; fi; T0=$(gn git ls-remote "$SU" refs/heads/vid-state/records 2>/dev/null | cut -f1); [ -n "$T0" ] || { [ -z "${1:-}" ] || gref "$ST holds no records"; echo 'ViD github: no records saved yet'; exit 0; }
+    [ "$T0" != "$(cat .vid/state-at 2>/dev/null)" ] || { echo 'ViD github: the records are current'; exit 0; }; RP=$W/sr; mkdir "$W/rt"; git init -q "$RP"; gn git -C "$RP" fetch -q "$SU" refs/heads/vid-state/records && git -C "$RP" archive FETCH_HEAD | tar -x -C "$W/rt" || gref "$ST could not be read"
+    if [ -e .git ]; then gn git fetch -q "$W/rt/home.bundle" HEAD && git -c core.longpaths=true merge -q --ff-only FETCH_HEAD || gref 'the project is not behind the saved one'; else [ -z "$(ls -A)" ] || gref 'state-restore <repo> takes an empty folder'; git clone -q -c core.longpaths=true "$W/rt/home.bundle" . && git remote remove origin || gref 'the project could not be cloned from its bundle'; fi
+    gn git fetch -q "$W/rt/home.bundle" '+refs/vid/*:refs/vid/*' || gref 'the refs under refs/vid could not be restored from the bundle'   # GM-3 S2 (GM M15)
     # FB-1 A1: the commit checks are not switched on here: the connect's hooks step, after the restore in every start, does it once they pass
     mkdir -p .vid; for f in RUN-STATE.md budget metrics-events decide tw plans plan next results VID-FINDINGS.md; do if [ ! -e "$W/rt/$f" ]; then rm -rf ".vid/$f"; elif [ -d "$W/rt/$f" ]; then putd ".vid/$f" "$W/rt/$f" || exit 1; else put ".vid/$f" < "$W/rt/$f" || exit 1; fi; done
     # GM-4 F3 (I2), GM-2 T12: in GitHub manual alone, the one read and the read before it, as one pair: a save that holds round/ gives
@@ -1471,23 +1485,33 @@ $1"; shift ;; esac; done
     tw; specgit; sh "$HERE/github.sh" results-fetch > /dev/null || gref 'the code repository could not be fetched'; echo "$T0" > "$W/sa" || exit 1; put .vid/state-at < "$W/sa" || exit 1; echo "ViD github: the records restored from $ST"; exit 0 ;;
 
   lock-take|lock-renew|lock-free)   # v0.26.10.25.1 (R7): vid-state/lock, one parentless commit: session, machine, time. Pushed with a lease on what was read, so of two takers one wins. VID_LOCK_COLD (900 seconds)
-    tw; stloc; SU=$(ghc repo view "$ST" --json url --jq .url) || gref "no access to $ST"; LR=refs/heads/vid-state/lock; LL=$(git ls-remote "$SU" "$LR" 2>/dev/null) || gref 'the lock could not be read'; LO=$(printf '%s' "$LL" | cut -f1); ME=${CLAUDE_CODE_SESSION_ID:-$(cat .vid/lock-session 2>/dev/null)}; LS=''; LA=0; RP=$W/l; git init -q "$RP"
-    if [ -n "$LO" ]; then git -C "$RP" fetch -q "$SU" "$LR" || gref 'the lock could not be read'; LB=$(git -C "$RP" show FETCH_HEAD:lock); LS=$(printf '%s\n' "$LB" | sed -n 's/^session: //p'); LA=$(printf '%s\n' "$LB" | sed -n 's/^at: //p'); fi
-    lpush() { printf 'session: %s\nmachine: %s\nat: %s\n' "$1" "$(hostname)" "$(date +%s)" > "$RP/lock"; git -C "$RP" add lock; C=$(GIT_AUTHOR_NAME=ViD GIT_AUTHOR_EMAIL=vid@export.invalid GIT_COMMITTER_NAME=ViD GIT_COMMITTER_EMAIL=vid@export.invalid git -C "$RP" commit-tree "$(git -C "$RP" write-tree)" -m 'ViD lock'); git -C "$RP" push -q "--force-with-lease=$LR:$LO" "$SU" "$C:$LR" 2>/dev/null; }
+    tw; stloc; SU=$(ghc repo view "$ST" --json url --jq .url) || gref "no access to $ST"; LR=refs/heads/vid-state/lock; LL=$(gn git ls-remote "$SU" "$LR" 2>/dev/null) || gref 'the lock could not be read'; LO=$(printf '%s' "$LL" | cut -f1); ME=${CLAUDE_CODE_SESSION_ID:-$(cat .vid/lock-session 2>/dev/null)}; LS=''; LA=0; RP=$W/l; git init -q "$RP"
+    if [ -n "$LO" ]; then gn git -C "$RP" fetch -q "$SU" "$LR" || gref 'the lock could not be read'; LB=$(git -C "$RP" show FETCH_HEAD:lock); LS=$(printf '%s\n' "$LB" | sed -n 's/^session: //p'); LA=$(printf '%s\n' "$LB" | sed -n 's/^at: //p'); [ "$LS" != - ] || LS=''; fi   # OW-4: a lock freed in place names nobody
+    lpush() { printf 'session: %s\nmachine: %s\nat: %s\n' "$1" "$(hostname)" "$(date +%s)" > "$RP/lock"; git -C "$RP" -c core.longpaths=true add lock; C=$(GIT_AUTHOR_NAME=ViD GIT_AUTHOR_EMAIL=vid@export.invalid GIT_COMMITTER_NAME=ViD GIT_COMMITTER_EMAIL=vid@export.invalid git -C "$RP" commit-tree "$(git -C "$RP" write-tree)" -m 'ViD lock'); git -C "$RP" push -q "--force-with-lease=$LR:$LO" "$SU" "$C:$LR" 2>/dev/null; }
     case $CMD in
       lock-take) S=${1:-${CLAUDE_CODE_SESSION_ID:-session-$$-$(date +%s)}}; A=$(($(date +%s) - LA)); CO=${VID_LOCK_COLD:-900}; if [ -n "$LO" ] && [ "$LS" != "$S" ] && [ "$A" -lt "$CO" ]; then gref "the lock is held by $LS, ${A}s old; it may be taken in $((CO - A))s"; fi
         # GM-4 proof D2: GitHub makes the first branch pushed to an empty repository its default, and never deletes its default
         # branch; so on the repository that holds the lock (FB-1 B4: state-repo:, or else the spec repository) while it holds no
         # branch yet, a main is pushed first, one commit of no files whose message does not open "ViD export of " (ownp reads no
         # export in it; the first export fast-forwards it), and the lock is never its default branch
-        if [ -z "$LO" ]; then git ls-remote --heads "$SU" > "$W/lh" 2> "$W/lhe" || gref "the branches of $ST could not be read: $(ghwhy "$W/lhe")"
+        if [ -z "$LO" ]; then gn git ls-remote --heads "$SU" > "$W/lh" 2> "$W/lhe" || gref "the branches of $ST could not be read: $(ghwhy "$W/lhe")"
           if [ ! -s "$W/lh" ]; then _e=$(git -C "$RP" hash-object -w -t tree /dev/null) && _c=$(GIT_AUTHOR_NAME=ViD GIT_AUTHOR_EMAIL=vid@export.invalid GIT_COMMITTER_NAME=ViD GIT_COMMITTER_EMAIL=vid@export.invalid git -C "$RP" commit-tree "$_e" -m "ViD's repository's default branch, so that ViD's lock is never it") || gref 'the default branch could not be made'
-            git -C "$RP" push -q "$SU" "$_c:refs/heads/main" 2> "$W/lhe" || { git ls-remote --heads "$SU" 2>/dev/null | grep -q . || gref "the default branch of $ST could not be pushed: $(ghwhy "$W/lhe")"; }; fi; fi
+            git -C "$RP" push -q "$SU" "$_c:refs/heads/main" 2> "$W/lhe" || { gn git ls-remote --heads "$SU" 2>/dev/null | grep -q . || gref "the default branch of $ST could not be pushed: $(ghwhy "$W/lhe")"; }; fi; fi
         lpush "$S" || gref 'another session took the lock'; echo "$S" > "$W/ls" || exit 1; put .vid/lock-session < "$W/ls" || exit 1; ev "lock-taken session=$S from=${LS:-none}"; echo "ViD github: the lock is $S's" ;;
-      lock-renew) lost() { echo "ViD github: refused — the lock is lost: $1" >&2; exit 3; }; [ -n "$ME" ] && [ "$LS" = "$ME" ] || lost "it is ${LS:-nobody}'s"; lpush "$ME" || { LL=$(git ls-remote "$SU" "$LR" 2>/dev/null) || gref 'the lock could not be renewed'; [ "$(printf '%s' "$LL" | cut -f1)" != "$LO" ] || gref 'the lock could not be renewed'; [ -n "$LL" ] || lost 'another session took it'
+      lock-renew) lost() { echo "ViD github: refused — the lock is lost: $1" >&2; exit 3; }; [ -n "$ME" ] && [ "$LS" = "$ME" ] || lost "it is ${LS:-nobody}'s"; lpush "$ME" || { LL=$(gn git ls-remote "$SU" "$LR" 2>/dev/null) || gref 'the lock could not be renewed'; [ "$(printf '%s' "$LL" | cut -f1)" != "$LO" ] || gref 'the lock could not be renewed'; [ -n "$LL" ] || lost 'another session took it'
         # FB-7 B2: a newer lease of this same session's is no loss
-        git -C "$RP" fetch -q "$SU" "$LR" || gref 'the lock could not be read'; [ "$(git -C "$RP" show FETCH_HEAD:lock | sed -n 's/^session: //p')" = "$ME" ] || lost 'another session took it'; }; echo 'ViD github: the lock renewed' ;;   # exit 3 only for a loss seen; a failed call is an error like any other (R4)
-      lock-free) [ -n "$ME" ] && [ "$LS" = "$ME" ] || gref "the lock is ${LS:-nobody}'s, not this session's"; git -C "$RP" push -q "--force-with-lease=$LR:$LO" "$SU" ":$LR" 2> "$W/lfe" || gref "the lock could not be freed: GitHub said: $(ghwhy "$W/lfe")"; rm -f .vid/lock-session; echo 'ViD github: the lock freed' ;;
+        gn git -C "$RP" fetch -q "$SU" "$LR" || gref 'the lock could not be read'; [ "$(git -C "$RP" show FETCH_HEAD:lock | sed -n 's/^session: //p')" = "$ME" ] || lost 'another session took it'; }; echo 'ViD github: the lock renewed' ;;   # exit 3 only for a loss seen; a failed call is an error like any other (R4)
+      lock-free) [ -n "$ME" ] && [ "$LS" = "$ME" ] || gref "the lock is ${LS:-nobody}'s, not this session's"
+        # FIX-BATCH-T2 (OW-4): GitHub never deletes a repository's default branch, and a repository whose first branch was the lock keeps
+        # it as its default; refused for that, the lock is freed in place: a lock naming no session (-) at time 0, which every reader
+        # reads as free (its age past VID_LOCK_COLD) and its old holder as not its own. ViD leaves the default branch as it is
+        if ! git -C "$RP" push -q "--force-with-lease=$LR:$LO" "$SU" ":$LR" 2> "$W/lfe"; then
+          grep -qi 'delete the current branch\|default branch' "$W/lfe" || gref "the lock could not be freed: GitHub said: $(ghwhy "$W/lfe")"
+          printf 'session: -\nmachine: -\nat: 0\n' > "$RP/lock"; git -C "$RP" -c core.longpaths=true add lock || gref 'the freed lock could not be written'
+          C=$(GIT_AUTHOR_NAME=ViD GIT_AUTHOR_EMAIL=vid@export.invalid GIT_COMMITTER_NAME=ViD GIT_COMMITTER_EMAIL=vid@export.invalid git -C "$RP" commit-tree "$(git -C "$RP" write-tree)" -m 'ViD lock, freed') || gref 'the freed lock could not be written'
+          git -C "$RP" push -q "--force-with-lease=$LR:$LO" "$SU" "$C:$LR" 2> "$W/lfe" || gref "the lock could not be freed: GitHub said: $(ghwhy "$W/lfe")"
+          rm -f .vid/lock-session; echo "ViD github: the lock freed in place (vid-state/lock is the repository's default branch, which GitHub never deletes)"; exit 0; fi
+        rm -f .vid/lock-session; echo 'ViD github: the lock freed' ;;
     esac; exit 0 ;;
 
   comment)
@@ -1524,7 +1548,7 @@ $1"; shift ;; esac; done
     echo "ViD github: #$n closed"; exit 0 ;;
 
   share-login)   # 0.26.10.28.7 (R6): the login, or the words that no login means a file alone
-    ghc auth status > "$W/auth" 2>&1 || { sed 's/^/    /' "$W/auth" >&2; echo 'ViD share: no GitHub login, the login check fails: the bundle stays a file you can send by hand' >&2; exit 1; }
+    ghauth "$W/auth" || { sed 's/^/    /' "$W/auth" >&2; echo 'ViD share: no GitHub login, the login check fails: the bundle stays a file you can send by hand' >&2; exit 1; }
     SHARE=yes; LOGIN=$(ghc api user --jq .login 2>/dev/null) && lform "$LOGIN" || gref 'your GitHub login could not be read'; echo "$LOGIN"; exit 0 ;;
 
   share-create)   # 0.26.10.28.7 (R6): share-create --repo <owner>/<name>, made private, in the login's account or an organisation it owns
@@ -1548,15 +1572,15 @@ $1"; shift ;; esac; done
     # G [<index>] <git args>: git on the temporary repository, no hook, no line-ending change; an index file given is the one used,
     # with GW the work tree (an empty folder unless the bundle's is set), never the project's
     mkdir "$W/wt"; GW=$W/wt
-    G() { case "$1" in "$W"/i*) _gi=$1; shift; GIT_INDEX_FILE=$_gi GIT_WORK_TREE=$GW git -c core.bare=false -c core.hooksPath="$W/nohooks" -c core.autocrlf=false -c core.safecrlf=false --git-dir="$B" "$@" ;;
-      *) git -c core.hooksPath="$W/nohooks" -c core.autocrlf=false -c core.safecrlf=false --git-dir="$B" "$@" ;; esac; }
-    M=$(G ls-remote "$U" refs/heads/main 2>/dev/null | cut -f1)
+    G() { case "$1" in "$W"/i*) _gi=$1; shift; GIT_INDEX_FILE=$_gi GIT_WORK_TREE=$GW git -c core.bare=false -c core.longpaths=true -c core.hooksPath="$W/nohooks" -c core.autocrlf=false -c core.safecrlf=false --git-dir="$B" "$@" ;;
+      *) git -c core.longpaths=true -c core.hooksPath="$W/nohooks" -c core.autocrlf=false -c core.safecrlf=false --git-dir="$B" "$@" ;; esac; }
+    M=$(gn G ls-remote "$U" refs/heads/main 2>/dev/null | cut -f1)
     # FIX-BATCH-T1 (B-8): a share repository holds shares alone — empty is no branch at all; with a main, every file is a
     # top-level README.md or lies in a run folder projects/<p>/<n>/ that holds its MANIFEST.json; else nothing is written
-    if [ -z "$M" ]; then _hd=$(G ls-remote --heads "$U" 2>/dev/null) || gref "the branches of $SREPO could not be read: nothing is pushed"
+    if [ -z "$M" ]; then _hd=$(gn G ls-remote --heads "$U" 2>/dev/null) || gref "the branches of $SREPO could not be read: nothing is pushed"
       _ob=$(printf '%s\n' "$_hd" | sed -n '1s#.*refs/heads/##p')
       [ -z "$_ob" ] || gref "$SREPO has branches but no main (its branch $_ob): a share goes to a repository of its own; make one with share-create"; fi
-    if [ -n "$M" ]; then G fetch -q "$U" "+refs/heads/main:refs/heads/main" 2>/dev/null || gref "$SREPO could not be fetched"
+    if [ -n "$M" ]; then gn G fetch -q "$U" "+refs/heads/main:refs/heads/main" 2>/dev/null || gref "$SREPO could not be fetched"
       G ls-tree -rz --name-only refs/heads/main > "$W/tree" || gref "$SREPO's main could not be read: nothing is pushed"
       _op=$(tr '\0' '\n' < "$W/tree" | awk '{ L[NR] = $0 } $0 ~ /^projects\/[^\/]+\/[^\/]+\/MANIFEST\.json$/ { R[substr($0, 1, length($0) - 13)] = 1 }
         END { for (i = 1; i <= NR; i++) { f = L[i]; if (f == "") { print "a file name holding a line break"; exit } if (f == "README.md") continue
@@ -1570,7 +1594,7 @@ $1"; shift ;; esac; done
     set -- -m "ViD share: projects/$P/$N"; [ -z "$M" ] || set -- -p "$M" "$@"
     # authored and committed as ViD <vid@export.invalid>, in the call's own environment, as spec-export's: no one's name or address
     C=$(GIT_AUTHOR_NAME=ViD GIT_AUTHOR_EMAIL=vid@export.invalid GIT_COMMITTER_NAME=ViD GIT_COMMITTER_EMAIL=vid@export.invalid \
-      git -c core.hooksPath="$W/nohooks" --git-dir="$B" commit-tree "$T" "$@") || gref 'the share commit could not be made'
+      git -c core.longpaths=true -c core.hooksPath="$W/nohooks" --git-dir="$B" commit-tree "$T" "$@") || gref 'the share commit could not be made'
     sowned   # private and owned again, right before the push
     G push -q "$U" "$C:refs/heads/main" 2> "$W/push" || { sed 's/^/    /' "$W/push" >&2; gref "the share could not be pushed to $SREPO (a fast-forward of main only)"; }
     echo "ViD share: projects/$P/$N pushed to $SREPO as $(printf '%.12s' "$C")"; exit 0 ;;

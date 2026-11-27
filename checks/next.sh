@@ -93,6 +93,9 @@
 #     context ask <#n> <commit12> <the command that decides it>   (GM-4 K11, E1) each published ticket's unanswered `vid: decide`
 #                                         ask in the read, on its issue or (FB-5 B1.4) at the head of its own pull request,
 #                                         /vid:vid-accept-step <n> <commit12>
+#     context unit-ask <#p> <its line's number or -> <h12> <words>   (FIX-BATCH-T2 F-34) in GitHub manual with own work off, each
+#                                         piece's unanswered `vid: decide` at its head: its step's ticket and that ticket's command,
+#                                         or that no published ticket is named, and where the team's rules are or ViD's reports text
 #     context closed <#n> <words>         (FB-6 A1.3) in GitHub manual, own work on or off, each published ticket closed on GitHub and not
 #                                         accepted: that the team asks for its decision (the ask's line above), or the owner's commands
 #     context assigned <#n> <labels> <title>
@@ -210,8 +213,9 @@ differ_() {
         if (x ~ /^owed:[ \t]*prerequisite/ || inv && (x ~ /^(proved-red|golden|module|match):/ || (x ~ /^evidence:/ && x !~ /^evidence:[ \t]*owed$/) || (k ~ /^ROW-/ && i == 8 && x !~ /^owed:/ && y ~ /\//) || (k ~ /^(rule|hostility)$/ && i >= 4 && x !~ /[ \t:]/ && x ~ /\//))) continue
         C[++c] = norm(x) }
       while (c > 0 && C[c] == "") c--; return c }
-    # same <quoted field> <inventory field>: equal as it stands, or as the writer writes it (unptr), its words blanked or not (profx)
-    function same(q, v) { return q == v || q == norm(unptr(v)) || q == norm(unptr(profx(v))) }
+    # same <quoted field> <inventory field>: equal as it stands, or as the writer writes it (unptr), its words blanked or not (profx);
+    # FIX-BATCH-T2 (OW-3): the writer blanks a quoted line after its pointers, so that order too
+    function same(q, v) { return q == v || q == norm(unptr(v)) || q == norm(unptr(profx(v))) || q == norm(profx(unptr(v))) }
     BEGIN { while ((getline l < INV) > 0) { k = key(l); if (k != "" && !(k in L)) L[k] = l } }
     { k = key($0); if (k == "" || (k in seen)) next; seen[k] = 1
       if (!(k in L)) { print "differ\t" n "\t" k; next }
@@ -378,6 +382,14 @@ triggers_() {
     else printf 'RDY\tfailed\t%s\n' "$(grep -v '^[[:space:]]*$' "$T/rdye" | tail -n 1 | sed 's/^ViD replan: //' | tr '\t' ' ')" >> "$T/f"; fi; fi
   # GM-4 K11: own work's switch, and each unanswered ask (lib.sh tasks_; FB-5 B1.4: a step's own pull request's too); E10: the step tickets out too long
   printf 'OW\t%s\n' "$(ownwork_)" >> "$T/f"; tasks_ "$RD" > "$T/tas"; sed 's/^/CA	/' "$T/tas" >> "$T/f"; if manual; then closed_ >> "$T/f"; fi; slow_ >> "$T/f"
+  # FIX-BATCH-T2 (F-34): in GitHub manual with own work off, each piece's unanswered ask at its head (lib.sh uasks_), with its step's ticket
+  # (the read's sub line whose child is the piece's line), the command deciding that ticket, and where the team's rules are, or ViD's text
+  if manual && [ "$(ownwork_)" != on ]; then _tr=$(skey team-rules)
+    if [ -n "$_tr" ]; then _tw="; what the team's rules ask of ViD in return: $_tr"; else _tw='; what ViD sends the team and asks of it: /vid:vid-accept-step reports'; fi
+    uasks_ "$RD" | awk -F'\t' -v RD="$RD" -v TW="$_tw" 'BEGIN { while ((getline l < RD) > 0) { split(l, x, "\t"); if (x[1] == "sub") S[x[4]] = x[2] } }
+      $4 == 0 { n = ($2 in S) ? S[$2] : ""
+        w = (n != "") ? "a piece of ticket #" n ": ViD decides the step at its ticket, never a piece, and posts nothing on #" $1 "; /vid:vid-accept-step " n " <commit> decides ticket #" n " at its own ask" : "its line names no published ticket: nothing of ViD\047s decides it, and nothing is posted on #" $1
+        print "CU\t" $1 "\t" $2 "\t" $3 "\t" w TW }' >> "$T/f"; fi
   # GM-4 K4 (GM M16): while own work is on, step 2's walk, walk-read and summary lines (round.sh step keeps them whole in
   # .vid/next/stage-moves), each with its stage's newest candidate, for the moves walk-stage, read-walk and write-summary
   if manual && [ "$(ownwork_)" = on ]; then awk '$1 ~ /^(walk|walk-read|summary)$/ && $2 ~ /^[0-9]+$/ { print $1 "\t" $2 }' .vid/next/stage-moves 2> /dev/null |
@@ -463,7 +475,7 @@ triggers_() {
     $1 == "AO" { AOO[++nao] = $3; AO[$3] = $4; next }
     $1 == "DIF" { DIF[$3] = add(DIF[$3], $2); next }
     $1 == "WD" { if (!($2 in WDS)) WDO[++nwd] = $2; WDS[$2] = $3; next }
-    $1 == "OW" { OWK = $2; next } $1 == "CA" { CAO[++nca] = $2; CAC[nca] = substr($3, 1, 12); next } $1 == "SS" { SSO[++nss] = $2 "\t" $3; next }
+    $1 == "OW" { OWK = $2; next } $1 == "CA" { CAO[++nca] = $2; CAC[nca] = substr($3, 1, 12); next } $1 == "CU" { CUO[++ncu] = $2 "\t" $3 "\t" $4 "\t" $5; next } $1 == "SS" { SSO[++nss] = $2 "\t" $3; next }
     $1 == "CLZ" { CLO[++ncl] = "#" $2 "\t" $3; next }
     $1 == "RSK" { RSO[++nrs] = $2 "\t" $3; next } $1 == "TRP" { TRP = $2; next } $1 == "FLD" { FLD = $2; next } $1 == "PBW" { PBL[++npb] = "#" $2 "\t" $3; next }
     $1 == "SM" { if (!(($2, $3) in SMS)) { SMS[$2, $3] = 1; SMK[++nsm] = $2; SMN[nsm] = $3; SMC[nsm] = $4 } next }
@@ -525,6 +537,7 @@ triggers_() {
       # GM-4 K11: own work off, its move listed; each unanswered ticket ask with the command that decides it
       if (MN && OWK != "on") print "context", "own-work", "off", "own-work on \"<your words>\": until you name it, step 2 decides, asks and posts nothing"
       for (i = 1; i <= nca; i++) { n = CAO[i]; print "context", "ask", "#" n, CAC[i], "/vid:vid-accept-step " n " " CAC[i] }
+      for (i = 1; i <= ncu; i++) { split(CUO[i], a, "\t"); print "context", "unit-ask", "#" a[1], a[2], a[3], a[4] }   # FIX-BATCH-T2 (F-34)
       for (i = 1; i <= ncl; i++) print "context", "closed", CLO[i]   # FB-6 A1.3
       for (i = 1; i <= nrs; i++) print "context", "report", RSO[i]   # FB-3 A2
       if (TRP != "") print "context", "team-reports", TRP   # FB-3 A3

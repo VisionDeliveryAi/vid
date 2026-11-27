@@ -146,7 +146,7 @@ read when the team gives them, never asked.
 | `refused #<n> its issue could not be read: try again` (FB-6 A1.2) | Nothing was decided: GitHub's read of that closed ticket failed. Say so; the next call reads it again |
 | `context ask #<n> <c12> /vid:vid-accept-step <n> <c12>` | With own work off, say it with its command: the team asks ViD to decide ticket #<n> at <c12>, on its issue or its own pull request, and `/vid:vid-accept-step <n> <c12>` decides it |
 | `unit-merged <p> <ticket or ->` | Nothing: the unit's merge is on record, under the ticket its ticket line names; it decides and closes nothing |
-| `context unit-ask #<p> <ticket or -> <h12>` | Say it once: pull request #<p>, a piece's, asks; nothing is owed to it (FB-5 B1.5) |
+| `context unit-ask #<p> <ticket or -> <h12> [<words>]` | Say it once: pull request #<p>, a piece's, asks; nothing is owed to it (FB-5 B1.5). With own work off, /vid next's lines say it at each call, with its words: say them as they stand (FIX-BATCH-T2 F-34) |
 | `context no-ticket #<p>` | Say it once: merged pull request #<p> maps to no published ticket yet, so its decisions wait; they are read again at each call |
 | `decisions wait proposal` | Nothing: a re-plan analysis is fresh, so the dev side's decisions wait for it |
 
