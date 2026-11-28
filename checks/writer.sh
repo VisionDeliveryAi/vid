@@ -518,8 +518,9 @@ ticket() {
     printf '\n## Roles\n\n'; roles; printf '\n## Asks\n\n'; asks
   } > "$T/wf" || exit 1
   # FIX-BATCH-T2 (OW-3): every quoted line's words of lib.sh's list blanked (profx), as the export blanks them: an owner's last quoted
-  # reply in their own words, or a law, holding one never refuses the ticket, and never reaches the team
-  awk "$A1"' /^## / { s = substr($0, 4) } /^>/ { $0 = unptr($0); if (isr(s, $0)) $0 = unq($0); $0 = profx($0) } { print }' "$T/wf" > "$T/a1" || exit 1; put "$F" < "$T/a1" || exit 1   # Amendment 1
+  # reply in their own words, or a law, holding one never refuses the ticket, and never reaches the team. FIX-BATCH-T3 (§7): so are
+  # the title's (the step's name, from the plan) and the Header's stage line's (the stage's name, from STAGES.md), unquoted
+  awk "$A1"' /^## / { s = substr($0, 4) } /^>/ { $0 = unptr($0); if (isr(s, $0)) $0 = unq($0); $0 = profx($0) } NR == 1 || (s == "Header" && /^- stage: /) { $0 = profx($0) } { print }' "$T/wf" > "$T/a1" || exit 1; put "$F" < "$T/a1" || exit 1   # Amendment 1
   regtell
   { printf 'kind=%s step=%s rows=%s %sreached=%s rulings=%s fix=%s qhash=%s plan=%s base=%s export=%s\n' "$K" "$S" "$(paste -sd , "$T/ids")" "${RET:+retired=$(echo $RET | tr ' ' ,) }" "$(echo $REACH | tr ' ' ,)" "$(echo $RUL | tr ' ' ,)" "${FIXL:--}" "$(qhash "$F")" "$PH" "$BASE" "$EXP"
     [ -z "$AMW" ] || { printf 'why %s\n' "$AMW"; sed 's/^/tell /' "$T/tell"; }; for r in $(cat "$T/ids"); do printf 'sent %s %s\n' "$r" "$(rhash "$r")"; done; } > "$T/wm" || exit 1; put "${F%.md}.meta" < "$T/wm" || exit 1

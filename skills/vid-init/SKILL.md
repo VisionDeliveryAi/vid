@@ -259,7 +259,8 @@ Fill every template; no placeholder survives. Specifics that matter:
   - `vid-forbidden`: dependency/import tokens that must never appear in staged
     source additions. Pick tokens that will not legitimately occur otherwise
     (e.g. `sqlalchemy`, not `sql`). The court reads the project's own files,
-    never ViD's installed `checks/` (0.26.10.29.3, R7). Never narrow this block
+    never ViD's installed `checks/` (0.26.10.29.3, R7) nor `.claude/settings.json`,
+    the host settings step 6 writes (FIX-BATCH-T3 B-15). Never narrow this block
     to get a commit through: a term the project's own files must use is the
     owner's ruling, asked in plain words.
 - **DECISIONS.md** — seed with the real decisions made so far: stack choice,

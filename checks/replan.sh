@@ -203,6 +203,11 @@ reads_() {
 # judge <block>: the check's lines into $T/jo (breaches first: rule-1, rule-2, rule-4, rule-6; then size and builds), and into $T/side
 # what analyse reads: `moved\t<row>\t<from>\t<to>`, `no-step\t<row>`, `other-stage\t<row>\t<n>\t<stage>`, `topup\t<n>\t<row>\t<step>`;
 # $T/cs the candidate parsed, $T/cpm its PLAN.md. Needs reads_
+# pcargs_ <changes file> <target>: TG, EV and EX, the plan change's --trigger, --evidence and --expect as the apply passes them:
+# every line's triggers and evidence, each once, its expected effects joined; no line, scope-change on commit:<target>
+# (FIX-BATCH-T3 F-35: moved here from the apply, unchanged, so the check judges the very arguments the apply gives)
+pcargs_() { TG=$( { cut -f2 "$1" 2>/dev/null || :; } | tr ',' '\n' | grep . | awk '!s[$0]++' | paste -sd , -); EV=$( { cut -f3 "$1" 2>/dev/null || :; } | tr ',' '\n' | grep -v '^-*$' | awk '!s[$0]++' | paste -sd , -)
+  EX=$( { cut -f4 "$1" 2>/dev/null || :; } | grep . | paste -sd ';' - | sed 's/;/; /g'); [ -n "$TG" ] || { TG=scope-change; EV=commit:$(printf %.12s "$2"); }; [ -n "$EX" ] || EX='the plan as the re-plan proposal holds it'; }
 judge() {
   B=$1; D=$(dirname "$B"); [ -f "$B" ] || die "no candidate block at $B"
   awk "$BP" "$B" > "$T/cs"
@@ -286,6 +291,15 @@ judge() {
         if (bad != "") { br("rule-6", s, "\047" bad "\047 is no evidence reference in the forms plan.sh change takes"); continue }
         e = cex[s]; gsub(/^[ \t]+|[ \t]+$/, "", e); if (e == "") br("rule-6", s, "the change has no expected effect") }
       printf "%s%s%s%s%s", B["rule-1"], B["rule-2"], B["rule-4"], B["rule-6"], WN }' < /dev/null > "$T/jo"
+  # FIX-BATCH-T3 (F-35): the apply's own plan-change arguments for these changes (pcargs_, on the very bytes the apply reads: the
+  # stored proposal's own changes at the apply's gate, else a candidate's as the analysis will store them, carriage returns out),
+  # judged by plan.sh change's own code (plan.sh args) on the candidate's block; a refusal is a rule-6 break, so nothing the
+  # apply's plan change would refuse reaches the owner. Asked when the rules above break nothing (the check refuses already)
+  _pcf=$T/c-changes; [ "$(cd "$D" && pwd -P)" != "$(cd .vid/next/proposal 2>/dev/null && pwd -P)" ] || _pcf=$D/changes
+  if ! grep -q '^rule-' "$T/jo"; then pcargs_ "$_pcf" "$(cat "$D/target" 2>/dev/null || git rev-parse HEAD)"
+    if [ -n "$EV" ]; then set -- --evidence "$EV"; else set --; fi
+    sh "$HERE/plan.sh" args --block "$B" --trigger "$TG" "$@" --expect "$EX" > /dev/null 2> "$T/pa" ||
+      echo "rule-6 plan.sh change — $(grep -m 1 'refused' "$T/pa" | sed 's/^ViD plan: refused — //; s/;.*//' | grep . || sed -n 1p "$T/pa"): the apply would refuse it" >> "$T/jo"; fi
   touch "$T/side"
   # each top-up's size flag is writer.sh topup's, the one rule (GM-2 T6); this script only words it
   awk -F'\t' '$1 == "size" { print $2 "\t" $3 "\t" $4 "\t" $5 }' "$T/side" | while IFS="$TAB" read -r n k t s; do
@@ -485,8 +499,7 @@ Owner: \"$WD\"" -- PLAN.md > "$T/cm" 2>&1 || { sed 's/^/    /' "$T/cm" >&2; echo
   # at the target), the block and its plan change with the proposal's triggers, evidence and expected effects (none when the block
   # is the newest recorded plan), the review recorded, each finding the page showed kept in the owner's words, the planner's page and
   # the ratification
-  TG=$( { cut -f2 "$P/changes" 2>/dev/null || :; } | tr ',' '\n' | grep . | awk '!s[$0]++' | paste -sd , -); EV=$( { cut -f3 "$P/changes" 2>/dev/null || :; } | tr ',' '\n' | grep -v '^-*$' | awk '!s[$0]++' | paste -sd , -)
-  EX=$( { cut -f4 "$P/changes" 2>/dev/null || :; } | grep . | paste -sd ';' - | sed 's/;/; /g'); [ -n "$TG" ] || { TG=scope-change; EV=commit:$(printf %.12s "$TGT"); }; [ -n "$EX" ] || EX='the plan as the re-plan proposal holds it'
+  pcargs_ "$P/changes" "$TGT"   # FIX-BATCH-T3 (F-35): the one building of the plan change's arguments, the check's too
   if [ -n "$EV" ]; then set -- --evidence "$EV"; else set --; fi
   ! grep -q "^spec${TAB}STAGES.md${TAB}" "$P/pending" || set -- "$@" --stages "$TGT"
   if sh "$HERE/land.sh" step --block "$P/block" --if-new --why "the re-plan applied on the owner's yes: $WD" --trigger "$TG" "$@" --expect "$EX" --review "$P/review" --words "$WD" 2> "$T/lse"; then sed 's/^ViD land: //' "$T/lse" >&2

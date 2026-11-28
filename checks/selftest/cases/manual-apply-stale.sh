@@ -5,8 +5,10 @@
 # is refused (exit 4), naming the analysis to run again, and ViD's records (.vid/, the proposal and its page apart), the commit and
 # the working tree, and the fake GitHub (its every file) are byte for byte as before. Analysed again at the new HEAD, the proposal's
 # block is then edited to take ROW-013 out of S02 (a published row): the apply is refused at the check (exit 1), naming rule-2 and
-# ROW-013, and nothing is recorded, the same way. A proposal whose change cites a commit that does not exist passes
-# the check and refuses in the dry run (exit 1, naming it), nothing recorded; and a review written into the proposal after the
+# ROW-013, and nothing is recorded, the same way. A proposal whose change cites a commit that does not exist is refused at the
+# analysis (FIX-BATCH-T3 F-35: the check judges the apply's own arguments), a rule-6 line naming it, nothing recorded; a proposal changing PLAN.md, whose commit in the dry run a commit hook of the toy's
+# own refuses (the toy with its own git identity), passes the check and refuses in the dry run (exit 1, naming it), nothing
+# recorded; and a review written into the proposal after the
 # analysis, a finding its page never showed, refuses the apply (exit 1), showing the finding, nothing recorded. Env: CHECKS.
 set -eu
 unset CLAUDE_CODE_SESSION_ID VID_CALLER 2>/dev/null || true
@@ -39,12 +41,22 @@ snap "$T/s2"
 RC=0; sh "$CHECKS/replan.sh" apply --words 'Yes, apply it' > "$T/out" 2>&1 || RC=$?
 [ "$RC" = 1 ] && grep -q 'rule-2 ROW-013' "$T/out" || fail "the apply of a block taking ROW-013 out of #$N exited $RC, or named no rule-2 breach"
 snap "$T/s3"; cmp -s "$T/s2" "$T/s3" || { diff "$T/s2" "$T/s3" > "$T/out" || :; fail 'the apply refused at the check recorded something'; }
-# a proposal that passes the check and refuses in the dry run: its change's evidence names no commit
+# a proposal whose change's evidence names no commit: refused at the analysis, before the owner is asked (FIX-BATCH-T3 F-35)
 printf 'S02\tscope-change\tcommit:0123456789ab\tROW-021 joins #%s\n' "$N" > "$C/changes"
-sh "$CHECKS/replan.sh" analyse --candidate "$C" > "$T/out" 2>&1 || fail 'the analysis citing a missing commit was refused; the check reads only its form'
+snap "$T/s4"
+RC=0; sh "$CHECKS/replan.sh" analyse --candidate "$C" > "$T/out" 2>&1 || RC=$?
+[ "$RC" != 0 ] && grep -q '^rule-6 .*commit:0123456789ab' "$T/out" || fail "the analysis citing a missing commit exited $RC, or named no rule-6 line for it"
+snap "$T/s5"; cmp -s "$T/s4" "$T/s5" || { diff "$T/s4" "$T/s5" > "$T/out" || :; fail 'the analysis refused for a missing commit recorded something'; }
+# a proposal the check passes and the apply's dry run refuses: its PLAN.md, committed in the dry run, meets a commit hook of the
+# toy's own (outside ViD's scripts) that refuses every commit; the toy has its own git identity, so the machine does not matter
+cand; printf 'PLAN.md\tscope-change\tcommit:%s\tthe plan'"'"'s words follow the step\n' "$(git rev-parse --short HEAD)" >> "$C/changes"
+{ git show HEAD:PLAN.md 2>/dev/null || :; printf '\nThe digest step takes ROW-021 too.\n'; } > "$C/PLAN.md"
+pt_placed "$C/placement"; sh "$CHECKS/replan.sh" analyse --candidate "$C" > "$T/out" 2>&1 || fail 'the analysis of a proposal changing PLAN.md was refused'
+git config user.name vid; git config user.email vid@selftest; mkdir -p "$T/hk"; printf '#!/bin/sh\necho "the toy refuses every commit" >&2\nexit 1\n' > "$T/hk/pre-commit"; chmod +x "$T/hk/pre-commit"; git config core.hooksPath "$T/hk"
 snap "$T/s4"
 RC=0; sh "$CHECKS/replan.sh" apply --words 'Yes, apply it' > "$T/out" 2>&1 || RC=$?
-[ "$RC" = 1 ] && grep -q 'dry run' "$T/out" || fail "the apply whose plan change refuses in the dry run exited $RC, or did not name the dry run"
+git config --unset core.hooksPath; rm -f "$C/PLAN.md"
+[ "$RC" = 1 ] && grep -q 'dry run' "$T/out" || fail "the apply whose PLAN.md commit is refused in the dry run exited $RC, or did not name the dry run"
 snap "$T/s5"; cmp -s "$T/s4" "$T/s5" || { diff "$T/s4" "$T/s5" > "$T/out" || :; fail 'the apply refused in its dry run recorded something'; }
 # the review the apply records is the one the page showed: one changed after the analysis refuses, shown again
 cand; pt_placed "$C/placement"; sh "$CHECKS/replan.sh" analyse --candidate "$C" > "$T/out" 2>&1 || fail 'the third analysis was refused'

@@ -34,8 +34,9 @@ labeled() { # $1=row $2=label — value of a labeled field, empty if absent
 }
 
 # Staged added lines in app source. Never *.md; tests/ (the probe's own
-# artifact), checks/ (courts), design/ (spec), lockfile shapes (toolchain).
-ADDED=$(git diff --cached -U0 -- . ':(exclude)*.md' ':(exclude)tests/' ':(exclude)checks/' ':(exclude)design/' ':(exclude)*.lock' ':(exclude)*lock.json' ':(exclude)*lock.yaml' ':(exclude)*.sum' 2>/dev/null | grep '^+' | grep -v '^+++' || true)
+# artifact), checks/ (courts), design/ (spec), lockfile shapes (toolchain),
+# .claude/settings.json (FIX-BATCH-T3 B-15: the host settings init writes, that one path alone).
+ADDED=$(git diff --cached -U0 -- . ':(exclude)*.md' ':(exclude)tests/' ':(exclude)checks/' ':(exclude)design/' ':(exclude).claude/settings.json' ':(exclude)*.lock' ':(exclude)*lock.json' ':(exclude)*lock.yaml' ':(exclude)*.sum' 2>/dev/null | grep '^+' | grep -v '^+++' || true)
 [ -n "$ADDED" ] || exit 0
 
 FAIL=0

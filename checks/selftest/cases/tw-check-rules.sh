@@ -15,7 +15,9 @@
 # and D-042, toy-shaped, keep their other quotes and pass; a quote after the owner in no named form passes. v0.26.10.24.2: a
 # quoted path into ViD's checks/ is rewritten and refused like the other pointers; a product's own path and plain words are not. FB-7 C5: an
 # answer of two or three quoted replies is quoted whole, each left out, and the ticket passes; a quotation that is no answer, and one planted
-# back, read as before. Env: CHECKS.
+# back, read as before. FIX-BATCH-T3 (§7): a stage name of STAGES.md and a step name of the plan holding a word of
+# the list are written blanked in the title and the Header's stage line, the ticket passing; an amendment's --cause holding
+# one is still refused. Env: CHECKS.
 set -eu
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 . "$CHECKS/selftest/fixtures/tw-toy.sh"
@@ -42,6 +44,10 @@ D56='**D-056** REQ-006 the name confirmed by the owner as "Sparrow" | why: brand
 printf -- '- %s | enforced: convention\n- %s | enforced: convention\n' "$D56" "$D42" >> DECISIONS.md
 printf -- '- **D-013** REQ-006 the row is counted by checks/extractors/invariant.cap.sh, as `checks/test.sh` runs it | why: cost | enforced: convention\n- **D-014** REQ-006 the product'"'"'s src/checks/cap.py runs the health checks/alarms. | why: cost | enforced: convention\n' >> DECISIONS.md
 { [ -f CLAUDE.md ] && cat CLAUDE.md; printf '\n## Import law\n\n- Every import crosses a seam the table declares, damn the shortcut.\n'; } > "$T/cl" && cat "$T/cl" > CLAUDE.md; g add CLAUDE.md
+# FIX-BATCH-T3 (§7): S04's stage name in STAGES.md and S04's name in the plan each hold a word of the list
+sed 's/^STAGE-1 | The daily digest |/STAGE-1 | The damn daily digest |/' STAGES.md > "$T/st" && cat "$T/st" > STAGES.md
+pt_rs 's/^\(step S04 | name: \)limits,/\1damn limits,/'; grep -q '^step S04 | name: damn limits,' .vid/RUN-STATE.md || fail "S04's name was not planted"
+sh "$CHECKS/plan.sh" change other "S04's name as the toy plants it" --trigger initial --expect 'the names as written' > "$T/out" 2>&1 || fail "S04's name could not be recorded"
 g commit -qam 'owner words and records planted'; tw_ratify 'Yes, with D-005' || fail 'the toy was not ratified again'
 tw_skel || fail 'the skeleton round failed'; tw_closed S02; tw_closed S03; tw_start S04 || fail 'S04 was refused'
 F=$(sh "$W" write step S04 2> "$T/werr") || fail "S04's ticket was refused"
@@ -55,10 +61,15 @@ grep -qF '| A: the page says "one; two"; "three" follows | settles: REQ-006' "$F
 # FIX-BATCH-T2 (OW-3): an answer whose last reply holds a word of the list: that word blanked, as the export blanks it, and the ticket passes
 grep -qF '| A: "keep it (a word) simple" | settles: REQ-006' "$F" || fail "the last reply's word of the list is not blanked: $(grep 'A-305' "$F" | head -n 1)"
 grep -qF '> - Every import crosses a seam the table declares, (a word) the shortcut.' "$F" || fail "a law's word of the list is not blanked: $(grep 'Every import' "$F" | head -n 1)"
+grep -q '^# Step ticket S04: (a word) limits,' "$F" || fail "the title's word of the list is not blanked: $(sed -n 1p "$F")"
+grep -qx -- '- stage: 1, The (a word) daily digest' "$F" || fail "the stage name's word of the list is not blanked: $(grep '^- stage:' "$F")"
 ! grep -qi 'damn' "$F" || fail 'a word of the list reaches the ticket'
 # and an amendment of the posted ticket, its laws unchanged, does not say the laws it quotes changed
 cp "$F" "$T/s04.md"; cp "${F%.md}.meta" "$T/s04.meta"; tw_post step S04 || fail "S04's ticket could not be posted"; AM=$(sh "$W" write amend "$TW_N" 2> "$T/werr") || fail "the amendment of #$TW_N was refused"
 ! grep -q 'the laws it quotes changed' "$AM" "${AM%.md}.meta" || fail 'an unchanged law holding a word of the list reads as changed'
+# FIX-BATCH-T3 (§7, §9): an amendment's --cause words are not blanked: one holding a word of the list is still refused
+RC=0; sh "$W" write amend "$TW_N" --cause 'a damn cause' > "$T/out" 2>&1 || RC=$?
+[ "$RC" != 0 ] && grep -q 'profanity — damn' "$T/out" || fail "an amendment whose --cause holds a word of the list was not refused ($RC)"
 cp "$T/s04.md" "$F"; cp "$T/s04.meta" "${F%.md}.meta"
 grep -q 'ten is plenty\|ten, final\|milestones-prelim\|claude\.ai' "$F" && fail "the owner's words or a pointer reach the ticket"
 grep -qF '> - **D-006** REQ-006 the message is "ten saved", as recorded in (ViD'"'"'s records). | why: clarity' "$F" || fail 'an artifact id with a full stop after it is not rewritten'

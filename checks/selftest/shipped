@@ -111,6 +111,7 @@ cost-shell-target.sh
 court-counts-open-oq.sh
 court-refuses-crlf.sh
 court-timing.sh
+courts-skip-settings.sh
 coverage-deploy-owed.sh
 coverage-questions-vid.sh
 coverage-receipt.sh
@@ -212,6 +213,7 @@ findings-pass-final-accepted.sh
 findings-pass-strength-accepted.sh
 findings-target-answer.sh
 fix-population-hold.sh
+form-name-blanked.sh
 frozen-compose.sh
 frozen-scoped.sh
 gate-scope.sh
@@ -498,6 +500,7 @@ refused-commit-msg.sh
 refused-pre-commit.sh
 replan-apply-spec-publish.sh
 replan-apply-tw-hand.sh
+replan-ref-resolves.sh
 replan-shared.sh
 request-both-passes.sh
 request-detached.sh

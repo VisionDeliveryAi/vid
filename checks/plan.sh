@@ -155,7 +155,8 @@
 #                      gate-refusal unknown; any but initial and unknown needs
 #                      a reference. A reference must exist: receipt:<name>[#<case>]
 #                      (a file in .vid/ledger-results/, the case in its .cases),
-#                      question:Q<n> (a `question n=<n>` event), agent:<id> (an
+#                      question:Q<n> (a `question n=<n>` event, or the owner's
+#                      list's `queue-asked Q<n>`, FIX-BATCH-T3 F-35), agent:<id> (an
 #                      `agent-start` event), refusal:<attempt> (a `refused`
 #                      event), step:<id> (a step of the candidate or the last
 #                      accepted plan), commit:<sha>. Accepted or refused, the
@@ -171,6 +172,12 @@
 #                      its recorded hash; an accepted change's `plan-change`
 #                      carries decision=<id>. Outside the gate, a note as
 #                      before, whatever the arguments.
+#   args --block <file> --trigger <t>[,<t>…] [--evidence <ref>[,<ref>…]] --expect "<one line>" [--alternatives "<one line>"]
+#                      FIX-BATCH-T3 (F-35): change's decision arguments judged
+#                      read only, as change judges them (decide_args), with the
+#                      block given as the candidate: its refusal on stderr and
+#                      exit 1, else exit 0. Writes nothing; needs no gate. The
+#                      re-plan's check runs it on the apply's own arguments.
 #   charged            every row that ever belonged to a started step, as
 #                      `<row> <step> <plan hash>` — rebuilt from the events
 #                      and .vid/plans/, never from RUN-STATE.
@@ -302,7 +309,7 @@
 set -u
 IFS='
 '
-usage() { echo 'ViD plan: usage — sh checks/plan.sh gate | home-of | home --brief <f> | check | change <what> "<why>" --trigger <t>[,<t>…] [--evidence <ref>[,<ref>…]] --expect "<one line>" [--alternatives "<one line>"] [--not-needed-by <id>[,<id>…] "<why>"] | strategy <depth-first|breadth-first> --by owner --words "<the owner'"'"'s words>" | start <id> | admit --brief <f> | map [--all] | charged | base <id> | parse [<file>] | redstamp --staged | skeleton | guard --paths - | run-start | canon | warnings <step>… | admit <step>' >&2; exit 2; }
+usage() { echo 'ViD plan: usage — sh checks/plan.sh gate | home-of | home --brief <f> | check | change <what> "<why>" --trigger <t>[,<t>…] [--evidence <ref>[,<ref>…]] --expect "<one line>" [--alternatives "<one line>"] [--not-needed-by <id>[,<id>…] "<why>"] | args --block <f> --trigger <t> [--evidence <refs>] --expect "<one line>" | strategy <depth-first|breadth-first> --by owner --words "<the owner'"'"'s words>" | start <id> | admit --brief <f> | map [--all] | charged | base <id> | parse [<file>] | redstamp --staged | skeleton | guard --paths - | run-start | canon | warnings <step>… | admit <step>' >&2; exit 2; }
 top() { git rev-parse --show-toplevel 2>/dev/null || pwd -P; }
 # bound_here <home>: this checkout's branch has a live agent or an unfinished Codex job of the run at <home> bound to it
 # (v0.26.10.3 R8, R10: checks/testenv.sh bound, the one liveness rule; without it, nothing is bound)
@@ -831,7 +838,8 @@ ref_ok() {
       case "$_n" in ''|*/*|.*) return 1 ;; esac
       [ -f "$H/.vid/ledger-results/$_n" ] || return 1
       [ -z "$_c" ] || awk -v c="$_c" '$1 == "case" && $2 == c { f = 1 } END { exit f ? 0 : 1 }' "$H/.vid/ledger-results/$_n.cases" 2>/dev/null ;;
-    question:Q*) _q=${1#question:Q}; [ -n "$_q" ] && events question | awk -v q="$_q" "$AWKAT"' kv("n") == q { f = 1 } END { exit f ? 0 : 1 }' ;;
+    question:Q*) _q=${1#question:Q}; [ -n "$_q" ] || return 1   # FIX-BATCH-T3 (F-35): develop's question event, or the owner's list's Q<n>
+      events question | awk -v q="$_q" "$AWKAT"' kv("n") == q { f = 1 } END { exit f ? 0 : 1 }' || events queue-asked | awk -v q="Q$_q" '$2 == q { f = 1 } END { exit f ? 0 : 1 }' ;;
     agent:*) _a=${1#agent:}; [ -n "$_a" ] && events agent-start | awk -v a="$_a" "$AWKAT"' kv("agent") == a { f = 1 } END { exit f ? 0 : 1 }' ;;
     refusal:*) _a=${1#refusal:}; [ -n "$_a" ] && events refused | awk -v a="$_a" "$AWKAT"' kv("attempt") == a { f = 1 } END { exit f ? 0 : 1 }' ;;
     step:*)
@@ -1063,6 +1071,23 @@ need_gate() { # $1=what: inside the gate H is set; ambiguous, refused; outside, 
 }
 
 case "${1:-}" in
+  args)   # FIX-BATCH-T3 (F-35): decide_args read only, as change runs it, the block given standing for RUN-STATE's
+    shift; BLK=''; TRIG=''; EVID=''; EXPECT=''; ALTS=''; ARGERR=''
+    while [ $# -gt 0 ]; do
+      case "$1" in
+        --block|--trigger|--evidence|--expect|--alternatives)
+          if [ $# -lt 2 ]; then ARGERR="$1 has no value"; shift; continue; fi
+          case "$1" in --block) BLK=$2 ;; --trigger) TRIG=$2 ;; --evidence) EVID=$2 ;; --expect) EXPECT=$2 ;; --alternatives) ALTS=$2 ;; esac
+          shift 2 ;;
+        *) ARGERR="'$1' is no argument of plan.sh args"; shift ;;
+      esac
+    done
+    [ -n "$BLK" ] && [ -f "$BLK" ] || usage
+    H=$(home_of 2>/dev/null) || H=$(top)
+    # the block as change reads it once the landing has put it in RUN-STATE's plan fence (land.sh pchange): through block()
+    tmpd; { printf '## The plan\n\n```vid-plan\n'; cat "$BLK"; printf '```\n'; } > "$TMPD/rs"; block "$TMPD/rs" > "$TMPD/block"
+    PREV=$(events plan-change | tail -n 1 | awk "$AWKAT"' { print kv("hash") }'); PREV=${PREV:-none}
+    decide_args; exit $? ;;
   gate)
     H=$(home_of); _hrc=$?
     case "$_hrc" in

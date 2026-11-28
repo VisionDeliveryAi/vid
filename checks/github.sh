@@ -548,7 +548,8 @@ formfill() {
   awk 'function kv(k,   i) { for (i = 3; i <= NF; i++) if (index($i, k "=") == 1) return substr($i, length(k) + 2); return "" }
     $1 == "withdrawn" { W[$2] = 1 } $1 == "published" && $2 ~ /^[0-9]+$/ && !($2 in S) { S[$2] = kv("step"); O[++n] = $2 }
     END { for (i = 1; i <= n; i++) if (!(O[i] in W)) print O[i] "\t" S[O[i]] }' .vid/tw/log 2>/dev/null > "$W/ftk" || :
-  _fn=$(awk -F'\t' -v s="$_fs" '$1 == s { print $2 }' "$W/fs"); _fb=$(awk -F'\t' -v s="$_fs" '$1 == s { print $3 }' "$W/fs")
+  _fn=$(awk -F'\t' -v s="$_fs" '$1 == s { print $2 }' "$W/fs" | awk "$PROF"' { print profx($0) }')   # FIX-BATCH-T3 (§7): {name}, the plan's, its words of lib.sh's list blanked as the ticket's title
+  _fb=$(awk -F'\t' -v s="$_fs" '$1 == s { print $3 }' "$W/fs")
   _fl=$(awk -F'\t' -v s="$_fs" '$1 == s { print $4 }' "$W/fs"); _fk=$(awk -F'\t' -v s="$_fs" '$1 == s { print $5 }' "$W/fs")
   : > "$W/fbl"; _fy=''; for _b in $(printf '%s\n' "$_fb" | tr ' ' '\n' | grep -v '^$'); do _t=$(awk -F'\t' -v s="$_b" '$2 == s { print $1 }' "$W/ftk")
     if [ -n "$_t" ]; then printf '%s\n' "$_t" >> "$W/fbl"; else _fy="$_fy${_fy:+, }$_b"; fi; done
